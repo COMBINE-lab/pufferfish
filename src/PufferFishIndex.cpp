@@ -69,6 +69,9 @@ int main(int argc, char* argv[]) {
 			 keys.push_back(km);
 			 for (size_t i = 0;  i < r1.length(); ++i) {
 				 auto offset = r1.length() - i - 1;
+				 // NOTE: Having to add things in the reverse order here is strange 
+				 // we should make sure that this doesn't mess with the positions we
+				 // end up storing!
 				 seqVec[gpos + offset] = my_mer::code(r1[i]);
 				 if (i >= k) { 
 					 mer.shift_left(r1[i]);
