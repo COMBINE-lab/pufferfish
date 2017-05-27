@@ -71,18 +71,18 @@ int main(int argc, char* argv[]) {
 				 auto offset = r1.length() - i - 1;
 				 seqVec[gpos + offset] = my_mer::code(r1[i]);
 				 if (i >= k) { 
+					 mer.shift_left(r1[i]);
+					 km = mer.get_canonical().word(0);
+					 keys.push_back(km);
 					 my_mer mm;
-					 //mm.word__(0) = seqVec.get_int(2*gpos - 2*k, 2*k);
-					 uint64_t num = seqVec.get_int(2*(gpos + offset + 1), 2*k);
+					 uint64_t num = seqVec.get_int(2*(gpos + offset), 2*k);
 					 mm.word__(0) = num; mm.canonicalize();
 					 if (mm != mer.get_canonical()) {
 					 std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
 					 std::cerr << "i = " << i << "\n";
 					 std::cerr << mer.to_str() << ", " << mm.to_str() <<"\n";
 					 }
-					 mer.shift_left(r1[i]);
-					 km = mer.get_canonical().word(0);
-					 keys.push_back(km);
+
 				 }
 				 //++gpos;
 			 }
@@ -103,21 +103,25 @@ int main(int argc, char* argv[]) {
 	 size_t tlen2{0};
 	 {
 		 size_t i = 0;
-         while (i < seqVec.size() - k) {
-		 uint64_t fk = seqVec.get_int(2*i, 2*k);
-		 my_mer fkm; fkm.word__(0) = fk; fkm.canonicalize();
-		 auto idx = bphf->lookup(fkm.word(0));
-		 if (idx > posVec.size()) { std::cerr << "i =  " << i << ", size = " << seqVec.size() << ", idx = " << idx << ", size = " << posVec.size() << "\n";}
-		 posVec[idx] = i;
-		 if (rankVec[i + k] == 1) {
-			 i += k;
-		 } else {
-			 ++i;
+		 my_mer fkm;
+		 my_mer fkc;
+		 while (i < seqVec.size() - k) {
+
+			 uint64_t fk = seqVec.get_int(2*i, 2*k);
+			 fkm.word__(0) = fk; fkm.canonicalize();
+			 auto idx = bphf->lookup(fkm.word(0));
+			 if (idx > posVec.size()) { std::cerr << "i =  " << i << ", size = " << seqVec.size() << ", idx = " << idx << ", size = " << posVec.size() << "\n";}
+			 posVec[idx] = i;
+			 if (rankVec[i + k] == 1) {
+				 i += k;
+			 } else { 
+				 ++i;
+			 }
 		 }
 	 }
-	}
 
 	 size_t N = keys.size();
+	 size_t S = seqVec.size();
 	 size_t found = 0;
 	 size_t notFound = 0;
 	{
@@ -131,7 +135,7 @@ int main(int argc, char* argv[]) {
 		 // Here, rg will contain a chunk of read pairs
 		 // we can process.
 		 for (auto& rp : rg) {
-			 if (rn % 100000 == 0) { 
+			 if (rn % 500000 == 0) { 
 				 std::cerr << "rn : " << rn << "\n"; 
 				 std::cerr << "found = " << found << ", notFound = " << notFound << "\n";
 			 }
@@ -142,7 +146,7 @@ int main(int argc, char* argv[]) {
 			 auto km = mer.get_canonical().word(0); 
 			 size_t res = bphf->lookup(km);
 			 uint64_t pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
-			 if ( pos < N - k) { 
+			 if ( pos < S - k) { 
 				 uint64_t fk = seqVec.get_int(2*pos, 62);
 				 my_mer fkm;
 				 fkm.word__(0) = fk; fkm.canonicalize();
@@ -151,6 +155,7 @@ int main(int argc, char* argv[]) {
 					 //std::cerr << "found = " << found << ", not found = " << notFound << "\n";
 					 notFound += 1; }
 			 } else {
+				 //std::cerr << "pos = " << pos << "\n";
 				 notFound += 1;
 			 }
 			 /*
