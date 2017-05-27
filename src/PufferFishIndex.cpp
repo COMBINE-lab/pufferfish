@@ -15,10 +15,11 @@ uint64_t swap_uint64( uint64_t val )
 
 int main(int argc, char* argv[]) {
 	std::vector<std::string> contig_file = {argv[1]};
-	std::vector<std::string> read_file = {argv[1]};
+	std::vector<std::string> read_file = {argv[2]};
 	size_t tlen{0};	
 	size_t numKmers{0};
 	size_t k{31};
+	size_t nread{0};
 	using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
 	my_mer::k(k);
 		{
@@ -34,8 +35,10 @@ int main(int argc, char* argv[]) {
 			 auto& r1 = rp.seq;
 			 tlen += r1.length();
 			 numKmers += r1.length() - k + 1;
+			 ++nread;
 		 }
 	 }
+	 std::cerr << "numread = " << nread << "\n";
 	 std::cerr << "tlen = " << tlen << "\n";
 	}
 	// now we know the size we need --- create our bitvectors and pack!
@@ -65,17 +68,25 @@ int main(int argc, char* argv[]) {
 			 uint64_t km = mer.get_canonical().word(0);
 			 keys.push_back(km);
 			 for (size_t i = 0;  i < r1.length(); ++i) {
-				 seqVec[gpos] = my_mer::code(r1[i]);
+				 auto offset = r1.length() - i - 1;
+				 seqVec[gpos + offset] = my_mer::code(r1[i]);
 				 if (i >= k) { 
 					 my_mer mm;
-					 mm.word__(0) = seqVec.get_int(2*gpos - 2*k, 2*k);
+					 //mm.word__(0) = seqVec.get_int(2*gpos - 2*k, 2*k);
+					 uint64_t num = seqVec.get_int(2*(gpos + offset + 1), 2*k);
+					 mm.word__(0) = num; mm.canonicalize();
+					 if (mm != mer.get_canonical()) {
+					 std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
+					 std::cerr << "i = " << i << "\n";
 					 std::cerr << mer.to_str() << ", " << mm.to_str() <<"\n";
+					 }
 					 mer.shift_left(r1[i]);
 					 km = mer.get_canonical().word(0);
 					 keys.push_back(km);
 				 }
-				 ++gpos;
+				 //++gpos;
 			 }
+			 gpos += r1.length();
 			 tlen += r1.length();
 		 }
 	 }
@@ -84,21 +95,24 @@ int main(int argc, char* argv[]) {
 	 std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
 	 std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
 	 std::cerr << "num keys = " << keys.size() << "\n";
-	 typedef boomphf::SingleHashFunctor<u_int64_t>  hasher_t;
-	 typedef boomphf::mphf<  u_int64_t, hasher_t  > boophf_t;
-	 boophf_t * bphf = new boomphf::mphf<u_int64_t,hasher_t>(keys.size(), keys, 16);
+	 typedef boomphf::SingleHashFunctor<uint64_t>  hasher_t;
+	 typedef boomphf::mphf<  uint64_t, hasher_t  > boophf_t;
+	 boophf_t * bphf = new boophf_t(keys.size(), keys, 16);
 	 std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2,20) << "\n";
 	 size_t kstart{0};
 	 size_t tlen2{0};
 	 {
-         for (size_t i = 0; i < seqVec.size() - k; ++i) {
+		 size_t i = 0;
+         while (i < seqVec.size() - k) {
 		 uint64_t fk = seqVec.get_int(2*i, 2*k);
 		 my_mer fkm; fkm.word__(0) = fk; fkm.canonicalize();
 		 auto idx = bphf->lookup(fkm.word(0));
-		 if (idx > posVec.size()) { std::cerr << "idx = " << idx << ", size = " << posVec.size() << "\n";}	
-		 posVec[idx] = kstart;
+		 if (idx > posVec.size()) { std::cerr << "i =  " << i << ", size = " << seqVec.size() << ", idx = " << idx << ", size = " << posVec.size() << "\n";}
+		 posVec[idx] = i;
 		 if (rankVec[i + k] == 1) {
 			 i += k;
+		 } else {
+			 ++i;
 		 }
 	 }
 	}
@@ -117,7 +131,10 @@ int main(int argc, char* argv[]) {
 		 // Here, rg will contain a chunk of read pairs
 		 // we can process.
 		 for (auto& rp : rg) {
-			 if (rn % 500000 == 0) { std::cerr << "rn : " << rn << "\n"; }
+			 if (rn % 100000 == 0) { 
+				 std::cerr << "rn : " << rn << "\n"; 
+				 std::cerr << "found = " << found << ", notFound = " << notFound << "\n";
+			 }
 			 ++rn;
 			 auto& r1 = rp.seq;
 			 my_mer mer;
@@ -126,26 +143,31 @@ int main(int argc, char* argv[]) {
 			 size_t res = bphf->lookup(km);
 			 uint64_t pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
 			 if ( pos < N - k) { 
-				 std::cerr << "pos = " << pos << "\n";
-				 uint64_t fk = seqVec.get_int(pos, 62);
-				 if ( fk == km ) { found += 1; } else { 
-					 my_mer fkm;
-					 fkm.word__(0) = fk;
-					 std::cerr << "fk = " << fkm.get_canonical().to_str() << ", km = " << mer.get_canonical().to_str() << "\n";
+				 uint64_t fk = seqVec.get_int(2*pos, 62);
+				 my_mer fkm;
+				 fkm.word__(0) = fk; fkm.canonicalize();
+				 if ( km == fkm.word__(0) ) { found += 1; } else { 
+					 //std::cerr << "fk = " << fkm.get_canonical().to_str() << ", km = " << mer.get_canonical().to_str() << "\n";
+					 //std::cerr << "found = " << found << ", not found = " << notFound << "\n";
 					 notFound += 1; }
+			 } else {
+				 notFound += 1;
 			 }
+			 /*
 			 for (size_t i = k;  i < r1.length(); ++i) {
 				mer.shift_left(r1[i]);
 			 	km = mer.get_canonical().word(0); 
 			 	res = bphf->lookup(km);
 			 	pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
 				 if ( pos < N - k) { 
-					 uint64_t fk = seqVec.get_int(pos, 62);
+					 uint64_t fk = seqVec.get_int(2*pos, 62);
 					 if ( fk == km ) { found += 1; } else { notFound += 1; }
 				 }
 			 }
+			 */
 		 }
 	 }
 	}
 	std::cerr << "found = " << found << ", not found = " << notFound << "\n";
+	return 0;
 }
