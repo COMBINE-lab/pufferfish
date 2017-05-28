@@ -2,6 +2,8 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <iterator>
+#include <type_traits>
 #include "sdsl/int_vector.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "BooPHF.h"
@@ -13,14 +15,54 @@ uint64_t swap_uint64( uint64_t val )
 		    return (val << 32) | (val >> 32);
 }
 
+using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
+
+// adapted from :
+// http://stackoverflow.com/questions/34875315/implementation-my-own-list-and-iterator-stl-c
+class ContigKmerIterator {
+	public:
+		typedef ContigKmerIterator self_type;
+		typedef uint64_t value_type;
+		typedef value_type& reference;
+		typedef value_type* pointer;
+		typedef std::forward_iterator_tag iterator_category;
+		typedef int64_t difference_type;
+
+		ContigKmerIterator(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
+			storage_(storage), rank_(rank), k_(k), curr_(startAt) {}
+		ContigKmerIterator operator++() { ContigKmerIterator i = *this; advance_(); return i; }
+		ContigKmerIterator operator++(int) { advance_(); return *this; }
+		reference operator*() { mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return word_; }
+		pointer operator->() { mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return &word_; }
+		bool operator==(const self_type& rhs) { return curr_ == rhs.curr_; }
+		bool operator!=(const self_type& rhs) { return curr_ != rhs.curr_; }
+		bool operator<(const self_type& rhs) { return curr_ < rhs.curr_; }
+		bool operator<=(const self_type& rhs) { return curr_ <= rhs.curr_; }
+
+	private:
+		void advance_() {
+			size_t endPos = curr_ + k_;
+			if (endPos < rank_->size() and (*rank_)[endPos] == 1) {
+				curr_ += k_;
+			} else {
+				++curr_;
+			}
+		}
+		sdsl::int_vector<>* storage_;
+		sdsl::bit_vector* rank_;
+		uint8_t k_;
+		uint64_t curr_;
+		my_mer mer_;
+		uint64_t word_{0};
+};
+
 int main(int argc, char* argv[]) {
 	std::vector<std::string> contig_file = {argv[1]};
 	std::vector<std::string> read_file = {argv[2]};
 	size_t tlen{0};	
 	size_t numKmers{0};
-	size_t k{31};
+	uint8_t k{31};
 	size_t nread{0};
-	using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
 	my_mer::k(k);
 		{
 	fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(contig_file, 1, 1);
@@ -49,8 +91,9 @@ int main(int argc, char* argv[]) {
 	sdsl::int_vector<> posVec(tlen, 0, w);
 	sdsl::bit_vector rankVec(tlen);
 	tlen = 0;
-	std::vector<uint64_t> keys;
-	keys.reserve(numKmers);
+	//std::vector<uint64_t> keys;
+	//keys.reserve(numKmers);
+	size_t nkeys{0};
 	{
 	fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(contig_file, 1, 1);
 	parser.start();
@@ -66,7 +109,8 @@ int main(int argc, char* argv[]) {
 			 my_mer mer;
 			 mer.from_chars(r1.begin());
 			 uint64_t km = mer.get_canonical().word(0);
-			 keys.push_back(km);
+			 //keys.push_back(km);
+			 ++nkeys;
 			 for (size_t i = 0;  i < r1.length(); ++i) {
 				 auto offset = r1.length() - i - 1;
 				 // NOTE: Having to add things in the reverse order here is strange 
@@ -76,7 +120,8 @@ int main(int argc, char* argv[]) {
 				 if (i >= k) { 
 					 mer.shift_left(r1[i]);
 					 km = mer.get_canonical().word(0);
-					 keys.push_back(km);
+  			 		 ++nkeys;
+					 //keys.push_back(km);
 					 my_mer mm;
 					 uint64_t num = seqVec.get_int(2*(gpos + offset), 2*k);
 					 mm.word__(0) = num; mm.canonicalize();
@@ -97,10 +142,14 @@ int main(int argc, char* argv[]) {
 	 std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
 	 std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
 	 std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
-	 std::cerr << "num keys = " << keys.size() << "\n";
+	 std::cerr << "num keys = " << nkeys << "\n";
 	 typedef boomphf::SingleHashFunctor<uint64_t>  hasher_t;
 	 typedef boomphf::mphf<  uint64_t, hasher_t  > boophf_t;
-	 boophf_t * bphf = new boophf_t(keys.size(), keys, 16);
+
+	 ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
+	 ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size());
+	 auto keyIt = boomphf::range(kb, ke);
+	 boophf_t * bphf = new boophf_t(nkeys, keyIt, 16);//keys.size(), keys, 16);
 	 std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2,20) << "\n";
 	 size_t kstart{0};
 	 size_t tlen2{0};
@@ -123,7 +172,7 @@ int main(int argc, char* argv[]) {
 		 }
 	 }
 
-	 size_t N = keys.size();
+	 size_t N = nkeys;//keys.size();
 	 size_t S = seqVec.size();
 	 size_t found = 0;
 	 size_t notFound = 0;
