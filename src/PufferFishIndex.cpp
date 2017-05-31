@@ -32,7 +32,10 @@ class ContigKmerIterator {
 			storage_(storage), rank_(rank), k_(k), curr_(startAt) {}
 		ContigKmerIterator operator++() { ContigKmerIterator i = *this; advance_(); return i; }
 		ContigKmerIterator operator++(int) { advance_(); return *this; }
-		reference operator*() { mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return word_; }
+		reference operator*() { mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); 
+			return word_; 
+		}
+		difference_type pos() { return curr_; }
 		pointer operator->() { mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return &word_; }
 		bool operator==(const self_type& rhs) { return curr_ == rhs.curr_; }
 		bool operator!=(const self_type& rhs) { return curr_ != rhs.curr_; }
@@ -147,7 +150,10 @@ int main(int argc, char* argv[]) {
 	 typedef boomphf::mphf<  uint64_t, hasher_t  > boophf_t;
 
 	 ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
-	 ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size());
+	 ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+	 auto ks = kb;
+	 size_t nkeyIt{0}; for (; ks != ke; ++ks) { nkeyIt++; }
+	 std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
 	 auto keyIt = boomphf::range(kb, ke);
 	 boophf_t * bphf = new boophf_t(nkeys, keyIt, 16);//keys.size(), keys, 16);
 	 std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2,20) << "\n";
@@ -157,18 +163,24 @@ int main(int argc, char* argv[]) {
 		 size_t i = 0;
 		 my_mer fkm;
 		 my_mer fkc;
-		 while (i < seqVec.size() - k) {
-
-			 uint64_t fk = seqVec.get_int(2*i, 2*k);
-			 fkm.word__(0) = fk; fkm.canonicalize();
-			 auto idx = bphf->lookup(fkm.word(0));
-			 if (idx > posVec.size()) { std::cerr << "i =  " << i << ", size = " << seqVec.size() << ", idx = " << idx << ", size = " << posVec.size() << "\n";}
-			 posVec[idx] = i;
-			 if (rankVec[i + k] == 1) {
-				 i += k;
-			 } else { 
-				 ++i;
-			 }
+		 ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
+		 ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+		 //while (i <= seqVec.size() - k) {
+		 for (; kb1 != ke1; ++kb1) {
+			 //i = kb1.pos();
+			 //uint64_t fk = seqVec.get_int(2*i, 2*k);
+			 //fkm.word__(0) = fk; fkm.canonicalize();
+			 auto idx = bphf->lookup(*kb1);//fkm.word(0));
+			 if (idx >= posVec.size()) { std::cerr << "i =  " << i << ", size = " << seqVec.size() << ", idx = " << idx << ", size = " << posVec.size() << "\n";}
+			 posVec[idx] = kb1.pos();
+			/* 
+			size_t endPos = i + k;
+			if (endPos < rankVec.size() and rankVec[endPos] == 1) {
+				i += k;
+			} else {
+				++i;
+			}
+			*/
 		 }
 	 }
 
@@ -198,30 +210,35 @@ int main(int argc, char* argv[]) {
 			 auto km = mer.get_canonical().word(0); 
 			 size_t res = bphf->lookup(km);
 			 uint64_t pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
-			 if ( pos < S - k) { 
-				 uint64_t fk = seqVec.get_int(2*pos, 62);
+			 if (pos <= S - k) { 
+				 uint64_t fk = seqVec.get_int(2*pos, 2*k);
 				 my_mer fkm;
 				 fkm.word__(0) = fk; fkm.canonicalize();
 				 if ( km == fkm.word__(0) ) { found += 1; } else { 
-					 //std::cerr << "fk = " << fkm.get_canonical().to_str() << ", km = " << mer.get_canonical().to_str() << "\n";
+					 //std::cerr << "rn = " << rn - 1 << ", fk = " << fkm.get_canonical().to_str() << ", km = " << mer.get_canonical().to_str() << ", pkmer = " << pkmer <<" \n";
 					 //std::cerr << "found = " << found << ", not found = " << notFound << "\n";
 					 notFound += 1; }
 			 } else {
-				 //std::cerr << "pos = " << pos << "\n";
+				 //std::cerr << "pos = " << pos << ", shouldn't happen\n";
 				 notFound += 1;
 			 }
-			 /*
+			 
 			 for (size_t i = k;  i < r1.length(); ++i) {
 				mer.shift_left(r1[i]);
 			 	km = mer.get_canonical().word(0); 
 			 	res = bphf->lookup(km);
 			 	pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
-				 if ( pos < N - k) { 
+				 if ( pos <= S - k) { 
 					 uint64_t fk = seqVec.get_int(2*pos, 62);
-					 if ( fk == km ) { found += 1; } else { notFound += 1; }
+					 my_mer fkm;
+					 fkm.word__(0) = fk; fkm.canonicalize();
+					 if ( km == fkm.word__(0) ) { found += 1; } else { notFound += 1; }
+				 } else {
+				 	//std::cerr << "pos = " << pos << ", shouldn't happen\n";
+					 notFound += 1;
 				 }
 			 }
-			 */
+			 
 		 }
 	 }
 	}
