@@ -7,6 +7,7 @@
 #include "sdsl/int_vector.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "BooPHF.h"
+#include "OurGFAReader.hpp"
 
 //#include "gfakluge.hpp"
 
@@ -69,6 +70,10 @@ int main(int argc, char* argv[]) {
 	uint8_t k{31};
 	size_t nread{0};
 	my_mer::k(k);
+	
+	PosFinder pf(argv[3], 30);
+	pf.parseFile();	
+	pf.mapContig2Pos();
 	
 /*
 	auto gg = gfak::GFAKluge();
