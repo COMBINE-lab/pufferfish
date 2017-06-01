@@ -7,6 +7,7 @@
 #include "sdsl/int_vector.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "BooPHF.h"
+#include "gfakluge.hpp"
 
 uint64_t swap_uint64( uint64_t val )
 {
@@ -67,6 +68,14 @@ int main(int argc, char* argv[]) {
 	uint8_t k{31};
 	size_t nread{0};
 	my_mer::k(k);
+
+	auto gg = gfak::GFAKluge();
+	gg.parse_gfa_file(contig_file[0]); 	
+	auto seqs = gg.get_name_to_seq();
+	for (auto& kv : seqs) {
+		std::cerr << "k = " << kv.first << ", " << kv.second.id << "\n";
+	}
+	std::exit(1);
 		{
 	fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(contig_file, 1, 1);
 	parser.start();

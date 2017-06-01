@@ -5,6 +5,8 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include "string_view.hpp"
+#include "sparsepp/spp.h"
 
 class PosFinder {
 	private:
@@ -14,10 +16,11 @@ class PosFinder {
 			std::string seq;
 			std::string id;
 		};
-		std::map<std::string, long> contigid2cnt;
+		spp::sparse_hash_map<std::string, long> contigid2cnt;//std::map<std::string, long> contigid2cnt;
 		//orientation : + main, - reverse
 		//std::map<std::pair<long, long>, short> link;
-		std::map<std::string, std::vector< std::pair<std::string, bool> > > path;
+		//std::map<std::string, std::vector< std::pair<std::string, bool> > > path;
+		spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > > path;
 
 		struct Position {
 			std::string transcript_id;
@@ -30,13 +33,16 @@ class PosFinder {
 				orien = torien;
 			}
 		};
+
+		//std::vector<std::
+
 		// maps each contig to a list of positions in different transcripts
 
-		std::vector<std::pair<std::string, bool> > explode(const std::string& str, const char& ch) {
+		std::vector<std::pair<std::string, bool> > explode(const stx::string_view str, const char& ch) {
 				std::string next;
 				std::vector< std::pair<std::string, bool> > result;
 				// For each character in the string
-				for (std::string::const_iterator it = str.begin(); it != str.end(); it++) {
+				for (auto it = str.begin(); it != str.end(); it++) {
 					// If we've hit the terminal character
 					if (*it == '+' or *it == '-') {
 						bool orientation = true;
@@ -45,7 +51,7 @@ class PosFinder {
 						if (!next.empty()) {
 							if (*it == '-')
 								orientation = false;
-							result.push_back(std::make_pair(next, orientation));
+							result.emplace_back(next, orientation);
 							next.clear();
 						}
 					}
@@ -55,7 +61,7 @@ class PosFinder {
 					}
 				}
 				if (!next.empty())
-					result.push_back(std::make_pair(next, true)); //this case shouldn't even happen
+					result.emplace_back(next, true); //this case shouldn't even happen
 				return result;
 			}
 
@@ -64,6 +70,29 @@ class PosFinder {
 				    return !s.empty() && std::find_if(s.begin(), 
 									        s.end(), [](char c) { return !std::isdigit(c); }) == s.end();
 		}
+
+		// Avoiding un-necessary stream creation + replacing strings with string view
+		// is a bit > than a 2x win!
+		// implementation from : https://marcoarena.wordpress.com/tag/string_view/
+		std::vector<stx::string_view> split(stx::string_view str, char delims)
+		{
+			std::vector<stx::string_view> ret;
+
+			stx::string_view::size_type start = 0;
+			auto pos = str.find_first_of(delims, start);
+			while (pos != stx::string_view::npos) {
+				if (pos != start) {
+					ret.push_back(str.substr(start, pos - start));
+				}
+				start = pos + 1;
+				pos = str.find_first_of(delims, start);
+			}
+			if (start < str.length()) {
+				ret.push_back(str.substr(start, str.length() - start));
+			}
+			return ret;
+		}
+
 		std::vector<std::string> tokenize(const std::string &s, char delim) {
 			std::stringstream ss(s);
 			std::string item;
@@ -86,27 +115,29 @@ class PosFinder {
 			std::string tag, id, value;
 			size_t contig_cnt = 0;
 			while(std::getline(file, ln)) {
-					std::vector<std::string> splited = tokenize(ln, '\t');
-					tag = splited[0];
+				stx::string_view lnview(ln);
+					std::vector<stx::string_view> splited = split(lnview, '\t');
+					tag = splited[0].to_string();
 					//id = splited[1];
 					//value = splited[2];
 					//std::cout<<tag<<":"<<id<<","<<value<<std::endl;
+					// A segment line
 					if (tag == "S") {						
-						id = splited[1];
-						value = splited[2];
+						id = splited[1].to_string();
+						value = splited[2].to_string();
 						contig_cnt++;
 						if (is_number(id)) {
 							contigid2cnt[id] = value.length();
 						}
 						//std::cout<<"S "<<stol(id)<<","<<value.length()<<"\n";
 					} 
+					// A path line
 					if (tag == "P") {
-						id = splited[1];
-						value = splited[2];
-						std::vector<std::pair<std::string, bool> > contigVec = explode(value, ',');
+						id = splited[1].to_string();
+						auto pvalue = splited[2];
+						std::vector<std::pair<std::string, bool> > contigVec = explode(pvalue, ',');
 						// parse value and add all conitgs to contigVec
 						path[id] = contigVec;
-						//std::cout<<"P "<<id<<"\n";
 					}
 			}
 
@@ -120,8 +151,8 @@ class PosFinder {
 			uint64_t currContigLength = 0;
 			uint64_t total_output_lines = 0;
 			for (auto const &ent : path) {
-				std::string tr = ent.first;
-				std::vector<std::pair<std::string, bool> > contigs = ent.second;
+				const std::string& tr = ent.first;
+				const std::vector<std::pair<std::string, bool> >& contigs = ent.second;
 				accumPos = 0;
 				for (long i = 0; i < contigs.size(); i++) {
 					if (contig2pos.find(contigs[i].first) == contig2pos.end()) {
@@ -148,7 +179,9 @@ int main(int argc, char* argv[]) {
 	std::cerr<<" Starting ... \n";
 	PosFinder pf(argv[1], 30);
 	pf.parseFile();
+	
 	pf.mapContig2Pos();
+	/*
 	for (auto const & ent : pf.contig2pos) {
 		std::cout<<ent.first<< ":";
 		for (auto const & ent2 : ent.second) {
@@ -156,5 +189,7 @@ int main(int argc, char* argv[]) {
 		}
 		std::cout<<std::endl;
 	}
+	*/
+	
 }
 
