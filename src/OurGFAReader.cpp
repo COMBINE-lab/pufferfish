@@ -121,26 +121,22 @@ class PosFinder {
 			size_t contig_cnt{0};
 			size_t ref_cnt{0};
 			while(std::getline(file, ln)) {
-				stx::string_view lnview(ln);
+					char firstC = ln[0];
+					if (firstC != 'S' and firstC != 'P') continue;
+					stx::string_view lnview(ln);
 					std::vector<stx::string_view> splited = split(lnview, '\t');
 					tag = splited[0].to_string();
-					//id = splited[1];
-					//value = splited[2];
-					//std::cout<<tag<<":"<<id<<","<<value<<std::endl;
+					id = splited[1].to_string();
+					value = splited[2].to_string();
 					// A segment line
 					if (tag == "S") {						
-						id = splited[1].to_string();
-						value = splited[2].to_string();
 						if (is_number(id)) {
-							//contigid2cnt[id] = value.length();
 							contigid2cnt[id] = value.length();
 						}
 						contig_cnt++;
-						//std::cout<<"S "<<stol(id)<<","<<value.length()<<"\n";
 					} 
 					// A path line
 					if (tag == "P") {
-						id = splited[1].to_string();
 						auto pvalue = splited[2];
 						std::vector<std::pair<std::string, bool> > contigVec = explode(pvalue, ',');
 						// parse value and add all conitgs to contigVec
