@@ -16,18 +16,22 @@ class PosFinder {
 			std::string seq;
 			std::string id;
 		};
-		spp::sparse_hash_map<std::string, long> contigid2cnt;//std::map<std::string, long> contigid2cnt;
+		spp::sparse_hash_map<std::string, uint64_t> contigid2cnt;//std::map<std::string, long> contigid2cnt;
 		//orientation : + main, - reverse
 		//std::map<std::pair<long, long>, short> link;
 		//std::map<std::string, std::vector< std::pair<std::string, bool> > > path;
 		spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > > path;
+		spp::sparse_hash_map<std::string, uint32_t> refIDs;
 
+		// For the time being, assume < 4B contigs
+		// and that each contig is < 4B bases
 		struct Position {
-			std::string transcript_id;
-			uint64_t pos;
+			//std::string transcript_id;
+			uint32_t transcript_id;
+			uint32_t pos;
 			bool orien;
 
-			Position(std::string tid, uint64_t tpos, bool torien) {
+			Position(uint32_t tid, uint32_t tpos, bool torien) {
 				transcript_id = tid;
 				pos = tpos;
 				orien = torien;
@@ -49,8 +53,9 @@ class PosFinder {
 						// If we have some characters accumulated
 						// Add them to the result vector
 						if (!next.empty()) {
-							if (*it == '-')
+							if (*it == '-') {
 								orientation = false;
+							}
 							result.emplace_back(next, orientation);
 							next.clear();
 						}
@@ -113,7 +118,8 @@ class PosFinder {
 		void parseFile() {
 			std::string ln;
 			std::string tag, id, value;
-			size_t contig_cnt = 0;
+			size_t contig_cnt{0};
+			size_t ref_cnt{0};
 			while(std::getline(file, ln)) {
 				stx::string_view lnview(ln);
 					std::vector<stx::string_view> splited = split(lnview, '\t');
@@ -125,10 +131,11 @@ class PosFinder {
 					if (tag == "S") {						
 						id = splited[1].to_string();
 						value = splited[2].to_string();
-						contig_cnt++;
 						if (is_number(id)) {
+							//contigid2cnt[id] = value.length();
 							contigid2cnt[id] = value.length();
 						}
+						contig_cnt++;
 						//std::cout<<"S "<<stol(id)<<","<<value.length()<<"\n";
 					} 
 					// A path line
@@ -138,6 +145,7 @@ class PosFinder {
 						std::vector<std::pair<std::string, bool> > contigVec = explode(pvalue, ',');
 						// parse value and add all conitgs to contigVec
 						path[id] = contigVec;
+						refIDs[id] = ref_cnt++;
 					}
 			}
 
@@ -165,7 +173,7 @@ class PosFinder {
 					pos = accumPos;				
 					currContigLength = contigid2cnt[contigs[i].first];
 					accumPos += currContigLength - k;
-					(contig2pos[contigs[i].first]).push_back(Position(tr, pos, contigs[i].second));
+					(contig2pos[contigs[i].first]).push_back(Position(refIDs[tr], pos, contigs[i].second));
 				}
 			}
 			std::cerr << "\nTotal # of segments we have position for : " << total_output_lines << "\n";
@@ -181,15 +189,17 @@ int main(int argc, char* argv[]) {
 	pf.parseFile();
 	
 	pf.mapContig2Pos();
-	/*
+	
+	std::ofstream ct("contig_table.tsv");
 	for (auto const & ent : pf.contig2pos) {
-		std::cout<<ent.first<< ":";
+		ct << ent.first;
 		for (auto const & ent2 : ent.second) {
-			std::cout<<ent2.transcript_id<<","<<ent2.pos<< ","<<ent2.orien<<";";
+			ct << '\t' << ent2.transcript_id << ',' << ent2.pos << ',' << ent2.orien;
 		}
-		std::cout<<std::endl;
+		ct << '\n';
 	}
-	*/
+	ct.close();
+	
 	
 }
 
