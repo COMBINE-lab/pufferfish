@@ -10,6 +10,8 @@
 #include <algorithm>
 #include "string_view.hpp"
 #include "sparsepp/spp.h"
+#include "cereal/types/vector.hpp"
+#include "cereal/types/string.hpp"
 
 class PosFinder {
 	private:
@@ -38,6 +40,11 @@ class PosFinder {
 				pos = tpos;
 				orien = torien;
 			}
+
+      template <class Archive>
+      void serialize(Archive& ar) {
+        ar(transcript_id, pos, orien);
+      }
 		};
 
 		// maps each contig to a list of positions in different transcripts

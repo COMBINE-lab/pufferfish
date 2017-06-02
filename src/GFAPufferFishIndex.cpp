@@ -102,6 +102,7 @@ int pufferfishIndex(int argc, char* argv[]) {
 	PosFinder pf(gfa_file.c_str(), k-1);
 	pf.parseFile();	
 	pf.mapContig2Pos();
+  pf.serializeContigTable();
 	
 /*
 	auto gg = gfak::GFAKluge();

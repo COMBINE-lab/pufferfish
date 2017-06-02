@@ -1,4 +1,5 @@
 #include "OurGFAReader.hpp"
+#include "cereal/archives/binary.hpp"
 
 std::vector<std::pair<std::string, bool> > PosFinder::explode(const stx::string_view str, const char& ch) {
 				std::string next;
@@ -125,6 +126,21 @@ void PosFinder::mapContig2Pos() {
 
 void PosFinder::serializeContigTable() {
 	std::ofstream ct("contig_table.tsv");
+  cereal::BinaryOutputArchive ar(ct);
+  {
+    for (auto& kv : contigid2seq) {
+      ar(contig2pos[kv.first]);
+      /*
+      auto& ent = contig2pos[kv.first];
+      ct << kv.first;
+      for (auto const & ent2 : ent) {
+        ct << '\t' << ent2.transcript_id << ',' << ent2.pos << ',' << ent2.orien;
+      }
+      ct << '\n';
+      */
+    }
+  }
+  /*
 	ct << refIDs.size() << '\n';
 	for (auto const & ent : refIDs) {
 		ct << ent.first << '\t' << ent.second << '\n';	
@@ -136,6 +152,7 @@ void PosFinder::serializeContigTable() {
         }
         ct << '\n';
     }
+  */
 }
 
 void PosFinder::deserializeContigTable() {
