@@ -63,16 +63,26 @@ class ContigKmerIterator {
 
 
 		ContigKmerIterator operator++() { ContigKmerIterator i = *this; advance_(); return i; }
+
 		ContigKmerIterator operator++(int) { advance_(); return *this; }
+
 		reference operator*() {
-      word_ = (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0); return word_;
-      //mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return word_; 
+      word_ = (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0);
+      return word_;
 		}
+
 		difference_type pos() { return curr_; }
-  //pointer operator->() { mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return &word_; }
+
+    pointer operator->() {
+      word_ =  (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0);
+      return &word_;
+    }
 		bool operator==(const self_type& rhs) { return curr_ == rhs.curr_; }
+
 		bool operator!=(const self_type& rhs) { return curr_ != rhs.curr_; }
+
 		bool operator<(const self_type& rhs) { return curr_ < rhs.curr_; }
+
 		bool operator<=(const self_type& rhs) { return curr_ <= rhs.curr_; }
 
 	private:
@@ -82,18 +92,11 @@ class ContigKmerIterator {
 				curr_ += k_;
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
         rcMer_ = mer_.get_reverse_complement();
-        //word_ = std::min(mer_.word(0), rcMer_.word(0));
-        
 			} else {
         if (curr_ + k_ < rank_->size()) {
-          //mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
-          //rcMer_ = mer_.get_reverse_complement();
-          
           int c = (*storage_)[curr_+k_];
           mer_.shift_right(c);
           rcMer_.shift_left(my_mer::complement(c));
-          
-          //word_ = std::min(mer_.word(0), rcMer_.word(0));
         } else {
           mer_.word__(0) = storage_->get_int(2 * (rank_->size() - k_), 2 * k_);
           rcMer_ = mer_.get_reverse_complement();
