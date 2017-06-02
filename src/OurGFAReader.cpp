@@ -128,6 +128,9 @@ void PosFinder::serializeContigTable() {
 	std::ofstream ct("contig_table.tsv");
   cereal::BinaryOutputArchive ar(ct);
   {
+    // We want to iterate over the contigs in precisely the
+    // order they appear in the contig array (i.e., the iterator
+    // order of contigid2seq).
     for (auto& kv : contigid2seq) {
       ar(contig2pos[kv.first]);
       /*
