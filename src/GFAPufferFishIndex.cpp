@@ -22,6 +22,15 @@ uint64_t swap_uint64( uint64_t val )
 
 using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
 
+bool merFromStr(my_mer& mer, const std::string& s) {
+  auto k = my_mer::k();
+  if (s.length() < k) { return false; }
+  for (size_t i = 0; i < k; ++i) {
+    mer.shift_right(s[i]);
+  }
+  return true;
+}
+
 // adapted from :
 // http://stackoverflow.com/questions/34875315/implementation-my-own-list-and-iterator-stl-c
 class ContigKmerIterator {
@@ -35,7 +44,7 @@ class ContigKmerIterator {
 
 		ContigKmerIterator(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
 			storage_(storage), rank_(rank), k_(k), curr_(startAt) {
-      /*
+      /* 
       if (startAt + k <= rank_->size()) {
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
       }
@@ -67,16 +76,17 @@ class ContigKmerIterator {
         /*
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
         rcMer_ = mer_.get_reverse_complement();
-        word_ = std::min(mer_.word(0), rcMer_.word(0));
+        //word_ = std::min(mer_.word(0), rcMer_.word(0));
         */
+        
 			} else {
         ++curr_;
-        /*
+        /* 
         if (curr_ + k_ <= rank_->size()) {
           auto c = my_mer::code((*storage_)[curr_+k_-1]);
           mer_.shift_right(c);
           rcMer_.shift_left(my_mer::complement(c));
-          word_ = std::min(mer_.word(0), rcMer_.word(0));
+          //word_ = std::min(mer_.word(0), rcMer_.word(0));
         }
         */
 			}
@@ -170,33 +180,34 @@ int pufferfishIndex(int argc, char* argv[]) {
       rankVec[tlen] = 1;
       my_mer mer;
       my_mer rcMer;
-      mer.from_chars(r1.c_str());
+      //mer.from_chars(r1.c_str());
+      bool merOK = merFromStr(mer, r1);
+      if (!merOK) { std::cerr << "contig too short!"; std::exit(1); }
       rcMer = mer.get_reverse_complement();
       uint64_t km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
       //keys.push_back(km);
       ++nkeys;
       for (size_t i = 0;  i < r1.length(); ++i) {
-        auto offset = r1.length() - i - 1;
+        auto offset = i;//r1.length() - i - 1;
         // NOTE: Having to add things in the reverse order here is strange 
         // we should make sure that this doesn't mess with the positions we
         // end up storing!
         auto c = my_mer::code(r1[i]);
         seqVec[gpos + offset] = c;
         if (i >= k) { 
-          mer.shift_left(c);
-          rcMer.shift_right(my_mer::complement(c));
-          km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
-          ++nkeys;
           //keys.push_back(km);
           my_mer mm;
-          uint64_t num = seqVec.get_int(2*(gpos + offset), 2*k);
+          uint64_t num = seqVec.get_int(2*(gpos + offset - k), 2*k);
           mm.word__(0) = num;// mm.canonicalize();
           if (!(mm == mer or mm == rcMer)) {//}mm != mer.get_canonical()) {
             std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
             std::cerr << "i = " << i << "\n";
             std::cerr << mer.to_str() << ", " << mm.to_str() <<"\n";
           }
-
+          mer.shift_right(c);
+          rcMer.shift_left(my_mer::complement(c));
+          km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
+          ++nkeys;
         }
         //++gpos;
       }
@@ -270,7 +281,8 @@ int pufferfishIndex(int argc, char* argv[]) {
 			 auto& r1 = rp.seq;
 			 my_mer mer;
        my_mer rcMer;
-			 mer.from_chars(r1.begin());
+			 bool merOK = merFromStr(mer, r1);//mer.from_chars(r1.begin());
+       if (!merOK) { std::cerr << "contig too short!"; std::exit(1); }
        rcMer = mer.get_reverse_complement();
 
        //rcMer = mer.get
@@ -292,8 +304,8 @@ int pufferfishIndex(int argc, char* argv[]) {
 			 }
 			 
 			 for (size_t i = k;  i < r1.length(); ++i) {
-				mer.shift_left(r1[i]);
-        rcMer.shift_right(my_mer::code(my_mer::complement(r1[i])));
+				mer.shift_right(r1[i]);
+        rcMer.shift_left(my_mer::code(my_mer::complement(r1[i])));
 			 	km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
 			 	res = bphf->lookup(km);
 			 	pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
