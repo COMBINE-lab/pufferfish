@@ -45,15 +45,21 @@ class ContigKmerIterator {
 
 		ContigKmerIterator(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
 			storage_(storage), rank_(rank), k_(k), curr_(startAt) {
-      /* 
       if (curr_ + k_ <= rank_->size()) {
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
       }
       rcMer_ = mer_.get_reverse_complement();
-      */
     }
 
-  ContigKmerIterator& operator=(ContigKmerIterator& other) = default;//(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
+  ContigKmerIterator& operator=(ContigKmerIterator& other) {//}= default;//(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
+    storage_ = other.storage_;
+    rank_ = other.rank_;
+    k_ = other.k_;
+    curr_ = other.curr_;
+    mer_ = other.mer_;
+    rcMer_ = other.rcMer_;
+    word_ = other.word_;
+  }
 
 
 		ContigKmerIterator operator++() { ContigKmerIterator i = *this; advance_(); return i; }
@@ -72,7 +78,7 @@ class ContigKmerIterator {
 	private:
 		void advance_() {
 			size_t endPos = curr_ + k_;
-			if (endPos <= rank_->size() and (*rank_)[endPos] == 1) {
+			if (endPos < rank_->size() and (*rank_)[endPos] == 1) {
 				curr_ += k_;
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
         rcMer_ = mer_.get_reverse_complement();
@@ -80,12 +86,19 @@ class ContigKmerIterator {
         
 			} else {
         if (curr_ + k_ < rank_->size()) {
-          auto c = my_mer::code((*storage_)[curr_+k_]);
+          //mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
+          //rcMer_ = mer_.get_reverse_complement();
+          
+          int c = (*storage_)[curr_+k_];
           mer_.shift_right(c);
           rcMer_.shift_left(my_mer::complement(c));
+          
           //word_ = std::min(mer_.word(0), rcMer_.word(0));
-          ++curr_;
+        } else {
+          mer_.word__(0) = storage_->get_int(2 * (rank_->size() - k_), 2 * k_);
+          rcMer_ = mer_.get_reverse_complement();
         }
+        ++curr_;
 			}
 		}
   sdsl::int_vector<>* storage_{nullptr};
@@ -228,7 +241,7 @@ int pufferfishIndex(int argc, char* argv[]) {
 	 ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
 	 ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
 	 auto ks = kb;
-	 size_t nkeyIt{0}; for (; ks != ke; ++ks) { nkeyIt++; }
+	 size_t nkeyIt{0}; for (; ks < ke; ++ks) { nkeyIt++; }
 	 std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
 	 auto keyIt = boomphf::range(kb, ke);
 	 boophf_t * bphf = new boophf_t(nkeys, keyIt, 16);//keys.size(), keys, 16);
@@ -268,7 +281,7 @@ int pufferfishIndex(int argc, char* argv[]) {
    bphf->save(hstream);
    hstream.close();
 
-   return 0;
+   //return 0;
 
 	 size_t N = nkeys;//keys.size();
 	 size_t S = seqVec.size();
