@@ -13,20 +13,6 @@
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
 
-class PosFinder {
-	private:
-		std::ifstream file;
-		size_t k;
-		struct Contig {
-			std::string seq;
-			std::string id;
-		};
-    spp::sparse_hash_map<std::string, std::string> contigid2seq;//map of contig_id to # of letters in contig (contig length)
-		// path maps each transcript_id to a pair of <contig_id, orientation>
-		//orientation : +/true main, -/false reverse
-		spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > > path;
-		spp::sparse_hash_map<std::string, uint32_t> refIDs;
-
 		// For the time being, assume < 4B contigs
 		// and that each contig is < 4B bases
 		struct Position {
@@ -47,6 +33,23 @@ class PosFinder {
       }
 		};
 
+
+class PosFinder {
+	private:
+		std::ifstream file;
+		size_t k;
+		struct Contig {
+			std::string seq;
+			std::string id;
+		};
+    spp::sparse_hash_map<std::string, std::string> contigid2seq;//map of contig_id to # of letters in contig (contig length)
+	spp::sparse_hash_map<std::string, std::string> seq2contigid;
+		// path maps each transcript_id to a pair of <contig_id, orientation>
+		//orientation : +/true main, -/false reverse
+		spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > > path;
+		spp::sparse_hash_map<std::string, uint32_t> refIDs;
+		
+		spp::sparse_hash_map<uint32_t, std::string> refMap;
 		// maps each contig to a list of positions in different transcripts
 		std::vector<std::pair<std::string, bool> > explode(const stx::string_view str, const char& ch);		
 		bool is_number(const std::string& s);
@@ -59,6 +62,9 @@ class PosFinder {
 		spp::sparse_hash_map<std::string, std::vector<Position> > contig2pos;  
 		PosFinder(const char* gfaFileName, size_t input_k);
     spp::sparse_hash_map<std::string, std::string>& getContigNameMap();
+    spp::sparse_hash_map<std::string, std::string>& getContigIDMap();
+    spp::sparse_hash_map<uint32_t, std::string>& getRefIDs();
+
 		void parseFile();	
 		void mapContig2Pos();
     void serializeContigTable(const std::string& ofile);

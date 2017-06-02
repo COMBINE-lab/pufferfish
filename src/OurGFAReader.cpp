@@ -87,7 +87,9 @@ void PosFinder::parseFile() {
 				std::vector<std::pair<std::string, bool> > contigVec = explode(pvalue, ',');
 				// parse value and add all conitgs to contigVec
 				path[id] = contigVec;
+				refMap[ref_cnt] = id;
 				refIDs[id] = ref_cnt++;
+
 			}
 	}
 
@@ -97,6 +99,14 @@ void PosFinder::parseFile() {
 spp::sparse_hash_map<std::string, std::string>& PosFinder::getContigNameMap() {
   return contigid2seq;
 }
+spp::sparse_hash_map<std::string, std::string>& PosFinder::getContigIDMap() {
+  return seq2contigid;
+}
+
+spp::sparse_hash_map<uint32_t, std::string>& PosFinder::getRefIDs() {
+  return refMap;
+}
+
 
 void PosFinder::mapContig2Pos() {
 	uint64_t pos = 0;

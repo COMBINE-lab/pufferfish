@@ -11,7 +11,8 @@
 #include "OurGFAReader.hpp"
 #include "popl.hpp"
 #include "ScopedTimer.hpp"
-
+#include "sdsl/rank_support.hpp"
+#include "sdsl/select_support.hpp"
 //#include "gfakluge.hpp"
 
 uint64_t swap_uint64( uint64_t val )
@@ -290,18 +291,31 @@ int pufferfishIndex(int argc, char* argv[]) {
 	 size_t S = seqVec.size();
 	 size_t found = 0;
 	 size_t notFound = 0;
+	 size_t correctPosCntr = 0;
+	 size_t incorrectPosCntr = 0;
 	{
+	std::vector<std::string> rankOrderedContigIDs;
+
+    auto& cnmap = pf.getContigNameMap();
+	for ( auto& kv : cnmap) {
+			rankOrderedContigIDs.push_back(kv.first);
+	}
+	auto& trRefIDs = pf.getRefIDs();
     ScopedTimer st;
 	fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
 	parser.start();
 	// Get the read group by which this thread will
 	// communicate with the parser (*once per-thread*)
 	size_t rn{0};
+	size_t kmer_pos{0};
 	 auto rg = parser.getReadGroup();
+	 sdsl::bit_vector::rank_1_type realRank(&rankVec); 
+	 sdsl::bit_vector::select_1_type realSelect(&rankVec);
 	 while (parser.refill(rg)) {
 		 // Here, rg will contain a chunk of read pairs
 		 // we can process.
 		 for (auto& rp : rg) {
+			kmer_pos = 0;
 			 if (rn % 500000 == 0) { 
 				 std::cerr << "rn : " << rn << "\n"; 
 				 std::cerr << "found = " << found << ", notFound = " << notFound << "\n";
@@ -323,7 +337,25 @@ int pufferfishIndex(int argc, char* argv[]) {
 				 my_mer fkm;
 				 //fkm.word__(0) = fk; fkm.canonicalize();
          fkm.word__(0) = fk;
-				 if ( mer.word(0) == fkm.word(0) or rcMer.word(0) == fkm.word(0) ) { found += 1; } else { 
+				 if ( mer.word(0) == fkm.word(0) or rcMer.word(0) == fkm.word(0) ) { 
+						 found += 1; 
+						 bool correctPos = false;
+						 for (auto & tr : pf.contig2pos[rankOrderedContigIDs[realRank(pos)-1]]) {
+								 std::cerr <<trRefIDs[tr.transcript_id] << "\t" <<  rp.name << "\n" ;
+							if (trRefIDs[tr.transcript_id] == rp.name) {
+								auto relPos = pos - (uint64_t)realSelect(realRank(pos));
+								if (relPos + tr.pos == kmer_pos) {
+										correctPos = true;
+										break;
+								}								
+								else {
+									std::cerr << "ours : " << relPos + tr.pos << " , true : " << kmer_pos << "\n";
+								}
+							}
+						 }
+						 if (correctPos) correctPosCntr++;
+						 else incorrectPosCntr++;
+				 } else { 
 					 //std::cerr << "rn = " << rn - 1 << ", fk = " << fkm.get_canonical().to_str() << ", km = " << mer.get_canonical().to_str() << ", pkmer = " << pkmer <<" \n";
 					 //std::cerr << "found = " << found << ", not found = " << notFound << "\n";
 					 notFound += 1; }
@@ -342,7 +374,10 @@ int pufferfishIndex(int argc, char* argv[]) {
 					 uint64_t fk = seqVec.get_int(2*pos, 62);
 					 my_mer fkm;
 					 fkm.word__(0) = fk; //fkm.canonicalize();
-					 if ( mer.word(0) == fkm.word(0) or rcMer.word(0) == fkm.word(0) ) { found += 1; } else { notFound += 1; }
+					 if ( mer.word(0) == fkm.word(0) or rcMer.word(0) == fkm.word(0) ) {
+							 found += 1; 
+	
+					 } else { notFound += 1; }
 				 } else {
 				 	//std::cerr << "pos = " << pos << ", shouldn't happen\n";
 					 notFound += 1;
