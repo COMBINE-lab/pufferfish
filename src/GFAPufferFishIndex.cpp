@@ -46,7 +46,7 @@ class ContigKmerIterator {
 		ContigKmerIterator(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
 			storage_(storage), rank_(rank), k_(k), curr_(startAt) {
       /* 
-      if (startAt + k <= rank_->size()) {
+      if (curr_ + k_ <= rank_->size()) {
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
       }
       rcMer_ = mer_.get_reverse_complement();
@@ -59,8 +59,8 @@ class ContigKmerIterator {
 		ContigKmerIterator operator++() { ContigKmerIterator i = *this; advance_(); return i; }
 		ContigKmerIterator operator++(int) { advance_(); return *this; }
 		reference operator*() {
-      //word_ = (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0); return word_;
-      mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return word_; 
+      word_ = (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0); return word_;
+      //mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return word_; 
 		}
 		difference_type pos() { return curr_; }
   //pointer operator->() { mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); mer_.canonicalize(); word_ = mer_.word(0); return &word_; }
@@ -72,33 +72,29 @@ class ContigKmerIterator {
 	private:
 		void advance_() {
 			size_t endPos = curr_ + k_;
-			if (endPos < rank_->size() and (*rank_)[endPos] == 1) {
+			if (endPos <= rank_->size() and (*rank_)[endPos] == 1) {
 				curr_ += k_;
-        /*
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
         rcMer_ = mer_.get_reverse_complement();
         //word_ = std::min(mer_.word(0), rcMer_.word(0));
-        */
         
 			} else {
-        ++curr_;
-        /* 
-        if (curr_ + k_ <= rank_->size()) {
-          auto c = my_mer::code((*storage_)[curr_+k_-1]);
+        if (curr_ + k_ < rank_->size()) {
+          auto c = my_mer::code((*storage_)[curr_+k_]);
           mer_.shift_right(c);
           rcMer_.shift_left(my_mer::complement(c));
           //word_ = std::min(mer_.word(0), rcMer_.word(0));
+          ++curr_;
         }
-        */
 			}
 		}
-		sdsl::int_vector<>* storage_;
-		sdsl::bit_vector* rank_;
-		uint8_t k_;
-		uint64_t curr_;
+  sdsl::int_vector<>* storage_{nullptr};
+  sdsl::bit_vector* rank_{nullptr};
+  uint8_t k_{0};
+  uint64_t curr_{0};
   my_mer mer_;
   my_mer rcMer_;
-		uint64_t word_{0};
+  uint64_t word_{0};
 };
 
 int pufferfishTest(int argc, char* argv[]) { std::cerr << "not yet implemented\n"; return 1; }
