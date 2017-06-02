@@ -124,8 +124,8 @@ void PosFinder::mapContig2Pos() {
 	std::cerr << "\nTotal # of segments we have position for : " << total_output_lines << "\n";
 }
 
-void PosFinder::serializeContigTable() {
-	std::ofstream ct("contig_table.tsv");
+void PosFinder::serializeContigTable(const std::string& ofile) {
+	std::ofstream ct(ofile);
   cereal::BinaryOutputArchive ar(ct);
   {
     // We want to iterate over the contigs in precisely the

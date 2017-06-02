@@ -61,7 +61,7 @@ class PosFinder {
     spp::sparse_hash_map<std::string, std::string>& getContigNameMap();
 		void parseFile();	
 		void mapContig2Pos();
-		void serializeContigTable();
+    void serializeContigTable(const std::string& ofile);
 		void deserializeContigTable();
 };
 
