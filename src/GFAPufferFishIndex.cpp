@@ -8,6 +8,7 @@
 #include "jellyfish/mer_dna.hpp"
 #include "BooPHF.h"
 #include "OurGFAReader.hpp"
+#include "popl.hpp"
 
 //#include "gfakluge.hpp"
 
@@ -62,16 +63,43 @@ class ContigKmerIterator {
 		uint64_t word_{0};
 };
 
-int main(int argc, char* argv[]) {
-	std::vector<std::string> contig_file = {argv[1]};
-	std::vector<std::string> read_file = {argv[2]};
+int pufferfishTest(int argc, char* argv[]) { std::cerr << "not yet implemented\n"; return 1; }
+
+int pufferfishIndex(int argc, char* argv[]) {
+
+
+  uint32_t k;
+  std::string gfa_file;
+  std::string cfile;
+  std::string rfile;
+  popl::Switch helpOption("h", "help", "produce help message");
+  popl::Value<uint32_t> kOpt("k", "klen", "length of the k-mer with which the compacted dBG was built", 31, &k);
+  popl::Value<std::string> gfaOpt("g", "gfa", "path to the GFA file");
+  popl::Value<std::string> readOpt("f", "fa", "path to the Fasta file with reads");
+
+  popl::OptionParser op("Allowed options");
+	op.add(helpOption)
+    .add(kOpt)
+    .add(gfaOpt)
+    .add(readOpt);
+
+  op.parse(argc, argv);
+  if (helpOption.isSet()) {
+    std::cout << op << '\n';
+    std::exit(0);
+  }
+
+  gfa_file = gfaOpt.getValue();
+  rfile = readOpt.getValue();
+
+	//std::vector<std::string> contig_file = {cfile};
+	std::vector<std::string> read_file = {rfile};
 	size_t tlen{0};	
 	size_t numKmers{0};
-	uint8_t k{31};
 	size_t nread{0};
 	my_mer::k(k);
 	
-	PosFinder pf(argv[3], 30);
+	PosFinder pf(gfa_file.c_str(), k-1);
 	pf.parseFile();	
 	pf.mapContig2Pos();
 	
@@ -84,26 +112,18 @@ int main(int argc, char* argv[]) {
 	}
 	std::exit(1);
 */
-		{
-	fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(contig_file, 1, 1);
-	parser.start();
-	// Get the read group by which this thread will
-	// communicate with the parser (*once per-thread*)
-	 auto rg = parser.getReadGroup();
-	 while (parser.refill(rg)) {
-		 // Here, rg will contain a chunk of read pairs
-		 // we can process.
-		 for (auto& rp : rg) {
-			 auto& r1 = rp.seq;
-			 tlen += r1.length();
-			 numKmers += r1.length() - k + 1;
-			 ++nread;
-		 }
-	 }
-	 std::cerr << "numread = " << nread << "\n";
-	 std::cerr << "tlen = " << tlen << "\n";
-	}
-	// now we know the size we need --- create our bitvectors and pack!
+  {
+    auto& cnmap = pf.getContigNameMap();
+    for (auto& kv : cnmap) {
+      auto& r1 = kv.second;
+      tlen += r1.length();
+      numKmers += r1.length() - k + 1;
+      ++nread;
+    }
+    std::cerr << "numread = " << nread << "\n";
+    std::cerr << "tlen = " << tlen << "\n";
+  }
+  // now we know the size we need --- create our bitvectors and pack!
 	size_t gpos{0};
 	size_t w = std::log2(tlen) + 1;
 	std::cerr << "w = " << w << "\n";
@@ -115,50 +135,44 @@ int main(int argc, char* argv[]) {
 	//keys.reserve(numKmers);
 	size_t nkeys{0};
 	{
-	fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(contig_file, 1, 1);
-	parser.start();
-	// Get the read group by which this thread will
-	// communicate with the parser (*once per-thread*)
-	 auto rg = parser.getReadGroup();
-	 while (parser.refill(rg)) {
-		 // Here, rg will contain a chunk of read pairs
-		 // we can process.
-		 for (auto& rp : rg) {
-			 auto& r1 = rp.seq;
-			 rankVec[tlen] = 1;
-			 my_mer mer;
-			 mer.from_chars(r1.begin());
-			 uint64_t km = mer.get_canonical().word(0);
-			 //keys.push_back(km);
-			 ++nkeys;
-			 for (size_t i = 0;  i < r1.length(); ++i) {
-				 auto offset = r1.length() - i - 1;
-				 // NOTE: Having to add things in the reverse order here is strange 
-				 // we should make sure that this doesn't mess with the positions we
-				 // end up storing!
-				 seqVec[gpos + offset] = my_mer::code(r1[i]);
-				 if (i >= k) { 
-					 mer.shift_left(r1[i]);
-					 km = mer.get_canonical().word(0);
-  			 		 ++nkeys;
-					 //keys.push_back(km);
-					 my_mer mm;
-					 uint64_t num = seqVec.get_int(2*(gpos + offset), 2*k);
-					 mm.word__(0) = num; mm.canonicalize();
-					 if (mm != mer.get_canonical()) {
-					 std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
-					 std::cerr << "i = " << i << "\n";
-					 std::cerr << mer.to_str() << ", " << mm.to_str() <<"\n";
-					 }
+    auto& cnmap = pf.getContigNameMap();
+    for (auto& kv : cnmap) {
+      const auto& r1 = kv.second;
+      //std::cerr << "read : [" << kv.second << "]\n";
+      rankVec[tlen] = 1;
+      my_mer mer;
+      mer.from_chars(r1.c_str());
+      uint64_t km = mer.get_canonical().word(0);
+      //keys.push_back(km);
+      ++nkeys;
+      for (size_t i = 0;  i < r1.length(); ++i) {
+        auto offset = r1.length() - i - 1;
+        // NOTE: Having to add things in the reverse order here is strange 
+        // we should make sure that this doesn't mess with the positions we
+        // end up storing!
+        auto c = my_mer::code(r1[i]);
+        seqVec[gpos + offset] = c;
+        if (i >= k) { 
+          mer.shift_left(c);
+          km = mer.get_canonical().word(0);
+          ++nkeys;
+          //keys.push_back(km);
+          my_mer mm;
+          uint64_t num = seqVec.get_int(2*(gpos + offset), 2*k);
+          mm.word__(0) = num; mm.canonicalize();
+          if (mm != mer.get_canonical()) {
+            std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
+            std::cerr << "i = " << i << "\n";
+            std::cerr << mer.to_str() << ", " << mm.to_str() <<"\n";
+          }
 
-				 }
-				 //++gpos;
-			 }
-			 gpos += r1.length();
-			 tlen += r1.length();
-		 }
-	 }
-	}
+        }
+        //++gpos;
+      }
+      gpos += r1.length();
+      tlen += r1.length();
+    }
+  }
 	 std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
 	 std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
 	 std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";

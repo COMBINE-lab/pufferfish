@@ -54,7 +54,7 @@ std::vector<stx::string_view> PosFinder::split(stx::string_view str, char delims
 	return ret;
 }
 
-PosFinder::PosFinder(char* gfaFileName, size_t input_k) {
+PosFinder::PosFinder(const char* gfaFileName, size_t input_k) {
 	std::cerr << "Reading GFA file " << gfaFileName << "\n";
 	file.open(gfaFileName);
 	k = input_k;
@@ -76,7 +76,7 @@ void PosFinder::parseFile() {
 			// A segment line
 			if (tag == "S") {						
 				if (is_number(id)) {
-					contigid2len[id] = value.length();
+					contigid2seq[id] = value;
 				}
 				contig_cnt++;
 			} 
@@ -90,7 +90,11 @@ void PosFinder::parseFile() {
 			}
 	}
 
-	std::cerr << " Total # of Contigs : " << contig_cnt << " Total # of numerical Contigs : " << contigid2len.size() << "\n\n";
+	std::cerr << " Total # of Contigs : " << contig_cnt << " Total # of numerical Contigs : " << contigid2seq.size() << "\n\n";
+}
+
+spp::sparse_hash_map<std::string, std::string>& PosFinder::getContigNameMap() {
+  return contigid2seq;
 }
 
 void PosFinder::mapContig2Pos() {
@@ -107,11 +111,11 @@ void PosFinder::mapContig2Pos() {
 				contig2pos[contigs[i].first] = {};
 				total_output_lines += 1;
 			}
-			if (contigid2len.find(contigs[i].first) == contigid2len.end()) {
+			if (contigid2seq.find(contigs[i].first) == contigid2seq.end()) {
 				std::cerr<< contigs[i].first << "\n";
 			}
 			pos = accumPos;				
-			currContigLength = contigid2len[contigs[i].first];
+			currContigLength = contigid2seq[contigs[i].first].length();
 			accumPos += currContigLength - k;
 			(contig2pos[contigs[i].first]).push_back(Position(refIDs[tr], pos, contigs[i].second));
 		}

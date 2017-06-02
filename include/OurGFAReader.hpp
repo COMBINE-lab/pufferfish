@@ -19,7 +19,7 @@ class PosFinder {
 			std::string seq;
 			std::string id;
 		};
-		spp::sparse_hash_map<std::string, uint64_t> contigid2len;//map of contig_id to # of letters in contig (contig length)
+    spp::sparse_hash_map<std::string, std::string> contigid2seq;//map of contig_id to # of letters in contig (contig length)
 		// path maps each transcript_id to a pair of <contig_id, orientation>
 		//orientation : +/true main, -/false reverse
 		spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > > path;
@@ -50,7 +50,8 @@ class PosFinder {
 		std::vector<stx::string_view> split(stx::string_view str, char delims);
 	public:
 		spp::sparse_hash_map<std::string, std::vector<Position> > contig2pos;  
-		PosFinder(char* gfaFileName, size_t input_k);
+		PosFinder(const char* gfaFileName, size_t input_k);
+    spp::sparse_hash_map<std::string, std::string>& getContigNameMap();
 		void parseFile();	
 		void mapContig2Pos();
 		void serializeContigTable();
