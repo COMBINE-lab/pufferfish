@@ -250,7 +250,7 @@ void fixFasta(single_parser* parser,
   for (size_t i = 0; i < transcriptNames.size(); ++i) {
     size_t next1 = onePos[i];
     size_t len = next1 - prev1;
-    ffa << "> " << transcriptNames[i] << "\n";
+    ffa << ">" << transcriptNames[i] << "\n";
     ffa << concatText.substr(prev1, len) << "\n";
     prev1 = next1 + 1;
   }

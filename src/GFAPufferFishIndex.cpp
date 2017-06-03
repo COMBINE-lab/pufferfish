@@ -293,6 +293,7 @@ int pufferfishIndex(int argc, char* argv[]) {
 	 size_t notFound = 0;
 	 size_t correctPosCntr = 0;
 	 size_t incorrectPosCntr = 0;
+	 size_t numTrueTxp = 0;
 	{
 	std::vector<std::string> rankOrderedContigIDs;
 
@@ -340,21 +341,26 @@ int pufferfishIndex(int argc, char* argv[]) {
 				 if ( mer.word(0) == fkm.word(0) or rcMer.word(0) == fkm.word(0) ) { 
 						 found += 1; 
 						 bool correctPos = false;
+             bool foundTxp = false;
 						 for (auto & tr : pf.contig2pos[rankOrderedContigIDs[realRank(pos)-1]]) {
-								 std::cerr <<trRefIDs[tr.transcript_id] << "\t" <<  rp.name << "\n" ;
+               //std::cerr <<trRefIDs[tr.transcript_id] << "\t" <<  rp.name << "\n" ;
 							if (trRefIDs[tr.transcript_id] == rp.name) {
-								auto relPos = pos - (uint64_t)realSelect(realRank(pos));
-								if (relPos + tr.pos == kmer_pos) {
+                foundTxp = true;
+                uint64_t rk = realRank(pos);
+                uint64_t sp = (uint64_t)realSelect(rk);
+								auto relPos = pos - sp;
+                auto clen = (uint64_t)realSelect(rk + 1) - sp;
+								if (relPos + tr.pos == kmer_pos or clen - (relPos - tr.pos - k - 1) == kmer_pos) {
 										correctPos = true;
 										break;
-								}								
-								else {
+								} else {
 									std::cerr << "ours : " << relPos + tr.pos << " , true : " << kmer_pos << "\n";
 								}
 							}
 						 }
-						 if (correctPos) correctPosCntr++;
-						 else incorrectPosCntr++;
+						 if (correctPos) { correctPosCntr++; } else { incorrectPosCntr++; }
+             if (foundTxp) { numTrueTxp++; }
+             //if (!foundTxp) { std::cerr << "failed to find true txp [" << rp.name << "]\n"; }
 				 } else { 
 					 //std::cerr << "rn = " << rn - 1 << ", fk = " << fkm.get_canonical().to_str() << ", km = " << mer.get_canonical().to_str() << ", pkmer = " << pkmer <<" \n";
 					 //std::cerr << "found = " << found << ", not found = " << notFound << "\n";
@@ -388,5 +394,8 @@ int pufferfishIndex(int argc, char* argv[]) {
 	 }
 	}
 	std::cerr << "found = " << found << ", not found = " << notFound << "\n";
+  std::cerr << "correctPos = " << correctPosCntr << ", incorrectPos = " << incorrectPosCntr << "\n";
+  std::cerr << "corrextTxp = " << numTrueTxp << "\n";
+
 	return 0;
 }
