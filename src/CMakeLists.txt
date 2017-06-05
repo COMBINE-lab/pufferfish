@@ -1,5 +1,5 @@
 #set(gfalib_srcs gfakluge.cpp)
-set(pufferfish_lib_srcs GFAPufferFishIndex.cpp FastxParser.cpp OurGFAReader.cpp PufferFS.cpp)
+set(pufferfish_lib_srcs Util.cpp GFAPufferFishIndex.cpp FastxParser.cpp OurGFAReader.cpp PufferFS.cpp)
 #add_library(gfakluge STATIC ${gfalib_srcs})
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 
@@ -11,7 +11,7 @@ add_executable(myGFAtester MyGFATester.cpp FastxParser.cpp)
 target_link_libraries(pufferfish-index-old z sdsl)
 target_link_libraries(pufferfish z puffer sdsl)
 target_link_libraries(fixFasta z)
-target_link_libraries(myGFAtester z sdsl)
+target_link_libraries(myGFAtester z sdsl puffer)
 
 #add_executable(test-gfa OurGFAReader.cpp)
 

@@ -13,6 +13,7 @@
 #include "ScopedTimer.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
+#include "Util.hpp"
 //#include "gfakluge.hpp"
 
 uint64_t swap_uint64( uint64_t val )
@@ -116,37 +117,14 @@ class ContigKmerIterator {
 
 int pufferfishTest(int argc, char* argv[]) { std::cerr << "not yet implemented\n"; return 1; }
 
-int pufferfishIndex(int argc, char* argv[]) {
+int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 
 
-  uint32_t k;
-  std::string gfa_file;
-  std::string cfile;
-  std::string rfile;
-  std::string outdir;
-  popl::Switch helpOption("h", "help", "produce help message");
-  popl::Value<uint32_t> kOpt("k", "klen", "length of the k-mer with which the compacted dBG was built", 31, &k);
-  popl::Value<std::string> gfaOpt("g", "gfa", "path to the GFA file");
-  popl::Value<std::string> outOpt("o", "output", "directory where index is written");
-  popl::Value<std::string> readOpt("f", "fa", "path to the Fasta file with reads");
-
-  popl::OptionParser op("Allowed options");
-	op.add(helpOption)
-    .add(kOpt)
-    .add(gfaOpt)
-    .add(readOpt)
-    .add(outOpt);
-
-  op.parse(argc, argv);
-  if (helpOption.isSet()) {
-    std::cout << op << '\n';
-    std::exit(0);
-  }
-
-  gfa_file = gfaOpt.getValue();
-  rfile = readOpt.getValue();
-  outdir = outOpt.getValue();
-
+  uint32_t k = indexOpts.k;
+  std::string gfa_file = indexOpts.gfa_file;
+  std::string rfile = indexOpts.rfile;
+  std::string outdir = indexOpts.outdir;
+  
 	//std::vector<std::string> contig_file = {cfile};
 	std::vector<std::string> read_file = {rfile};
 	size_t tlen{0};	
