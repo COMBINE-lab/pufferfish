@@ -17,8 +17,8 @@
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "sparsepp/spp.h"
-
-char complement(char& c){
+#include "Util.hpp"
+/*char complement(char& c){
     switch(c){
         case 'A': c = 'T';
                   return c;
@@ -98,7 +98,7 @@ std::vector<stx::string_view> split(stx::string_view str, char delims) {
 	}
 	return ret;
 }
-
+*/
 
 int main(int argc, char* argv[]){
 	std::vector<std::string> read_file = {argv[1]} ;
@@ -149,13 +149,13 @@ int main(int argc, char* argv[]){
 				char firstC = ln[0];
 				if (firstC != 'S' and firstC != 'P') continue;
 				stx::string_view lnview(ln);
-				std::vector<stx::string_view> splited = split(lnview, '\t');
+				std::vector<stx::string_view> splited = util::split(lnview, '\t');
 				tag = splited[0].to_string();
 				id = splited[1].to_string();
 				value = splited[2].to_string();
 				// A segment line
 				if (tag == "S") {
-					if (is_number(id)) {
+					if (util::is_number(id)) {
 						contigid2seq[id] = value;
 						//touchedSegment[id] = false ;
 					}
@@ -166,7 +166,7 @@ int main(int argc, char* argv[]){
 				// A path line
 				if (tag == "P") {
 					auto pvalue = splited[2];
-					std::vector<std::pair<std::string, bool> > contigVec = explode(pvalue, ',');
+					std::vector<std::pair<std::string, bool> > contigVec = util::explode(pvalue, ',');
 					// parse value and add all conitgs to contigVec
 					//if(reconstructedTr[id] != "") continue ;
 					reconstructedTr[id] = "";
@@ -180,7 +180,7 @@ int main(int argc, char* argv[]){
 						std::string added ;
 						if (i != contigVec.size()-1){
 							if(!ore){
-								added =  revcomp(contigid2seq[contig_id]) ;
+								added =  util::revcomp(contigid2seq[contig_id]) ;
 							}else{
 								added = contigid2seq[contig_id] ;
 							}
@@ -191,7 +191,7 @@ int main(int argc, char* argv[]){
 							}
 						}else{
 							if(!ore){
-								added =  revcomp(contigid2seq[contig_id]) ;
+								added =  util::revcomp(contigid2seq[contig_id]) ;
 							}else{
 								added = contigid2seq[contig_id] ;
 							}
@@ -212,7 +212,7 @@ int main(int argc, char* argv[]){
 							std::string added ;
 							if (j != contigVec.size()-1){
 								if(!ore){
-									added =  revcomp(contigid2seq[contig_id]) ;
+									added =  util::revcomp(contigid2seq[contig_id]) ;
 								}else{
 									added = contigid2seq[contig_id] ;
 								}
@@ -226,7 +226,7 @@ int main(int argc, char* argv[]){
 									//std::cerr << contig_id << " " << added << "\n" ;
 							}else{
 								if(!ore){
-									added =  revcomp(contigid2seq[contig_id]) ;
+									added =  util::revcomp(contigid2seq[contig_id]) ;
 								}else{
 									added = contigid2seq[contig_id] ;
 								}
