@@ -30,7 +30,7 @@
 //#include "IndexHeader.hpp"
 
 int pufferfishIndex(util::IndexOptions& indexOpts);//int argc, char* argv[]);
-int pufferfishTest(int argc, char* argv[]);
+int pufferfishTest(util::TestOptions& testOpts);//int argc, char* argv[]);
 //int rapMapMap(int argc, char* argv[]);
 //int rapMapSAMap(int argc, char* argv[]);
 
@@ -72,6 +72,7 @@ int main(int argc, char* argv[]) {
   indexApp->add_option("-o,--output", indexOpt.outdir, "directory where index is written");
   indexApp->add_option("-f,--fa", indexOpt.rfile, "path to the Fasta file with reads");
 
+  util::TestOptions testOpt;
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError &e) {
@@ -82,7 +83,10 @@ int main(int argc, char* argv[]) {
     return pufferfishIndex(indexOpt);
     //return testIndexApp(indexApp);
   } else if (app.got_subcommand(testApp)) {
-    std::cerr << "not yet implemented";
+    return pufferfishTest(testOpt);
+  } else {
+    std::cerr << "I don't know the requested sub-command\n";
+    return 1;
   }
   /*
   uint32_t k;

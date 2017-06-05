@@ -20,6 +20,10 @@ namespace util {
     std::string outdir;
   };
 
+  class TestOptions {
+  public:
+  };
+
   char complement(char& c);
   std::string revcomp(std::string s);
   std::vector<std::pair<std::string, bool> > explode(const stx::string_view str, const char& ch);

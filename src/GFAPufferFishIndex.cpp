@@ -115,7 +115,7 @@ class ContigKmerIterator {
   uint64_t word_{0};
 };
 
-int pufferfishTest(int argc, char* argv[]) { std::cerr << "not yet implemented\n"; return 1; }
+int pufferfishTest(util::TestOptions& testOpts) { std::cerr << "not yet implemented\n"; return 1; }
 
 int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 
