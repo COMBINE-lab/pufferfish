@@ -13,6 +13,7 @@
 #include "ScopedTimer.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
+#include "Util.hpp"
 //#include "gfakluge.hpp"
 
 uint64_t swap_uint64( uint64_t val )
@@ -88,8 +89,8 @@ class ContigKmerIterator {
 
 	private:
 		void advance_() {
-			size_t endPos = curr_ + k_;
-			if (endPos < rank_->size() and (*rank_)[endPos] == 1) {
+			size_t endPos = curr_ + k_ - 1;
+			if (endPos + 1< rank_->size() and (*rank_)[endPos] == 1) {
 				curr_ += k_;
         mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
         rcMer_ = mer_.get_reverse_complement();
@@ -114,39 +115,16 @@ class ContigKmerIterator {
   uint64_t word_{0};
 };
 
-int pufferfishTest(int argc, char* argv[]) { std::cerr << "not yet implemented\n"; return 1; }
+int pufferfishTest(util::TestOptions& testOpts) { std::cerr << "not yet implemented\n"; return 1; }
 
-int pufferfishIndex(int argc, char* argv[]) {
+int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 
 
-  uint32_t k;
-  std::string gfa_file;
-  std::string cfile;
-  std::string rfile;
-  std::string outdir;
-  popl::Switch helpOption("h", "help", "produce help message");
-  popl::Value<uint32_t> kOpt("k", "klen", "length of the k-mer with which the compacted dBG was built", 31, &k);
-  popl::Value<std::string> gfaOpt("g", "gfa", "path to the GFA file");
-  popl::Value<std::string> outOpt("o", "output", "directory where index is written");
-  popl::Value<std::string> readOpt("f", "fa", "path to the Fasta file with reads");
-
-  popl::OptionParser op("Allowed options");
-	op.add(helpOption)
-    .add(kOpt)
-    .add(gfaOpt)
-    .add(readOpt)
-    .add(outOpt);
-
-  op.parse(argc, argv);
-  if (helpOption.isSet()) {
-    std::cout << op << '\n';
-    std::exit(0);
-  }
-
-  gfa_file = gfaOpt.getValue();
-  rfile = readOpt.getValue();
-  outdir = outOpt.getValue();
-
+  uint32_t k = indexOpts.k;
+  std::string gfa_file = indexOpts.gfa_file;
+  std::string rfile = indexOpts.rfile;
+  std::string outdir = indexOpts.outdir;
+  
 	//std::vector<std::string> contig_file = {cfile};
 	std::vector<std::string> read_file = {rfile};
 	size_t tlen{0};	
@@ -195,17 +173,18 @@ int pufferfishIndex(int argc, char* argv[]) {
 	{
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {
+      size_t len{0};
       const auto& r1 = kv.second;
       //std::cerr << "read : [" << kv.second << "]\n";
-      rankVec[tlen] = 1;
+      //rankVec[tlen] = 1;
       my_mer mer;
       my_mer rcMer;
       //mer.from_chars(r1.c_str());
-      bool merOK = merFromStr(mer, r1);
-      if (!merOK) { std::cerr << "contig too short!"; std::exit(1); }
-      rcMer = mer.get_reverse_complement();
+      //bool merOK = merFromStr(mer, r1);
+      //if (!merOK) { std::cerr << "contig too short!"; std::exit(1); }
+      //rcMer = mer.get_reverse_complement();
+      //uint64_t km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
       uint64_t km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
-      //keys.push_back(km);
       ++nkeys;
       for (size_t i = 0;  i < r1.length(); ++i) {
         auto offset = i;//r1.length() - i - 1;
@@ -214,18 +193,18 @@ int pufferfishIndex(int argc, char* argv[]) {
         // end up storing!
         auto c = my_mer::code(r1[i]);
         seqVec[gpos + offset] = c;
-        if (i >= k) { 
-          //keys.push_back(km);
+        mer.shift_right(c);
+        rcMer.shift_left(my_mer::complement(c));
+        ++len;
+        if (len >= k) { 
           my_mer mm;
-          uint64_t num = seqVec.get_int(2*(gpos + offset - k), 2*k);
+          uint64_t num = seqVec.get_int(2*(gpos + len - k), 2*k);
           mm.word__(0) = num;// mm.canonicalize();
           if (!(mm == mer or mm == rcMer)) {//}mm != mer.get_canonical()) {
             std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
             std::cerr << "i = " << i << "\n";
             std::cerr << mer.to_str() << ", " << mm.to_str() <<"\n";
           }
-          mer.shift_right(c);
-          rcMer.shift_left(my_mer::complement(c));
           km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
           ++nkeys;
         }
@@ -233,6 +212,8 @@ int pufferfishIndex(int argc, char* argv[]) {
       }
       gpos += r1.length();
       tlen += r1.length();
+      rankVec[tlen-1] = 1;
+
     }
   }
 	 std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
@@ -342,14 +323,14 @@ int pufferfishIndex(int argc, char* argv[]) {
 						 found += 1; 
 						 bool correctPos = false;
              bool foundTxp = false;
-						 for (auto & tr : pf.contig2pos[rankOrderedContigIDs[realRank(pos)-1]]) {
+             auto rank = realRank(pos);
+						 for (auto & tr : pf.contig2pos[rankOrderedContigIDs[rank]]) {
                //std::cerr <<trRefIDs[tr.transcript_id] << "\t" <<  rp.name << "\n" ;
 							if (trRefIDs[tr.transcript_id] == rp.name) {
                 foundTxp = true;
-                uint64_t rk = realRank(pos);
-                uint64_t sp = (uint64_t)realSelect(rk);
+                uint64_t sp = (uint64_t)realSelect(rank);
 								auto relPos = pos - sp;
-                auto clen = (uint64_t)realSelect(rk + 1) - sp;
+                auto clen = (uint64_t)realSelect(rank + 1) - sp;
 								if (relPos + tr.pos == kmer_pos or clen - (relPos - tr.pos - k - 1) == kmer_pos) {
 										correctPos = true;
 										break;

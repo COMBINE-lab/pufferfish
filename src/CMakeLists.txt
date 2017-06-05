@@ -1,5 +1,5 @@
 #set(gfalib_srcs gfakluge.cpp)
-set(pufferfish_lib_srcs GFAPufferFishIndex.cpp FastxParser.cpp OurGFAReader.cpp PufferFS.cpp)
+set(pufferfish_lib_srcs Util.cpp GFAPufferFishIndex.cpp FastxParser.cpp OurGFAReader.cpp PufferFS.cpp)
 #add_library(gfakluge STATIC ${gfalib_srcs})
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 
