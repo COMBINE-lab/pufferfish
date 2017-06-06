@@ -326,13 +326,13 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
             bool foundTxp = false;
             auto rank = realRank(pos);
             for (auto& tr : pf.contig2pos[rankOrderedContigIDs[rank]]) {
-              if (trRefIDs[tr.transcript_id] == rp.name) {
+              if (trRefIDs[tr.transcript_id()] == rp.name) {
                 foundTxp = true;
                 uint64_t sp = (uint64_t)realSelect(rank);
                 auto relPos = pos - sp;
                 auto clen = (uint64_t)realSelect(rank + 1) - sp;
-                if (relPos + tr.pos == kmer_pos or
-                    clen - (relPos - tr.pos - k - 1) == kmer_pos) {
+                if (relPos + tr.pos() == kmer_pos or
+                    clen - (relPos - tr.pos() - k - 1) == kmer_pos) {
                   correctPos = true;
                   break;
                 } else {

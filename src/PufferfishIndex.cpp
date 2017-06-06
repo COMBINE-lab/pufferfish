@@ -2,6 +2,8 @@
 #include <iostream>
 
 #include "cereal/archives/json.hpp"
+#include "cereal/archives/binary.hpp"
+#include "CLI/Timer.hpp"
 
 #include "PufferfishIndex.hpp"
 #include "PufferFS.hpp"
@@ -22,28 +24,42 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     infoStream.close();
   }
 
-  std::cerr << "loading mphf ... ";
-  std::string hfile = indexDir + "/mphf.bin";
-  std::ifstream hstream(hfile);
-  hash_.reset(new boophf_t);
-  hash_->load(hstream);
-  hstream.close();
-  std::cerr << "done\n";
+  //std::cerr << "loading contig table ... ";
+  {
+    CLI::AutoTimer timer {"Loading contig table", CLI::Timer::Big};
+    std::ifstream contigTableStream(indexDir + "/ctable.bin");
+    cereal::BinaryInputArchive contigTableArchive(contigTableStream);
+    contigTableArchive(contigTable_);
+    contigTableStream.close();
+  }
+  //std::cerr << "done\n";
 
-  std::cerr << "loading contig boundary ... ";
-  std::string bfile = indexDir + "/rank.bin";
-  sdsl::load_from_file(contigBoundary_, bfile);
-  contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
-  contigSelect_ = decltype(contigBoundary_)::select_1_type(&contigBoundary_);
-  std::cerr << "done\n";
+  {
+    CLI::AutoTimer timer {"Loading mphf table", CLI::Timer::Big};
+    std::string hfile = indexDir + "/mphf.bin";
+    std::ifstream hstream(hfile);
+    hash_.reset(new boophf_t);
+    hash_->load(hstream);
+    hstream.close();
+  }
 
-  std::cerr << "loading seq ... ";
-  std::string sfile = indexDir + "/seq.bin";
-  sdsl::load_from_file(seq_, sfile);
-  std::cerr << "done\n";
+  {
+    CLI::AutoTimer timer {"Loading contig boundaries", CLI::Timer::Big};
+    std::string bfile = indexDir + "/rank.bin";
+    sdsl::load_from_file(contigBoundary_, bfile);
+    contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
+    contigSelect_ = decltype(contigBoundary_)::select_1_type(&contigBoundary_);
+  }
 
-  std::cerr << "loading pos ... ";
-  std::string pfile = indexDir + "/pos.bin";
-  sdsl::load_from_file(pos_, pfile);
-  std::cerr << "done\n";
+  {
+    CLI::AutoTimer timer {"Loading sequence", CLI::Timer::Big};
+    std::string sfile = indexDir + "/seq.bin";
+    sdsl::load_from_file(seq_, sfile);
+  }
+
+  {
+    CLI::AutoTimer timer {"Loading positions", CLI::Timer::Big};
+    std::string pfile = indexDir + "/pos.bin";
+    sdsl::load_from_file(pos_, pfile);
+  }
 }

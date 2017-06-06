@@ -1,12 +1,15 @@
 #ifndef _PUFFERFISH_INDEX_HPP_
 #define _PUFFERFISH_INDEX_HPP_
 
+#include <vector>
+
 #include "sdsl/int_vector.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "cereal/archives/json.hpp"
 
 #include "BooPHF.h"
+#include "Util.hpp"
 
 class PufferfishIndex {
 public:
@@ -18,6 +21,7 @@ public:
 
 private:
   uint32_t k_{1};
+  std::vector<util::Position> contigTable_;
   sdsl::bit_vector contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;

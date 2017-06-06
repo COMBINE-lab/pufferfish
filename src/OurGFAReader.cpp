@@ -128,7 +128,7 @@ void PosFinder::mapContig2Pos() {
 			pos = accumPos;				
 			currContigLength = contigid2seq[contigs[i].first].length();
 			accumPos += currContigLength - k;
-			(contig2pos[contigs[i].first]).push_back(Position(refIDs[tr], pos, contigs[i].second));
+			(contig2pos[contigs[i].first]).push_back(util::Position(refIDs[tr], pos, contigs[i].second));
 		}
 	}
 	std::cerr << "\nTotal # of segments we have position for : " << total_output_lines << "\n";
@@ -143,8 +143,10 @@ void PosFinder::serializeContigTable(const std::string& odir) {
     // We want to iterate over the contigs in precisely the
     // order they appear in the contig array (i.e., the iterator
     // order of contigid2seq).
+    std::vector<std::vector<util::Position>> cpos;
     for (auto& kv : contigid2seq) {
-      ar(contig2pos[kv.first]);
+      cpos.push_back(contig2pos[kv.first]);
+      //ar(contig2pos[kv.first]);
       /*
       auto& ent = contig2pos[kv.first];
       ct << kv.first;
@@ -154,6 +156,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
       ct << '\n';
       */
     }
+    ar(cpos);
   }
   /*
 	ct << refIDs.size() << '\n';
