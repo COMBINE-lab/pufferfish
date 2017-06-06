@@ -31,6 +31,7 @@
 
 int pufferfishIndex(util::IndexOptions& indexOpts);//int argc, char* argv[]);
 int pufferfishTest(util::TestOptions& testOpts);//int argc, char* argv[]);
+int pufferfishValidate(util::ValidateOptions& validateOpts);//int argc, char* argv[]);
 //int rapMapMap(int argc, char* argv[]);
 //int rapMapSAMap(int argc, char* argv[]);
 
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
   CLI::App app{"Pufferfish : An efficient dBG index."};
   auto indexApp = app.add_subcommand("index", "build the pufferfish index");
   auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
+  auto validateApp = app.add_subcommand("validate", "test k-mer lookup for reference sequences");
 
   util::IndexOptions indexOpt;
   indexApp->add_option("-k,--klen", indexOpt.k, "length of the k-mer with which the compacted dBG was built", static_cast<uint32_t>(31));
@@ -64,6 +66,9 @@ int main(int argc, char* argv[]) {
   indexApp->add_option("-f,--fa", indexOpt.rfile, "path to the Fasta file with reads");
 
   util::TestOptions testOpt;
+
+  util::ValidateOptions validateOpt;
+  validateApp->add_option("-i,--index", validateOpt.indexDir, "directory where the pufferfish index is stored");
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError &e) {
@@ -74,6 +79,8 @@ int main(int argc, char* argv[]) {
     return pufferfishIndex(indexOpt);
   } else if (app.got_subcommand(testApp)) {
     return pufferfishTest(testOpt);
+  } else if (app.got_subcommand(validateApp)) {
+    return pufferfishValidate(validateOpt);
   } else {
     std::cerr << "I don't know the requested sub-command\n";
     return 1;

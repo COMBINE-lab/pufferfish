@@ -1,7 +1,8 @@
 // BooPHF library
 // intended to be a minimal perfect hash function with fast and low memory construction, at the cost of (slightly) higher bits/elem than other state of the art libraries once built.
 // should work with arbitray large number of elements, based on a cascade of  "collision-free" bit arrays
-
+#ifndef _BOOPHF_H_
+#define _BOOPHF_H_
 #pragma once
 #include <stdio.h>
 #include <climits>
@@ -23,7 +24,7 @@
 namespace boomphf {
 
 	
-	u_int64_t printPt( pthread_t pt) {
+	inline u_int64_t printPt( pthread_t pt) {
 	  unsigned char *ptc = (unsigned char*)(void*)(&pt);
 		u_int64_t res =0;
 	  for (size_t i=0; i<sizeof(pt); i++) {
@@ -1563,3 +1564,6 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 		return NULL;
 	}
 }
+
+#endif // _BOOPHF_H_
+

@@ -134,7 +134,9 @@ void PosFinder::mapContig2Pos() {
 	std::cerr << "\nTotal # of segments we have position for : " << total_output_lines << "\n";
 }
 
-void PosFinder::serializeContigTable(const std::string& ofile) {
+// Note : We assume that odir is the name of a valid (i.e., existing) directory.
+void PosFinder::serializeContigTable(const std::string& odir) {
+  std::string ofile = odir + "/ctable.bin";
 	std::ofstream ct(ofile);
   cereal::BinaryOutputArchive ar(ct);
   {

@@ -67,7 +67,7 @@ class PosFinder {
 
 		void parseFile();	
 		void mapContig2Pos();
-    void serializeContigTable(const std::string& ofile);
+    void serializeContigTable(const std::string& odir);
 		void deserializeContigTable();
 };
 
