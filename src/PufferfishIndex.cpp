@@ -1,4 +1,7 @@
 #include <fstream>
+#include <iostream>
+
+#include "cereal/archives/json.hpp"
 
 #include "PufferfishIndex.hpp"
 #include "PufferFS.hpp"
@@ -9,6 +12,14 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   if (!puffer::fs::DirExists(indexDir.c_str())) {
     std::cerr << "The index directory " << indexDir << " does not exist!\n";
     std::exit(1);
+  }
+
+  {
+    std::ifstream infoStream(indexDir + "/info.json");
+    cereal::JSONInputArchive infoArchive(infoStream);
+    infoArchive(cereal::make_nvp("k", k_));
+    std::cerr << "k = " << k_ << '\n';
+    infoStream.close();
   }
 
   std::cerr << "loading mphf ... ";

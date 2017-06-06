@@ -17,7 +17,7 @@ public:
   PufferfishIndex(const std::string& indexPath);
 
 private:
-  uint32_t k{1};
+  uint32_t k_{1};
   sdsl::bit_vector contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;

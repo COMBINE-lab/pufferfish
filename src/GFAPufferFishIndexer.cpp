@@ -248,8 +248,8 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   }
 
   /** Write the index **/
+  std::ofstream descStream(outdir + "/info.json");
   {
-    std::ofstream descStream(outdir + "/info.json");
     cereal::JSONOutputArchive indexDesc(descStream);
     std::string sampStr = "dense";
     indexDesc(cereal::make_nvp("sampling_type", sampStr));
@@ -257,8 +257,8 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     indexDesc(cereal::make_nvp("num_kmers", nkeyIt));
     indexDesc(cereal::make_nvp("num_contigs", numContigs));
     indexDesc(cereal::make_nvp("seq_length", tlen));
-    descStream.close();
   }
+  descStream.close();
 
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
