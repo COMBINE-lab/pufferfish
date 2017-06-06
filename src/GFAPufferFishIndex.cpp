@@ -4,6 +4,8 @@
 #include <cmath>
 #include <iterator>
 #include <type_traits>
+
+#include "spdlog/spdlog.h"
 #include "sdsl/int_vector.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "PufferFS.hpp"
@@ -14,6 +16,7 @@
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "Util.hpp"
+#include "CanonicalKmer.hpp"
 //#include "gfakluge.hpp"
 
 uint64_t swap_uint64( uint64_t val )
@@ -21,17 +24,6 @@ uint64_t swap_uint64( uint64_t val )
 	    val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
 	        val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
 		    return (val << 32) | (val >> 32);
-}
-
-using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
-
-bool merFromStr(my_mer& mer, const std::string& s) {
-  auto k = my_mer::k();
-  if (s.length() < k) { return false; }
-  for (size_t i = 0; i < k; ++i) {
-    mer.shift_right(s[i]);
-  }
-  return true;
 }
 
 // adapted from :
@@ -48,9 +40,10 @@ class ContigKmerIterator {
 		ContigKmerIterator(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
 			storage_(storage), rank_(rank), k_(k), curr_(startAt) {
       if (curr_ + k_ <= rank_->size()) {
-        mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
+        mer_.fromNum(storage_->get_int(2 * curr_, 2 * k_));
+                     //mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
       }
-      rcMer_ = mer_.get_reverse_complement();
+          //rcMer_ = mer_.get_reverse_complement();
     }
 
   ContigKmerIterator& operator=(ContigKmerIterator& other) {//}= default;//(sdsl::int_vector<>* storage, sdsl::bit_vector* rank, uint8_t k, uint64_t startAt) : 
@@ -59,7 +52,7 @@ class ContigKmerIterator {
     k_ = other.k_;
     curr_ = other.curr_;
     mer_ = other.mer_;
-    rcMer_ = other.rcMer_;
+    //rcMer_ = other.rcMer_;
     word_ = other.word_;
   }
 
@@ -69,14 +62,15 @@ class ContigKmerIterator {
 		ContigKmerIterator operator++(int) { advance_(); return *this; }
 
 		reference operator*() {
-      word_ = (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0);
+      //word_ = (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0);
+      word_ = mer_.getCanonicalWord();
       return word_;
 		}
 
 		difference_type pos() { return curr_; }
 
     pointer operator->() {
-      word_ =  (mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0);
+      word_ =  mer_.getCanonicalWord();//(mer_.word(0) < rcMer_.word(0)) ? mer_.word(0) : rcMer_.word(0);
       return &word_;
     }
 		bool operator==(const self_type& rhs) { return curr_ == rhs.curr_; }
@@ -92,16 +86,13 @@ class ContigKmerIterator {
 			size_t endPos = curr_ + k_ - 1;
 			if (endPos + 1< rank_->size() and (*rank_)[endPos] == 1) {
 				curr_ += k_;
-        mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_); 
-        rcMer_ = mer_.get_reverse_complement();
+        mer_.fromNum(storage_->get_int(2 * curr_, 2 * k_));
 			} else {
         if (curr_ + k_ < rank_->size()) {
           int c = (*storage_)[curr_+k_];
-          mer_.shift_right(c);
-          rcMer_.shift_left(my_mer::complement(c));
+          mer_.shiftFw(c);
         } else {
-          mer_.word__(0) = storage_->get_int(2 * (rank_->size() - k_), 2 * k_);
-          rcMer_ = mer_.get_reverse_complement();
+          mer_.fromNum(storage_->get_int(2 * (rank_->size() - k_), 2 * k_));
         }
         ++curr_;
 			}
@@ -110,27 +101,25 @@ class ContigKmerIterator {
   sdsl::bit_vector* rank_{nullptr};
   uint8_t k_{0};
   uint64_t curr_{0};
-  my_mer mer_;
-  my_mer rcMer_;
+  CanonicalKmer mer_;
   uint64_t word_{0};
 };
 
 int pufferfishTest(util::TestOptions& testOpts) { std::cerr << "not yet implemented\n"; return 1; }
 
-int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
-
-
+int pufferfishIndex(util::IndexOptions& indexOpts){
   uint32_t k = indexOpts.k;
   std::string gfa_file = indexOpts.gfa_file;
   std::string rfile = indexOpts.rfile;
   std::string outdir = indexOpts.outdir;
-  
-	//std::vector<std::string> contig_file = {cfile};
 	std::vector<std::string> read_file = {rfile};
+
+  auto console = spdlog::stderr_color_mt("console");
+
 	size_t tlen{0};	
 	size_t numKmers{0};
 	size_t nread{0};
-	my_mer::k(k);
+	CanonicalKmer::k(k);
 
   puffer::fs::MakeDir(outdir.c_str());
 
@@ -138,16 +127,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 	pf.parseFile();	
 	pf.mapContig2Pos();
   pf.serializeContigTable(outdir + "/ctable.bin");
-	
-/*
-	auto gg = gfak::GFAKluge();
-	gg.parse_gfa_file(contig_file[0]); 	
-	auto seqs = gg.get_name_to_seq();
-	for (auto& kv : seqs) {
-		std::cerr << "k = " << kv.first << ", " << kv.second.id << "\n";
-	}
-	std::exit(1);
-*/
+
   {
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {
@@ -156,36 +136,27 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
       numKmers += r1.length() - k + 1;
       ++nread;
     }
-    std::cerr << "numread = " << nread << "\n";
-    std::cerr << "tlen = " << tlen << "\n";
+    console->info("# segments = {}", nread);
+    console->info("total length = {}", tlen);
   }
+
   // now we know the size we need --- create our bitvectors and pack!
 	size_t gpos{0};
 	size_t w = std::log2(tlen) + 1;
-	std::cerr << "w = " << w << "\n";
+  console->info("positional integer width = {}", w);
 	sdsl::int_vector<> seqVec(tlen, 0, 2);
 	sdsl::int_vector<> posVec(tlen, 0, w);
 	sdsl::bit_vector rankVec(tlen);
 	tlen = 0;
-	//std::vector<uint64_t> keys;
-	//keys.reserve(numKmers);
+
 	size_t nkeys{0};
 	{
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {
       size_t len{0};
       const auto& r1 = kv.second;
-      //std::cerr << "read : [" << kv.second << "]\n";
-      //rankVec[tlen] = 1;
-      my_mer mer;
-      my_mer rcMer;
-      //mer.from_chars(r1.c_str());
-      //bool merOK = merFromStr(mer, r1);
-      //if (!merOK) { std::cerr << "contig too short!"; std::exit(1); }
-      //rcMer = mer.get_reverse_complement();
-      //uint64_t km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
-      uint64_t km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
-      ++nkeys;
+      CanonicalKmer mer;
+      uint64_t km;
       for (size_t i = 0;  i < r1.length(); ++i) {
         auto offset = i;//r1.length() - i - 1;
         // NOTE: Having to add things in the reverse order here is strange 
@@ -193,19 +164,19 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
         // end up storing!
         auto c = my_mer::code(r1[i]);
         seqVec[gpos + offset] = c;
-        mer.shift_right(c);
-        rcMer.shift_left(my_mer::complement(c));
+        mer.shiftFw(c);
         ++len;
         if (len >= k) { 
           my_mer mm;
           uint64_t num = seqVec.get_int(2*(gpos + len - k), 2*k);
           mm.word__(0) = num;// mm.canonicalize();
-          if (!(mm == mer or mm == rcMer)) {//}mm != mer.get_canonical()) {
+          if (!(mm == mer.fwMer() or mm == mer.rcMer())) {//}mm != mer.get_canonical()) {
             std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
             std::cerr << "i = " << i << "\n";
             std::cerr << mer.to_str() << ", " << mm.to_str() <<"\n";
           }
-          km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
+          //km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
+          km = mer.getCanonicalWord();
           ++nkeys;
         }
         //++gpos;
@@ -235,26 +206,12 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 	 size_t tlen2{0};
 	 {
 		 size_t i = 0;
-		 my_mer fkm;
-		 my_mer fkc;
 		 ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
 		 ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
-		 //while (i <= seqVec.size() - k) {
 		 for (; kb1 != ke1; ++kb1) {
-			 //i = kb1.pos();
-			 //uint64_t fk = seqVec.get_int(2*i, 2*k);
-			 //fkm.word__(0) = fk; fkm.canonicalize();
 			 auto idx = bphf->lookup(*kb1);//fkm.word(0));
 			 if (idx >= posVec.size()) { std::cerr << "i =  " << i << ", size = " << seqVec.size() << ", idx = " << idx << ", size = " << posVec.size() << "\n";}
 			 posVec[idx] = kb1.pos();
-			/* 
-			size_t endPos = i + k;
-			if (endPos < rankVec.size() and rankVec[endPos] == 1) {
-				i += k;
-			} else {
-				++i;
-			}
-			*/
 		 }
 	 }
 
@@ -278,19 +235,19 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 	{
 	std::vector<std::string> rankOrderedContigIDs;
 
-    auto& cnmap = pf.getContigNameMap();
-	for ( auto& kv : cnmap) {
-			rankOrderedContigIDs.push_back(kv.first);
-	}
-	auto& trRefIDs = pf.getRefIDs();
-    ScopedTimer st;
-	fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
-	parser.start();
-	// Get the read group by which this thread will
-	// communicate with the parser (*once per-thread*)
-	size_t rn{0};
-	size_t kmer_pos{0};
-	 auto rg = parser.getReadGroup();
+  auto& cnmap = pf.getContigNameMap();
+  for ( auto& kv : cnmap) {
+    rankOrderedContigIDs.push_back(kv.first);
+  }
+  auto& trRefIDs = pf.getRefIDs();
+  ScopedTimer st;
+  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
+  parser.start();
+  // Get the read group by which this thread will
+  // communicate with the parser (*once per-thread*)
+  size_t rn{0};
+  size_t kmer_pos{0};
+   auto rg = parser.getReadGroup();
 	 sdsl::bit_vector::rank_1_type realRank(&rankVec); 
 	 sdsl::bit_vector::select_1_type realSelect(&rankVec);
 	 while (parser.refill(rg)) {
@@ -304,28 +261,22 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 			 }
 			 ++rn;
 			 auto& r1 = rp.seq;
-			 my_mer mer;
-       my_mer rcMer;
-			 bool merOK = merFromStr(mer, r1);//mer.from_chars(r1.begin());
+       CanonicalKmer mer;
+			 bool merOK = mer.fromStr(r1);//mer.from_chars(r1.begin());
        if (!merOK) { std::cerr << "contig too short!"; std::exit(1); }
-       rcMer = mer.get_reverse_complement();
-
-       //rcMer = mer.get
-			 auto km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0); 
+			 auto km = mer.getCanonicalWord();
 			 size_t res = bphf->lookup(km);
 			 uint64_t pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
 			 if (pos <= S - k) { 
 				 uint64_t fk = seqVec.get_int(2*pos, 2*k);
 				 my_mer fkm;
-				 //fkm.word__(0) = fk; fkm.canonicalize();
          fkm.word__(0) = fk;
-				 if ( mer.word(0) == fkm.word(0) or rcMer.word(0) == fkm.word(0) ) { 
+				 if ( mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0) ) { 
 						 found += 1; 
 						 bool correctPos = false;
              bool foundTxp = false;
              auto rank = realRank(pos);
 						 for (auto & tr : pf.contig2pos[rankOrderedContigIDs[rank]]) {
-               //std::cerr <<trRefIDs[tr.transcript_id] << "\t" <<  rp.name << "\n" ;
 							if (trRefIDs[tr.transcript_id] == rp.name) {
                 foundTxp = true;
                 uint64_t sp = (uint64_t)realSelect(rank);
@@ -335,7 +286,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 										correctPos = true;
 										break;
 								} else {
-									std::cerr << "ours : " << relPos + tr.pos << " , true : " << kmer_pos << "\n";
+									//std::cerr << "ours : " << relPos + tr.pos << " , true : " << kmer_pos << "\n";
 								}
 							}
 						 }
@@ -352,16 +303,15 @@ int pufferfishIndex(util::IndexOptions& indexOpts){//}int argc, char* argv[]) {
 			 }
 			 
 			 for (size_t i = k;  i < r1.length(); ++i) {
-				mer.shift_right(r1[i]);
-        rcMer.shift_left(my_mer::code(my_mer::complement(r1[i])));
-			 	km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) : rcMer.word(0);//mer.get_canonical().word(0);
+         mer.shiftFw(r1[i]);
+         km = mer.getCanonicalWord();
 			 	res = bphf->lookup(km);
 			 	pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
 				 if ( pos <= S - k) { 
 					 uint64_t fk = seqVec.get_int(2*pos, 62);
 					 my_mer fkm;
 					 fkm.word__(0) = fk; //fkm.canonicalize();
-					 if ( mer.word(0) == fkm.word(0) or rcMer.word(0) == fkm.word(0) ) {
+					 if ( mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0) ) {
 							 found += 1; 
 	
 					 } else { notFound += 1; }

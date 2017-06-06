@@ -51,18 +51,9 @@ commands.)";
     std::cerr << usage << '\n';
 }
 
-
-int testIndexApp(CLI::App* app) {
-  std::cerr << "woot!\n";
-  auto opts = app->parse_order();
-  for (auto& o : opts) {
-    std::cerr << "option " << o->results().front() << "\n";
-  }
-}
-
 int main(int argc, char* argv[]) {
 
-  CLI::App app{"App description"};
+  CLI::App app{"Pufferfish : An efficient dBG index."};
   auto indexApp = app.add_subcommand("index", "build the pufferfish index");
   auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
 
@@ -81,71 +72,11 @@ int main(int argc, char* argv[]) {
 
   if (app.got_subcommand(indexApp)) {
     return pufferfishIndex(indexOpt);
-    //return testIndexApp(indexApp);
   } else if (app.got_subcommand(testApp)) {
     return pufferfishTest(testOpt);
   } else {
     std::cerr << "I don't know the requested sub-command\n";
     return 1;
   }
-  /*
-  uint32_t k;
-  std::string gfa_file;
-  std::string cfile;
-  std::string rfile;
-  std::string outdir;
-  popl::Switch helpOption("h", "help", "produce help message");
-  popl::Value<uint32_t> kOpt("k", "klen", "length of the k-mer with which the compacted dBG was built", 31, &k);
-  popl::Value<std::string> gfaOpt("g", "gfa", "path to the GFA file");
-  popl::Value<std::string> outOpt("o", "output", "directory where index is written");
-  popl::Value<std::string> readOpt("f", "fa", "path to the Fasta file with reads");
-
-  popl::OptionParser op("Allowed options");
-	op.add(helpOption)
-    .add(kOpt)
-    .add(gfaOpt)
-    .add(readOpt)
-    .add(outOpt);
-
-  op.parse(argc, argv);
-  if (helpOption.isSet()) {
-    std::cout << op << '\n';
-    std::exit(0);
-  }
-
-  gfa_file = gfaOpt.getValue();
-  rfile = readOpt.getValue();
-  outdir = outOpt.getValue();
-
-
-
-    std::vector<char*> args;
-    args.push_back(argv[0]);
-
-    if (argc < 2) {
-        printUsage();
-        std::exit(0);
-    }
-
-    for (int i = 2; i < argc; ++i) {
-        args.push_back(argv[i]);
-    }
-
-    if (std::string(argv[1]) == "-h" or
-        std::string(argv[1]) == "--help") {
-        printUsage();
-        std::exit(0);
-    }
-
-    if (std::string(argv[1]) == "index") {
-        return pufferfishIndex(argc - 1, args.data());
-    } else if (std::string(argv[1]) == "test") {
-        return pufferfishTest(argc - 1, args.data());
-    } else {
-        std::cerr << "the command " << argv[1]
-                  << " is not yet implemented\n";
-      return 1;
-    }
-  */
-    return 0;
+  return 0;
 }
