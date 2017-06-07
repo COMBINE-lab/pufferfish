@@ -184,7 +184,7 @@ pufg::Graph& PosFinder::getSemiCG(){
 void PosFinder::writeFile(std::string fileName){
 	std::ofstream gfa_file(fileName) ;
 	for(auto& cseq : contigid2seq){
-		gfa_file << "S" << "\t" << cseq.second << "\n" ;
+		gfa_file << "S" << "\t" << cseq.first <<"\t" << cseq.second << "\n" ;
 	}
 	for(auto& p : path){
 		auto tid = p.first ;
