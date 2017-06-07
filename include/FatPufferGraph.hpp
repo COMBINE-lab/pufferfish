@@ -3,6 +3,7 @@
 
 #include <map>
 #include "Util.hpp"
+#include <iostream>
 
 namespace pufg{
 	struct edgetuple{
@@ -45,6 +46,8 @@ namespace pufg{
 
 				out.emplace_back(sign, nodeId, toSign);
 			}
+
+
 			void insertNodeFrom(std::string nodeId, bool sign, bool fromSign){
 				if(sign)
 					indegp++ ;
@@ -54,6 +57,16 @@ namespace pufg{
 				in.emplace_back(sign, nodeId, fromSign) ;
 			}
 			
+			bool checkExistence(bool bSign, std::string toId, bool toSign){
+				for(auto& i : out){
+					if(i.baseSign == bSign and i.neighborSign == toSign){
+						if(i.contigId == toId)
+							return true ;
+					}
+				}
+				return false ;
+			}
+
 			std::vector<edgetuple> getIn() {return in;}
 			std::vector<edgetuple> getOut() {return out;}
 
@@ -100,9 +113,12 @@ namespace pufg{
 			auto& fromNode = Vertices[fromId] ;
 			auto& toNode = Vertices[toId] ;
 
-
-			fromNode.insertNodeTo(toNode.getId(),fromSign,toSign) ;
-			toNode.insertNodeFrom(fromNode.getId(),toSign,fromSign) ;
+			if(!fromNode.checkExistence(fromSign,toNode.getId(),toSign)){
+				fromNode.insertNodeTo(toNode.getId(),fromSign,toSign) ;
+				toNode.insertNodeFrom(fromNode.getId(),toSign,fromSign) ;
+			}else{
+				std::cerr<<"\nSeen this before" ;
+			}
 
 
 			//Edges.emplace_back(fromNode,toNode) ;

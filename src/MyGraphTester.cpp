@@ -1,4 +1,4 @@
-#include "PufferGraph.hpp"
+#include "FatPufferGraph.hpp"
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -14,7 +14,7 @@ int main(int argc, char* argv[]){
 	std::ifstream file(gfa_file) ;
 	std::string ln ;
 
-	puffergraph::Graph G ;
+	pufg::Graph G ;
 
 	while(std::getline(file,ln)){
 		char firstC = ln[0] ;
