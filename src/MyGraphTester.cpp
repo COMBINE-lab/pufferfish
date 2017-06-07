@@ -28,7 +28,7 @@ int main(int argc, char* argv[]){
 						  pf.getSemiCG());
 	scc.compact();
 	scc.updatePath(pf.getPaths());
-	pf.writeFile(gfa_outfilename);
+	scc.writeFile(gfa_outfilename);
 
 /*
 
