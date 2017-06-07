@@ -100,7 +100,7 @@ namespace pufg{
 				return false;
 		}
 
-		void addEdge(std::string fromId, bool fromSign, std::string toId, bool toSign){
+		bool addEdge(std::string fromId, bool fromSign, std::string toId, bool toSign){
 			//case 1 where the from node does not exist
 			//None of the nodes exists
 			if(Vertices.find(fromId) == Vertices.end()){
@@ -117,9 +117,10 @@ namespace pufg{
 			if(!fromNode.checkExistence(fromSign,toNode.getId(),toSign)){
 				fromNode.insertNodeTo(toNode.getId(),fromSign,toSign) ;
 				toNode.insertNodeFrom(fromNode.getId(),toSign,fromSign) ;
-			}else{
-				std::cerr<<"\nSeen this before" ;
+				return true ;
 			}
+
+			return false ;
 
 
 			//Edges.emplace_back(fromNode,toNode) ;

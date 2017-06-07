@@ -122,7 +122,7 @@ void PosFinder::parseFile() {
 		auto & contigVec = kv.second;			
 		for (uint64_t i = 0; i < contigVec.size()-1; i++){
 			std::string contigSeq = contigid2seq[contigVec[i].first];	
-			std::cerr << contigSeq.length() << '\n';
+			//std::cerr << contigSeq.length() << '\n';
 			// left + : get the right most k nucleotides
 			std::string kmer = contigSeq.substr(contigSeq.size()-k, contigSeq.size());
 			if (!contigVec[i].second) {// which means the orientation of the contig in negative in the path
