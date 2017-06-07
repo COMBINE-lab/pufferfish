@@ -143,6 +143,12 @@ void PosFinder::serializeContigTable(const std::string& odir) {
     // We want to iterate over the contigs in precisely the
     // order they appear in the contig array (i.e., the iterator
     // order of contigid2seq).
+    std::vector<std::string> refNames;
+    for (size_t i = 0; i < refMap.size(); ++i) {
+      refNames.push_back(refMap[i]);
+    }
+    ar(refNames);
+
     std::vector<std::vector<util::Position>> cpos;
     for (auto& kv : contigid2seq) {
       cpos.push_back(contig2pos[kv.first]);
@@ -156,6 +162,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
       ct << '\n';
       */
     }
+
     ar(cpos);
   }
   /*

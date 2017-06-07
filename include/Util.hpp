@@ -29,6 +29,7 @@ namespace util {
   class ValidateOptions {
   public:
     std::string indexDir;
+    std::string refFile;
   };
 
   // For the time being, assume < 4B contigs

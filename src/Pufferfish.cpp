@@ -69,6 +69,7 @@ int main(int argc, char* argv[]) {
 
   util::ValidateOptions validateOpt;
   validateApp->add_option("-i,--index", validateOpt.indexDir, "directory where the pufferfish index is stored");
+  validateApp->add_option("-r,--ref", validateOpt.refFile, "fasta file with reference sequences");
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError &e) {
