@@ -30,11 +30,11 @@ private:
 			return false;
 		} 
 public:
-		SemiCompactedCompactor(std::vector<std::pair<std::string, std::string> > newSegmentsIn, 
-						spp::sparse_hash_map<std::string, std::string> contigid2seqIn,
-							spp::sparse_hash_map<std::string, bool > pathStartIn,
-								spp::sparse_hash_map<std::string, bool > pathEndIn,
-								pufg::Graph semiGraphIn) {
+		SemiCompactedCompactor(std::vector<std::pair<std::string, std::string> >& newSegmentsIn, 
+						spp::sparse_hash_map<std::string, std::string>& contigid2seqIn,
+							spp::sparse_hash_map<std::string, bool >& pathStartIn,
+								spp::sparse_hash_map<std::string, bool >& pathEndIn,
+								pufg::Graph& semiGraphIn) {
 			newSegments = newSegmentsIn;
 			contigid2seq = contigid2seqIn;
 			pathStart = pathStartIn;
@@ -43,8 +43,9 @@ public:
 		}
 
 		void compact() {			
+			spp::sparse_hash_map<std::string, pufg::Node> vertices = semiGraph.getVertices();
 			for (auto & idSeq : newSegments) {
-				pufg::Node s = semiGraph.getVertices()[idSeq.first];
+				pufg::Node s = vertices[idSeq.first];
 				bool clipOuts = false, clipIns = false;
 				// realIndegs : sum of Indegs to s+ and outdegs from s-
 				// realOutdegs : sum of outdegs from s+ and indegs to s-
