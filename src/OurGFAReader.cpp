@@ -70,7 +70,7 @@ void PosFinder::parseFile() {
 	size_t ref_cnt{0};
 	while(std::getline(file, ln)) {
 			char firstC = ln[0];
-			if (firstC != 'S' and firstC != 'P') continue;
+			if (firstC != 'S' and firstC != 'P' /*and firstC != 'L'*/) continue;
 			stx::string_view lnview(ln);
 			std::vector<stx::string_view> splited = split(lnview, '\t');
 			tag = splited[0].to_string();
@@ -92,8 +92,65 @@ void PosFinder::parseFile() {
 				refMap[ref_cnt] = id;
 				refIDs[id] = ref_cnt++;
 
+				pathStart[contigVec[0].first] = true;
+				pathEnd[contigVec[contigVec.size()-1].first] = true;
+	
+				
 			}
+			/*if(tag == 'L'){
+				stx::string_view lnview(ln);
+				std::vector<stx::string_view> splited = util::split(lnview, '\t');
+
+				std::string leftLinkId = splited[1].to_string() ;
+				std::string leftLinkOre = splited[2].to_string() ;
+				std::string rightLinkId = splited[3].to_string() ;
+				std::string rightLinkOre = splited[4].to_string() ;
+
+				bool fromSign = (leftLinkOre == "+") ? true : false ;
+				bool toSign = (rightLinkOre == "+") ? true : false ;
+	
+				semiGraph.addEdge(leftLinkId, fromSign, rightLinkId, toSign) ;
+			}*/
+
 	}
+
+	spp::sparse_hash_map<std::string, std::string> kmer2contigid;
+	std::string prefix = "00";
+	uint32_t newContigCntr = 0;
+	for (auto & kv : path) {
+		std::string id = kv.first;
+		auto & contigVec = kv.second;			
+		for (uint64_t i = 0; i < contigVec.size()-1; i++){
+			std::string contigSeq = contigid2seq[contigVec[i].first];	
+			std::cerr << contigSeq.length() << '\n';
+			// left + : get the right most k nucleotides
+			std::string kmer = contigSeq.substr(contigSeq.size()-k, contigSeq.size());
+			if (!contigVec[i].second) {// which means the orientation of the contig in negative in the path
+				// left - : get the left most k nucleotides
+					kmer = contigSeq.substr(0, k);
+			}
+
+			// then we add the kmer segment
+			std::string kmerId ;
+			bool kmerSign;
+			if (kmer2contigid.find(kmer) != kmer2contigid.end()){
+					kmerId = kmer2contigid[kmer] ;
+					kmerSign = contigVec[i].second;
+			} else if (kmer2contigid.find(util::revcomp(kmer)) != kmer2contigid.end()){
+					kmerId = kmer2contigid[util::revcomp(kmer)] ;
+					kmerSign = !contigVec[i].second;
+			} else {
+					kmer2contigid[kmer] = prefix + std::to_string(newContigCntr++); // at the same time increase newContigCntr									
+					kmerId = kmer2contigid[kmer];
+					kmerSign = contigVec[i].second;
+					newSegments.push_back(std::make_pair(kmerId, kmer)); // Add kmer to the list of newSegments
+			}
+			semiCG.addEdge(contigVec[i].first, contigVec[i].second, kmerId, kmerSign) ;
+			semiCG.addEdge(kmerId, kmerSign, contigVec[i+1].first, contigVec[i+1].second) ;
+		}
+	}
+
+
 
 	std::cerr << " Total # of Contigs : " << contig_cnt << " Total # of numerical Contigs : " << contigid2seq.size() << "\n\n";
 }
