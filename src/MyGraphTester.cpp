@@ -7,19 +7,9 @@
 #include <iterator>
 #include <type_traits>
 
-#include "CLI/CLI.hpp"
 
 int main(int argc, char* argv[]){
-  CLI::App app{"graphtester : test the graph module"};
-
-	std::string gfa_file;
-  app.add_option("filename", gfa_file, "the input file")->required();
-
-  try {
-    app.parse(argc, argv);
-  } catch (const CLI::Error &e) {
-    return app.exit(e);
-  }
+	std::string gfa_file = argv[1] ;
 
 	std::ifstream file(gfa_file) ;
 	std::string ln ;
@@ -44,9 +34,14 @@ int main(int argc, char* argv[]){
 			G.addEdge(leftLinkId, fromSign, rightLinkId, toSign) ;
 		}
 	}
-	auto Vertices = G.getVertices() ;
+	auto& Vertices = G.getVertices() ;
 
 	std::cerr << "\n Number of vertices " << Vertices.size() << "\n" ;
+	for(auto& node : Vertices){
+		std::cout << " \n id " << node.second.getId() << " real out deg " << (int)node.second.getRealOutdeg() << "\n" ;
+	}
+
+	//std::cout << "\n out degree of 2 " << Vertices["2"].getRealIndeg() << "\n" ;
 
 	return 0 ;
 }
