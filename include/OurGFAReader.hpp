@@ -55,7 +55,9 @@ class PosFinder {
     spp::sparse_hash_map<std::string, bool>& getPathStart() ;
     spp::sparse_hash_map<std::string, bool>& getPathEnd() ;
     std::vector<std::pair<std::string, std::string> >& getNewSegments() ;
+	spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > >& getPaths() {return path;}
     pufg::Graph& getSemiCG() ;
+
 
 
 		void parseFile();	
