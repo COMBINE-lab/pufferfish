@@ -71,59 +71,9 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
             ++numTrueTxp;
           }
         }
-        /*
-        if (pos <= S - k) {
-          
-          uint64_t fk = seqVec.get_int(2 * pos, 2 * k);
-          my_mer fkm;
-          fkm.word__(0) = fk;
-          if (mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0)) {
-          
-            found += 1;
-            bool correctPos = false;
-            bool foundTxp = false;
-            auto rank = realRank(pos);
-            for (auto& tr : pi.refList(rank)) { //}[rankOrderedContigIDs[rank]]) {
-              if (pi.refName(tr.transcript_id()) == rp.name) {
-                //if (trRefIDs[tr.transcript_id()] == rp.name) {
-                foundTxp = true;
-                uint64_t sp = (uint64_t)realSelect(rank);
-                auto relPos = pos - sp;
-                auto clen = (uint64_t)realSelect(rank + 1) - sp;
-                if (relPos + tr.pos() == kmer_pos or
-                    clen - (relPos - tr.pos() - k - 1) == kmer_pos) {
-                  correctPos = true;
-                  break;
-                } else {
-                  // std::cerr << "ours : " << relPos + tr.pos << " , true : "
-                  // << kmer_pos << "\n";
-                }
-              }
-            }
-            if (correctPos) {
-              correctPosCntr++;
-            } else {
-              incorrectPosCntr++;
-            }
-            if (foundTxp) {
-              numTrueTxp++;
-            }
-            // if (!foundTxp) { std::cerr << "failed to find true txp [" <<
-            // rp.name << "]\n"; }
-          } else {
-            // std::cerr << "rn = " << rn - 1 << ", fk = " <<
-            // fkm.get_canonical().to_str() << ", km = " <<
-            // mer.get_canonical().to_str() << ", pkmer = " << pkmer <<" \n";
-            // std::cerr << "found = " << found << ", not found = " << notFound
-            // << "\n";
-            notFound += 1;
-          }
-        } else {
-          // std::cerr << "pos = " << pos << ", shouldn't happen\n";
-          notFound += 1;
-        }
-        */
 
+
+        /*
         for (size_t i = k; i < r1.length(); ++i) {
           mer.shiftFw(r1[i]);
           pos = pi.getRawPos(mer);
@@ -135,23 +85,8 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
           } else {
             ++notFound;
           }
-          /*
-            uint64_t fk = seqVec.get_int(2 * pos, 62);
-            my_mer fkm;
-            fkm.word__(0) = fk; // fkm.canonicalize();
-            if (mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0)) {
-              found += 1;
-
-            } else {
-              notFound += 1;
-            }
-          } else {
-            // std::cerr << "pos = " << pos << ", shouldn't happen\n";
-            notFound += 1;
-          }
-        }
-        */
       }
+        */
     }
   }
   }
