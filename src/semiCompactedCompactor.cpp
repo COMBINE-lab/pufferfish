@@ -127,7 +127,7 @@ public:
 			}
 		}
 
-		void updatePath(spp::sparse_hash_map<std::string, std::vector<std::pair<std::string, bool> > >  path) {
+		void updatePath(spp::sparse_hash_map<std::string, std::vector<std::pair<std::string, bool> > >&  path) {
 			
 			for (auto & kv : path) {
 					std::string id = kv.first;
