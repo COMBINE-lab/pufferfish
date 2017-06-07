@@ -52,11 +52,17 @@ class PosFinder {
     spp::sparse_hash_map<std::string, std::string>& getContigNameMap();
     spp::sparse_hash_map<std::string, std::string>& getContigIDMap();
     spp::sparse_hash_map<uint32_t, std::string>& getRefIDs();
+    spp::sparse_hash_map<std::string, bool>& getPathStart() ;
+    spp::sparse_hash_map<std::string, bool>& getPathEnd() ;
+    std::vector<std::pair<std::string, std::string> >& getNewSegments() ;
+    pufg::Graph& getSemiCG() ;
+
 
 		void parseFile();	
 		void mapContig2Pos();
     void serializeContigTable(const std::string& odir);
 		void deserializeContigTable();
+		void writeFile(std::string fileName);
 };
 
 #endif

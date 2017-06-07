@@ -166,6 +166,38 @@ spp::sparse_hash_map<uint32_t, std::string>& PosFinder::getRefIDs() {
   return refMap;
 }
 
+spp::sparse_hash_map<std::string, bool>& PosFinder::getPathStart() {
+	return pathStart ;
+}
+spp::sparse_hash_map<std::string, bool>& PosFinder::getPathEnd() {
+	return pathEnd ;
+}
+
+std::vector<std::pair<std::string, std::string> >& PosFinder::getNewSegments() {
+	return newSegments ;
+}
+
+pufg::Graph& PosFinder::getSemiCG(){
+	return semiCG ;
+}
+
+void PosFinder::writeFile(std::string fileName){
+	std::ofstream gfa_file(fileName) ;
+	for(auto& cseq : contigid2seq){
+		gfa_file << "S" << "\t" << cseq.second << "\n" ;
+	}
+	for(auto& p : path){
+		auto tid = p.first ;
+		gfa_file << "P" << "\t" << tid << "\t"  ;
+		auto vec = p.second ;
+		for(int i = 0 ; i < vec.size()-1 ; i++){
+			gfa_file << vec[i].first << ((vec[i].second)?"+":"-") << "," ;
+		}
+		gfa_file << vec[vec.size()-1].first << ((vec[vec.size()-1].second)?"+":"-") << "\t*\n";
+
+	}
+}
+
 
 void PosFinder::mapContig2Pos() {
 	uint64_t pos = 0;
