@@ -5,12 +5,14 @@
 class SemiCompactedCompactor {
 
 private:
-		std::vector<pufg::Node> newSegments;
+		std::vector<std::pair<std::string, std::string> > newSegments;
 		spp::sparse_hash_map<std::string, std::string> contigid2seq;
 		spp::sparse_hash_map<std::string, bool > right_clipped;
 		spp::sparse_hash_map<std::string, bool > left_clipped;
 		spp::sparse_hash_map<std::string, bool > pathStart;
 		spp::sparse_hash_map<std::string, bool > pathEnd;
+
+		pufg::Graph semiGraph;
 
 		struct cmpByPair {
 				    bool operator() (std::pair<std::string, bool> a, std::pair<std::string, bool> b) const {
@@ -28,18 +30,21 @@ private:
 			return false;
 		} 
 public:
-		SemiCompactedCompactor(std::vector<pufg::Node> newSegmentsIn, 
+		SemiCompactedCompactor(std::vector<std::pair<std::string, std::string> > newSegmentsIn, 
 						spp::sparse_hash_map<std::string, std::string> contigid2seqIn,
 							spp::sparse_hash_map<std::string, bool > pathStartIn,
-								spp::sparse_hash_map<std::string, bool > pathEndIn) {
+								spp::sparse_hash_map<std::string, bool > pathEndIn,
+								pufg::Graph semiGraphIn) {
 			newSegments = newSegmentsIn;
 			contigid2seq = contigid2seqIn;
 			pathStart = pathStartIn;
 			pathEnd = pathEndIn;
+			semiGraph = semiGraphIn;
 		}
 
-		void compact() {
-			for (auto & s : newSegments) {
+		void compact() {			
+			for (auto & idSeq : newSegments) {
+				pufg::Node s = semiGraph.getVertices()[idSeq.first];
 				bool clipOuts = false, clipIns = false;
 				// realIndegs : sum of Indegs to s+ and outdegs from s-
 				// realOutdegs : sum of outdegs from s+ and indegs to s-
@@ -49,6 +54,8 @@ public:
 				   ) {
 					clipOuts = true;
 					clipIns = true;			
+					// add it to the list of contigIds (segments) as a new segment
+					contigid2seq[idSeq.first] = idSeq.second;
 					for (auto & n : s.getIn()) // keep all the incoming nodes to this node in a map of the id to the new segment id
 						needsNewNext[std::make_pair(n.contigId, n.baseSign)] = std::make_pair(s.getId(), n.neighborSign);				
 				} 		
