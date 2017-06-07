@@ -52,7 +52,11 @@ int main(int argc, char* argv[]){
 					if (contigVec.size() > 1) {
 						for (uint64_t i = 0; i < contigVec.size()-1; i++) {
 							updatedContigVec.push_back(contigVec[i]);
+              if (!contigid2seq.contains(contigVec[i].first)) {
+                std::cerr << "can't find " << contigVec[i].first << '\n';
+              }
 							std::string contigSeq = contigid2seq[contigVec[i].first];	
+              std::cerr << contigSeq.length() << '\n';
 							// left + : get the right most k nucleotides
 							std::string kmer = contigSeq.substr(contigSeq.size()-k, contigSeq.size());
 							if (!contigVec[i].second) {// which means the orientation of the contig in negative in the path
@@ -60,6 +64,9 @@ int main(int argc, char* argv[]){
 									kmer = contigSeq.substr(0, k);
 							}
 
+              const auto& curr = contigVec[i].first;
+              const auto& next = contigVec[i+1].first;
+              if (contigid2seq[curr].length() <= k+1 or contigid2seq[next].length() <= k+1)  { continue; }
 							// First we add the left most segment id to the path with its original orientation
 							// We also update the contig sequence if it hasn't been updated before
 							/*

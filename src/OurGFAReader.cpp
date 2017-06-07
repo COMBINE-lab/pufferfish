@@ -1,3 +1,5 @@
+#include <algorithm>
+#include "xxhash.h"
 #include "OurGFAReader.hpp"
 #include "cereal/archives/binary.hpp"
 
@@ -128,21 +130,56 @@ void PosFinder::mapContig2Pos() {
 			pos = accumPos;				
 			currContigLength = contigid2seq[contigs[i].first].length();
 			accumPos += currContigLength - k;
-			(contig2pos[contigs[i].first]).push_back(Position(refIDs[tr], pos, contigs[i].second));
+			(contig2pos[contigs[i].first]).push_back(util::Position(refIDs[tr], pos, contigs[i].second));
 		}
 	}
 	std::cerr << "\nTotal # of segments we have position for : " << total_output_lines << "\n";
 }
 
-void PosFinder::serializeContigTable(const std::string& ofile) {
+// Note : We assume that odir is the name of a valid (i.e., existing) directory.
+void PosFinder::serializeContigTable(const std::string& odir) {
+  std::string ofile = odir + "/ctable.bin";
+  std::string eqfile = odir + "/eqtable.bin";
 	std::ofstream ct(ofile);
+	std::ofstream et(eqfile);
   cereal::BinaryOutputArchive ar(ct);
+  cereal::BinaryOutputArchive eqAr(et);
   {
     // We want to iterate over the contigs in precisely the
     // order they appear in the contig array (i.e., the iterator
     // order of contigid2seq).
+    std::vector<std::string> refNames;
+    for (size_t i = 0; i < refMap.size(); ++i) {
+      refNames.push_back(refMap[i]);
+    }
+    ar(refNames);
+
+    class VecHasher {
+    public:
+      size_t operator()(const std::vector<uint32_t>& vec) const {
+        return XXH64(const_cast<std::vector<uint32_t>&>(vec).data(), vec.size() * sizeof(decltype(vec.front())), 0);
+      }
+    };
+
+    spp::sparse_hash_map<std::vector<uint32_t>, uint32_t, VecHasher> eqMap;
+    std::vector<uint32_t> eqIDs;
+    std::vector<std::vector<util::Position>> cpos;
     for (auto& kv : contigid2seq) {
-      ar(contig2pos[kv.first]);
+      cpos.push_back(contig2pos[kv.first]);
+      std::vector<uint32_t> tlist;
+      for (auto& p : contig2pos[kv.first]) {
+        tlist.push_back(p.transcript_id());
+      }
+      std::sort(tlist.begin(), tlist.end());
+      tlist.erase(std::unique(tlist.begin(), tlist.end()), tlist.end());
+      size_t eqID = eqMap.size();
+      if (eqMap.contains(tlist)) {
+        eqID = eqMap[tlist];
+      } else {
+        eqMap[tlist] = eqID;
+      }
+      eqIDs.push_back(eqID);
+      //ar(contig2pos[kv.first]);
       /*
       auto& ent = contig2pos[kv.first];
       ct << kv.first;
@@ -152,6 +189,18 @@ void PosFinder::serializeContigTable(const std::string& ofile) {
       ct << '\n';
       */
     }
+    std::cerr << "there were " << eqMap.size() << " equivalence classes\n";
+    eqAr(eqIDs);
+    eqIDs.clear(); eqIDs.shrink_to_fit();
+    std::vector<std::vector<uint32_t>> eqLabels;
+    eqLabels.reserve(eqMap.size());
+    for (auto& kv : eqMap) { eqLabels.push_back(kv.first); }
+    std::sort(eqLabels.begin(), eqLabels.end(),
+              [&](const std::vector<uint32_t>& l1, const std::vector<uint32_t>& l2) -> bool {
+                return eqMap[l1] < eqMap[l2];
+              });
+    eqAr(eqLabels);
+    ar(cpos);
   }
   /*
 	ct << refIDs.size() << '\n';

@@ -3,6 +3,13 @@
 
 #include "jellyfish/mer_dna.hpp"
 
+// NO_MATCH => two k-mers k1, and k2 are distinct such that k1 != k2 and rc(k1) != k2
+// IDENTITY_MATCH => k1 = k2
+// TWIN_MATCH => rc(k1) = k2
+enum class KmerMatchType : uint8_t {NO_MATCH=0, IDENTITY_MATCH, TWIN_MATCH};
+
+using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
+
 /**
  * This class wraps a pair of jellifish k-mers
  * (i.e., mer_dna objects).  It maintains both a
@@ -10,7 +17,6 @@
  * to make the operation of retreiving the canonical
  * k-mer efficent.
  */
-using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
 class CanonicalKmer {
 private:
   my_mer fw_;
@@ -88,6 +94,11 @@ public:
 
   inline const uint64_t rcWord() {
     return rc_.word(0);
+  }
+
+  inline KmerMatchType isEquivalent(const my_mer& m) {
+    return m.word(0) == fwWord() ? KmerMatchType::IDENTITY_MATCH :
+      (m.word(0) == rcWord() ? KmerMatchType::TWIN_MATCH : KmerMatchType::NO_MATCH);
   }
 
   inline std::string to_str() { return fw_.to_str(); }

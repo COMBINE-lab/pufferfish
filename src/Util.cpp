@@ -14,6 +14,7 @@ namespace util {
 						  return c;
 
 			}
+      return 'A';
 		}
 
 		std::string revcomp(std::string s){

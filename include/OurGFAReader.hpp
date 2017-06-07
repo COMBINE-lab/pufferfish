@@ -12,27 +12,7 @@
 #include "sparsepp/spp.h"
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
-
-		// For the time being, assume < 4B contigs
-		// and that each contig is < 4B bases
-		struct Position {
-			//std::string transcript_id;
-			uint32_t transcript_id;
-			uint32_t pos;
-			bool orien;
-
-			Position(uint32_t tid, uint32_t tpos, bool torien) {
-				transcript_id = tid;
-				pos = tpos;
-				orien = torien;
-			}
-
-      template <class Archive>
-      void serialize(Archive& ar) {
-        ar(transcript_id, pos, orien);
-      }
-		};
-
+#include "Util.hpp"
 
 class PosFinder {
 	private:
@@ -59,7 +39,7 @@ class PosFinder {
 		// implementation from : https://marcoarena.wordpress.com/tag/string_view/
 		std::vector<stx::string_view> split(stx::string_view str, char delims);
 	public:
-		spp::sparse_hash_map<std::string, std::vector<Position> > contig2pos;  
+    spp::sparse_hash_map<std::string, std::vector<util::Position> > contig2pos;  
 		PosFinder(const char* gfaFileName, size_t input_k);
     spp::sparse_hash_map<std::string, std::string>& getContigNameMap();
     spp::sparse_hash_map<std::string, std::string>& getContigIDMap();
@@ -67,7 +47,7 @@ class PosFinder {
 
 		void parseFile();	
 		void mapContig2Pos();
-    void serializeContigTable(const std::string& ofile);
+    void serializeContigTable(const std::string& odir);
 		void deserializeContigTable();
 };
 
