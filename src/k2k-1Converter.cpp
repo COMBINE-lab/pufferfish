@@ -6,13 +6,25 @@
 //#include "BooPHF.h"
 //#include "popl.hpp"
 //#include "ScopedTimer.hpp"
+#include "CLI/CLI.hpp"
 #include "sparsepp/spp.h"
 
 #include "Util.hpp"
 
 int main(int argc, char* argv[]){
-		std::string gfa_file = argv[1] ;
-		std::ifstream file(gfa_file) ;
+  CLI::App app{"pufferizer : prepare a GFA file for pufferfish"};
+
+  std::string gfa_file;
+  app.add_option("filename", gfa_file, "the input file")->required();
+
+  try {
+    app.parse(argc, argv);
+  } catch (const CLI::Error &e) {
+    return app.exit(e);
+  }
+
+
+    std::ifstream file(gfa_file) ;
 		short k = 31;
 		std::string ln;
 		std::string tag, id, value;
