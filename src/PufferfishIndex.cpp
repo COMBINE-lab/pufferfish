@@ -77,7 +77,9 @@ uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
     uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
     my_mer fkm;
     fkm.word__(0) = fk;
-    if (mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0)) {
+    auto keq = mer.isEquivalent(fkm);
+    if (keq != KmerMatchType::NO_MATCH) {
+      //}mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0)) {
       return pos;
     }
   }
@@ -109,15 +111,15 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
     uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
     my_mer fkm;
     fkm.word__(0) = fk;
-    bool hitFW = mer.fwWord() == fkm.word(0);
-    bool hitRC = mer.rcWord() == fkm.word(0);
-    if (hitFW or hitRC) {
+    auto keq = mer.isEquivalent(fkm);
+    if (keq != KmerMatchType::NO_MATCH) {
       auto rank = contigRank_(pos);
       auto& pvec = contigTable_[rank];
       // start position of this contig
       uint64_t sp = static_cast<uint64_t>(contigSelect_(rank));
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
       //auto clen = (uint64_t)realSelect(rank + 1) - sp;
+      bool hitFW = keq == KmerMatchType::IDENTITY_MATCH;
       return {relPos, hitFW, core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
       return {std::numeric_limits<uint32_t>::max(), true, core::range<IterT>{}};
