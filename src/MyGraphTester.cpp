@@ -6,31 +6,15 @@
 #include <cmath>
 #include <iterator>
 #include <type_traits>
-#include "OurGFAReader.hpp"
-#include "semiCompactedCompactor.hpp"
+
 
 int main(int argc, char* argv[]){
-	std::string gfa_infilename = argv[1] ;
-	std::string gfa_outfilename = argv[2];
+	std::string gfa_file = argv[1] ;
 
-	/*std::ifstream file(gfa_file) ;
+	std::ifstream file(gfa_file) ;
 	std::string ln ;
 
 	pufg::Graph G ;
-	*/
-	PosFinder pf(argv[1], 31);
-	pf.parseFile();
-	
-	SemiCompactedCompactor scc(pf.getNewSegments(), 
-						  pf.getContigNameMap(),
-						  pf.getPathStart(),
-						  pf.getPathEnd(),
-						  pf.getSemiCG());
-	scc.compact();
-	scc.updatePath(pf.getPaths());
-	pf.writeFile(gfa_outfilename);
-
-/*
 
 	while(std::getline(file,ln)){
 		char firstC = ln[0] ;
@@ -53,11 +37,19 @@ int main(int argc, char* argv[]){
 	auto& Vertices = G.getVertices() ;
 
 	std::cerr << "\n Number of vertices " << Vertices.size() << "\n" ;
+
+	for(auto& node : Vertices){
+		if(node.second.getRealOutdeg() > 1 and node.second.getRealIndeg() > 1){
+			std::cout << node.first << " " <<(int) node.second.getRealOutdeg() <<" " <<(int) node.second.getRealIndeg() << "\n" ;
+
+		}
+	}
+	/*
 	for(auto& node : Vertices){
 		std::cout << " \n id " << node.second.getId() << " real out deg " << (int)node.second.getRealOutdeg() << "\n" ;
-	}
+	}*/
 
 	//std::cout << "\n out degree of 2 " << Vertices["2"].getRealIndeg() << "\n" ;
-*/
+
 	return 0 ;
 }
