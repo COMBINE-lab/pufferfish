@@ -19,6 +19,8 @@ class PufferfishIndex {
 private:
   uint32_t k_{0};
   uint64_t numKmers_{0};
+  std::vector<uint32_t> eqClassIDs_;
+  std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
   std::vector<std::vector<util::Position>> contigTable_;
   sdsl::bit_vector contigBoundary_;

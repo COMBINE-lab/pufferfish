@@ -35,6 +35,15 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     contigTableArchive(contigTable_);
     contigTableStream.close();
   }
+
+  {
+    CLI::AutoTimer timer {"Loading eq table", CLI::Timer::Big};
+    std::ifstream eqTableStream(indexDir + "/eqtable.bin");
+    cereal::BinaryInputArchive eqTableArchive(eqTableStream);
+    eqTableArchive(eqClassIDs_);
+    eqTableArchive(eqLabels_);
+    eqTableStream.close();
+  }
   //std::cerr << "done\n";
 
   {
