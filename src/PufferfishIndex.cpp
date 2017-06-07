@@ -68,7 +68,6 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 }
 
 //auto endContigMap() -> decltype(contigTable_.begin()) { return contigTable_.end(); }
-
 uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
   auto km = mer.getCanonicalWord();
   size_t res = hash_->lookup(km);
@@ -86,6 +85,9 @@ uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
   return pos;
 }
 
+bool PufferfishIndex::contains(CanonicalKmer& mer) {
+  return isValidPos(getRawPos(mer));
+}
   /*
 uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
   return getRawPos(mer.getCanonicalWord());

@@ -35,6 +35,7 @@ public:
   const std::vector<util::Position>& refList(uint64_t contigRank);
   const std::string& refName(uint64_t refRank);
   //uint64_t getRawPos(uint64_t km);
+  bool contains(CanonicalKmer& mer);
   uint64_t getRawPos(CanonicalKmer& mer);
   bool isValidPos(uint64_t pos);
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
