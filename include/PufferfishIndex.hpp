@@ -35,16 +35,31 @@ public:
   PufferfishIndex();
   PufferfishIndex(const std::string& indexPath);
 
+  // Get the equivalence class ID (i.e., rank of the equivalence class)
+  // for a given contig.
   EqClassID getEqClassID(uint32_t contigID);
+
+  // Get the equivalence class label for a contig (i.e., the set of reference sequences containing
+  // the contig).
   const EqClassLabel& getEqClassLabel(uint32_t contigID);
 
+  // Get the k value with which this index was built.
   const uint32_t k();
+  // Get the list of reference sequences & positiosn corresponding to a contig
   const std::vector<util::Position>& refList(uint64_t contigRank);
+  // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
-  //uint64_t getRawPos(uint64_t km);
+
+  // Returns true if the given k-mer appears in the dBG, false otherwise
   bool contains(CanonicalKmer& mer);
+  // Returns the position in the compacted dBG sequence vector where the
+  // given k-mer occurs, or std::numeric_limits<uint32_t>::max() otherwise.
   uint64_t getRawPos(CanonicalKmer& mer);
+  // Returns true if pos is a valid position in the compacted sequence array
+  // and false otherwise.
   bool isValidPos(uint64_t pos);
+  // Returns a ProjectedHits object that contains all of the
+  // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
 };
 
