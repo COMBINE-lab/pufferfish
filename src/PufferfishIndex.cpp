@@ -76,6 +76,14 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   }
 }
 
+PufferfishIndex::EqClassID PufferfishIndex::getEqClassID(uint32_t contigID) {
+  return eqClassIDs_[contigID];
+}
+
+const PufferfishIndex::EqClassLabel& PufferfishIndex::getEqClassLabel(uint32_t contigID) {
+  return eqLabels_[getEqClassID(contigID)];
+}
+
 //auto endContigMap() -> decltype(contigTable_.begin()) { return contigTable_.end(); }
 uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
   auto km = mer.getCanonicalWord();

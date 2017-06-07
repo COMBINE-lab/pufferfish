@@ -14,8 +14,10 @@
 #include "Util.hpp"
 
 class PufferfishIndex {
-  typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
-  typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
+  using hasher_t = boomphf::SingleHashFunctor<uint64_t>;
+  using boophf_t = boomphf::mphf<uint64_t, hasher_t>;
+  using EqClassID = uint32_t;
+  using EqClassLabel = std::vector<uint32_t>;
 private:
   uint32_t k_{0};
   uint64_t numKmers_{0};
@@ -32,6 +34,9 @@ private:
 public:
   PufferfishIndex();
   PufferfishIndex(const std::string& indexPath);
+
+  EqClassID getEqClassID(uint32_t contigID);
+  const EqClassLabel& getEqClassLabel(uint32_t contigID);
 
   const uint32_t k();
   const std::vector<util::Position>& refList(uint64_t contigRank);
