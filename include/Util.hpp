@@ -7,6 +7,7 @@
 #include <fstream>
 #include <cmath>
 #include "string_view.hpp"
+#include "core/range.hpp"
 
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
@@ -70,6 +71,14 @@ namespace util {
 
   private:
     //uint32_t orientMask_
+  };
+
+  // Structure to hold a list of "projected" (i.e. reference) hits
+  // for a k-mer
+  struct ProjectedHits {
+    uint32_t conigPos_;
+    bool contigOrientation_; // true for fw, false for rc
+    core::range<std::vector<util::Position>::iterator> refRange;
   };
 
   char complement(char& c);

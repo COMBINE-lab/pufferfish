@@ -54,14 +54,14 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
           std::exit(1);
         }
 
-        auto prange = pi.getRefPos(mer);
-        if (prange.empty()) {
+        auto phits = pi.getRefPos(mer);
+        if (phits.refRange.empty()) {
           ++notFound;
         } else {
           ++found;
           bool correctPos = false;
           bool foundTxp = false;
-          for (auto& rpos : prange) {
+          for (auto& rpos : phits.refRange) {
             if (pi.refName(rpos.transcript_id()) == rp.name) {
               foundTxp = true;
             } else {

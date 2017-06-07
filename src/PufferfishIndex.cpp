@@ -96,7 +96,7 @@ bool PufferfishIndex::isValidPos(uint64_t pos) {
   return pos != std::numeric_limits<uint64_t>::max();
 }
 
-auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> core::range<std::vector<util::Position>::iterator> {
+auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
 
   using IterT = std::vector<util::Position>::iterator;//decltype(contigTable_.begin());
   auto km = mer.getCanonicalWord();
@@ -107,14 +107,22 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> core::range<std::vector<u
     uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
     my_mer fkm;
     fkm.word__(0) = fk;
-    if (mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0)) {
-      auto& pvec = contigTable_[contigRank_(pos)];
-      return core::range<IterT>{pvec.begin(), pvec.end()};
+    bool hitFW = mer.fwWord() == fkm.word(0);
+    bool hitRC = mer.rcWord() == fkm.word(0);
+    if (hitFW or hitRC) {
+      auto rank = contigRank_(pos);
+      auto& pvec = contigTable_[rank];
+      // start position of this contig
+      uint64_t sp = static_cast<uint64_t>(contigSelect_(rank));
+      uint32_t relPos = static_cast<uint32_t>(pos - sp);
+      //auto clen = (uint64_t)realSelect(rank + 1) - sp;
+      return {relPos, hitFW, core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return core::range<IterT>{};
+      return {std::numeric_limits<uint32_t>::max(), true, core::range<IterT>{}};
     }
   }
-  return core::range<IterT>{};
+  return {std::numeric_limits<uint32_t>::max(), true, core::range<IterT>{}};
+  //return core::range<IterT>{};
 }
 
 const uint32_t PufferfishIndex::k() { return k_; }

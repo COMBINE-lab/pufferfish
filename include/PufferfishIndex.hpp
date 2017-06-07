@@ -37,8 +37,7 @@ public:
   //uint64_t getRawPos(uint64_t km);
   uint64_t getRawPos(CanonicalKmer& mer);
   bool isValidPos(uint64_t pos);
-
-  auto getRefPos(CanonicalKmer& mer) -> core::range<std::vector<util::Position>::iterator>;
+  auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_
