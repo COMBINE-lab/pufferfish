@@ -3,6 +3,7 @@
 
 #include <map>
 #include "Util.hpp"
+#include "sparsepp/spp.h"
 #include <iostream>
 
 namespace pufg{
@@ -83,12 +84,12 @@ namespace pufg{
 
 	class Graph{
 	private:
-		std::map<std::string,Node> Vertices ;
+		spp::sparse_hash_map<std::string,Node> Vertices ;
 		//std::vector<std::pair<Node,Node> > Edges ;
 
 	public:
 		//case where I do
-		std::map<std::string, Node> getVertices(){
+		spp::sparse_hash_map<std::string, Node>& getVertices(){
 			return Vertices;
 		}
 
