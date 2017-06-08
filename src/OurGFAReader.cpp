@@ -129,7 +129,7 @@ void PosFinder::parseFile() {
 					kmerId = kmer2contigid[util::revcomp(kmer)] ;
 					kmerSign = !contigVec[i].second;
 			} else {
-					kmer2contigid[kmer] = prefix + std::to_string(newContigCntr++); // at the same time increase newContigCntr									
+					kmer2contigid[kmer] = prefix + contigVec[i].first + (contigVec[i].second?"1":"0"); // std::to_string(newContigCntr++); // at the same time increase newContigCntr									
 					kmerId = kmer2contigid[kmer];
 					kmerSign = contigVec[i].second;
 					newSegments.push_back(std::make_pair(kmerId, kmer)); // Add kmer to the list of newSegments

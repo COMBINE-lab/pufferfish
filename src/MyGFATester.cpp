@@ -94,9 +94,6 @@ int main(int argc, char* argv[]){
 					//if(reconstructedTr[id] != "") continue ;
 					reconstructedTr[id] = "";
 					size_t i = 0;
-					if(id == "ENST00000390583.1|ENSG00000211923.1|OTTHUMG00000152354.3|OTTHUMT00000325960.3|IGHD3-10-001|IGHD3-10|31|CDS:1-30|UTR3:31-31|"){
-						std::cerr << " number of contigs " << contigVec.size() << "\n" ;
-					}
 					for(auto core : contigVec){
 						auto contig_id = core.first ;
 						auto ore = core.second ;
@@ -112,6 +109,7 @@ int main(int argc, char* argv[]){
 								added.erase(added.size()-overlap,overlap) ;
 								reconstructedTr[id] += added ;
 							}
+							else {std::cerr << "\nBAAAAAAAD\n" << contig_id << " : " << added.size();}
 						}else{
 							if(!ore){
 								added =  util::revcomp(contigid2seq[contig_id]) ;
@@ -128,8 +126,8 @@ int main(int argc, char* argv[]){
 
 					if(fastaMap[id] != reconstructedTr[id]){
 						std::cerr << id << "\n" ;
-						std::cerr << "true " << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
-						std::cerr << "reconstructed " << reconstructedTr[id] << " " << reconstructedTr[id].size() << "\n" ;
+						std::cerr << "true\n " << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
+						std::cerr << "reconstructed\n " << reconstructedTr[id] << " " << reconstructedTr[id].size() << "\n" ;
 						std::cerr << " number of contigs " << contigVec.size() << "\n" ;
 						size_t j = 0;
 						for(auto core : contigVec){
@@ -144,9 +142,9 @@ int main(int argc, char* argv[]){
 								}
 								//contigid2seq[contig_id].erase(contigid2seq[contig_id].size()-31+1,31) ;
 								if(added.size() > overlap){
-									added.erase(added.size()-overlap,overlap) ;
-									reconstructedTr[id] += added ;
-									std::cerr << contig_id << " " << added << "\n" ;
+									//added.erase(added.size()-overlap,overlap) ;
+									//reconstructedTr[id] += added ;
+									std::cerr << contig_id << " " << added.substr(0, added.size()-overlap) << "\t" << added.substr(added.size()-overlap) << "\n" ;
 									//std::cerr << added << "\n" ;
 								}
 									//std::cerr << contig_id << " " << added << "\n" ;

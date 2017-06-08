@@ -17,7 +17,7 @@ private:
 
 		struct cmpByPair {
 				    bool operator() (std::pair<std::string, bool> a, std::pair<std::string, bool> b) const {
-									return (a.first != b.first) ? (a.first < b.first) : a.second;
+									return (a.first != b.first) ? (a.first < b.first) : (a.second < b.second);
 									    }
 		};
 		//spp::sparse_hash_map<std::pair<std::string, bool>, std::pair<std::string, bool>, cmpByPair > needsNewNext;
@@ -60,6 +60,7 @@ public:
 //								or (s.getRealOutdeg() == 1 and is_boundary(s.getIn()))
 //				   ) 
 				   {
+						   std::cout<<s.getId()<<"\n";
 				/*		   std::cerr << s.getId() << "\n\tIn:\n";
 						   for (auto & n : s.getIn())
 								std::cerr << n.contigId << "-" << n.baseSign << "-" << n.neighborSign << ", ";
@@ -74,7 +75,12 @@ public:
 					//std::cerr << idSeq.first << idSeq.second << "\n";
 					contigid2seq[idSeq.first] = idSeq.second;
 					newSegmentCntr++;
+					if (s.getId() == "002188821") {
+						std::cerr << "002188821 " << s.getIn().size() << "\n";
+					}
+
 					for (auto & n : s.getIn()) {// keep all the incoming nodes to this node in a map of the id to the new segment id
+						if (s.getId() == "002188821")std::cerr << "\tkey<" << n.contigId << "," << n.neighborSign << "> : value < " <<s.getId() << "," <<n.baseSign << ">\n";
 						needsNewNext[std::make_pair(n.contigId, n.neighborSign)] = std::make_pair(s.getId(), n.baseSign);				
 					}
 
@@ -115,8 +121,9 @@ public:
 									contigid2seq[n.contigId].erase(0, 1); //first nucleotide
 									left_clipped[n.contigId] = true;
 								}
-								if (contigid2seq[n.contigId].size() < k_)
+								if (contigid2seq[n.contigId].size() < k_) {
 										shortContigs[n.contigId] = true;
+								}
 						}
 					}
 				}
@@ -136,8 +143,9 @@ public:
 								contigid2seq[n.contigId].erase(0, 1); //first nucleotide
 								left_clipped[n.contigId] = true;
 							}
-							if (contigid2seq[n.contigId].size() < k_)
-									shortContigs[n.contigId] = true;						
+							if (contigid2seq[n.contigId].size() < k_) {
+									shortContigs[n.contigId] = true;
+							}
 						}
 					}
 					for (auto & n : s.getOut()) { // outgoing nodes
@@ -150,8 +158,9 @@ public:
 								contigid2seq[n.contigId].erase(contigid2seq[n.contigId].size()-1, 1); //last nucleotide
 								right_clipped[n.contigId] = true;
 							}
-							if (contigid2seq[n.contigId].size() < k_)
+							if (contigid2seq[n.contigId].size() < k_) {
 									shortContigs[n.contigId] = true;
+							}
 							
 						}
 					}
