@@ -55,6 +55,14 @@ public:
 //								or (s.getRealOutdeg() == 1 and is_boundary(s.getIn()))
 //				   ) 
 				   {
+				/*		   std::cerr << s.getId() << "\n\tIn:\n";
+						   for (auto & n : s.getIn())
+								std::cerr << n.contigId << "-" << n.baseSign << "-" << n.neighborSign << ", ";
+						   std::cerr << "\n\tOut:\n";
+						   for (auto & n : s.getOut())
+								std::cerr << n.contigId << "-" << n.baseSign << "-" << n.neighborSign << ", ";
+						   std::cerr << "\n";
+				*/	
 					clipOuts = true;
 					clipIns = true;			
 					// add it to the list of contigIds (segments) as a new segment

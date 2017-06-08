@@ -31,30 +31,37 @@ namespace pufg{
 			uint8_t getOutdegP() {return outdegp ;}
 			uint8_t getIndegM() {return indegm ;}
 			uint8_t getOutdegM() {return outdegm ;}
-			uint8_t getOutdeg() {return (outdegp + outdegm) ;}
-			uint8_t getIndeg() {return (indegp + indegm); }
-			uint8_t getRealOutdeg() {return (outdegp + indegm) ; }
-			uint8_t getRealIndeg() {return (indegp + outdegm) ;}
+			uint8_t getRealOutdeg() {					
+					return distinctRealOut.size();}//(outdegp + outdegm) ;}
+			uint8_t getRealIndeg() {					
+					return distinctRealIn.size();}//(indegp + indegm); }
 
 			//std::vector<std::string> getPositiveToNodes()
 			std::string getId() {return id;}
 
 			void insertNodeTo(std::string nodeId, bool sign, bool toSign){
-				if(sign)
+				if(sign) {
 					outdegp++;
-				else
+					distinctRealOut[nodeId + (toSign?"+":"-")] = true;
+				}
+				else {
 					outdegm++;
+					distinctRealIn[nodeId + (toSign?"-":"+")] = true;
+				}
 
 				out.emplace_back(sign, nodeId, toSign);
 			}
 
 
 			void insertNodeFrom(std::string nodeId, bool sign, bool fromSign){
-				if(sign)
+				if(sign) {
 					indegp++ ;
-				else
+					distinctRealIn[nodeId + (fromSign?"+":"-")] = true;
+				}
+				else {
 					indegm++ ;
-
+					distinctRealOut[nodeId + (fromSign?"-":"+")] = true;
+				}
 				in.emplace_back(sign, nodeId, fromSign) ;
 			}
 			
@@ -79,6 +86,9 @@ namespace pufg{
 			uint8_t outdegm ;
 			std::vector<edgetuple> in;
 			std::vector<edgetuple> out ;
+			// We use these two just to count total number of incoming edges or outgoing edges and they literaly have no other usecases!!
+			spp::sparse_hash_map<std::string, bool> distinctRealIn;
+			spp::sparse_hash_map<std::string, bool> distinctRealOut;
 
 	};
 
