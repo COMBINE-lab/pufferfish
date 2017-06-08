@@ -108,11 +108,6 @@ uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
 bool PufferfishIndex::contains(CanonicalKmer& mer) {
   return isValidPos(getRawPos(mer));
 }
-  /*
-uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
-  return getRawPos(mer.getCanonicalWord());
-}
-  */
 
 bool PufferfishIndex::isValidPos(uint64_t pos) {
   return pos != std::numeric_limits<uint64_t>::max();
@@ -154,6 +149,7 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
       // start position of this contig
       uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
+      // start position of the next contig - start position of this one
       auto clen = static_cast<uint64_t>(contigSelect_(rank + 1) + 1 - sp);
       bool hitFW = keq == KmerMatchType::IDENTITY_MATCH;
       return {relPos, hitFW, clen, k_, core::range<IterT>{pvec.begin(), pvec.end()}};
@@ -163,7 +159,6 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
   }
 
   return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
-  //return core::range<IterT>{};
 }
 
 const uint32_t PufferfishIndex::k() { return k_; }
