@@ -25,6 +25,7 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
   size_t correctPosCntr = 0;
   size_t incorrectPosCntr = 0;
   size_t numTrueTxp = 0;
+  size_t numLostTxp = 0;
   {
     ScopedTimer st;
     std::vector<std::string> read_file = {validateOpts.refFile};
@@ -64,36 +65,70 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
           for (auto& rpos : phits.refRange) {
             if (pi.refName(rpos.transcript_id()) == rp.name) {
               foundTxp = true;
+              auto refInfo = phits.decodeHit(rpos);
+              if (refInfo.pos == 0) {
+                correctPos = true;
+              }
             } else {
             }
           }
           if (foundTxp) {
             ++numTrueTxp;
+            if (correctPos) { ++correctPosCntr; } else { ++incorrectPosCntr; }
+          } else {
+            ++numLostTxp;
           }
         }
-
-
-        /*
+        
         for (size_t i = k; i < r1.length(); ++i) {
           mer.shiftFw(r1[i]);
-          pos = pi.getRawPos(mer);
-          //km = mer.getCanonicalWord();
-          //res = bphf->lookup(km);
-          //pos = (res < N) ? posVec[res] : std::numeric_limits<uint64_t>::max();
-          if (pi.isValidPos(pos)){//}pos <= S - k) {
-            ++found;
-          } else {
+          auto phits = pi.getRefPos(mer);
+          if (phits.refRange.empty()) {
             ++notFound;
-          }
+          } else {
+            ++found;
+            bool correctPos = false;
+            bool foundTxp = false;
+            bool cor = false;
+            uint32_t clen = 0;
+            uint32_t cid = 0;
+            std::vector<uint32_t> wrongPos;
+            for (auto& rpos : phits.refRange) {
+              if (pi.refName(rpos.transcript_id()) == rp.name) {
+                foundTxp = true;
+                auto refInfo = phits.decodeHit(rpos);
+                if (refInfo.pos == i - k + 1) {
+                correctPos = true;
+                } else {
+                  cor = phits.contigOrientation_;
+                  clen = phits.contigLen_;
+                  wrongPos.push_back(refInfo.pos);
+                }
+              } else {
+                }
+                }
+                if (foundTxp) {
+                ++numTrueTxp;
+                if (correctPos) {
+                  ++correctPosCntr;
+                } else {
+                  std::cerr << "correct pos = " << i - k + 1 << ", found " << util::str(wrongPos)
+                            << ", contig orientation = " << cor << ", contig len = " << clen
+                            << ", contig rank = " << pi.contigID(mer) << '\n';
+                  ++incorrectPosCntr;
+                }
+            } else {
+              ++numLostTxp;
+            }
+        }
       }
-        */
     }
   }
   }
   std::cerr << "found = " << found << ", not found = " << notFound << "\n";
   std::cerr << "correctPos = " << correctPosCntr
             << ", incorrectPos = " << incorrectPosCntr << "\n";
-  std::cerr << "corrextTxp = " << numTrueTxp << "\n";
+  std::cerr << "corrextTxp = " << numTrueTxp << ", lostTxp = " << numLostTxp << "\n";
 
 
 

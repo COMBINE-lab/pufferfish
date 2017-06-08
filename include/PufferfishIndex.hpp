@@ -25,6 +25,7 @@ private:
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
   std::vector<std::vector<util::Position>> contigTable_;
+  uint64_t numContigs_{0};
   sdsl::bit_vector contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;
@@ -52,6 +53,9 @@ public:
 
   // Returns true if the given k-mer appears in the dBG, false otherwise
   bool contains(CanonicalKmer& mer);
+
+  uint32_t contigID(CanonicalKmer& mer);
+
   // Returns the position in the compacted dBG sequence vector where the
   // given k-mer occurs, or std::numeric_limits<uint32_t>::max() otherwise.
   uint64_t getRawPos(CanonicalKmer& mer);

@@ -35,6 +35,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     contigTableArchive(contigTable_);
     contigTableStream.close();
   }
+  numContigs_ = contigTable_.size();
 
   {
     CLI::AutoTimer timer {"Loading eq table", CLI::Timer::Big};
@@ -107,15 +108,28 @@ uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
 bool PufferfishIndex::contains(CanonicalKmer& mer) {
   return isValidPos(getRawPos(mer));
 }
-  /*
-uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
-  return getRawPos(mer.getCanonicalWord());
-}
-  */
 
 bool PufferfishIndex::isValidPos(uint64_t pos) {
   return pos != std::numeric_limits<uint64_t>::max();
 }
+
+uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
+    auto km = mer.getCanonicalWord();
+    size_t res = hash_->lookup(km);
+    uint64_t pos =
+      (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
+    if (pos <= seq_.size() - k_) {
+      uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
+      my_mer fkm;
+      fkm.word__(0) = fk;
+      auto keq = mer.isEquivalent(fkm);
+      if (keq != KmerMatchType::NO_MATCH) {
+        auto rank = contigRank_(pos);
+        return rank;
+      }
+    }
+    return std::numeric_limits<uint32_t>::max();
+  }
 
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
 
@@ -133,17 +147,18 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
       auto rank = contigRank_(pos);
       auto& pvec = contigTable_[rank];
       // start position of this contig
-      uint64_t sp = static_cast<uint64_t>(contigSelect_(rank));
+      uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
-      //auto clen = (uint64_t)realSelect(rank + 1) - sp;
+      // start position of the next contig - start position of this one
+      auto clen = static_cast<uint64_t>(contigSelect_(rank + 1) + 1 - sp);
       bool hitFW = keq == KmerMatchType::IDENTITY_MATCH;
-      return {relPos, hitFW, core::range<IterT>{pvec.begin(), pvec.end()}};
+      return {relPos, hitFW, clen, k_, core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return {std::numeric_limits<uint32_t>::max(), true, core::range<IterT>{}};
+      return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
     }
   }
-  return {std::numeric_limits<uint32_t>::max(), true, core::range<IterT>{}};
-  //return core::range<IterT>{};
+
+  return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
 }
 
 const uint32_t PufferfishIndex::k() { return k_; }
