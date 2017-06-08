@@ -5,6 +5,7 @@
 class SemiCompactedCompactor {
 
 private:
+		short k_ = 31;
 		std::vector<std::pair<std::string, std::string> > newSegments;
 		spp::sparse_hash_map<std::string, std::string> contigid2seq;
 		spp::sparse_hash_map<std::string, bool > right_clipped;
@@ -21,6 +22,8 @@ private:
 		};
 		//spp::sparse_hash_map<std::pair<std::string, bool>, std::pair<std::string, bool>, cmpByPair > needsNewNext;
 		std::map<std::pair<std::string, bool>, std::pair<std::string, bool>, cmpByPair > needsNewNext;
+		spp::sparse_hash_map<std::string, bool> shortContigs;
+
 		bool is_boundary(std::vector<pufg::edgetuple> nodes) {
 			for (auto & n : nodes) {
 				if (n.neighborSign) {
@@ -34,17 +37,19 @@ public:
 						spp::sparse_hash_map<std::string, std::string>& contigid2seqIn,
 							spp::sparse_hash_map<std::string, bool >& pathStartIn,
 								spp::sparse_hash_map<std::string, bool >& pathEndIn,
-								pufg::Graph& semiGraphIn) {
+								pufg::Graph& semiGraphIn, short k) {
 			newSegments = newSegmentsIn;
 			contigid2seq = contigid2seqIn;
 			pathStart = pathStartIn;
 			pathEnd = pathEndIn;
 			semiGraph = semiGraphIn;
+			k_ = k;
 		}
 
 		void compact() {			
 			spp::sparse_hash_map<std::string, pufg::Node> vertices = semiGraph.getVertices();
 			uint32_t newSegmentCntr = 0;
+			uint32_t boundaryCaseCntr = 0;
 			for (auto & idSeq : newSegments) {
 				pufg::Node s = vertices[idSeq.first];
 				bool clipOuts = false, clipIns = false;
@@ -70,10 +75,13 @@ public:
 					contigid2seq[idSeq.first] = idSeq.second;
 					newSegmentCntr++;
 					for (auto & n : s.getIn()) // keep all the incoming nodes to this node in a map of the id to the new segment id
-						needsNewNext[std::make_pair(n.contigId, n.baseSign)] = std::make_pair(s.getId(), n.neighborSign);				
+						needsNewNext[std::make_pair(n.contigId, n.neighborSign)] = std::make_pair(s.getId(), n.baseSign);				
 				} 		
 				else if (s.getRealIndeg() == 1) clipOuts= true;
 				else if (s.getRealOutdeg() == 1) clipIns = true;
+				if ( (s.getRealIndeg() == 1 and is_boundary(s.getOut())) or (s.getRealOutdeg() == 1 and is_boundary(s.getIn())) ) {
+					boundaryCaseCntr++;
+				}
 				/*
 				 * 0 ---> 1
 				 * 0 ---> 2
@@ -90,7 +98,9 @@ public:
 								contigid2seq[n.contigId].erase(contigid2seq[n.contigId].size()-1, 1); //last nucleotide
 								right_clipped[n.contigId] = true;
 							}
-						}
+							if (contigid2seq[n.contigId].size() < k_)
+									shortContigs[n.contigId] = true;
+						}						
 					}
 					for (auto & n : s.getIn()) { // incoming nodes
 						if (!n.baseSign) { // incoming nodes to s-
@@ -102,6 +112,8 @@ public:
 									contigid2seq[n.contigId].erase(0, 1); //first nucleotide
 									left_clipped[n.contigId] = true;
 								}
+								if (contigid2seq[n.contigId].size() < k_)
+										shortContigs[n.contigId] = true;
 						}
 					}
 				}
@@ -121,23 +133,28 @@ public:
 								contigid2seq[n.contigId].erase(0, 1); //first nucleotide
 								left_clipped[n.contigId] = true;
 							}
+							if (contigid2seq[n.contigId].size() < k_)
+									shortContigs[n.contigId] = true;						
 						}
 					}
 					for (auto & n : s.getOut()) { // outgoing nodes
 						if (!n.baseSign) { // outgoing nodes from s-
-								if (n.neighborSign and left_clipped.find(n.contigId) == left_clipped.end()) {// n+ --> s-
-									contigid2seq[n.contigId].erase(0, 1); //first nucleotide
-									left_clipped[n.contigId] = true;
-								}
-								else if (!n.neighborSign and right_clipped.find(n.contigId) == right_clipped.end()) {// n- --> s-
-									contigid2seq[n.contigId].erase(contigid2seq[n.contigId].size()-1, 1); //last nucleotide
-									right_clipped[n.contigId] = true;
-								}
+							if (n.neighborSign and left_clipped.find(n.contigId) == left_clipped.end()) {// n+ --> s-
+								contigid2seq[n.contigId].erase(0, 1); //first nucleotide
+								left_clipped[n.contigId] = true;
+							}
+							else if (!n.neighborSign and right_clipped.find(n.contigId) == right_clipped.end()) {// n- --> s-
+								contigid2seq[n.contigId].erase(contigid2seq[n.contigId].size()-1, 1); //last nucleotide
+								right_clipped[n.contigId] = true;
+							}
+							if (contigid2seq[n.contigId].size() < k_)
+									shortContigs[n.contigId] = true;
+							
 						}
 					}
 				}
 			}
-			std::cerr << "# of Added Segments : " << newSegmentCntr << "\n";
+			std::cerr << "# of Added Segments : " << newSegmentCntr << "\n# of Short Contigs : " << shortContigs.size() << "\n# of Boundary Cases : " << boundaryCaseCntr << "\n";			
 		}
 
 		void updatePath(spp::sparse_hash_map<std::string, std::vector<std::pair<std::string, bool> > >&  pathIn) {
@@ -147,7 +164,8 @@ public:
 					std::vector<std::pair<std::string, bool> > & pathOfContigs = kv.second;
 					std::vector<std::pair<std::string, bool> > updatedPath;
 					for (auto & c : pathOfContigs) {
-						updatedPath.push_back(c);
+						if (shortContigs.find(c.first) == shortContigs.end())
+							updatedPath.push_back(c);
 						if (needsNewNext.find(c) != needsNewNext.end())
 								updatedPath.push_back(needsNewNext[c]);
 					}
