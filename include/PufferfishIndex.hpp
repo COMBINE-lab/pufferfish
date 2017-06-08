@@ -45,7 +45,7 @@ public:
   const EqClassLabel& getEqClassLabel(uint32_t contigID);
 
   // Get the k value with which this index was built.
-  const uint32_t k();
+  uint32_t k();
   // Get the list of reference sequences & positiosn corresponding to a contig
   const std::vector<util::Position>& refList(uint64_t contigRank);
   // Get the name of a given reference sequence

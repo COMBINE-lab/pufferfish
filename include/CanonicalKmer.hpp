@@ -72,11 +72,11 @@ public:
     return my_mer::rev_code(fw_.shift_left(x));
   }
 
-  inline const uint64_t getCanonicalWord() {
+  inline uint64_t getCanonicalWord() const {
     return (fw_.word(0) < rc_.word(0)) ? fw_.word(0) : rc_.word(0);
   }
 
-  inline const my_mer& getCanonical() {
+  inline const my_mer& getCanonical() const {
     return (fw_.word(0) < rc_.word(0)) ? fw_ : rc_;
   }
 
@@ -88,11 +88,11 @@ public:
     return rc_;
   }
 
-  inline const uint64_t fwWord() {
+  inline uint64_t fwWord() const {
     return fw_.word(0);
   }
 
-  inline const uint64_t rcWord() {
+  inline uint64_t rcWord() const {
     return rc_.word(0);
   }
 

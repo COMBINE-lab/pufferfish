@@ -12,13 +12,13 @@
 //#include "PufferFS.hpp"
 #include "BooPHF.h"
 //#include "OurGFAReader.hpp"
-#include "popl.hpp"
 #include "ScopedTimer.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "sparsepp/spp.h"
 #include "Util.hpp"
 int main(int argc, char* argv[]){
+  (void)argc;
 	std::vector<std::string> read_file = {argv[1]} ;
 	std::string gfa_file = argv[2] ;
 
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]){
 		std::string ln;
 		std::string tag, id, value;
 		size_t contig_cnt{0};
-		size_t ref_cnt{0};
+		//size_t ref_cnt{0};
 		spp::sparse_hash_map<std::string, bool> touchedSegment ;
 		spp::sparse_hash_map<std::string, std::string> contigid2seq ;
 		spp::sparse_hash_map<std::string, std::string> reconstructedTr ;
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]){
 					// parse value and add all conitgs to contigVec
 					//if(reconstructedTr[id] != "") continue ;
 					reconstructedTr[id] = "";
-					int i = 0;
+					size_t i = 0;
 					if(id == "ENST00000393481.6|ENSG00000135269.17|OTTHUMG00000023092.9|OTTHUMT00000137414.1|TES-002|TES|2763|UTR5:1-223|CDS:224-1462|UTR3:1463-2763|"){
 						//std::cerr << " number of contigs " << contigVec.size() << "\n" ;
 					}
@@ -123,7 +123,7 @@ int main(int argc, char* argv[]){
 						std::cerr << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
 						std::cerr << reconstructedTr[id] << " " << reconstructedTr[id].size() << "\n" ;
 						std::cerr << " number of contigs " << contigVec.size() << "\n" ;
-						int j = 0;
+						size_t j = 0;
 						for(auto core : contigVec){
 							auto contig_id = core.first ;
 							auto ore = core.second ;

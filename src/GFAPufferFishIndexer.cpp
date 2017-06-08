@@ -12,7 +12,6 @@
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
 #include "jellyfish/mer_dna.hpp"
-#include "popl.hpp"
 #include "sdsl/int_vector.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
@@ -60,6 +59,7 @@ public:
     mer_ = other.mer_;
     // rcMer_ = other.rcMer_;
     word_ = other.word_;
+    return *this;
   }
 
   ContigKmerIterator operator++() {
@@ -120,6 +120,7 @@ private:
 
 
 int pufferfishTest(util::TestOptions& testOpts) {
+  (void)testOpts;
   std::cerr << "this command is not yet implemented\n";
   return 1;
 }
@@ -180,7 +181,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
       size_t len{0};
       const auto& r1 = kv.second;
       CanonicalKmer mer;
-      uint64_t km;
       for (size_t i = 0; i < r1.length(); ++i) {
         auto offset = i; // r1.length() - i - 1;
         // NOTE: Having to add things in the reverse order here is strange
@@ -200,9 +200,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
             std::cerr << "i = " << i << "\n";
             std::cerr << mer.to_str() << ", " << mm.to_str() << "\n";
           }
-          // km = (mer.word(0) < rcMer.word(0)) ? mer.word(0) :
-          // rcMer.word(0);//mer.get_canonical().word(0);
-          km = mer.getCanonicalWord();
+          //km = mer.getCanonicalWord();
           ++nkeys;
         }
         //++gpos;
@@ -231,8 +229,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 2.5); // keys.size(), keys, 16);
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
-  size_t kstart{0};
-  size_t tlen2{0};
   {
     size_t i = 0;
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
