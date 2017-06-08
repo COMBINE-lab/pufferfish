@@ -8,16 +8,18 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include <memory>
 #include "string_view.hpp"
 #include "sparsepp/spp.h"
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
 #include "Util.hpp"
 #include "FatPufferGraph.hpp"
+#include "zstr/zstr.hpp"
 
 class PosFinder {
 	private:
-		std::ifstream file;
+  std::unique_ptr<zstr::ifstream> file;
 		size_t k;
 		struct Contig {
 			std::string seq;
