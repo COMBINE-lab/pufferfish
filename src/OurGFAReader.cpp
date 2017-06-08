@@ -70,7 +70,7 @@ void PosFinder::parseFile() {
 	size_t ref_cnt{0};
 	while(std::getline(file, ln)) {
 			char firstC = ln[0];
-			if (firstC != 'S' and firstC != 'P' /*and firstC != 'L'*/) continue;
+			if (firstC != 'S' and firstC != 'P') continue;
 			stx::string_view lnview(ln);
 			std::vector<stx::string_view> splited = split(lnview, '\t');
 			tag = splited[0].to_string();
@@ -94,24 +94,7 @@ void PosFinder::parseFile() {
 
 				pathStart[contigVec[0].first] = true;
 				pathEnd[contigVec[contigVec.size()-1].first] = true;
-	
-				
 			}
-			/*if(tag == 'L'){
-				stx::string_view lnview(ln);
-				std::vector<stx::string_view> splited = util::split(lnview, '\t');
-
-				std::string leftLinkId = splited[1].to_string() ;
-				std::string leftLinkOre = splited[2].to_string() ;
-				std::string rightLinkId = splited[3].to_string() ;
-				std::string rightLinkOre = splited[4].to_string() ;
-
-				bool fromSign = (leftLinkOre == "+") ? true : false ;
-				bool toSign = (rightLinkOre == "+") ? true : false ;
-	
-				semiGraph.addEdge(leftLinkId, fromSign, rightLinkId, toSign) ;
-			}*/
-
 	}
 
 	spp::sparse_hash_map<std::string, std::string> kmer2contigid;
@@ -121,8 +104,14 @@ void PosFinder::parseFile() {
 		std::string id = kv.first;
 		auto & contigVec = kv.second;			
 		for (uint64_t i = 0; i < contigVec.size()-1; i++){
-			std::string contigSeq = contigid2seq[contigVec[i].first];	
-			//std::cerr << contigSeq.length() << '\n';
+			std::string contigSeq = contigid2seq[contigVec[i].first];
+
+			/** 
+			 * Try all different cases with a sample like :
+			 * k = 3
+			 * contigVec[i] = ACC......TTG
+			**/
+
 			// left + : get the right most k nucleotides
 			std::string kmer = contigSeq.substr(contigSeq.size()-k, contigSeq.size());
 			if (!contigVec[i].second) {// which means the orientation of the contig in negative in the path
@@ -149,9 +138,6 @@ void PosFinder::parseFile() {
 			semiCG.addEdge(kmerId, kmerSign, contigVec[i+1].first, contigVec[i+1].second) ;
 		}
 	}
-
-
-
 	std::cerr << " Total # of Contigs : " << contig_cnt << " Total # of numerical Contigs : " << contigid2seq.size() << "\n\n";
 }
 
