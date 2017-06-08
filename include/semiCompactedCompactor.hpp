@@ -74,8 +74,10 @@ public:
 					//std::cerr << idSeq.first << idSeq.second << "\n";
 					contigid2seq[idSeq.first] = idSeq.second;
 					newSegmentCntr++;
-					for (auto & n : s.getIn()) // keep all the incoming nodes to this node in a map of the id to the new segment id
+					for (auto & n : s.getIn()) {// keep all the incoming nodes to this node in a map of the id to the new segment id
 						needsNewNext[std::make_pair(n.contigId, n.neighborSign)] = std::make_pair(s.getId(), n.baseSign);				
+					}
+
 				} 		
 				else if (s.getRealIndeg() == 1) clipOuts= true;
 				else if (s.getRealOutdeg() == 1) clipIns = true;
@@ -98,8 +100,9 @@ public:
 								contigid2seq[n.contigId].erase(contigid2seq[n.contigId].size()-1, 1); //last nucleotide
 								right_clipped[n.contigId] = true;
 							}
-							if (contigid2seq[n.contigId].size() < k_)
+							if (contigid2seq[n.contigId].size() < k_) {
 									shortContigs[n.contigId] = true;
+							}
 						}						
 					}
 					for (auto & n : s.getIn()) { // incoming nodes
@@ -122,14 +125,14 @@ public:
 				 * 2 --> 0
 				 * 3 --> 0
 				 */
-				else if (clipIns) { // just clip off from s+ incoming nodes and s- outgoing nodes
+				if (clipIns) { // just clip off from s+ incoming nodes and s- outgoing nodes
 					for (auto & n : s.getIn()) { // incoming nodes
 						if (n.baseSign) { // incoming nodes to s+
-							if (n.neighborSign and right_clipped.find(n.contigId) == right_clipped.end()) {// s+ --> n+
+							if (n.neighborSign and right_clipped.find(n.contigId) == right_clipped.end()) {// n+ --> s+
 									contigid2seq[n.contigId].erase(contigid2seq[n.contigId].size()-1, 1);//last nucleotide
 									right_clipped[n.contigId] = true;
 							}
-							else if (!n.neighborSign and left_clipped.find(n.contigId) == left_clipped.end()) {// s+ --> n-
+							else if (!n.neighborSign and left_clipped.find(n.contigId) == left_clipped.end()) {// n- --> s+
 								contigid2seq[n.contigId].erase(0, 1); //first nucleotide
 								left_clipped[n.contigId] = true;
 							}
@@ -139,11 +142,11 @@ public:
 					}
 					for (auto & n : s.getOut()) { // outgoing nodes
 						if (!n.baseSign) { // outgoing nodes from s-
-							if (n.neighborSign and left_clipped.find(n.contigId) == left_clipped.end()) {// n+ --> s-
+							if (n.neighborSign and left_clipped.find(n.contigId) == left_clipped.end()) {// s- --> n+
 								contigid2seq[n.contigId].erase(0, 1); //first nucleotide
 								left_clipped[n.contigId] = true;
 							}
-							else if (!n.neighborSign and right_clipped.find(n.contigId) == right_clipped.end()) {// n- --> s-
+							else if (!n.neighborSign and right_clipped.find(n.contigId) == right_clipped.end()) {// s- --> n-
 								contigid2seq[n.contigId].erase(contigid2seq[n.contigId].size()-1, 1); //last nucleotide
 								right_clipped[n.contigId] = true;
 							}
