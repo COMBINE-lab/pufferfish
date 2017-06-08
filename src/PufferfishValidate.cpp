@@ -18,7 +18,6 @@
 int pufferfishValidate(util::ValidateOptions& validateOpts) {
   PufferfishIndex pi(validateOpts.indexDir);
   CanonicalKmer::k(pi.k());
-  size_t pos{0};
   size_t k = pi.k();
   size_t found = 0;
   size_t notFound = 0;
@@ -34,13 +33,13 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     size_t rn{0};
-    size_t kmer_pos{0};
+    //size_t kmer_pos{0};
     auto rg = parser.getReadGroup();
     while (parser.refill(rg)) {
       // Here, rg will contain a chunk of read pairs
       // we can process.
       for (auto& rp : rg) {
-        kmer_pos = 0;
+        //kmer_pos = 0;
         if (rn % 500000 == 0) {
           std::cerr << "rn : " << rn << "\n";
           std::cerr << "found = " << found << ", notFound = " << notFound
@@ -56,7 +55,7 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
         }
 
         auto phits = pi.getRefPos(mer);
-        if (phits.refRange.empty()) {
+        if (phits.empty()) {
           ++notFound;
         } else {
           ++found;
@@ -83,7 +82,7 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
         for (size_t i = k; i < r1.length(); ++i) {
           mer.shiftFw(r1[i]);
           auto phits = pi.getRefPos(mer);
-          if (phits.refRange.empty()) {
+          if (phits.empty()) {
             ++notFound;
           } else {
             ++found;
@@ -91,7 +90,6 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
             bool foundTxp = false;
             bool cor = false;
             uint32_t clen = 0;
-            uint32_t cid = 0;
             std::vector<uint32_t> wrongPos;
             for (auto& rpos : phits.refRange) {
               if (pi.refName(rpos.transcript_id()) == rp.name) {

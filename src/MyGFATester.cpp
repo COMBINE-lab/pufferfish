@@ -12,13 +12,13 @@
 //#include "PufferFS.hpp"
 #include "BooPHF.h"
 //#include "OurGFAReader.hpp"
-#include "popl.hpp"
 #include "ScopedTimer.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "sparsepp/spp.h"
 #include "Util.hpp"
 int main(int argc, char* argv[]){
+  (void)argc;
 	std::vector<std::string> read_file = {argv[1]} ;
 	std::string gfa_file = argv[2] ;
 
@@ -29,7 +29,7 @@ int main(int argc, char* argv[]){
 	spp::sparse_hash_map<std::string, std::string> fastaMap ;
 
 
-	 std::cout << "\n starting .. \n" ;
+	 std::cout << "\n starting .. dodo\n" ;
 	{
 		fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
 		parser.start();
@@ -58,10 +58,13 @@ int main(int argc, char* argv[]){
 		std::string ln;
 		std::string tag, id, value;
 		size_t contig_cnt{0};
-		size_t ref_cnt{0};
+		//size_t ref_cnt{0};
 		spp::sparse_hash_map<std::string, bool> touchedSegment ;
 		spp::sparse_hash_map<std::string, std::string> contigid2seq ;
 		spp::sparse_hash_map<std::string, std::string> reconstructedTr ;
+
+		int k =31 ;
+		size_t overlap = k-1 ;
 
 		while(std::getline(file, ln)) {
 				char firstC = ln[0];
@@ -75,6 +78,8 @@ int main(int argc, char* argv[]){
 				if (tag == "S") {
 					if (util::is_number(id)) {
 						contigid2seq[id] = value;
+						//std::cerr << value << "\n" ;
+						//std::exit(2) ;
 						//touchedSegment[id] = false ;
 					}
 					contig_cnt++;
@@ -88,9 +93,9 @@ int main(int argc, char* argv[]){
 					// parse value and add all conitgs to contigVec
 					//if(reconstructedTr[id] != "") continue ;
 					reconstructedTr[id] = "";
-					int i = 0;
-					if(id == "ENST00000393481.6|ENSG00000135269.17|OTTHUMG00000023092.9|OTTHUMT00000137414.1|TES-002|TES|2763|UTR5:1-223|CDS:224-1462|UTR3:1463-2763|"){
-						//std::cerr << " number of contigs " << contigVec.size() << "\n" ;
+					size_t i = 0;
+					if(id == "ENST00000390583.1|ENSG00000211923.1|OTTHUMG00000152354.3|OTTHUMT00000325960.3|IGHD3-10-001|IGHD3-10|31|CDS:1-30|UTR3:31-31|"){
+						std::cerr << " number of contigs " << contigVec.size() << "\n" ;
 					}
 					for(auto core : contigVec){
 						auto contig_id = core.first ;
@@ -103,8 +108,8 @@ int main(int argc, char* argv[]){
 								added = contigid2seq[contig_id] ;
 							}
 							//contigid2seq[contig_id].erase(contigid2seq[contig_id].size()-31+1,31) ;
-							if(added.size() > 31){
-								added.erase(added.size()-31,31) ;
+							if(added.size() > overlap-1){
+								added.erase(added.size()-overlap,overlap) ;
 								reconstructedTr[id] += added ;
 							}
 						}else{
@@ -118,12 +123,15 @@ int main(int argc, char* argv[]){
 						i++ ;
 					}
 
+
+						//std::cerr << id << "\n" ;
+
 					if(fastaMap[id] != reconstructedTr[id]){
 						std::cerr << id << "\n" ;
-						std::cerr << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
-						std::cerr << reconstructedTr[id] << " " << reconstructedTr[id].size() << "\n" ;
+						std::cerr << "true " << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
+						std::cerr << "reconstructed " << reconstructedTr[id] << " " << reconstructedTr[id].size() << "\n" ;
 						std::cerr << " number of contigs " << contigVec.size() << "\n" ;
-						int j = 0;
+						size_t j = 0;
 						for(auto core : contigVec){
 							auto contig_id = core.first ;
 							auto ore = core.second ;
@@ -135,8 +143,8 @@ int main(int argc, char* argv[]){
 									added = contigid2seq[contig_id] ;
 								}
 								//contigid2seq[contig_id].erase(contigid2seq[contig_id].size()-31+1,31) ;
-								if(added.size() > 31){
-									added.erase(added.size()-31,31) ;
+								if(added.size() > overlap){
+									added.erase(added.size()-overlap,overlap) ;
 									reconstructedTr[id] += added ;
 									std::cerr << contig_id << " " << added << "\n" ;
 									//std::cerr << added << "\n" ;
@@ -155,7 +163,7 @@ int main(int argc, char* argv[]){
 						}
 
 
-						//std::exit(1) ;
+						std::exit(1) ;
 					}
 
 				}

@@ -165,6 +165,8 @@ string str(T& container) {
     uint32_t k_;
     core::range<std::vector<util::Position>::iterator> refRange;
 
+    inline bool empty() { return refRange.empty(); }
+
     RefPos decodeHit(util::Position& p) {
       // true if the contig is fowrard on the reference
       bool contigFW = p.orientation();
@@ -174,7 +176,6 @@ string str(T& container) {
       // we are reverse complement with respect to the reference if :
       // (3) configFW and !contigOrientation_
       // (4) !configFW and contigOrientation_
-      bool refFW = (contigFW == contigOrientation_);
 
       // if we're in the forward orientation, then our position is
       // just the contig offset plus or relative position

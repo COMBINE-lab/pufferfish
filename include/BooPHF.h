@@ -1,6 +1,7 @@
 // BooPHF library
 // intended to be a minimal perfect hash function with fast and low memory construction, at the cost of (slightly) higher bits/elem than other state of the art libraries once built.
 // should work with arbitray large number of elements, based on a cascade of  "collision-free" bit arrays
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #ifndef _BOOPHF_H_
 #define _BOOPHF_H_
 #pragma once
@@ -71,6 +72,7 @@ namespace boomphf {
 			_buffsize = 10000;
 			_buffer = (basetype *) malloc(_buffsize*sizeof(basetype));
 			int reso = fseek(_is,0,SEEK_SET);
+      (void)reso;
 			advance();
 		}
 		
@@ -253,7 +255,7 @@ namespace boomphf {
 		void finish_threaded()// called by only one of the threads
 		{
 			done = 0;
-			double rem = 0;
+			//double rem = 0;
 			for (int ii=0; ii<_nthreads;ii++) done += (done_threaded[ii] );
 			for (int ii=0; ii<_nthreads;ii++) partial += (partial_threaded[ii] );
 
@@ -674,11 +676,11 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 		//for debug purposes
 		void print() const
 		{
-			printf("bit array of size %lli: \n",_size);
+			printf("bit array of size %lu: \n",_size);
 			for(uint64_t ii = 0; ii< _size; ii++)
 			{
 				if(ii%10==0)
-					printf(" (%llu) ",ii);
+					printf(" (%lu) ",ii);
 				int val = (_bitArray[ii >> 6] >> (ii & 63 ) ) & 1;
 				printf("%i",val);
 			}
@@ -687,7 +689,7 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 			printf("rank array : size %lu \n",_ranks.size());
 			for (uint64_t ii = 0; ii< _ranks.size(); ii++)
 			{
-				printf("%llu :  %lli,  ",ii,_ranks[ii]);
+				printf("%lu :  %lu,  ",ii,_ranks[ii]);
 			}
 			printf("\n");
 		}
@@ -1024,7 +1026,7 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 			uint64_t totalsize =  totalsizeBitset +  _final_hash.size()*42*8 ;  // unordered map takes approx 42B per elem [personal test] (42B with uint64_t key, would be larger for other type of elem)
 
-			printf("Bitarray    %12llu  bits (%.2f %%)   (array + ranks )\n",
+			printf("Bitarray    %12lu  bits (%.2f %%)   (array + ranks )\n",
 				   totalsizeBitset, 100*(float)totalsizeBitset/totalsize);
 			printf("final hash  %12lu  bits (%.2f %%) (nb in final hash %lu)\n",
 				   _final_hash.size()*42*8, 100*(float)(_final_hash.size()*42*8)/totalsize,
@@ -1279,7 +1281,7 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 			
 			_proba_collision = 1.0 -  pow(((_gamma*(double)_nelem -1 ) / (_gamma*(double)_nelem)),_nelem-1);
 
-			double sum_geom =_gamma * ( 1.0 +  _proba_collision / (1.0 - _proba_collision));
+			//double sum_geom =_gamma * ( 1.0 +  _proba_collision / (1.0 - _proba_collision));
 			//printf("proba collision %f  sum_geom  %f   \n",_proba_collision,sum_geom);
 
 			_nb_levels = 25;

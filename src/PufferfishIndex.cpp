@@ -161,7 +161,7 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
   return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
 }
 
-const uint32_t PufferfishIndex::k() { return k_; }
+uint32_t PufferfishIndex::k() { return k_; }
 
 /**
  * Return the position list (ref_id, pos) corresponding to a contig.

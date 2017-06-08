@@ -176,7 +176,7 @@ void PosFinder::writeFile(std::string fileName){
 		auto tid = p.first ;
 		gfa_file << "P" << "\t" << tid << "\t"  ;
 		auto vec = p.second ;
-		for(int i = 0 ; i < vec.size()-1 ; i++){
+		for(size_t i = 0 ; i < vec.size()-1 ; i++){
 			gfa_file << vec[i].first << ((vec[i].second)?"+":"-") << "," ;
 		}
 		gfa_file << vec[vec.size()-1].first << ((vec[vec.size()-1].second)?"+":"-") << "\t*\n";
@@ -194,7 +194,7 @@ void PosFinder::mapContig2Pos() {
 		const std::string& tr = ent.first;
 		const std::vector<std::pair<std::string, bool> >& contigs = ent.second;
 		accumPos = 0;
-		for (long i = 0; i < contigs.size(); i++) {
+		for (size_t i = 0; i < contigs.size(); i++) {
 			if (contig2pos.find(contigs[i].first) == contig2pos.end()) {
 				contig2pos[contigs[i].first] = {};
 				total_output_lines += 1;

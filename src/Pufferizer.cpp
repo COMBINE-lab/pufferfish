@@ -3,6 +3,7 @@
 #include "semiCompactedCompactor.hpp"
 
 int main(int argc, char* argv[]){
+  (void)argc;
 	std::string gfa_infilename = argv[1] ;
 	std::string gfa_outfilename = argv[2];
 
