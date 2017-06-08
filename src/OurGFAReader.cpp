@@ -59,7 +59,7 @@ std::vector<stx::string_view> PosFinder::split(stx::string_view str, char delims
 
 PosFinder::PosFinder(const char* gfaFileName, size_t input_k) {
 	std::cerr << "Reading GFA file " << gfaFileName << "\n";
-	file.open(gfaFileName);
+	file.reset(new zstr::ifstream(gfaFileName));
 	k = input_k;
 }
 
@@ -68,7 +68,7 @@ void PosFinder::parseFile() {
 	std::string tag, id, value;
 	size_t contig_cnt{0};
 	size_t ref_cnt{0};
-	while(std::getline(file, ln)) {
+	while(std::getline(*file, ln)) {
 			char firstC = ln[0];
 			if (firstC != 'S' and firstC != 'P') continue;
 			stx::string_view lnview(ln);
