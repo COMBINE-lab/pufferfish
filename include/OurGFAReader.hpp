@@ -23,6 +23,9 @@ class PosFinder {
 			std::string seq;
 			std::string id;
 		};
+
+
+
 	    spp::sparse_hash_map<std::string, std::string> contigid2seq;//map of contig_id to # of letters in contig (contig length)
 		spp::sparse_hash_map<std::string, std::string> seq2contigid;
 		// path maps each transcript_id to a pair of <contig_id, orientation>
@@ -35,8 +38,12 @@ class PosFinder {
 		std::vector<std::pair<std::string, bool> > explode(const stx::string_view str, const char& ch);		
 
 		/** Added for the new requirements to build semiCompacted DBG **/
-		spp::sparse_hash_map<std::string, bool> pathStart;
-		spp::sparse_hash_map<std::string, bool> pathEnd;
+		//spp::sparse_hash_map<std::string, bool> pathStart;
+		//spp::sparse_hash_map<std::string, bool> pathEnd;
+		std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathStart ;
+		std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathEnd ;
+
+
 		std::vector<std::pair<std::string, std::string> > newSegments;
 		pufg::Graph semiCG;
 
@@ -52,8 +59,8 @@ class PosFinder {
     spp::sparse_hash_map<std::string, std::string>& getContigNameMap();
     spp::sparse_hash_map<std::string, std::string>& getContigIDMap();
     spp::sparse_hash_map<uint32_t, std::string>& getRefIDs();
-    spp::sparse_hash_map<std::string, bool>& getPathStart() ;
-    spp::sparse_hash_map<std::string, bool>& getPathEnd() ;
+    std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& getPathStart() ;
+    std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& getPathEnd() ;
     std::vector<std::pair<std::string, std::string> >& getNewSegments() ;
 	spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > >& getPaths() {return path;}
     pufg::Graph& getSemiCG() ;

@@ -10,33 +10,31 @@ private:
 		spp::sparse_hash_map<std::string, std::string> contigid2seq;
 		spp::sparse_hash_map<std::string, bool > right_clipped;
 		spp::sparse_hash_map<std::string, bool > left_clipped;
-		spp::sparse_hash_map<std::string, bool > pathStart;
-		spp::sparse_hash_map<std::string, bool > pathEnd;
+		std::map<std::pair<std::string,bool>, bool , util::cmpByPair> pathStart;
+		std::map<std::pair<std::string,bool>, bool , util::cmpByPair> pathEnd;
 		spp::sparse_hash_map<std::string, std::vector<std::pair<std::string, bool> > > path;
 		pufg::Graph semiGraph;
 
-		struct cmpByPair {
-				    bool operator() (std::pair<std::string, bool> a, std::pair<std::string, bool> b) const {
-									return (a.first != b.first) ? (a.first < b.first) : (a.second < b.second);
-									    }
-		};
 		//spp::sparse_hash_map<std::pair<std::string, bool>, std::pair<std::string, bool>, cmpByPair > needsNewNext;
-		std::map<std::pair<std::string, bool>, std::pair<std::string, bool>, cmpByPair > needsNewNext;
+		std::map<std::pair<std::string, bool>, std::pair<std::string, bool>, util::cmpByPair > needsNewNext;
 		spp::sparse_hash_map<std::string, bool> shortContigs;
 
-		bool is_boundary(std::vector<pufg::edgetuple> nodes) {
+		bool is_boundary(std::vector<pufg::edgetuple> nodes, bool dirFlag) {
 			for (auto & n : nodes) {
-				if (n.neighborSign) {
-					if (pathStart.find(n.contigId) != pathStart.end()) return true;
-				} else if (pathEnd.find(n.contigId) != pathEnd.end()) return true;
+
+				if (dirFlag) {
+					if (pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end()) return true;
+				} else if (pathEnd.find(std::make_pair(n.contigId,n.neighborSign)) != pathEnd.end()) return true;
+
+
 			}
 			return false;
 		} 
 public:
 		SemiCompactedCompactor(std::vector<std::pair<std::string, std::string> >& newSegmentsIn, 
 						spp::sparse_hash_map<std::string, std::string>& contigid2seqIn,
-							spp::sparse_hash_map<std::string, bool >& pathStartIn,
-								spp::sparse_hash_map<std::string, bool >& pathEndIn,
+							std::map<std::pair<std::string,bool>,bool,util::cmpByPair>& pathStartIn,
+							std::map<std::pair<std::string,bool>,bool,util::cmpByPair>& pathEndIn,
 								pufg::Graph& semiGraphIn, short k) {
 			newSegments = newSegmentsIn;
 			contigid2seq = contigid2seqIn;
@@ -55,10 +53,10 @@ public:
 				bool clipOuts = false, clipIns = false;
 				// realIndegs : sum of Indegs to s+ and outdegs from s-
 				// realOutdegs : sum of outdegs from s+ and indegs to s-
-				if ((s.getRealIndeg() > 1 and s.getRealOutdeg() > 1)) // it is a complex k-mer seg!! which should be added to the path at the end
-//								or (s.getRealIndeg() == 1 and is_boundary(s.getOut())) 
-//								or (s.getRealOutdeg() == 1 and is_boundary(s.getIn()))
-//				   ) 
+				if ((s.getRealIndeg() > 1 and s.getRealOutdeg() > 1) //) it is a complex k-mer seg!! which should be added to the path at the end
+								or (s.getRealIndeg() == 1 and is_boundary(s.getOut(),true))
+								or (s.getRealOutdeg() == 1 and is_boundary(s.getIn(),false))
+				   )
 				   {
 						   std::cout<<s.getId()<<"\n";
 				/*		   std::cerr << s.getId() << "\n\tIn:\n";
@@ -87,9 +85,10 @@ public:
 				} 		
 				else if (s.getRealIndeg() == 1) clipOuts= true;
 				else if (s.getRealOutdeg() == 1) clipIns = true;
+				/*
 				if ( (s.getRealIndeg() == 1 and is_boundary(s.getOut())) or (s.getRealOutdeg() == 1 and is_boundary(s.getIn())) ) {
 					boundaryCaseCntr++;
-				}
+				}*/
 				/*
 				 * 0 ---> 1
 				 * 0 ---> 2
@@ -166,7 +165,8 @@ public:
 					}
 				}
 			}
-			std::cerr << "# of Added Segments : " << newSegmentCntr << "\n# of Short Contigs : " << shortContigs.size() << "\n# of Boundary Cases : " << boundaryCaseCntr << "\n";			
+			std::cerr << "# of Added Segments : " << newSegmentCntr << "\n# of Short Contigs : " << shortContigs.size() //<< "\n# of Boundary Cases : " << boundaryCaseCntr
+					<< "\n";
 		}
 
 		void updatePath(spp::sparse_hash_map<std::string, std::vector<std::pair<std::string, bool> > >&  pathIn) {

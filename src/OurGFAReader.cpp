@@ -92,8 +92,9 @@ void PosFinder::parseFile() {
 				refMap[ref_cnt] = id;
 				refIDs[id] = ref_cnt++;
 
-				pathStart[contigVec[0].first] = true;
-				pathEnd[contigVec[contigVec.size()-1].first] = true;
+				pathStart[std::make_pair(contigVec[0].first,contigVec[0].second)] = true;
+				pathEnd[std::make_pair(contigVec[contigVec.size()-1].first,contigVec[contigVec.size()-1].second)] = true;
+
 			}
 	}
 
@@ -152,10 +153,10 @@ spp::sparse_hash_map<uint32_t, std::string>& PosFinder::getRefIDs() {
   return refMap;
 }
 
-spp::sparse_hash_map<std::string, bool>& PosFinder::getPathStart() {
+std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& PosFinder::getPathStart() {
 	return pathStart ;
 }
-spp::sparse_hash_map<std::string, bool>& PosFinder::getPathEnd() {
+std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& PosFinder::getPathEnd() {
 	return pathEnd ;
 }
 

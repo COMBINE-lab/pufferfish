@@ -17,6 +17,14 @@
 namespace util {
 using namespace std;
 
+
+struct cmpByPair {
+						    bool operator() (std::pair<std::string, bool> a, std::pair<std::string, bool> b) const {
+											return (a.first != b.first) ? (a.first < b.first) : (a.second < b.second);
+
+						    }
+				};
+
 // We need a wraper that will provide a "type" field
 template<typename> struct Void { typedef void type; };
 
