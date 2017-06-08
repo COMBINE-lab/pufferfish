@@ -63,7 +63,6 @@ int main(int argc, char* argv[]) {
   indexApp->add_option("-k,--klen", indexOpt.k, "length of the k-mer with which the compacted dBG was built", static_cast<uint32_t>(31));
   indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file");
   indexApp->add_option("-o,--output", indexOpt.outdir, "directory where index is written");
-  indexApp->add_option("-f,--fa", indexOpt.rfile, "path to the Fasta file with reads");
 
   util::TestOptions testOpt;
 

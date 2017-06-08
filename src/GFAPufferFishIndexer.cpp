@@ -228,7 +228,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   }
   std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
   auto keyIt = boomphf::range(kb, ke);
-  boophf_t* bphf = new boophf_t(nkeys, keyIt, 16); // keys.size(), keys, 16);
+  boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 2.5); // keys.size(), keys, 16);
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
   size_t kstart{0};
@@ -244,6 +244,15 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
                   << ", idx = " << idx << ", size = " << posVec.size() << "\n";
       }
       posVec[idx] = kb1.pos();
+      // validate
+      uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
+      CanonicalKmer sk;
+      sk.fromNum(kn);
+      if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
+        my_mer r;
+        r.word__(0) = *kb1;
+        std::cerr << "I thought I saw " << sk.to_str() << ", but I saw " << r.to_str() << "\n";
+      }
     }
   }
 

@@ -100,6 +100,10 @@ public:
     return m.word(0) == fwWord() ? KmerMatchType::IDENTITY_MATCH :
       (m.word(0) == rcWord() ? KmerMatchType::TWIN_MATCH : KmerMatchType::NO_MATCH);
   }
+  inline KmerMatchType isEquivalent(uint64_t m) {
+    return m == fwWord() ? KmerMatchType::IDENTITY_MATCH :
+      (m == rcWord() ? KmerMatchType::TWIN_MATCH : KmerMatchType::NO_MATCH);
+  }
 
   inline std::string to_str() { return fw_.to_str(); }
 
