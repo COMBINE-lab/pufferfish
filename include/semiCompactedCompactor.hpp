@@ -21,14 +21,35 @@ private:
 		std::map<std::pair<std::string, bool>, std::pair<std::string, bool>, util::cmpByPair > needsNewPrev;
 		spp::sparse_hash_map<std::string, bool> shortContigs;
 
-		bool is_boundary(std::vector<pufg::edgetuple> nodes, bool dirFlag) {
-			for (auto & n : nodes) {
-				if (dirFlag) {
-					if (pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end() or 
-									pathEnd.find(std::make_pair(n.contigId, !n.neighborSign)) != pathEnd.end()) return true;
-				} else if (pathEnd.find(std::make_pair(n.contigId,n.neighborSign)) != pathEnd.end() or
+		bool is_boundary(std::vector<pufg::edgetuple>& inodes, std::vector<pufg::edgetuple>& onodes, bool dirFlag) {
+				if (dirFlag) { // realIndegree = 1 --> check for all real outgoings ( outgoings from s+ and incomings to s- )
+					for (auto & n : onodes) {
+						if (n.baseSign) {
+							if (pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end() or 
+									pathEnd.find(std::make_pair(n.contigId, !n.neighborSign)) != pathEnd.end()) return true;					
+						}
+					}
+					for (auto & n : inodes) {
+						if (!n.baseSign) {
+							if (pathStart.find(std::make_pair(n.contigId,!n.neighborSign)) != pathStart.end() or 
+								pathEnd.find(std::make_pair(n.contigId, n.neighborSign)) != pathEnd.end()) return true;											
+						}
+					}
+				}
+				else { // realOutdegree = 1 --> check for all real incomings
+					for (auto & n : inodes) {
+						if (n.baseSign) {
+							if (pathEnd.find(std::make_pair(n.contigId,n.neighborSign)) != pathEnd.end() or
 								pathStart.find(std::make_pair(n.contigId, !n.neighborSign)) != pathStart.end()) return true;
-			}
+						}
+					}				
+					for (auto & n : onodes) {
+						if (!n.baseSign) {
+							if (pathEnd.find(std::make_pair(n.contigId,!n.neighborSign)) != pathEnd.end() or
+								pathStart.find(std::make_pair(n.contigId, n.neighborSign)) != pathStart.end()) return true;
+						}				
+					}
+				}
 			return false;
 		} 
 public:
@@ -54,23 +75,19 @@ public:
 				bool clipOuts = false, clipIns = false;
 				// realIndegs : sum of Indegs to s+ and outdegs from s-
 				// realOutdegs : sum of outdegs from s+ and indegs to s-
-				if(s.getId() == "0011798771")
-					std::cout << "\n 1179877 out " << (int)s.getRealOutdeg() << "\n" ;
-
-				if ((s.getRealIndeg() > 1 and s.getRealOutdeg() > 1) //) it is a complex k-mer seg!! which should be added to the path at the end
-								or (s.getRealIndeg() == 1 and is_boundary(s.getOut(),true))
-								or (s.getRealOutdeg() == 1 and is_boundary(s.getIn(),false))
+				if (s.getRealIndeg() == 1 and s.getRealOutdeg() == 1 and is_boundary(s.getIn(), s.getOut(), true) and !is_boundary(s.getIn(), s.getOut(), false)) {
+						clipIns = true;
+				}
+				else if (s.getRealIndeg() == 1 and s.getRealOutdeg() == 1 and is_boundary(s.getIn(), s.getOut(), false) and !is_boundary(s.getIn(), s.getOut(), true)) {
+						clipOuts = true;
+				}
+				// It's either complex one2one with both outgoing and incoming edges being boundary or the other cases
+				else if ((s.getRealIndeg() > 1 and s.getRealOutdeg() > 1) //) it is a complex k-mer seg!! which should be added to the path at the end
+								or (s.getRealIndeg() == 1 and is_boundary(s.getIn(), s.getOut(), true))
+								or (s.getRealOutdeg() == 1 and is_boundary(s.getIn(), s.getOut(), false))
 				   )
 				   {
 						   //std::cout<<s.getId()<<"\n";
-				/*		   std::cerr << s.getId() << "\n\tIn:\n";
-						   for (auto & n : s.getIn())
-								std::cerr << n.contigId << "-" << n.baseSign << "-" << n.neighborSign << ", ";
-						   std::cerr << "\n\tOut:\n";
-						   for (auto & n : s.getOut())
-								std::cerr << n.contigId << "-" << n.baseSign << "-" << n.neighborSign << ", ";
-						   std::cerr << "\n";
-				*/	
 					clipOuts = true;
 					clipIns = true;			
 					// add it to the list of contigIds (segments) as a new segment

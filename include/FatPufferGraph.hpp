@@ -75,8 +75,8 @@ namespace pufg{
 				return false ;
 			}
 
-			std::vector<edgetuple> getIn() {return in;}
-			std::vector<edgetuple> getOut() {return out;}
+			std::vector<edgetuple>& getIn() {return in;}
+			std::vector<edgetuple>& getOut() {return out;}
 
 	private:
 			std::string id ;
