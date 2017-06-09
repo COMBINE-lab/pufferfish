@@ -23,12 +23,11 @@ private:
 
 		bool is_boundary(std::vector<pufg::edgetuple> nodes, bool dirFlag) {
 			for (auto & n : nodes) {
-
 				if (dirFlag) {
-					if (pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end()) return true;
-				} else if (pathEnd.find(std::make_pair(n.contigId,n.neighborSign)) != pathEnd.end()) return true;
-
-
+					if (pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end() or 
+									pathEnd.find(std::make_pair(n.contigId, !n.neighborSign)) != pathEnd.end()) return true;
+				} else if (pathEnd.find(std::make_pair(n.contigId,n.neighborSign)) != pathEnd.end() or
+								pathStart.find(std::make_pair(n.contigId, !n.neighborSign)) != pathStart.end()) return true;
 			}
 			return false;
 		} 
@@ -80,7 +79,10 @@ public:
 					newSegmentCntr++;
 
 					for (auto & n : s.getIn()) {// keep all the incoming nodes to this node in a map of the id to the new segment id
-						needsNewNext[std::make_pair(n.contigId, n.neighborSign)] = std::make_pair(s.getId(), n.baseSign);				
+						needsNewNext[std::make_pair(n.contigId, n.neighborSign)] = std::make_pair(s.getId(), n.baseSign);									
+						if(pathStart.find(std::make_pair(n.contigId,!n.neighborSign)) != pathStart.end()){
+							needsNewPrev[std::make_pair(n.contigId, !n.neighborSign)] = std::make_pair(s.getId(), !n.baseSign);
+						}
 					}
 					for(auto&n : s.getOut()){
 						if(pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end()){
