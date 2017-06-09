@@ -85,9 +85,10 @@ public:
 						}
 					}
 					for(auto&n : s.getOut()){
+							if (pathEnd.find(std::make_pair(n.contigId,!n.neighborSign)) != pathEnd.end() ) {
+								needsNewNext[std::make_pair(n.contigId,!n.neighborSign)] = std::make_pair(s.getId(),!n.baseSign) ;
+							}
 						if(pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end()){
-							if(n.contigId == "1179877")
-								std::cout << "\n I was here with sign " << n.neighborSign <<"\n";
 							needsNewPrev[std::make_pair(n.contigId,n.neighborSign)] = std::make_pair(s.getId(),n.baseSign) ;
 						}
 					}
