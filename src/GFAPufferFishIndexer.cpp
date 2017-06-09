@@ -168,7 +168,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   size_t w = std::log2(tlen) + 1;
   console->info("positional integer width = {}", w);
   sdsl::int_vector<> seqVec(tlen, 0, 2);
-  sdsl::int_vector<> posVec(tlen, 0, w);
   sdsl::bit_vector rankVec(tlen);
   tlen = 0;
 
@@ -191,6 +190,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
         mer.shiftFw(c);
         ++len;
         if (len >= k) {
+#ifdef PUFFER_DEBUG
           my_mer mm;
           uint64_t num = seqVec.get_int(2 * (gpos + len - k), 2 * k);
           mm.word__(0) = num; // mm.canonicalize();
@@ -200,7 +200,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
             std::cerr << "i = " << i << "\n";
             std::cerr << mer.to_str() << ", " << mm.to_str() << "\n";
           }
-          //km = mer.getCanonicalWord();
+#endif // PUFFER_DEBUG
           ++nkeys;
         }
         //++gpos;
@@ -212,23 +212,38 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   }
   std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
   std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
-  std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
+  //std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
   std::cerr << "num keys = " << nkeys << "\n";
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
   ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+
+#ifdef PUFFER_DEBUG
   auto ks = kb;
   size_t nkeyIt{0};
   for (; ks < ke; ++ks) {
     nkeyIt++;
   }
   std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
+#endif //PUFFER_DEBUG
+
   auto keyIt = boomphf::range(kb, ke);
   boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 2.5); // keys.size(), keys, 16);
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
+
+  sdsl::store_to_file(seqVec, outdir + "/seq.bin");
+  sdsl::store_to_file(rankVec, outdir + "/rank.bin");
+
+  //size_t slen = seqVec.size();
+  //#ifndef PUFFER_DEBUG
+  //seqVec.resize(0);
+  //rankVec.resize(0);
+  //#endif
+
+  sdsl::int_vector<> posVec(tlen, 0, w);
   {
     size_t i = 0;
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
@@ -240,7 +255,9 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
                   << ", idx = " << idx << ", size = " << posVec.size() << "\n";
       }
       posVec[idx] = kb1.pos();
+
       // validate
+#ifdef PUFFER_DEBUG
       uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
       CanonicalKmer sk;
       sk.fromNum(kn);
@@ -249,6 +266,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
         r.word__(0) = *kb1;
         std::cerr << "I thought I saw " << sk.to_str() << ", but I saw " << r.to_str() << "\n";
       }
+#endif
     }
   }
 
@@ -259,14 +277,12 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     std::string sampStr = "dense";
     indexDesc(cereal::make_nvp("sampling_type", sampStr));
     indexDesc(cereal::make_nvp("k", k));
-    indexDesc(cereal::make_nvp("num_kmers", nkeyIt));
+    indexDesc(cereal::make_nvp("num_kmers", nkeys));
     indexDesc(cereal::make_nvp("num_contigs", numContigs));
     indexDesc(cereal::make_nvp("seq_length", tlen));
   }
   descStream.close();
 
-  sdsl::store_to_file(seqVec, outdir + "/seq.bin");
-  sdsl::store_to_file(rankVec, outdir + "/rank.bin");
   sdsl::store_to_file(posVec, outdir + "/pos.bin");
   std::ofstream hstream(outdir + "/mphf.bin");
   bphf->save(hstream);
