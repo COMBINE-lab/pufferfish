@@ -17,6 +17,8 @@ private:
 
 		//spp::sparse_hash_map<std::pair<std::string, bool>, std::pair<std::string, bool>, cmpByPair > needsNewNext;
 		std::map<std::pair<std::string, bool>, std::pair<std::string, bool>, util::cmpByPair > needsNewNext;
+
+		std::map<std::pair<std::string, bool>, std::pair<std::string, bool>, util::cmpByPair > needsNewPrev;
 		spp::sparse_hash_map<std::string, bool> shortContigs;
 
 		bool is_boundary(std::vector<pufg::edgetuple> nodes, bool dirFlag) {
@@ -53,12 +55,15 @@ public:
 				bool clipOuts = false, clipIns = false;
 				// realIndegs : sum of Indegs to s+ and outdegs from s-
 				// realOutdegs : sum of outdegs from s+ and indegs to s-
+				if(s.getId() == "0011798771")
+					std::cout << "\n 1179877 out " << (int)s.getRealOutdeg() << "\n" ;
+
 				if ((s.getRealIndeg() > 1 and s.getRealOutdeg() > 1) //) it is a complex k-mer seg!! which should be added to the path at the end
 								or (s.getRealIndeg() == 1 and is_boundary(s.getOut(),true))
 								or (s.getRealOutdeg() == 1 and is_boundary(s.getIn(),false))
 				   )
 				   {
-						   std::cout<<s.getId()<<"\n";
+						   //std::cout<<s.getId()<<"\n";
 				/*		   std::cerr << s.getId() << "\n\tIn:\n";
 						   for (auto & n : s.getIn())
 								std::cerr << n.contigId << "-" << n.baseSign << "-" << n.neighborSign << ", ";
@@ -80,6 +85,13 @@ public:
 					for (auto & n : s.getIn()) {// keep all the incoming nodes to this node in a map of the id to the new segment id
 						if (s.getId() == "002188821")std::cerr << "\tkey<" << n.contigId << "," << n.neighborSign << "> : value < " <<s.getId() << "," <<n.baseSign << ">\n";
 						needsNewNext[std::make_pair(n.contigId, n.neighborSign)] = std::make_pair(s.getId(), n.baseSign);				
+					}
+					for(auto&n : s.getOut()){
+						if(pathStart.find(std::make_pair(n.contigId,n.neighborSign)) != pathStart.end()){
+							if(n.contigId == "1179877")
+								std::cout << "\n I was here with sign " << n.neighborSign <<"\n";
+							needsNewPrev[std::make_pair(n.contigId,n.neighborSign)] = std::make_pair(s.getId(),n.baseSign) ;
+						}
 					}
 
 				} 		
@@ -175,7 +187,13 @@ public:
 					std::string id = kv.first;
 					std::vector<std::pair<std::string, bool> > & pathOfContigs = kv.second;
 					std::vector<std::pair<std::string, bool> > updatedPath;
+					bool firstFlag = true;
 					for (auto & c : pathOfContigs) {
+						if(firstFlag){//start of path
+							if(needsNewPrev.find(c) != needsNewPrev.end())
+								updatedPath.push_back(needsNewPrev[c]);
+							firstFlag = false ;
+						}
 						if (shortContigs.find(c.first) == shortContigs.end())
 							updatedPath.push_back(c);
 						if (needsNewNext.find(c) != needsNewNext.end())
