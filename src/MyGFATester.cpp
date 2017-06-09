@@ -123,7 +123,7 @@ int main(int argc, char* argv[]){
 
 
 						//std::cerr << id << "\n" ;
-
+					/*
 					if(fastaMap[id] != reconstructedTr[id]){
 						std::cerr << id << "\n" ;
 						std::cerr << "true\n " << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
@@ -162,7 +162,7 @@ int main(int argc, char* argv[]){
 
 
 						std::exit(1) ;
-					}
+					}*/
 
 				}
 		}
@@ -170,19 +170,23 @@ int main(int argc, char* argv[]){
 
 		int found = 0;
 		int notFound = 0;
+		int notSub = 0;
 		for(auto& kv: fastaMap){
 			if(kv.second == reconstructedTr[kv.first]){
 				found++ ;
+			}else if(kv.second.find(reconstructedTr[kv.first]) != -1 and (kv.second.size()-1 == reconstructedTr[kv.first].size())){
+				notSub++ ;
 			}else{
-				std::cerr << "tid " << kv.first << "\n" ;
-				std::cerr << "true seq " << kv.second << "\n" ;
-				std::cerr << "our seq " << reconstructedTr[kv.first] << "\n" ;
+				//std::cerr << "tid " << kv.first << "\n" ;
+				//std::cerr << "true seq " << kv.second << "\n" ;
+				//std::cerr << "our seq " << reconstructedTr[kv.first] << "\n" ;
+				std::cout << kv.second.size() << "\t" << reconstructedTr[kv.first].size() << "\n" ;
 				notFound++ ;
-				std::exit(1) ;
+				//std::exit(1) ;
 			}
 		}
 
-		std::cerr << "\n Found " << found << " Not Found " << notFound << "\n" ;
+		std::cerr << "\n Constructed " << found << " Not Constructed " << notFound << " Sub-strings " << notSub << "\n" ;
 
 
 	return 0 ;
