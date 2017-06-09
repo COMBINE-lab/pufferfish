@@ -78,12 +78,8 @@ public:
 					//std::cerr << idSeq.first << idSeq.second << "\n";
 					contigid2seq[idSeq.first] = idSeq.second;
 					newSegmentCntr++;
-					if (s.getId() == "002188821") {
-						std::cerr << "002188821 " << s.getIn().size() << "\n";
-					}
 
 					for (auto & n : s.getIn()) {// keep all the incoming nodes to this node in a map of the id to the new segment id
-						if (s.getId() == "002188821")std::cerr << "\tkey<" << n.contigId << "," << n.neighborSign << "> : value < " <<s.getId() << "," <<n.baseSign << ">\n";
 						needsNewNext[std::make_pair(n.contigId, n.neighborSign)] = std::make_pair(s.getId(), n.baseSign);				
 					}
 					for(auto&n : s.getOut()){
@@ -206,8 +202,12 @@ public:
 		
 void writeFile(std::string fileName){
 	std::ofstream gfa_file(fileName) ;
+	uint32_t contigCntr = 0;
 	for(auto& cseq : contigid2seq){
-		gfa_file << "S" << "\t" << cseq.first <<"\t" << cseq.second << "\n" ;
+			if (shortContigs.find(cseq.first) == shortContigs.end()) {
+				gfa_file << "S" << "\t" << cseq.first <<"\t" << cseq.second << "\n" ;
+				contigCntr++;
+			}
 	}
 	for(auto& p : path){
 		auto tid = p.first ;
@@ -219,6 +219,7 @@ void writeFile(std::string fileName){
 		gfa_file << vec[vec.size()-1].first << ((vec[vec.size()-1].second)?"+":"-") << "\t*\n";
 
 	}
+	std::cerr << "# of contigs written to file : " << contigCntr << "\n";
 }
 
 };
