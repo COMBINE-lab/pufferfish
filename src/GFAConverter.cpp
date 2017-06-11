@@ -98,6 +98,7 @@ void GFAConverter::parseFile() {
 						}
 						else {
 								if (prev.first == id and prev.second == ori) continue;
+//								if (prev.first == id and prev.second != ori) std::cerr << "This is even wierder: " << id << ori << "\n";
 								semiCG.addEdge(prev.first, prev.second, id, ori) ;						
 						}
 						prev = std::make_pair(id, ori);
@@ -154,7 +155,7 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 		}
 		old2newids[contigId].emplace_back(newId, plus);
 		cntr++;
-//		if (contigId == "486284" ) std::cerr << newId << " " << plus << " " << seq << "\n";
+//		if (newId == "002747727" ) std::cerr << contigId << " " << newId << " " << plus << " " << seq << "\n";
 	}
 	if (old2newids[contigId].size() > 3) std::cerr << "WTH " << contigId << "\n";
 }
@@ -216,11 +217,11 @@ void GFAConverter::mergeIn(pufg::Node& n) {
 		std::string& seq = new2seqAoldids[edge.contigId].first;
 		if (edge.baseSign != edge.neighborSign) {
 				tobeMerged = util::revcomp(tobeMerged);
-				//if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "1 " << id << " " << edge.contigId << " " << seq << "\n" << tobeMerged << "\n";
+				if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "1 " << id << " " << edge.contigId << " " << seq << "\n" << tobeMerged << "\n";
 				seq = tobeMerged.substr(0, tobeMerged.size()-(k-1)) + seq;
 		}
 		else {
-//			if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "2 " << seq << "\n" << tobeMerged << "\n";
+			if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "2 " << seq << "\n" << tobeMerged << "\n";
 			seq += tobeMerged.substr(k-1);
 		}
         eraseFromOldList(id);
@@ -249,11 +250,11 @@ void GFAConverter::mergeOut(pufg::Node& n) {
         std::string& seq = new2seqAoldids[edge.contigId].first;
         if (edge.baseSign != edge.neighborSign) {
                 tobeMerged = util::revcomp(tobeMerged);
-//				if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "3 " << seq << "\n" << tobeMerged << "\n";
+				if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "3 " << seq << "\n" << tobeMerged << "\n";
 	            seq += tobeMerged.substr(k-1);
 		}
         else {
-//			if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "4 " << seq << "\n" << tobeMerged << "\n";
+			if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "4 " << seq << "\n" << tobeMerged << "\n";
             seq = tobeMerged.substr(0, tobeMerged.size()-(k-1)) + seq;
         }
         eraseFromOldList(id);
@@ -271,9 +272,12 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 			} else {
 				edge = n.getOut()[0];
 			}
-			if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) )
-					return is_end(edge.contigId);
-			else return is_start(edge.contigId); 
+			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
+			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) )
+			if (edge.baseSign == edge.neighborSign) {
+					return is_end(edge.contigId) or neighbor.getRealOutdeg() != 1;
+			}
+			else return is_start(edge.contigId) or neighbor.getRealIndeg() != 1; 
 		}
 		else { // Merge out case
 			if (is_end(n.getId())) return true;
@@ -282,9 +286,14 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 			} else {
 				edge = n.getOut()[0];
 			}
-			if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) )
-					return is_start(edge.contigId);
-			else return is_end(edge.contigId); 
+			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
+			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) ) {
+			if (edge.baseSign == edge.neighborSign) {
+					return is_start(edge.contigId) or neighbor.getRealIndeg() != 1;
+			}
+			else {
+					return is_end(edge.contigId) or neighbor.getRealOutdeg() != 1; 
+			}
 		}
 		return false;
 }

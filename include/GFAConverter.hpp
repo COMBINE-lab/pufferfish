@@ -40,6 +40,7 @@ class GFAConverter {
 		void processContigSeq(std::string & contigId, std::string & contigSeq, spp::sparse_hash_map<std::string, std::string> & seq2newid);
 		bool is_start(std::string& nodeId);
 		bool is_end(std::string& nodeId);
+		//bool isCornerCase(pufg::Node& n, pufg::edgetuple, bool mergeIn);
 		bool isCornerCase(pufg::Node& n, bool mergeIn);
 		void mergeIn(pufg::Node& n);
 		void mergeOut(pufg::Node& n);
