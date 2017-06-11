@@ -79,11 +79,8 @@ void GFAConverter::parseFile() {
 	std::cerr << "Done updating pathStart and pathEnd based on the newIds\nStart building the graph...\n";
 
 	// build the graph
-	spp::sparse_hash_map<std::string, std::string> kmer2contigid;
-	std::string prefix = "00";
-	uint32_t newContigCntr = 0;
 	for (auto & kv : path) {
-		std::string id = kv.first;
+		std::string pathId = kv.first;
 		auto & contigVec = kv.second;
 		
 		std::pair<std::string, bool> prev;
@@ -100,6 +97,7 @@ void GFAConverter::parseFile() {
 								pathStart = false;
 						}
 						else {
+								if (prev.first == id and prev.second == ori) continue;
 								semiCG.addEdge(prev.first, prev.second, id, ori) ;						
 						}
 						prev = std::make_pair(id, ori);
