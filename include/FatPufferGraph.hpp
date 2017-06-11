@@ -40,8 +40,9 @@ namespace pufg{
 			std::string& getId() {return id;}
 
 			void insertNodeTo(std::string nodeId, bool sign, bool toSign){
-					if (id == "00251280" or id == "00151286")
+/*					if (id == "0032308305" or id == "0011206970")
 							std::cerr << id << " insert node to " << nodeId << toSign << sign << " indegp:" << (int)indegp << " outdegp:" << (int)outdegp << " indegm:" << (int)indegm << " outdegm:" << (int)outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
+*/							
 				if(sign) {
 					outdegp++;
 					std::string key = nodeId + (toSign?"+":"-");
@@ -61,8 +62,9 @@ namespace pufg{
 			}
 			
 			void removeEdgeTo(std::string nodeId) {
-				if (id == "00251280" or id == "00151286")
+/*					if (id == "0032308305" or id == "0011206970")
 							std::cerr << id << " remove edge to " << nodeId << " indegp:" << (int)indegp << " outdegp:" << (int)outdegp << " indegm:" << (int)indegm << " outdegm:" << (int)outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
+*/							
 			for (std::vector<edgetuple>::iterator it=out.begin(); it!=out.end();) {
 					auto& edge = *it;
 					if (edge.contigId == nodeId) {
@@ -91,8 +93,9 @@ namespace pufg{
 			}
 
 			void insertNodeFrom(std::string nodeId, bool sign, bool fromSign){
-				if (id == "00251280" or id == "00151286")
+/*					if (id == "0032308305" or id == "0011206970")
 							std::cerr << id << " insert node from " << nodeId << fromSign << sign << " indegp:" << (int)indegp << " outdegp:" << (int)outdegp << " indegm:" << (int)indegm << " outdegm:" << (int)outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
+*/							
 			if(sign) {
 					indegp++ ;
 					std::string key = nodeId + (fromSign?"+":"-");
@@ -112,8 +115,9 @@ namespace pufg{
 			}
 			
 			void removeEdgeFrom(std::string nodeId) {
-				if (id == "00251280" or id == "00151286")
+/*					if (id == "0032308305" or id == "0011206970")
 							std::cerr << id << " remove edge from " << nodeId << " indegp:" << indegp << " outdegp:" << outdegp << " indegm:" << indegm << " outdegm:" << outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
+*/							
 			for (std::vector<edgetuple>::iterator it=in.begin(); it!=in.end();) {
 						auto& edge = *it;
 					if (edge.contigId == nodeId) {

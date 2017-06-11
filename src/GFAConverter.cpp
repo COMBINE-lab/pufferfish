@@ -227,6 +227,8 @@ void GFAConverter::mergeIn(pufg::Node& n) {
         eraseFromOldList(id);
         new2seqAoldids.erase(id);
 		semiCG.removeNode(id);
+		if (is_start(id)) update_start(edge.contigId, edge.baseSign == edge.neighborSign);
+		if (is_end(id)) update_end(edge.contigId, edge.baseSign == edge.neighborSign);
 //		return edge.contigId;
 }
 
@@ -250,7 +252,7 @@ void GFAConverter::mergeOut(pufg::Node& n) {
         std::string& seq = new2seqAoldids[edge.contigId].first;
         if (edge.baseSign != edge.neighborSign) {
                 tobeMerged = util::revcomp(tobeMerged);
-				if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "3 " << seq << "\n" << tobeMerged << "\n";
+				if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << id << " " << edge.contigId << " " << "3 " << seq << "\n" << tobeMerged << "\n";
 	            seq += tobeMerged.substr(k-1);
 		}
         else {
@@ -260,6 +262,8 @@ void GFAConverter::mergeOut(pufg::Node& n) {
         eraseFromOldList(id);
         new2seqAoldids.erase(id);
 		semiCG.removeNode(id);
+		if (is_start(id)) update_start(edge.contigId, edge.baseSign == edge.neighborSign);
+		if (is_end(id)) update_end(edge.contigId, edge.baseSign == edge.neighborSign);
 //		return edge.contigId;
 }
 
@@ -268,10 +272,21 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 		if (mergeIn) {
 			if (is_start(n.getId())) return true;
 			if (n.getIndegP() > 0) {				
-				edge = n.getIn()[0];
+					for (auto & in : n.getIn()) {
+						if (in.baseSign) {
+								edge = in;
+								break;
+						}
+					}
 			} else {
-				edge = n.getOut()[0];
+					for (auto& out : n.getOut()) {
+						if (!out.baseSign) {
+							edge = out;
+							break;
+						}
+					}
 			}
+			if (edge.contigId == n.getId()) return true;
 			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
 			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) )
 			if (edge.baseSign == edge.neighborSign) {
@@ -282,10 +297,22 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 		else { // Merge out case
 			if (is_end(n.getId())) return true;
 			if (n.getIndegM() > 0) {				
-				edge = n.getIn()[0];
+					for (auto & in : n.getIn()) {
+						if (!in.baseSign) {
+							edge = in;
+							break;
+						}
+					}
 			} else {
-				edge = n.getOut()[0];
+				for (auto & out : n.getOut()) {
+					if (out.baseSign) {
+						edge = out;
+						break;
+					}
+				}
+				//edge = n.getOut()[0];
 			}
+			if (edge.contigId == n.getId()) return true;
 			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
 			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) ) {
 			if (edge.baseSign == edge.neighborSign) {
@@ -308,6 +335,16 @@ bool GFAConverter::is_end(std::string& nodeId) {
 	if (pathStart.find(std::make_pair(nodeId, false)) != pathStart.end() or
 			pathEnd.find(std::make_pair(nodeId, true)) != pathEnd.end()) return true;
 	return false;
+}
+
+void GFAConverter::update_start(std::string& newId, bool newOri) {
+		pathStart[std::make_pair(newId, newOri)] = true;
+		pathEnd[std::make_pair(newId, !newOri)] = true;
+}
+
+void GFAConverter::update_end(std::string& newId, bool newOri) {
+		pathStart[std::make_pair(newId, !newOri)] = true;
+		pathEnd[std::make_pair(newId, newOri)] = true;
 }
 
 void GFAConverter::writeFile(const char* gfaFileName) {
