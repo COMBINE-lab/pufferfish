@@ -1,6 +1,7 @@
 #include "FatPufferGraph.hpp"
-#include "OurGFAReader.hpp"
-#include "semiCompactedCompactor.hpp"
+//#include "OurGFAReader.hpp"
+//#include "semiCompactedCompactor.hpp"
+#include "GFAConverter.hpp"
 
 int main(int argc, char* argv[]){
   (void)argc;
@@ -8,7 +9,11 @@ int main(int argc, char* argv[]){
 	std::string gfa_outfilename = argv[2];
 
 	short k = 31;
-	PosFinder pf(argv[1], k);
+	GFAConverter gc(argv[1], k);
+	gc.parseFile();
+	gc.randomWalk();
+	gc.writeFile(argv[2]);
+/*	PosFinder pf(argv[1], k);
 	pf.parseFile();
 	
 	SemiCompactedCompactor scc(pf.getNewSegments(), 
@@ -20,6 +25,7 @@ int main(int argc, char* argv[]){
 	scc.compact();
 	scc.updatePath(pf.getPaths());
 	scc.writeFile(gfa_outfilename);
+*/
 
 	return 0 ;
 }

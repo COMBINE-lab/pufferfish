@@ -123,7 +123,7 @@ int main(int argc, char* argv[]){
 
 
 						//std::cerr << id << "\n" ;
-					/*
+					
 					if(fastaMap[id] != reconstructedTr[id]){
 						std::cerr << id << "\n" ;
 						std::cerr << "true\n " << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
@@ -162,7 +162,7 @@ int main(int argc, char* argv[]){
 
 
 						std::exit(1) ;
-					}*/
+					}
 
 				}
 		}
@@ -175,12 +175,13 @@ int main(int argc, char* argv[]){
 			if(kv.second == reconstructedTr[kv.first]){
 				found++ ;
 			}else if(kv.second.find(reconstructedTr[kv.first]) != -1 and (kv.second.size()-1 == reconstructedTr[kv.first].size())){
+					//std::cerr << "\n" << notSub << "\n\t" << kv.second << "\n\t" << reconstructedTr[kv.first];
 				notSub++ ;
 			}else{
 				//std::cerr << "tid " << kv.first << "\n" ;
 				//std::cerr << "true seq " << kv.second << "\n" ;
 				//std::cerr << "our seq " << reconstructedTr[kv.first] << "\n" ;
-				std::cout << kv.second.size() << "\t" << reconstructedTr[kv.first].size() << "\n" ;
+//				std::cout << kv.second.size() << "\t" << reconstructedTr[kv.first].size() << "\n" ;
 				notFound++ ;
 				//std::exit(1) ;
 			}

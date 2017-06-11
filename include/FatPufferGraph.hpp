@@ -10,7 +10,7 @@ namespace pufg{
 	struct edgetuple{
 		edgetuple(bool fSign,std::string cId, bool tSign):
 			baseSign(fSign),contigId(cId),neighborSign(tSign) {}
-
+		edgetuple() {}
 		bool baseSign;
 		std::string contigId;
 		bool neighborSign;
@@ -37,34 +37,111 @@ namespace pufg{
 					return distinctRealIn.size();}//(indegp + indegm); }
 
 			//std::vector<std::string> getPositiveToNodes()
-			std::string getId() {return id;}
+			std::string& getId() {return id;}
 
 			void insertNodeTo(std::string nodeId, bool sign, bool toSign){
+					if (id == "00251280" or id == "00151286")
+							std::cerr << id << " insert node to " << nodeId << toSign << sign << " indegp:" << (int)indegp << " outdegp:" << (int)outdegp << " indegm:" << (int)indegm << " outdegm:" << (int)outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
 				if(sign) {
 					outdegp++;
-					distinctRealOut[nodeId + (toSign?"+":"-")] = true;
+					std::string key = nodeId + (toSign?"+":"-");
+					if (distinctRealOut.contains(key))
+						distinctRealOut[key] += 1;
+					else distinctRealOut[key] = 1;
 				}
 				else {
 					outdegm++;
-					distinctRealIn[nodeId + (toSign?"-":"+")] = true;
+					std::string key = nodeId + (toSign?"-":"+");
+					if (distinctRealIn.contains(key))
+							distinctRealIn[key] += 1;
+					else distinctRealIn[key] = 1;
 				}
 
 				out.emplace_back(sign, nodeId, toSign);
 			}
-
+			
+			void removeEdgeTo(std::string nodeId) {
+				if (id == "00251280" or id == "00151286")
+							std::cerr << id << " remove edge to " << nodeId << " indegp:" << (int)indegp << " outdegp:" << (int)outdegp << " indegm:" << (int)indegm << " outdegm:" << (int)outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
+			for (std::vector<edgetuple>::iterator it=out.begin(); it!=out.end();) {
+					auto& edge = *it;
+					if (edge.contigId == nodeId) {
+							if (edge.baseSign) {
+								outdegp--;
+								std::string key = nodeId + (edge.neighborSign?"+":"-");
+								if (distinctRealOut.contains(key)) {
+									distinctRealOut[key] -= 1;
+									if (distinctRealOut[key] == 0)
+											distinctRealOut.erase(key);
+								}
+							}
+							else {
+								outdegm--;
+								std::string key = nodeId + (edge.neighborSign?"-":"+");
+								if (distinctRealIn.contains(key)) {
+									distinctRealIn[key] -= 1;
+									if (distinctRealIn[key] == 0)
+											distinctRealIn.erase(key);
+								}
+						}
+						it = out.erase(it);
+					}
+					else it++;
+				}
+			}
 
 			void insertNodeFrom(std::string nodeId, bool sign, bool fromSign){
-				if(sign) {
+				if (id == "00251280" or id == "00151286")
+							std::cerr << id << " insert node from " << nodeId << fromSign << sign << " indegp:" << (int)indegp << " outdegp:" << (int)outdegp << " indegm:" << (int)indegm << " outdegm:" << (int)outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
+			if(sign) {
 					indegp++ ;
-					distinctRealIn[nodeId + (fromSign?"+":"-")] = true;
+					std::string key = nodeId + (fromSign?"+":"-");
+					if (distinctRealIn.contains(key))
+						distinctRealIn[key] += 1;
+					else distinctRealIn[key] = 1;
 				}
 				else {
 					indegm++ ;
-					distinctRealOut[nodeId + (fromSign?"-":"+")] = true;
+					std::string key = nodeId + (fromSign?"-":"+");
+					if (distinctRealOut.contains(key))
+							distinctRealOut[key] += 1;
+					else distinctRealOut[key] = 1;
 				}
 				in.emplace_back(sign, nodeId, fromSign) ;
+
 			}
 			
+			void removeEdgeFrom(std::string nodeId) {
+				if (id == "00251280" or id == "00151286")
+							std::cerr << id << " remove edge from " << nodeId << " indegp:" << indegp << " outdegp:" << outdegp << " indegm:" << indegm << " outdegm:" << outdegm << " distinctIn: " << distinctRealIn.size() << " distinctOut: " << distinctRealOut.size() << " in:" << in.size() << " out:" << out.size() << "\n";
+			for (std::vector<edgetuple>::iterator it=in.begin(); it!=in.end();) {
+						auto& edge = *it;
+					if (edge.contigId == nodeId) {
+							if (edge.baseSign) {
+								indegp--;
+								std::string key = nodeId + (edge.neighborSign?"+":"-");
+								if (distinctRealIn.contains(key)) {
+									distinctRealIn[key] -= 1;
+									if (distinctRealIn[key] == 0)
+											distinctRealIn.erase(key);
+								}
+							}
+							else {
+								indegm--;
+								std::string key = nodeId + (edge.neighborSign?"-":"+");
+								if (distinctRealOut.contains(key)) {
+									distinctRealOut[key] -= 1;
+									if (distinctRealOut[key] == 0)
+											distinctRealOut.erase(key);
+								}
+						}
+						it = in.erase(it);
+					}
+					else it++;
+				}					
+
+			}
+
 			bool checkExistence(bool bSign, std::string toId, bool toSign){
 				for(auto& i : out){
 					if(i.baseSign == bSign and i.neighborSign == toSign){
@@ -87,8 +164,8 @@ namespace pufg{
 			std::vector<edgetuple> in;
 			std::vector<edgetuple> out ;
 			// We use these two just to count total number of incoming edges or outgoing edges and they literaly have no other usecases!!
-			spp::sparse_hash_map<std::string, bool> distinctRealIn;
-			spp::sparse_hash_map<std::string, bool> distinctRealOut;
+			spp::sparse_hash_map<std::string, short> distinctRealIn;
+			spp::sparse_hash_map<std::string, short> distinctRealOut;
 
 	};
 
@@ -135,6 +212,24 @@ namespace pufg{
 
 			//Edges.emplace_back(fromNode,toNode) ;
 		}
+
+		bool removeNode(std::string id) {
+			if (Vertices.find(id) == Vertices.end()) return false;
+			Node& n = Vertices[id];
+			for (auto & in : n.getIn()) {
+				for (auto & out : n.getOut()) {
+					addEdge(in.contigId, in.neighborSign, out.contigId, out.neighborSign);					
+				}
+			}
+			for (auto& in : n.getIn()) {
+				Node& from = Vertices[in.contigId];
+				from.removeEdgeTo(id);
+			}
+			for (auto& out : n.getOut()) {
+				Node& to = Vertices[out.contigId];
+				to.removeEdgeFrom(id);
+			}
+	}
 
 		/*
 		void buildGraph(std::string gfa_file){
