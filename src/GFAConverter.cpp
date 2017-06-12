@@ -90,17 +90,15 @@ void GFAConverter::parseFile() {
 				if (!idOri.second) {						
 						std::reverse(newIdList.begin(), newIdList.end());	// As newIdList is a copy it won't affect the actual vector in old2newids (tested)
 				}
-				for (auto & newIdOri : newIdList) {
-						std::string id = newIdOri.first;
-						bool ori = (idOri.second?newIdOri.second:!newIdOri.second);
-						if (pathStart) {
-								pathStart = false;
-						}
-						else {
-								if (prev.first == id and prev.second == ori) continue;
-//								if (prev.first == id and prev.second != ori) std::cerr << "This is even wierder: " << id << ori << "\n";
-								semiCG.addEdge(prev.first, prev.second, id, ori) ;						
-						}
+				if (pathStart) {
+						std::string id = newIdList[0].first;						
+						bool ori = (idOri.second?newIdList[0].second:!newIdList[0].second);
+						prev = std::make_pair(id, ori);
+				}
+				for (short i = 1; i < newIdList.size(); i++) {
+						std::string id = newIdList[i].first;
+						bool ori = (idOri.second?newIdList[i].second:!newIdList[i].second);
+						semiCG.addEdge(prev.first, prev.second, id, ori) ;						
 						prev = std::make_pair(id, ori);
 				}
 		}
@@ -361,14 +359,19 @@ void GFAConverter::writeFile(const char* gfaFileName) {
         auto vec = p.second ;
 		bool first = true;
 		std::pair<std::string, bool> prev;
+		bool firstPiece = true;
         for(int i = 0 ; i < vec.size(); i++) {
 			auto newidVec = old2newids[vec[i].first];
 			if (!vec[i].second)
 				std::reverse(newidVec.begin(), newidVec.end());			
+			firstPiece = true;
 			for (auto& idOri : newidVec) {
 				bool ori = vec[i].second?idOri.second:!idOri.second;
 				if (!first) {
-						if (prev.first == idOri.first and prev.second == ori) continue;
+						if (firstPiece and prev.first == idOri.first and prev.second == ori) {
+								firstPiece = false;
+								continue;
+						}
 						gfa_file << ",";				
 				}
 	            gfa_file << idOri.first << (ori?"+":"-");
