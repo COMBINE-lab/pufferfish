@@ -242,6 +242,12 @@ void GFAConverter::mergeOut(pufg::Node& n) {
 //		return edge.contigId;
 }
 
+/**
+ * Check 3 cases
+ * 1. node is not corner node
+ * 2. the neighbor we want to merge the node with is not corner node
+ * 3. the current node is not the same as the node it will be merged with
+ */
 bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 		if (mergeIn) {				
 			if (is_start(n.getId())) return true;			
