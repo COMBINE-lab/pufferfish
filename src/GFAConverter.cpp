@@ -201,6 +201,12 @@ void GFAConverter::eraseFromOldList(std::string nodeId) {
 void GFAConverter::mergeIn(pufg::Node& n) {
 		std::string id = n.getId();
 		pufg::edgetuple& edge = n.getOnlyRealIn();
+    if (!new2seqAoldids.contains(id)) {
+      std::cerr << "[mergeIn] NO; the id " << id << " was not in new2seqAoldids!\n";
+    }
+    if (!new2seqAoldids.contains(edge.contigId)) {
+      std::cerr << "[mergeIn] NO; the edge.contigId " << edge.contigId << " was not in new2seqAoldids!\n";
+    }
 		std::string& tobeMerged = new2seqAoldids[id].first;		
 		std::string& seq = new2seqAoldids[edge.contigId].first;
 		if (edge.baseSign != edge.neighborSign) {
@@ -223,6 +229,12 @@ void GFAConverter::mergeIn(pufg::Node& n) {
 void GFAConverter::mergeOut(pufg::Node& n) {
 		std::string id = n.getId();
         pufg::edgetuple& edge = n.getOnlyRealOut();
+        if (!new2seqAoldids.contains(id)) {
+          std::cerr << "[mergeOut] NO; the id " << id << " was not in new2seqAoldids!\n";
+        }
+        if (!new2seqAoldids.contains(edge.contigId)) {
+          std::cerr << "[mergeOut] NO; the edge.contigId " << edge.contigId << " was not in new2seqAoldids!\n";
+    }
         std::string& tobeMerged = new2seqAoldids[id].first;
         std::string& seq = new2seqAoldids[edge.contigId].first;
         if (edge.baseSign != edge.neighborSign) {
