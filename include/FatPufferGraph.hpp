@@ -36,6 +36,34 @@ namespace pufg{
 			uint8_t getRealIndeg() {					
 					return distinctRealIn.size();}//(indegp + indegm); }
 
+			edgetuple& getOnlyRealIn() {
+				if (indegp > 0) {
+					for (auto& e : in)
+							if (e.baseSign) {
+									return e;
+							}
+				} else {
+					for (auto& e : out)
+							if (!e.baseSign) {
+									return e;
+							}
+				}		
+			}
+			
+			edgetuple& getOnlyRealOut() {
+				if (outdegp > 0) {
+					for (auto& e : out)
+						if (e.baseSign) {
+							return e;
+						}			
+				}
+				else { // The real outgoing edge should be an incoming edge to negative if it's not an outgoing edge from positive
+					for (auto& e : in)
+						if (!e.baseSign) {
+								return e;
+						}
+				}
+			}
 			//std::vector<std::string> getPositiveToNodes()
 			std::string& getId() {return id;}
 

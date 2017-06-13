@@ -200,20 +200,7 @@ void GFAConverter::eraseFromOldList(std::string nodeId) {
 }
 void GFAConverter::mergeIn(pufg::Node& n) {
 		std::string id = n.getId();
-		pufg::edgetuple edge;
-		if (n.getIndegP() > 0) {
-			for (auto& in : n.getIn())
-					if (in.baseSign) {
-						edge = in;
-						break;
-					}
-		} else {
-			for (auto& out : n.getOut())
-					if (!out.baseSign) {
-						edge = out;
-						break;
-					}
-		}		
+		pufg::edgetuple& edge = n.getOnlyRealIn();
 		std::string& tobeMerged = new2seqAoldids[id].first;		
 		std::string& seq = new2seqAoldids[edge.contigId].first;
 		if (edge.baseSign != edge.neighborSign) {
@@ -235,20 +222,7 @@ void GFAConverter::mergeIn(pufg::Node& n) {
 
 void GFAConverter::mergeOut(pufg::Node& n) {
 		std::string id = n.getId();
-        pufg::edgetuple edge;
-        if (n.getIndegM() > 0) { // which is equal to saying if n.getOutdegP() because only one of these two can be one!!
-        	for (auto& in : n.getIn())
-				if (!in.baseSign) {
-					edge = in;
-					break;
-				}
-        } else {
-        	for (auto& out : n.getOut())
-				if (out.baseSign) {
-					edge = out;
-					break;
-				}
-        }
+        pufg::edgetuple& edge = n.getOnlyRealOut();
         std::string& tobeMerged = new2seqAoldids[id].first;
         std::string& seq = new2seqAoldids[edge.contigId].first;
         if (edge.baseSign != edge.neighborSign) {
@@ -269,24 +243,9 @@ void GFAConverter::mergeOut(pufg::Node& n) {
 }
 
 bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
-		pufg::edgetuple edge;
-		if (mergeIn) {
-			if (is_start(n.getId())) return true;
-			if (n.getIndegP() > 0) {				
-					for (auto & in : n.getIn()) {
-						if (in.baseSign) {
-								edge = in;
-								break;
-						}
-					}
-			} else {
-					for (auto& out : n.getOut()) {
-						if (!out.baseSign) {
-							edge = out;
-							break;
-						}
-					}
-			}
+		if (mergeIn) {				
+			if (is_start(n.getId())) return true;			
+			pufg::edgetuple& edge = n.getOnlyRealIn();
 			if (edge.contigId == n.getId()) return true;
 			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
 			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) )
@@ -297,22 +256,7 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 		}
 		else { // Merge out case
 			if (is_end(n.getId())) return true;
-			if (n.getIndegM() > 0) {				
-					for (auto & in : n.getIn()) {
-						if (!in.baseSign) {
-							edge = in;
-							break;
-						}
-					}
-			} else {
-				for (auto & out : n.getOut()) {
-					if (out.baseSign) {
-						edge = out;
-						break;
-					}
-				}
-				//edge = n.getOut()[0];
-			}
+			pufg::edgetuple& edge = n.getOnlyRealOut();
 			if (edge.contigId == n.getId()) return true;
 			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
 			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) ) {
