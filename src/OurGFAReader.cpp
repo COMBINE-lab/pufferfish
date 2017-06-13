@@ -100,7 +100,8 @@ void PosFinder::parseFile() {
 
 	spp::sparse_hash_map<std::string, std::string> kmer2contigid;
 	std::string prefix = "00";
-	uint32_t newContigCntr = 0;
+	//*unused*
+  //uint32_t newContigCntr = 0;
 	for (auto & kv : path) {
 		std::string id = kv.first;
 		auto & contigVec = kv.second;			

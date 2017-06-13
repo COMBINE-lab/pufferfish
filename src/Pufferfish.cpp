@@ -60,15 +60,19 @@ int main(int argc, char* argv[]) {
   auto validateApp = app.add_subcommand("validate", "test k-mer lookup for reference sequences");
 
   util::IndexOptions indexOpt;
-  indexApp->add_option("-k,--klen", indexOpt.k, "length of the k-mer with which the compacted dBG was built", static_cast<uint32_t>(31));
-  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file");
-  indexApp->add_option("-o,--output", indexOpt.outdir, "directory where index is written");
+  indexApp->add_option("-k,--klen", indexOpt.k,
+                       "length of the k-mer with which the compacted dBG was built",
+                       static_cast<uint32_t>(31))->required();
+  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file")->required();
+  indexApp->add_option("-o,--output", indexOpt.outdir, "directory where index is written")->required();
 
   util::TestOptions testOpt;
 
   util::ValidateOptions validateOpt;
-  validateApp->add_option("-i,--index", validateOpt.indexDir, "directory where the pufferfish index is stored");
-  validateApp->add_option("-r,--ref", validateOpt.refFile, "fasta file with reference sequences");
+  validateApp->add_option("-i,--index", validateOpt.indexDir,
+                          "directory where the pufferfish index is stored")->required();
+  validateApp->add_option("-r,--ref", validateOpt.refFile,
+                          "fasta file with reference sequences")->required();
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError &e) {

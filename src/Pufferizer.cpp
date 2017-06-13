@@ -2,17 +2,33 @@
 //#include "OurGFAReader.hpp"
 //#include "semiCompactedCompactor.hpp"
 #include "GFAConverter.hpp"
+#include "CLI/CLI.hpp"
+
+struct PufferizeOpts {
+  uint32_t k=31;
+  std::string gfaFile;
+  std::string outFile;
+};
 
 int main(int argc, char* argv[]){
   (void)argc;
-	std::string gfa_infilename = argv[1] ;
-	std::string gfa_outfilename = argv[2];
 
-	short k = 31;
-	GFAConverter gc(argv[1], k);
+  PufferizeOpts popts;
+  CLI::App app{"pufferize : prepare a GFA file for pufferfish indexing."};
+  app.add_option("-k,--klen", popts.k, "length of the k-mer with which the compacted dBG was built", static_cast<uint32_t>(31))->required();
+  app.add_option("-g,--gfa", popts.gfaFile, "path to the input GFA file")->required();
+  app.add_option("-o,--output", popts.outFile, "path to the output GFA file")->required();
+
+  try {
+    app.parse(argc, argv);
+  } catch (const CLI::ParseError &e) {
+    return app.exit(e);
+  }
+
+	GFAConverter gc(popts.gfaFile.c_str(), popts.k);
 	gc.parseFile();
 	gc.randomWalk();
-	gc.writeFile(argv[2]);
+	gc.writeFile(popts.outFile.c_str());
 /*	PosFinder pf(argv[1], k);
 	pf.parseFile();
 	

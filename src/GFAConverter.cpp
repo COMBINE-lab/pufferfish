@@ -95,7 +95,7 @@ void GFAConverter::parseFile() {
 						prev = std::make_pair(id, ori);
 						pathStart = false;
 				}
-				for (int i = 1; i < newIdList.size(); i++) {
+				for (size_t i = 1; i < newIdList.size(); i++) {
 						std::string id = newIdList[i].first;
 						bool ori = (idOri.second?newIdList[i].second:!newIdList[i].second);
 						semiCG.addEdge(prev.first, prev.second, id, ori) ;						
@@ -119,7 +119,7 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 	std::string prefix = "00";
 	std::vector<std::string> seqParts;
 	if (util::isRevcomp(contigSeq)) {
-		for (int i = 0; i <= contigSeq.size()-k; i++) {
+		for (size_t i = 0; i <= contigSeq.size()-k; i++) {
 			seqParts.push_back(contigSeq.substr(i, k));
 		}
 	}
@@ -190,7 +190,7 @@ void GFAConverter::eraseFromOldList(std::string nodeId) {
 			for (auto& idOri : oldids) {
 				std::string& id = idOri.first;
 				auto& newids = old2newids[id];
-				for (short i = 0; i < newids.size(); i++) {
+				for (size_t i = 0; i < newids.size(); i++) {
 					if (newids[i].first == nodeId) {
 							newids.erase(newids.begin()+i); 
 					}
@@ -313,7 +313,7 @@ void GFAConverter::writeFile(const char* gfaFileName) {
 		bool first = true;
 		std::pair<std::string, bool> prev;
 		bool firstPiece = true;
-        for(int i = 0 ; i < vec.size(); i++) {
+        for(size_t i = 0 ; i < vec.size(); i++) {
 			auto newidVec = old2newids[vec[i].first];
 			if (!vec[i].second)
 				std::reverse(newidVec.begin(), newidVec.end());						

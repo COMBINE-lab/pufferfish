@@ -47,9 +47,11 @@ namespace pufg{
 							if (!e.baseSign) {
 									return e;
 							}
-				}		
+				}
+        // should not get here
+        return in.front();
 			}
-			
+
 			edgetuple& getOnlyRealOut() {
 				if (outdegp > 0) {
 					for (auto& e : out)
@@ -63,6 +65,8 @@ namespace pufg{
 								return e;
 						}
 				}
+        // should not get here
+        return out.front();
 			}
 			//std::vector<std::string> getPositiveToNodes()
 			std::string& getId() {return id;}
@@ -261,6 +265,7 @@ namespace pufg{
 				Node& to = Vertices[out.contigId];
 				to.removeEdgeFrom(id);
 			}
+      return false;
 	}
 
 		/*

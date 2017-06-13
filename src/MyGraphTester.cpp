@@ -9,6 +9,8 @@
 
 
 int main(int argc, char* argv[]){
+  // get rid of unused variable warning
+  (void)argc;
 	std::string gfa_file = argv[1] ;
 
 	std::ifstream file(gfa_file) ;
