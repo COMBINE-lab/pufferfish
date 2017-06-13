@@ -94,8 +94,9 @@ void GFAConverter::parseFile() {
 						std::string id = newIdList[0].first;						
 						bool ori = (idOri.second?newIdList[0].second:!newIdList[0].second);
 						prev = std::make_pair(id, ori);
+						pathStart = false;
 				}
-				for (short i = 1; i < newIdList.size(); i++) {
+				for (int i = 1; i < newIdList.size(); i++) {
 						std::string id = newIdList[i].first;
 						bool ori = (idOri.second?newIdList[i].second:!newIdList[i].second);
 						semiCG.addEdge(prev.first, prev.second, id, ori) ;						
@@ -118,14 +119,21 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 	**/
 	std::string prefix = "00";
 	std::vector<std::string> seqParts;
-	seqParts.push_back(contigSeq.substr(0, k));
-	if (contigSeq.size() > k + 1) {
-		seqParts.push_back(contigSeq.substr(1, contigSeq.size()-2)); // WTF is going on here????
+	if (util::isRevcomp(contigSeq)) {
+		for (int i = 0; i <= contigSeq.size()-k; i++) {
+			seqParts.push_back(contigSeq.substr(i, k));
+		}
 	}
-	seqParts.push_back(contigSeq.substr(contigSeq.size()-k, contigSeq.size()));
+	else {
+		seqParts.push_back(contigSeq.substr(0, k));
+		if (contigSeq.size() > k + 1) {
+			seqParts.push_back(contigSeq.substr(1, contigSeq.size()-2)); 
+		}
+		seqParts.push_back(contigSeq.substr(contigSeq.size()-k));
+	}
 
-
-	short cntr = 1;
+	// for each part, search in hash_map whether it already existed or not and assign the proper (new/retrieved) contig id to it
+	int cntr = 1;
 	for (std::string seq : seqParts) {
 		std::string newId;
 		bool plus = true;
@@ -153,9 +161,9 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 		}
 		old2newids[contigId].emplace_back(newId, plus);
 		cntr++;
-//		if (newId == "002747727" ) std::cerr << contigId << " " << newId << " " << plus << " " << seq << "\n";
+//		if (contigId == "554902" or contigId == "554899" or contigId == "554900" ) std::cerr << contigId << " " << newId << " " << plus << " " << seq << "\n";
 	}
-	if (old2newids[contigId].size() > 3) std::cerr << "WTH " << contigId << "\n";
+	if (old2newids[contigId].size() > 3) std::cerr << "RevComp is true: " << contigId << " " << contigSeq << "\n";
 }
 
 void GFAConverter::randomWalk() {
@@ -366,16 +374,20 @@ void GFAConverter::writeFile(const char* gfaFileName) {
 				std::reverse(newidVec.begin(), newidVec.end());			
 			firstPiece = true;
 			for (auto& idOri : newidVec) {
+				std::string id = idOri.first;
 				bool ori = vec[i].second?idOri.second:!idOri.second;
 				if (!first) {
-						if (firstPiece and prev.first == idOri.first and prev.second == ori) {
+						if (firstPiece and prev.first == id and prev.second == ori) {
 								firstPiece = false;
 								continue;
 						}
+						if (firstPiece and prev.first == id and prev.second != ori) {
+							std::cerr << "found the bug " << prev.first << "\n";
+						}
 						gfa_file << ",";				
 				}
-	            gfa_file << idOri.first << (ori?"+":"-");
-				prev = std::make_pair(idOri.first, ori);
+	            gfa_file << id << (ori?"+":"-");
+				prev = std::make_pair(id, ori);
 				first = false;
 			}
         }

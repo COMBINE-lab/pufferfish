@@ -220,6 +220,7 @@ string str(T& container) {
 
   char complement(char& c);
   std::string revcomp(std::string s);
+  bool isRevcomp(std::string s);
   std::vector<std::pair<std::string, bool> > explode(const stx::string_view str, const char& ch);
 	bool is_number(const std::string& s);
   // Avoiding un-necessary stream creation + replacing strings with string view

@@ -32,6 +32,16 @@ namespace util {
 			return s;
 		}
 
+		bool isRevcomp(std::string s) {
+			int n = s.size();
+			int halfLength = n / 2;
+			for (int i=0; i<halfLength; i++)
+			{
+				char temp = complement(s[n-1-i]);
+				if (temp != s[i]) return false;
+			}
+			return true;
+		}
 		std::vector<std::pair<std::string, bool> > explode(const stx::string_view str, const char& ch) {
 			std::string next;
 			std::vector< std::pair<std::string, bool> > result;
