@@ -323,11 +323,12 @@ void GFAConverter::writeFile(const char* gfaFileName) {
 				if (!first) {
 						if (firstPiece and prev.first == id and prev.second == ori) {
 								firstPiece = false;
-								continue;
+								if (new2seqAoldids[id].size() == k)
+									continue;
 						}
-						if (firstPiece and prev.first == id and prev.second != ori) {
+/*						if (firstPiece and prev.first == id and prev.second != ori) {
 							std::cerr << "found the bug " << prev.first << "\n";
-						}
+						}*/
 						gfa_file << ",";				
 				}
 	            gfa_file << id << (ori?"+":"-");
