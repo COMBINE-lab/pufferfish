@@ -29,7 +29,6 @@ void GFAConverter::parseFile() {
 			if (tag == "S") {						
 				if (util::is_number(id)) {
 					processContigSeq(id, value, seq2newid);
-					//contigid2seq[id] = value;
 				}
 				contig_cnt++;
 			} 
@@ -161,45 +160,41 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 		}
 		old2newids[contigId].emplace_back(newId, plus);
 		cntr++;
-//		if (contigId == "554902" or contigId == "554899" or contigId == "554900" ) std::cerr << contigId << " " << newId << " " << plus << " " << seq << "\n";
 	}
-	if (old2newids[contigId].size() > 3) std::cerr << "RevComp is true: " << contigId << " " << contigSeq << "\n";
+//	if (old2newids[contigId].size() > 3) std::cerr << "RevComp is true: " << contigId << " " << contigSeq << "\n";
 }
 
 void GFAConverter::randomWalk() {
 		spp::sparse_hash_map<std::string, pufg::Node> & nodes = semiCG.getVertices();
 		std::cerr << "# of contigs with length = 31 : " << notVisited.size() << "\n";
-		std::cerr << "Start merging .. \n";
+		std::cerr << "\nStart merging .. \n";
 		for (auto & kv : notVisited) {
 				std::string curId = kv.first;
 				pufg::Node& curNode = nodes[curId];
-				// I hardly rely on TwoPaCo for not having a case of possible merging for in & out nodes both while none of in/out nodes are of size k!!
+				// I strongly rely on TwoPaCo here for not having a case of possible merging for in & out nodes both while none of in/out nodes are of size k!!
 				if (curNode.getRealIndeg() == 1 and !isCornerCase(curNode, true)) {
 						mergeIn(curNode);
 				}
 				else if (curNode.getRealOutdeg() == 1 and !isCornerCase(curNode, false)) {
-//						std::cerr << curId << " In : " << (int)curNode.getRealIndeg() << " Out : " << (int)curNode.getRealOutdeg() << "\n";
 						mergeOut(curNode);
 				}
 				//otherwise it is complex and you should keep the node and not merge it with any left or right neighbors
 		}
+		std::cerr << "Done merging .. \n";
 }
 
 void GFAConverter::eraseFromOldList(std::string nodeId) {
 		if (new2seqAoldids.contains(nodeId)) {
 			auto & seqAoldids = new2seqAoldids[nodeId];
 			std::vector< std::pair<std::string, bool> >& oldids = seqAoldids.second;
-//			std::cerr <<nodeId << " OldList size: " << oldids.size() << "\n";	
 			for (auto& idOri : oldids) {
 				std::string& id = idOri.first;
 				auto& newids = old2newids[id];
-//				std::cerr << "\t" << id << " was " << newids.size() ;
 				for (short i = 0; i < newids.size(); i++) {
 					if (newids[i].first == nodeId) {
 							newids.erase(newids.begin()+i); 
 					}
 				}
-//				std::cerr << " is " << newids.size() << "\n";
 			}
 		}
 }
@@ -223,11 +218,11 @@ void GFAConverter::mergeIn(pufg::Node& n) {
 		std::string& seq = new2seqAoldids[edge.contigId].first;
 		if (edge.baseSign != edge.neighborSign) {
 				tobeMerged = util::revcomp(tobeMerged);
-				if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "1 " << id << " " << edge.contigId << " " << seq << "\n" << tobeMerged << "\n";
+//				if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "1 " << id << " " << edge.contigId << " " << seq << "\n" << tobeMerged << "\n";
 				seq = tobeMerged.substr(0, tobeMerged.size()-(k-1)) + seq;
 		}
 		else {
-			if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "2 " << seq << "\n" << tobeMerged << "\n";
+//			if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "2 " << seq << "\n" << tobeMerged << "\n";
 			seq += tobeMerged.substr(k-1);
 		}
         eraseFromOldList(id);
@@ -258,11 +253,11 @@ void GFAConverter::mergeOut(pufg::Node& n) {
         std::string& seq = new2seqAoldids[edge.contigId].first;
         if (edge.baseSign != edge.neighborSign) {
                 tobeMerged = util::revcomp(tobeMerged);
-				if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << id << " " << edge.contigId << " " << "3 " << seq << "\n" << tobeMerged << "\n";
+//				if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << id << " " << edge.contigId << " " << "3 " << seq << "\n" << tobeMerged << "\n";
 	            seq += tobeMerged.substr(k-1);
 		}
         else {
-			if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "4 " << seq << "\n" << tobeMerged << "\n";
+//			if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "4 " << seq << "\n" << tobeMerged << "\n";
             seq = tobeMerged.substr(0, tobeMerged.size()-(k-1)) + seq;
         }
         eraseFromOldList(id);
@@ -357,7 +352,7 @@ void GFAConverter::writeFile(const char* gfaFileName) {
 
 	std::ofstream gfa_file(gfaFileName) ;
     uint32_t contigCntr = 0;
-    for(auto& kv : new2seqAoldids) {
+    for(auto& kv : new2seqAoldids) {		
 		gfa_file << "S" << "\t" << kv.first <<"\t" << (kv.second).first << "\n" ;
         contigCntr++;
     }
@@ -371,8 +366,7 @@ void GFAConverter::writeFile(const char* gfaFileName) {
         for(int i = 0 ; i < vec.size(); i++) {
 			auto newidVec = old2newids[vec[i].first];
 			if (!vec[i].second)
-				std::reverse(newidVec.begin(), newidVec.end());			
-			firstPiece = true;
+				std::reverse(newidVec.begin(), newidVec.end());						
 			for (auto& idOri : newidVec) {
 				std::string id = idOri.first;
 				bool ori = vec[i].second?idOri.second:!idOri.second;
@@ -390,6 +384,19 @@ void GFAConverter::writeFile(const char* gfaFileName) {
 				prev = std::make_pair(id, ori);
 				first = false;
 			}
+			if (newidVec.size() != 0)
+				firstPiece = true;			
+			// here's the crazy case.
+			// If an old contig's list of new ids is completely empty, this means that we are actually jumping over this contig, 
+			// so we shouldn't be worried about the next new contig with previous one, as prev is not actually the real prev.
+			// Say we have the case A- B+ A- in old set of contigs
+			// A : k-, k'+, k''+
+			// B : k-, k''+
+			// Now if we merge all 3 pieces of A into one final contig F, all parts of B are removed.
+			// Then if we see F+, F+ we shouldn't remove the second F+ b/c F+ is a newly created contig that has overlap of k-1 with itself.
+			// The path is actually F+ followed by F+ and not the case that these two contigs are equal kmers with overlap of k.
+			// Adding one "else" and a whole story! It's not even counted as a comment anymore!!!!!! :/
+			else firstPiece = false;
         }
 		gfa_file << "\t*\n";
     }
