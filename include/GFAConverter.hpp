@@ -51,6 +51,7 @@ class GFAConverter {
 	public:
 		GFAConverter(const char* gfaFileName, size_t input_k);
 		void parseFile();
+		void buildGraph();
 		void randomWalk();
 		void writeFile(const char* gfaFileName);
 };

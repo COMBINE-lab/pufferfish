@@ -13,10 +13,11 @@ void GFAConverter::parseFile() {
 	std::string ln;
 	std::string tag, id, value;
 	size_t contig_cnt{0};
-	spp::sparse_hash_map<std::string, std::string> seq2newid;
 	std::map< std::pair<std::string, bool>, bool> oldPathStart;
 	std::map< std::pair<std::string, bool>, bool> oldPathEnd;
+	{
 	std::cerr << "Start reading GFA file... \n";
+	spp::sparse_hash_map<std::string, std::string> seq2newid;
 	while(std::getline(*file, ln)) {
 			char firstC = ln[0];
 			if (firstC != 'S' and firstC != 'P') continue;
@@ -43,7 +44,7 @@ void GFAConverter::parseFile() {
 			}
 	}
 	std::cerr << "Done Reading\nStart updating pathStart and pathEnd...\n";
-
+	}
 	// set pathStart and pathEnd to newids	
 	auto cntr = 0;
 	for (auto & kv : oldPathStart) {
@@ -75,8 +76,12 @@ void GFAConverter::parseFile() {
 		}
 		oldPathEnd.erase(s);
 	}
-	std::cerr << "Done updating pathStart and pathEnd based on the newIds\nStart building the graph...\n";
+	std::cerr << "Done updating pathStart and pathEnd based on the newIds\n";
+	std::cerr << "Total # of Contigs : " << contig_cnt << "\tTotal # of numerical Contigs : " << old2newids.size() << " \tTotal # of 30 overlaped contigs : " << new2seqAoldids.size() << "\n";
+}
 
+void GFAConverter::buildGraph() {
+		std::cerr << "Start building the graph...\n";
 	// build the graph
 	for (auto & kv : path) {
 		std::string pathId = kv.first;
@@ -103,8 +108,8 @@ void GFAConverter::parseFile() {
 				}
 		}
 	}
-	std::cerr << "Done Building the graph\n\n\n";
-	std::cerr << "\nTotal # of Contigs : " << contig_cnt << "\tTotal # of numerical Contigs : " << old2newids.size() << " \tTotal # of 30 overlaped contigs : " << new2seqAoldids.size() << "\n\n";
+	std::cerr << "Done Building the graph\n";
+
 }
 
 void GFAConverter::processContigSeq(std::string & contigId, std::string & contigSeq, spp::sparse_hash_map<std::string, std::string> & seq2newid) {
@@ -180,7 +185,7 @@ void GFAConverter::randomWalk() {
 				}
 				//otherwise it is complex and you should keep the node and not merge it with any left or right neighbors
 		}
-		std::cerr << "Done merging .. \n";
+		std::cerr << "Done merging \n";
 }
 
 void GFAConverter::eraseFromOldList(std::string nodeId) {
