@@ -171,8 +171,7 @@ namespace pufg{
 						if (e.baseSign()) {
 							return e;
 						}
-				}
-				else { // The real outgoing edge should be an incoming edge to negative if it's not an outgoing edge from positive
+				} else { // The real outgoing edge should be an incoming edge to negative if it's not an outgoing edge from positive
 					for (auto& e : in_edges)
 						if (!e.baseSign()) {
 								return e;
@@ -181,7 +180,7 @@ namespace pufg{
         // should not get here
         return out_edges.front();
 			}
-			//std::vector<std::string> getPositiveToNodes()
+    
 			std::string& getId() {return id;}
 
 			void insertNodeTo(std::string nodeId, bool sign, bool toSign) {
@@ -190,8 +189,6 @@ namespace pufg{
           out_edges.emplace_back(ekey);
         }
 			}
-
-
 
     void removeEdgeTo(std::string nodeId) {
       out_edges.erase(std::remove_if(out_edges.begin(),
@@ -366,10 +363,6 @@ namespace pufg{
     std::string id ;
     // Make the actual node IDs into numbers instead of strings
     //uint64_t id_;
-			int8_t indegp ;
-			int8_t outdegp ;
-			int8_t indegm ;
-			int8_t outdegm ;
     std::vector<edgetuple> out_edges;
     std::vector<edgetuple> in_edges;
     //std::vector<edgetuple> in;
@@ -394,6 +387,7 @@ namespace pufg{
 		}
 
 		bool getNode(std::string nodeId){
+      //return (Vertices.find(nodeId) == Vertices.end());
 			if(Vertices.find(nodeId) == Vertices.end())
 				return true;
 			else
