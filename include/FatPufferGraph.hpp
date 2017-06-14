@@ -191,13 +191,14 @@ namespace pufg{
 			}
 
     void removeEdgeTo(std::string nodeId) {
+      /*
       out_edges.erase(std::remove_if(out_edges.begin(),
                                     out_edges.end(),
                                     [&nodeId](edgetuple& etup) -> bool {
                                       return etup.contigId == nodeId;
                                     }
                                     ));
-      /*
+      */
       for (auto it = out_edges.begin(); it != out_edges.end();) {
         auto& edge = *it;
         if (edge.contigId == nodeId) {
@@ -206,7 +207,6 @@ namespace pufg{
           it++;
         }
       }
-      */
     }
 
 			void insertNodeFrom(std::string nodeId, bool sign, bool fromSign){
@@ -218,41 +218,27 @@ namespace pufg{
 
 
     void removeEdgeFrom(std::string nodeId) {
+      /*
       in_edges.erase(std::remove_if(in_edges.begin(),
                                     in_edges.end(),
                                     [&nodeId](edgetuple& etup) -> bool {
                                       return etup.contigId == nodeId;
                                     }
                                     ));
-      /*
+      */
       for (auto it=in_edges.begin(); it!=in_edges.end();) {
         auto& edge = *it;
         if (edge.contigId == nodeId) {
-          if (edge.baseSign()) {
-            indegp--;
-          } else {
-            indegm--;
-          }
           it = in_edges.erase(it);
         } else {
           it++;
         }
       }	
-      */
     }
 
     bool checkExistence(bool bSign, std::string toId, bool toSign){
       edgetuple ekey = {bSign, toId, toSign};
       return (std::find(out_edges.begin(), out_edges.end(), ekey) != out_edges.end());
-      /*
-      for(auto& i : out_edges){
-        if(i.baseSign() == bSign and i.neighborSign() == toSign){
-          if(i.contigId == toId)
-            return true ;
-        }
-      }
-      return false ;
-      */
     }
 
     std::vector<edgetuple>& getPredecessors() {
@@ -262,115 +248,12 @@ namespace pufg{
       return out_edges;
     }
 
-    /*
-    std::vector<edgetuple>& getIn() {return in;}
-		 std::vector<edgetuple>& getOut() {return out;}
-
-    void removeEdgeFrom_orig(std::string nodeId) {
-			for (std::vector<edgetuple>::iterator it=in.begin(); it!=in.end();) {
-        auto& edge = *it;
-        if (edge.contigId == nodeId) {
-          if (edge.baseSign()) {
-            indegp--;
-            std::string key = nodeId + (edge.neighborSign()?"+":"-");
-            if (distinctRealIn.contains(key)) {
-              distinctRealIn[key] -= 1;
-              if (distinctRealIn[key] == 0)
-                distinctRealIn.erase(key);
-            }
-          }
-          else {
-            indegm--;
-            std::string key = nodeId + (edge.neighborSign()?"-":"+");
-            if (distinctRealOut.contains(key)) {
-              distinctRealOut[key] -= 1;
-              if (distinctRealOut[key] == 0)
-                distinctRealOut.erase(key);
-            }
-          }
-          it = in.erase(it);
-        }
-        else it++;
-      }					
-
-			}
-    void insertNodeFrom_orig(std::string nodeId, bool sign, bool fromSign){
-			if(sign) {
-        indegp++ ;
-        std::string key = nodeId + (fromSign?"+":"-");
-        if (distinctRealIn.contains(key))
-          distinctRealIn[key] += 1;
-        else distinctRealIn[key] = 1;
-      }
-      else {
-        indegm++ ;
-        std::string key = nodeId + (fromSign?"-":"+");
-        if (distinctRealOut.contains(key))
-          distinctRealOut[key] += 1;
-        else distinctRealOut[key] = 1;
-      }
-      in.emplace_back(sign, nodeId, fromSign) ;
-			}
-    void insertNodeTo_orig(std::string nodeId, bool sign, bool toSign){
-      if(sign) {
-        outdegp++;
-        std::string key = nodeId + (toSign?"+":"-");
-        if (distinctRealOut.contains(key))
-          distinctRealOut[key] += 1;
-        else distinctRealOut[key] = 1;
-      }
-      else {
-        outdegm++;
-        std::string key = nodeId + (toSign?"-":"+");
-        if (distinctRealIn.contains(key))
-          distinctRealIn[key] += 1;
-        else distinctRealIn[key] = 1;
-      }
-
-      out.emplace_back(sign, nodeId, toSign);
-			}
-
-    void removeEdgeTo_orig(std::string nodeId) {
-			for (std::vector<edgetuple>::iterator it=out.begin(); it!=out.end();) {
-        auto& edge = *it;
-        if (edge.contigId == nodeId) {
-          if (edge.baseSign()) {
-            outdegp--;
-            std::string key = nodeId + (edge.neighborSign()?"+":"-");
-            if (distinctRealOut.contains(key)) {
-              distinctRealOut[key] -= 1;
-              if (distinctRealOut[key] == 0)
-                distinctRealOut.erase(key);
-            }
-          }
-          else {
-            outdegm--;
-            std::string key = nodeId + (edge.neighborSign()?"-":"+");
-            if (distinctRealIn.contains(key)) {
-              distinctRealIn[key] -= 1;
-              if (distinctRealIn[key] == 0)
-                distinctRealIn.erase(key);
-            }
-          }
-          it = out.erase(it);
-        }
-        else it++;
-      }
-    }
-    */
-
 	private:
-    std::string id ;
-    // Make the actual node IDs into numbers instead of strings
+    // TODO: Make the actual node IDs into numbers instead of strings
     //uint64_t id_;
+    std::string id ;
     std::vector<edgetuple> out_edges;
     std::vector<edgetuple> in_edges;
-    //std::vector<edgetuple> in;
-    //std::vector<edgetuple> out ;
-			// We use these two just to count total number of incoming edges or outgoing edges and they literaly have no other usecases!!
-			//spp::sparse_hash_map<std::string, short> distinctRealIn;
-			//spp::sparse_hash_map<std::string, short> distinctRealOut;
-
 	};
 
 	class Graph{
