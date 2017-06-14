@@ -81,16 +81,6 @@ namespace pufg{
     Node() {}
     Node(std::string idIn) {id = idIn ;}
 
-    /*
-			Node(std::string idIn) {
-				id = idIn ;
-				indegp = 0 ;
-				outdegp = 0 ;
-				indegm = 0 ;
-				outdegm = 0 ;
-			}
-    */
-
     int8_t getIndegP() {
       return getCountPlus_(in_edges);
     }
@@ -106,13 +96,6 @@ namespace pufg{
     int8_t getOutdegM() {
       return getCountMinus_(out_edges);
     }
-
-    /*
-      int8_t getIndegP() {return outdegp ;}
-      int8_t getOutdegP() {return outdegp ;}
-    int8_t getIndegM() {return indegm ;}
-    int8_t getOutdegM() {return outdegm ;}
-    */
 
 			size_t getRealOutdeg() {
         // outgoing + and incoming - 
@@ -191,22 +174,12 @@ namespace pufg{
 			}
 
     void removeEdgeTo(std::string nodeId) {
-      /*
       out_edges.erase(std::remove_if(out_edges.begin(),
                                     out_edges.end(),
                                     [&nodeId](edgetuple& etup) -> bool {
                                       return etup.contigId == nodeId;
                                     }
                                     ));
-      */
-      for (auto it = out_edges.begin(); it != out_edges.end();) {
-        auto& edge = *it;
-        if (edge.contigId == nodeId) {
-          it = out_edges.erase(it);
-        } else {
-          it++;
-        }
-      }
     }
 
 			void insertNodeFrom(std::string nodeId, bool sign, bool fromSign){
@@ -218,22 +191,12 @@ namespace pufg{
 
 
     void removeEdgeFrom(std::string nodeId) {
-      /*
       in_edges.erase(std::remove_if(in_edges.begin(),
                                     in_edges.end(),
                                     [&nodeId](edgetuple& etup) -> bool {
                                       return etup.contigId == nodeId;
                                     }
                                     ));
-      */
-      for (auto it=in_edges.begin(); it!=in_edges.end();) {
-        auto& edge = *it;
-        if (edge.contigId == nodeId) {
-          it = in_edges.erase(it);
-        } else {
-          it++;
-        }
-      }	
     }
 
     bool checkExistence(bool bSign, std::string toId, bool toSign){
