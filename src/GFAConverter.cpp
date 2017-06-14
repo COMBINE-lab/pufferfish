@@ -340,7 +340,8 @@ void GFAConverter::writeFile(const char* gfaFileName) {
 				if (!first) {
 						if (firstPiece and prev.first == id and prev.second == ori) {
 								firstPiece = false;
-								if (new2seqAoldids[id].first.size() == k)
+                // NOTE: Why do we want this conditional?
+								//if (new2seqAoldids[id].first.size() == k)
 									continue;
 						}
 /*						if (firstPiece and prev.first == id and prev.second != ori) {
