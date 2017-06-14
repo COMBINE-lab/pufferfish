@@ -27,6 +27,7 @@ int main(int argc, char* argv[]){
 
 	GFAConverter gc(popts.gfaFile.c_str(), popts.k);
 	gc.parseFile();
+	gc.buildGraph();
 	gc.randomWalk();
 	gc.writeFile(popts.outFile.c_str());
 /*	PosFinder pf(argv[1], k);

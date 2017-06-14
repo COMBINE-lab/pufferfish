@@ -7,13 +7,34 @@
 #include <iostream>
 
 namespace pufg{
+
+  enum class EdgeType : uint8_t { PLUS_PLUS, PLUS_MINUS, MINUS_PLUS, MINUS_MINUS };
+
 	struct edgetuple{
 		edgetuple(bool fSign,std::string cId, bool tSign):
-			baseSign(fSign),contigId(cId),neighborSign(tSign) {}
+      contigId(cId) {
+      if (fSign and tSign) {
+        t = EdgeType::PLUS_PLUS;
+      } else if (fSign and !tSign) {
+        t = EdgeType::PLUS_MINUS;
+      } else if (!fSign and tSign) {
+        t = EdgeType::MINUS_PLUS;
+      } else {
+        t = EdgeType::MINUS_MINUS;
+      }
+    }
+
 		edgetuple() {}
-		bool baseSign;
+
+    bool baseSign() {
+      return (t == EdgeType::PLUS_PLUS or t == EdgeType::PLUS_MINUS);
+    }
+    bool neighborSign() {
+      return (t == EdgeType::PLUS_PLUS or t == EdgeType::MINUS_PLUS);
+    }
+
+    EdgeType t;
 		std::string contigId;
-		bool neighborSign;
 	};
 
 	class Node {
@@ -39,12 +60,12 @@ namespace pufg{
 			edgetuple& getOnlyRealIn() {
 				if (indegp > 0) {
 					for (auto& e : in)
-							if (e.baseSign) {
+            if (e.baseSign()) {
 									return e;
 							}
 				} else {
 					for (auto& e : out)
-							if (!e.baseSign) {
+            if (!e.baseSign()) {
 									return e;
 							}
 				}
@@ -55,13 +76,13 @@ namespace pufg{
 			edgetuple& getOnlyRealOut() {
 				if (outdegp > 0) {
 					for (auto& e : out)
-						if (e.baseSign) {
+						if (e.baseSign()) {
 							return e;
 						}			
 				}
 				else { // The real outgoing edge should be an incoming edge to negative if it's not an outgoing edge from positive
 					for (auto& e : in)
-						if (!e.baseSign) {
+						if (!e.baseSign()) {
 								return e;
 						}
 				}
@@ -100,9 +121,9 @@ namespace pufg{
 			for (std::vector<edgetuple>::iterator it=out.begin(); it!=out.end();) {
 					auto& edge = *it;
 					if (edge.contigId == nodeId) {
-							if (edge.baseSign) {
+            if (edge.baseSign()) {
 								outdegp--;
-								std::string key = nodeId + (edge.neighborSign?"+":"-");
+								std::string key = nodeId + (edge.neighborSign()?"+":"-");
 								if (distinctRealOut.contains(key)) {
 									distinctRealOut[key] -= 1;
 									if (distinctRealOut[key] == 0)
@@ -111,7 +132,7 @@ namespace pufg{
 							}
 							else {
 								outdegm--;
-								std::string key = nodeId + (edge.neighborSign?"-":"+");
+								std::string key = nodeId + (edge.neighborSign()?"-":"+");
 								if (distinctRealIn.contains(key)) {
 									distinctRealIn[key] -= 1;
 									if (distinctRealIn[key] == 0)
@@ -153,9 +174,9 @@ namespace pufg{
 			for (std::vector<edgetuple>::iterator it=in.begin(); it!=in.end();) {
 						auto& edge = *it;
 					if (edge.contigId == nodeId) {
-							if (edge.baseSign) {
+            if (edge.baseSign()) {
 								indegp--;
-								std::string key = nodeId + (edge.neighborSign?"+":"-");
+								std::string key = nodeId + (edge.neighborSign()?"+":"-");
 								if (distinctRealIn.contains(key)) {
 									distinctRealIn[key] -= 1;
 									if (distinctRealIn[key] == 0)
@@ -164,7 +185,7 @@ namespace pufg{
 							}
 							else {
 								indegm--;
-								std::string key = nodeId + (edge.neighborSign?"-":"+");
+								std::string key = nodeId + (edge.neighborSign()?"-":"+");
 								if (distinctRealOut.contains(key)) {
 									distinctRealOut[key] -= 1;
 									if (distinctRealOut[key] == 0)
@@ -180,7 +201,7 @@ namespace pufg{
 
 			bool checkExistence(bool bSign, std::string toId, bool toSign){
 				for(auto& i : out){
-					if(i.baseSign == bSign and i.neighborSign == toSign){
+					if(i.baseSign() == bSign and i.neighborSign() == toSign){
 						if(i.contigId == toId)
 							return true ;
 					}
@@ -254,7 +275,7 @@ namespace pufg{
 			Node& n = Vertices[id];
 			for (auto & in : n.getIn()) {
 				for (auto & out : n.getOut()) {
-					addEdge(in.contigId, in.neighborSign, out.contigId, out.neighborSign);					
+					addEdge(in.contigId, in.neighborSign(), out.contigId, out.neighborSign());					
 				}
 			}
 			for (auto& in : n.getIn()) {

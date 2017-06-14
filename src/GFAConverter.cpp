@@ -214,7 +214,7 @@ void GFAConverter::mergeIn(pufg::Node& n) {
     }
 		std::string& tobeMerged = new2seqAoldids[id].first;		
 		std::string& seq = new2seqAoldids[edge.contigId].first;
-		if (edge.baseSign != edge.neighborSign) {
+		if (edge.baseSign() != edge.neighborSign()) {
 				tobeMerged = util::revcomp(tobeMerged);
 //				if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "1 " << id << " " << edge.contigId << " " << seq << "\n" << tobeMerged << "\n";
 				seq = tobeMerged.substr(0, tobeMerged.size()-(k-1)) + seq;
@@ -226,8 +226,8 @@ void GFAConverter::mergeIn(pufg::Node& n) {
         eraseFromOldList(id);
         new2seqAoldids.erase(id);
 		semiCG.removeNode(id);
-		if (is_start(id)) update_start(edge.contigId, edge.baseSign == edge.neighborSign);
-		if (is_end(id)) update_end(edge.contigId, edge.baseSign == edge.neighborSign);
+		if (is_start(id)) update_start(edge.contigId, edge.baseSign() == edge.neighborSign());
+		if (is_end(id)) update_end(edge.contigId, edge.baseSign() == edge.neighborSign());
 //		return edge.contigId;
 }
 
@@ -242,7 +242,7 @@ void GFAConverter::mergeOut(pufg::Node& n) {
     }
         std::string& tobeMerged = new2seqAoldids[id].first;
         std::string& seq = new2seqAoldids[edge.contigId].first;
-        if (edge.baseSign != edge.neighborSign) {
+        if (edge.baseSign() != edge.neighborSign()) {
                 tobeMerged = util::revcomp(tobeMerged);
 //				if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << id << " " << edge.contigId << " " << "3 " << seq << "\n" << tobeMerged << "\n";
 	            seq += tobeMerged.substr(k-1);
@@ -254,8 +254,8 @@ void GFAConverter::mergeOut(pufg::Node& n) {
         eraseFromOldList(id);
         new2seqAoldids.erase(id);
 		semiCG.removeNode(id);
-		if (is_start(id)) update_start(edge.contigId, edge.baseSign == edge.neighborSign);
-		if (is_end(id)) update_end(edge.contigId, edge.baseSign == edge.neighborSign);
+		if (is_start(id)) update_start(edge.contigId, edge.baseSign() == edge.neighborSign());
+		if (is_end(id)) update_end(edge.contigId, edge.baseSign() == edge.neighborSign());
 //		return edge.contigId;
 }
 
@@ -272,7 +272,7 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 			if (edge.contigId == n.getId()) return true;
 			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
 			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) )
-			if (edge.baseSign == edge.neighborSign) {
+			if (edge.baseSign() == edge.neighborSign()) {
 					return is_end(edge.contigId) or neighbor.getRealOutdeg() != 1;
 			}
 			else return is_start(edge.contigId) or neighbor.getRealIndeg() != 1; 
@@ -283,7 +283,7 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
 			if (edge.contigId == n.getId()) return true;
 			pufg::Node& neighbor = semiCG.getVertices()[edge.contigId];
 			//if ( (edge.baseSign and edge.neighborSign) or (!edge.baseSign and ! edge.neighborSign) ) {
-			if (edge.baseSign == edge.neighborSign) {
+			if (edge.baseSign() == edge.neighborSign()) {
 					return is_start(edge.contigId) or neighbor.getRealIndeg() != 1;
 			}
 			else {
