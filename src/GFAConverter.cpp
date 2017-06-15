@@ -18,6 +18,7 @@ void GFAConverter::parseFile() {
 	{
 	std::cerr << "Start reading GFA file... \n";
 	spp::sparse_hash_map<std::string, std::string> seq2newid;
+	uint64_t idCntr = 1;
 	while(std::getline(*file, ln)) {
 			char firstC = ln[0];
 			if (firstC != 'S' and firstC != 'P') continue;
@@ -29,7 +30,7 @@ void GFAConverter::parseFile() {
 			// A segment line
 			if (tag == "S") {						
 				if (util::is_number(id)) {
-					processContigSeq(id, value, seq2newid);
+					processContigSeq(id, value, seq2newid, idCntr);
 				}
 				contig_cnt++;
 			} 
@@ -77,7 +78,7 @@ void GFAConverter::parseFile() {
 		oldPathEnd.erase(s);
 	}
 	std::cerr << "Done updating pathStart and pathEnd based on the newIds\n";
-	std::cerr << "Total # of Contigs : " << contig_cnt << "\tTotal # of numerical Contigs : " << old2newids.size() << " \tTotal # of 30 overlaped contigs : " << new2seqAoldids.size() << "\n";
+	std::cerr << "Total # of Contigs : " << contig_cnt << "\tTotal # of numerical Contigs : " << old2newids.size() << " \tTotal # of contigs after spliting :" << new2seqAoldids.size() << "\n";
 }
 
 void GFAConverter::buildGraph() {
@@ -103,6 +104,10 @@ void GFAConverter::buildGraph() {
 				for (size_t i = 1; i < newIdList.size(); i++) {
 						std::string id = newIdList[i].first;
 						bool ori = (idOri.second?newIdList[i].second:!newIdList[i].second);
+						
+//						if (id == "00125208939" or id == "00225208939" or id == "00325208939" or prev.first == "00125208939" or prev.first == "00225208939" or prev.first == "00325208939")
+//								std::cerr << " Add edge " << prev.first << " " << prev.second << " to " << id << " " << ori << "\n";
+								
 						semiCG.addEdge(prev.first, prev.second, id, ori) ;						
 						prev = std::make_pair(id, ori);
 				}
@@ -112,7 +117,7 @@ void GFAConverter::buildGraph() {
 
 }
 
-void GFAConverter::processContigSeq(std::string & contigId, std::string & contigSeq, spp::sparse_hash_map<std::string, std::string> & seq2newid) {
+void GFAConverter::processContigSeq(std::string & contigId, std::string & contigSeq, spp::sparse_hash_map<std::string, std::string> & seq2newid, uint64_t& idCntr) {
 	/**
 	 * Divide every segment into 3 pieces
 	 * first k 
@@ -121,7 +126,7 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 	 * special case is segment with length = k+1 that doesn't have the middle case
 	 * ATTENTION : The order we insert these 3 pieces into the vector matters. So keep it the way it is
 	**/
-	std::string prefix = "00";
+	//std::string prefix = "00";
 	std::vector<std::string> seqParts;
 	if (util::isRevcomp(contigSeq)) {
 		for (size_t i = 0; i <= contigSeq.size()-k; i++) {
@@ -137,7 +142,7 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 	}
 
 	// for each part, search in hash_map whether it already existed or not and assign the proper (new/retrieved) contig id to it
-	int cntr = 1;
+	//int cntr = 1;
 	for (std::string seq : seqParts) {
 		std::string newId;
 		bool plus = true;
@@ -149,7 +154,9 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 			newId = seq2newid[util::revcomp(seq)];
 		}
 		else {
-			newId = prefix + std::to_string(cntr) + contigId;
+			//newId = prefix + std::to_string(cntr) + contigId;
+			newId = std::to_string(idCntr);
+			idCntr++;
 			seq2newid[seq] = newId;			
 		}
 
@@ -164,8 +171,9 @@ void GFAConverter::processContigSeq(std::string & contigId, std::string & contig
 				notVisited[newId] = true;
 		}
 		old2newids[contigId].emplace_back(newId, plus);
-		cntr++;
-	}
+	//	if (contigId == "25208939" or newId == "00125208939" or newId == "00225208939" or newId == "00325208939") std::cerr << contigId << ": " << newId << " " <<plus << " " << seq << "\n";
+		//cntr++;
+	}	
 //	if (old2newids[contigId].size() > 3) std::cerr << "RevComp is true: " << contigId << " " << contigSeq << "\n";
 }
 
@@ -230,7 +238,11 @@ void GFAConverter::mergeIn(pufg::Node& n) {
 //			if (tobeMerged.substr(0, k-1) != seq.substr(seq.size() - (k-1))) std::cerr << "2 " << seq << "\n" << tobeMerged << "\n";
 			seq += tobeMerged.substr(k-1);
 		}
-        eraseFromOldList(id);
+//		if (edge.contigId == "00125208939" or edge.contigId == "00225208939" or edge.contigId == "00325208939")
+//				std::cerr << id << " is merged in with " << edge.contigId << " seq:" << seq << "\n";
+//		if (id == "00125208939" or id == "00225208939" or id == "00325208939")
+//				std::cerr << id << " is merged in with " << edge.contigId << " seq:" << seq << "\n";
+        eraseFromOldList(id);		
         new2seqAoldids.erase(id);
 		semiCG.removeNode(id);
 		if (is_start(id)) update_start(edge.contigId, edge.baseSign() == edge.neighborSign());
@@ -258,7 +270,11 @@ void GFAConverter::mergeOut(pufg::Node& n) {
 //			if (tobeMerged.substr(tobeMerged.size()-(k-1)) != seq.substr(0, k-1)) std::cerr << "4 " << seq << "\n" << tobeMerged << "\n";
             seq = tobeMerged.substr(0, tobeMerged.size()-(k-1)) + seq;
         }
-        eraseFromOldList(id);
+//   		if (edge.contigId == "00125208939" or edge.contigId == "00225208939" or edge.contigId == "00325208939")
+//				std::cerr << id << " is merged out with " << edge.contigId << " seq:" << seq << "\n";
+//		if (id == "00125208939" or id == "00225208939" or id == "00325208939")
+//				std::cerr << id << " is merged out with " << edge.contigId << " seq:" << seq << "\n";
+   		 eraseFromOldList(id);
         new2seqAoldids.erase(id);
 		semiCG.removeNode(id);
 		if (is_start(id)) update_start(edge.contigId, edge.baseSign() == edge.neighborSign());

@@ -37,7 +37,7 @@ class GFAConverter {
 
 		pufg::Graph semiCG;
 		
-		void processContigSeq(std::string & contigId, std::string & contigSeq, spp::sparse_hash_map<std::string, std::string> & seq2newid);
+		void processContigSeq(std::string & contigId, std::string & contigSeq, spp::sparse_hash_map<std::string, std::string> & seq2newid, uint64_t& idCntr);
 		bool is_start(std::string& nodeId);
 		bool is_end(std::string& nodeId);
 		void update_start(std::string& newId, bool newOri);

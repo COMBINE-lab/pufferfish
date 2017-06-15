@@ -268,6 +268,9 @@ namespace pufg{
 
 
 		bool removeNode(std::string id) {
+//		if (id == "00125208939" or id == "00225208939" or id == "00325208939")
+//				std::cerr << "remove node " << id << "\n";
+
 			if (Vertices.find(id) == Vertices.end()) return false;
 			Node& n = Vertices[id];
       for (auto& in : n.getPredecessors()) {
