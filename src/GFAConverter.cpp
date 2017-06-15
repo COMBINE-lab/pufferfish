@@ -195,11 +195,18 @@ void GFAConverter::eraseFromOldList(std::string nodeId) {
 			for (auto& idOri : oldids) {
 				std::string& id = idOri.first;
 				auto& newids = old2newids[id];
-				for (size_t i = 0; i < newids.size(); i++) {
+				newids.erase(std::remove_if(newids.begin(),
+                                    newids.end(),
+                                    [&nodeId](std::pair<std::string, bool>& newid) -> bool {
+                                      return newid.first == nodeId;
+                                    }
+                                    ), newids.end()
+								);
+/*				for (size_t i = 0; i < newids.size(); i++) {
 					if (newids[i].first == nodeId) {
 							newids.erase(newids.begin()+i); 
 					}
-				}
+				}*/
 			}
 		}
 }

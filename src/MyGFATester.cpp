@@ -123,7 +123,7 @@ int main(int argc, char* argv[]){
 
 
 						//std::cerr << id << "\n" ;
-					
+					/*
 					if(fastaMap[id] != reconstructedTr[id]){
 						std::cerr << id << "\n" ;
 						std::cerr << "true\n " << fastaMap[id] << " " << fastaMap[id].size() << "\n" ;
@@ -163,7 +163,7 @@ int main(int argc, char* argv[]){
 
 						std::exit(1) ;
 					}
-
+*/
 				}
 		}
 

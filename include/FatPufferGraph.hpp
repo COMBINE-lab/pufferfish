@@ -179,7 +179,7 @@ namespace pufg{
                                     [&nodeId](edgetuple& etup) -> bool {
                                       return etup.contigId == nodeId;
                                     }
-                                    ));
+                                    ), out_edges.end());
     }
 
 			void insertNodeFrom(std::string nodeId, bool sign, bool fromSign){
@@ -196,7 +196,7 @@ namespace pufg{
                                     [&nodeId](edgetuple& etup) -> bool {
                                       return etup.contigId == nodeId;
                                     }
-                                    ));
+                                    ), in_edges.end());
     }
 
     bool checkExistence(bool bSign, std::string toId, bool toSign){
