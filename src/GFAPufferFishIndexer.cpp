@@ -150,6 +150,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
+  pf.clearContigTable();
 
   {
     auto& cnmap = pf.getContigNameMap();

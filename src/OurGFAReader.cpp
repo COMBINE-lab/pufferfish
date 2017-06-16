@@ -91,29 +91,22 @@ void PosFinder::parseFile() {
 				path[id] = contigVec;
 				refMap[ref_cnt] = id;
 				refIDs[id] = ref_cnt++;
-
+        /*
 				pathStart[std::make_pair(contigVec[0].first,contigVec[0].second)] = true;
 				pathEnd[std::make_pair(contigVec[contigVec.size()-1].first,contigVec[contigVec.size()-1].second)] = true;
-
+        */
 			}
 	}
 
+  /*
 	spp::sparse_hash_map<std::string, std::string> kmer2contigid;
 	std::string prefix = "00";
-	//*unused*
   //uint32_t newContigCntr = 0;
 	for (auto & kv : path) {
 		std::string id = kv.first;
 		auto & contigVec = kv.second;			
 		for (uint64_t i = 0; i < contigVec.size()-1; i++){
 			std::string contigSeq = contigid2seq[contigVec[i].first];
-
-			/** 
-			 * Try all different cases with a sample like :
-			 * k = 3
-			 * contigVec[i] = ACC......TTG
-			**/
-
 			// left + : get the right most k nucleotides
 			std::string kmer = contigSeq.substr(contigSeq.size()-k, contigSeq.size());
 			if (!contigVec[i].second) {// which means the orientation of the contig in negative in the path
@@ -140,6 +133,7 @@ void PosFinder::parseFile() {
 			semiCG.addEdge(kmerId, kmerSign, contigVec[i+1].first, contigVec[i+1].second) ;
 		}
 	}
+  */
 	std::cerr << " Total # of Contigs : " << contig_cnt << " Total # of numerical Contigs : " << contigid2seq.size() << "\n\n";
 }
 
@@ -211,6 +205,12 @@ void PosFinder::mapContig2Pos() {
 		}
 	}
 	std::cerr << "\nTotal # of segments we have position for : " << total_output_lines << "\n";
+}
+
+void PosFinder::clearContigTable() {
+  refMap.clear();
+  contig2pos.clear();
+
 }
 
 // Note : We assume that odir is the name of a valid (i.e., existing) directory.

@@ -66,6 +66,8 @@ int main(int argc, char* argv[]){
 		int k =31 ;
 		size_t overlap = k-1 ;
 
+    std::stringstream reconStream;
+
 		while(std::getline(file, ln)) {
 				char firstC = ln[0];
 				if (firstC != 'S' and firstC != 'P') continue;
@@ -92,7 +94,10 @@ int main(int argc, char* argv[]){
 					std::vector<std::pair<std::string, bool> > contigVec = util::explode(pvalue, ',');
 					// parse value and add all conitgs to contigVec
 					//if(reconstructedTr[id] != "") continue ;
-					reconstructedTr[id] = "";
+					//reconstructedTr[id] = "";
+          auto& refStr = fastaMap[splited[1].to_string()];
+          reconStream.clear();
+          reconStream.str(std::string());
 					size_t i = 0;
 					for(auto core : contigVec){
 						auto contig_id = core.first ;
@@ -107,7 +112,8 @@ int main(int argc, char* argv[]){
 							//contigid2seq[contig_id].erase(contigid2seq[contig_id].size()-31+1,31) ;
 							if(added.size() > overlap-1){
 								added.erase(added.size()-overlap,overlap) ;
-								reconstructedTr[id] += added ;
+                reconStream << added;
+								//reconstructedTr[id] += added ;
 							}
 							else {std::cerr << "\nBAAAAAAAD\n" << contig_id << " : " << added.size();}
 						}else{
@@ -116,11 +122,15 @@ int main(int argc, char* argv[]){
 							}else{
 								added = contigid2seq[contig_id] ;
 							}
-							reconstructedTr[id] += added ;
+							//reconstructedTr[id] += added ;
+              reconStream << added;
 						}
 						i++ ;
 					}
 
+          if(reconStream.str() != refStr) {
+            std::cerr << "Reference string and reconstructed string do not match!\n";
+          }
 
 						//std::cerr << id << "\n" ;
 					/*
@@ -165,8 +175,9 @@ int main(int argc, char* argv[]){
 					}
 */
 				}
-		}
+    		}
 
+    return 0;
 
 		int found = 0;
 		int notFound = 0;
