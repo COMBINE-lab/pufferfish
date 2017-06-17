@@ -1,11 +1,12 @@
 #include <algorithm>
+#include <string>
 #include "xxhash.h"
 #include "OurGFAReader.hpp"
 #include "cereal/archives/binary.hpp"
 
-std::vector<std::pair<std::string, bool> > PosFinder::explode(const stx::string_view str, const char& ch) {
+std::vector<std::pair<uint64_t, bool> > PosFinder::explode(const stx::string_view str, const char& ch) {
 				std::string next;
-				std::vector< std::pair<std::string, bool> > result;
+				std::vector< std::pair<uint64_t, bool> > result;
 				// For each character in the string
 				for (auto it = str.begin(); it != str.end(); it++) {
 					// If we've hit the terminal character
@@ -17,7 +18,7 @@ std::vector<std::pair<std::string, bool> > PosFinder::explode(const stx::string_
 							if (*it == '-') {
 								orientation = false;
 							}
-							result.emplace_back(next, orientation);
+							result.emplace_back(std::stoll(next), orientation);
 							next.clear();
 						}
 					}
@@ -27,7 +28,7 @@ std::vector<std::pair<std::string, bool> > PosFinder::explode(const stx::string_
 					}
 				}
 				if (!next.empty())
-					result.emplace_back(next, true); //this case shouldn't even happen
+					result.emplace_back(std::stoll(next), true); //this case shouldn't even happen
 				return result;
 			}
 
@@ -63,6 +64,30 @@ PosFinder::PosFinder(const char* gfaFileName, size_t input_k) {
 	k = input_k;
 }
 
+/*
+void PosFinder::scanContigLengths() {
+  std::string ln;
+  std::string tag, id, value;
+  size_t contig_cnt{0};
+  size_t contig_len{0};
+  size_t ref_cnt{0};
+  while(std::getline(*file, ln)) {
+    char firstC = ln[0];
+    if (firstC != 'S') continue;
+    stx::string_view lnview(ln);
+    std::vector<stx::string_view> splited = split(lnview, '\t');
+    if (is_number(id)) {
+      contig_len += splited[1].length();
+      tag = splited[0].to_string();
+      id = splited[1].to_string();
+      value = splited[2].to_string();
+      contigid2seq[id] = value;
+      contig_cnt++;
+    }
+  }
+}
+*/
+
 void PosFinder::parseFile() {
 	std::string ln;
 	std::string tag, id, value;
@@ -79,72 +104,40 @@ void PosFinder::parseFile() {
 			// A segment line
 			if (tag == "S") {						
 				if (is_number(id)) {
-					contigid2seq[id] = value;
+          uint64_t nid = std::stoll(id);
+					contigid2seq[nid] = value;
 				}
 				contig_cnt++;
 			} 
 			// A path line
 			if (tag == "P") {
 				auto pvalue = splited[2];
-				std::vector<std::pair<std::string, bool> > contigVec = explode(pvalue, ',');
+				std::vector<std::pair<uint64_t, bool> > contigVec = explode(pvalue, ',');
 				// parse value and add all conitgs to contigVec
-				path[id] = contigVec;
-				refMap[ref_cnt] = id;
-				refIDs[id] = ref_cnt++;
-        /*
-				pathStart[std::make_pair(contigVec[0].first,contigVec[0].second)] = true;
-				pathEnd[std::make_pair(contigVec[contigVec.size()-1].first,contigVec[contigVec.size()-1].second)] = true;
-        */
+
+				path[ref_cnt] = contigVec;
+        refMap.push_back(id);
+        ref_cnt++;
+				//refMap[ref_cnt] = id;
+				//refIDs[id] = ref_cnt++;
 			}
 	}
-
-  /*
-	spp::sparse_hash_map<std::string, std::string> kmer2contigid;
-	std::string prefix = "00";
-  //uint32_t newContigCntr = 0;
-	for (auto & kv : path) {
-		std::string id = kv.first;
-		auto & contigVec = kv.second;			
-		for (uint64_t i = 0; i < contigVec.size()-1; i++){
-			std::string contigSeq = contigid2seq[contigVec[i].first];
-			// left + : get the right most k nucleotides
-			std::string kmer = contigSeq.substr(contigSeq.size()-k, contigSeq.size());
-			if (!contigVec[i].second) {// which means the orientation of the contig in negative in the path
-				// left - : get the left most k nucleotides
-					kmer = contigSeq.substr(0, k);
-			}
-
-			// then we add the kmer segment
-			std::string kmerId ;
-			bool kmerSign;
-			if (kmer2contigid.find(kmer) != kmer2contigid.end()){
-					kmerId = kmer2contigid[kmer] ;
-					kmerSign = contigVec[i].second;
-			} else if (kmer2contigid.find(util::revcomp(kmer)) != kmer2contigid.end()){
-					kmerId = kmer2contigid[util::revcomp(kmer)] ;
-					kmerSign = !contigVec[i].second;
-			} else {
-					kmer2contigid[kmer] = prefix + contigVec[i].first + (contigVec[i].second?"1":"0"); // std::to_string(newContigCntr++); // at the same time increase newContigCntr									
-					kmerId = kmer2contigid[kmer];
-					kmerSign = contigVec[i].second;
-					newSegments.push_back(std::make_pair(kmerId, kmer)); // Add kmer to the list of newSegments
-			}
-			semiCG.addEdge(contigVec[i].first, contigVec[i].second, kmerId, kmerSign) ;
-			semiCG.addEdge(kmerId, kmerSign, contigVec[i+1].first, contigVec[i+1].second) ;
-		}
-	}
-  */
 	std::cerr << " Total # of Contigs : " << contig_cnt << " Total # of numerical Contigs : " << contigid2seq.size() << "\n\n";
 }
 
-spp::sparse_hash_map<std::string, std::string>& PosFinder::getContigNameMap() {
+spp::sparse_hash_map<uint64_t, std::string>& PosFinder::getContigNameMap() {
   return contigid2seq;
 }
 spp::sparse_hash_map<std::string, std::string>& PosFinder::getContigIDMap() {
   return seq2contigid;
 }
 
+/*
 spp::sparse_hash_map<uint32_t, std::string>& PosFinder::getRefIDs() {
+  return refMap;
+}
+*/
+std::vector<std::string>& PosFinder::getRefIDs() {
   return refMap;
 }
 
@@ -187,8 +180,8 @@ void PosFinder::mapContig2Pos() {
 	uint64_t currContigLength = 0;
 	uint64_t total_output_lines = 0;
 	for (auto const &ent : path) {
-		const std::string& tr = ent.first;
-		const std::vector<std::pair<std::string, bool> >& contigs = ent.second;
+		const uint64_t& tr = ent.first;
+		const std::vector<std::pair<uint64_t, bool> >& contigs = ent.second;
 		accumPos = 0;
 		for (size_t i = 0; i < contigs.size(); i++) {
 			if (contig2pos.find(contigs[i].first) == contig2pos.end()) {
@@ -201,7 +194,7 @@ void PosFinder::mapContig2Pos() {
 			pos = accumPos;				
 			currContigLength = contigid2seq[contigs[i].first].length();
 			accumPos += currContigLength - k;
-			(contig2pos[contigs[i].first]).push_back(util::Position(refIDs[tr], pos, contigs[i].second));
+			(contig2pos[contigs[i].first]).push_back(util::Position(tr, pos, contigs[i].second));
 		}
 	}
 	std::cerr << "\nTotal # of segments we have position for : " << total_output_lines << "\n";

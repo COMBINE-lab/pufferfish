@@ -148,6 +148,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
   PosFinder pf(gfa_file.c_str(), k - 1);
   pf.parseFile();
+  //std::exit(1);
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
   pf.clearContigTable();
