@@ -155,6 +155,12 @@ string str(T& container) {
     //uint32_t orientMask_
   };
 
+  struct PackedContigInfo {
+    size_t fileOrder;
+    size_t offset;
+    uint32_t length;
+  };
+
   struct RefPos {
     uint32_t pos;
     bool isFW;

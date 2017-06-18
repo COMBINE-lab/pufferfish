@@ -9,6 +9,7 @@
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include "sdsl/int_vector.hpp"
 #include "string_view.hpp"
 #include "sparsepp/spp.h"
 #include "cereal/types/vector.hpp"
@@ -19,6 +20,7 @@
 
 class PosFinder {
 	private:
+  std::string filename_;
   std::unique_ptr<zstr::ifstream> file;
 		size_t k;
 		struct Contig {
@@ -28,7 +30,7 @@ class PosFinder {
 
 
 
-	    spp::sparse_hash_map<uint64_t, std::string> contigid2seq;//map of contig_id to # of letters in contig (contig length)
+  spp::sparse_hash_map<uint64_t, util::PackedContigInfo> contigid2seq;//map of contig_id to # of letters in contig (contig length)
 		spp::sparse_hash_map<std::string, std::string> seq2contigid;
 		// path maps each transcript_id to a pair of <contig_id, orientation>
 		//orientation : +/true main, -/false reverse
@@ -46,11 +48,13 @@ class PosFinder {
 		std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathStart ;
 		std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathEnd ;
 
-
+  sdsl::int_vector<> seqVec_;
 		std::vector<std::pair<std::string, std::string> > newSegments;
 		pufg::Graph semiCG;
 
+  size_t fillContigInfoMap_();
 		bool is_number(const std::string& s);
+  void encodeSeq(sdsl::int_vector<>& seqVec, size_t offset, stx::string_view str);
 
 		// Avoiding un-necessary stream creation + replacing strings with string view
 		// is a bit > than a 2x win!
@@ -59,13 +63,16 @@ class PosFinder {
 	public:
     spp::sparse_hash_map<uint64_t, std::vector<util::Position> > contig2pos;  
 		PosFinder(const char* gfaFileName, size_t input_k);
-    spp::sparse_hash_map<uint64_t, std::string>& getContigNameMap();
+  //spp::sparse_hash_map<uint64_t, std::string>& getContigNameMap();
+  spp::sparse_hash_map<uint64_t, util::PackedContigInfo>& getContigNameMap();
+
     spp::sparse_hash_map<std::string, std::string>& getContigIDMap();
     //spp::sparse_hash_map<uint32_t, std::string>& getRefIDs();
     std::vector<std::string>& getRefIDs();
     std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& getPathStart() ;
     std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& getPathEnd() ;
     std::vector<std::pair<std::string, std::string> >& getNewSegments() ;
+  sdsl::int_vector<>& getContigSeqVec();
     //spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > >& getPaths() {return path;}
     //spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > >& getPaths() {return path;}
     pufg::Graph& getSemiCG() ;
@@ -77,7 +84,7 @@ class PosFinder {
     void clearContigTable();
     void serializeContigTable(const std::string& odir);
 		void deserializeContigTable();
-		void writeFile(std::string fileName);
+  //void writeFile(std::string fileName);
 };
 
 #endif

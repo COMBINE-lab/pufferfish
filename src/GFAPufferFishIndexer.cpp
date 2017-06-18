@@ -157,8 +157,8 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {
       auto& r1 = kv.second;
-      tlen += r1.length();
-      numKmers += r1.length() - k + 1;
+      tlen += r1.length;
+      numKmers += r1.length - k + 1;
       ++nread;
     }
     console->info("# segments = {}", nread);
@@ -169,8 +169,16 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   size_t gpos{0};
   size_t w = std::log2(tlen) + 1;
   console->info("positional integer width = {}", w);
-  sdsl::int_vector<> seqVec(tlen, 0, 2);
+  //sdsl::int_vector<> seqVec(tlen, 0, 2);
+  auto& seqVec = pf.getContigSeqVec();
   sdsl::bit_vector rankVec(tlen);
+  auto& cnmap = pf.getContigNameMap();
+  for (auto& kv : cnmap) {
+    rankVec[kv.second.offset + kv.second.length - 1] = 1;
+  }
+  size_t nkeys{numKmers};
+  size_t numContigs{cnmap.size()};
+  /*
   tlen = 0;
 
   size_t numContigs{0};
@@ -212,6 +220,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
       rankVec[tlen - 1] = 1;
     }
   }
+  */
   std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
   std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
   //std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";

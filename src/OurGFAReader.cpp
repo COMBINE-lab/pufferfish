@@ -3,6 +3,7 @@
 #include "xxhash.h"
 #include "OurGFAReader.hpp"
 #include "cereal/archives/binary.hpp"
+#include "CanonicalKmer.hpp"
 
 std::vector<std::pair<uint64_t, bool> > PosFinder::explode(const stx::string_view str, const char& ch) {
 				std::string next;
@@ -59,6 +60,7 @@ std::vector<stx::string_view> PosFinder::split(stx::string_view str, char delims
 }
 
 PosFinder::PosFinder(const char* gfaFileName, size_t input_k) {
+  filename_ = std::string(gfaFileName);
 	std::cerr << "Reading GFA file " << gfaFileName << "\n";
 	file.reset(new zstr::ifstream(gfaFileName));
 	k = input_k;
@@ -88,7 +90,54 @@ void PosFinder::scanContigLengths() {
 }
 */
 
+size_t PosFinder::fillContigInfoMap_() {
+  std::string ln;
+  std::string tag, id, value;
+  size_t contig_ctr{0};
+  size_t contig_len{0};
+  while(std::getline(*file, ln)) {
+    char firstC = ln[0];
+    if (firstC != 'S') continue;
+    stx::string_view lnview(ln);
+    std::vector<stx::string_view> splited = split(lnview, '\t');
+    try {
+      auto nid = std::stoull(splited[1].to_string());
+      (void)nid;
+      auto clen = splited[2].length();
+      contigid2seq[nid] = {contig_ctr, 0, clen};
+      ++contig_ctr;
+      //contigid2seq[id] = value;
+      //contig_cnt++;
+    } catch (std::exception& e) {
+      // not numeric contig 
+    }
+  }
+    size_t total_len{0};
+    for (auto& kv : contigid2seq) {
+      kv.second.offset = total_len;
+      total_len += kv.second.length;
+    }
+    return total_len;
+}
+
+void PosFinder::encodeSeq(sdsl::int_vector<>& seqVec, size_t offset, stx::string_view str) {
+  for (size_t i = 0; i < str.length(); ++i) {
+    auto c = my_mer::code(str[i]);
+    seqVec[offset + i] = c;
+  }
+}
+
+sdsl::int_vector<>& PosFinder::getContigSeqVec() {
+  return seqVec_;
+}
+
 void PosFinder::parseFile() {
+  size_t total_len = fillContigInfoMap_();
+  file.reset(new zstr::ifstream(filename_));
+  std::cerr << "total contig length = " << total_len << "\n";
+  std::cerr << "packing contigs into contig vector\n";
+  seqVec_ = sdsl::int_vector<>(total_len, 0, 2);
+
 	std::string ln;
 	std::string tag, id, value;
 	size_t contig_cnt{0};
@@ -100,15 +149,18 @@ void PosFinder::parseFile() {
 			std::vector<stx::string_view> splited = split(lnview, '\t');
 			tag = splited[0].to_string();
 			id = splited[1].to_string();
-			value = splited[2].to_string();
+			//value = splited[2].to_string();
 			// A segment line
-			if (tag == "S") {						
-				if (is_number(id)) {
+			if (tag == "S") {
+				try {
           uint64_t nid = std::stoll(id);
-					contigid2seq[nid] = value;
-				}
+          encodeSeq(seqVec_, contigid2seq[nid].offset, splited[2]);
+					//contigid2seq[nid] = value;
+				} catch (std::exception& e) {
+          // not a numeric contig id
+        }
 				contig_cnt++;
-			} 
+			}
 			// A path line
 			if (tag == "P") {
 				auto pvalue = splited[2];
@@ -125,7 +177,8 @@ void PosFinder::parseFile() {
 	std::cerr << " Total # of Contigs : " << contig_cnt << " Total # of numerical Contigs : " << contigid2seq.size() << "\n\n";
 }
 
-spp::sparse_hash_map<uint64_t, std::string>& PosFinder::getContigNameMap() {
+//spp::sparse_hash_map<uint64_t, std::string>& PosFinder::getContigNameMap() {
+spp::sparse_hash_map<uint64_t, util::PackedContigInfo>& PosFinder::getContigNameMap() {
   return contigid2seq;
 }
 spp::sparse_hash_map<std::string, std::string>& PosFinder::getContigIDMap() {
@@ -156,6 +209,7 @@ pufg::Graph& PosFinder::getSemiCG(){
 	return semiCG ;
 }
 
+/*
 void PosFinder::writeFile(std::string fileName){
 	std::ofstream gfa_file(fileName) ;
 	for(auto& cseq : contigid2seq){
@@ -172,6 +226,7 @@ void PosFinder::writeFile(std::string fileName){
 
 	}
 }
+*/
 
 
 void PosFinder::mapContig2Pos() {
@@ -192,7 +247,7 @@ void PosFinder::mapContig2Pos() {
 				std::cerr<< contigs[i].first << "\n";
 			}
 			pos = accumPos;				
-			currContigLength = contigid2seq[contigs[i].first].length();
+			currContigLength = contigid2seq[contigs[i].first].length;
 			accumPos += currContigLength - k;
 			(contig2pos[contigs[i].first]).push_back(util::Position(tr, pos, contigs[i].second));
 		}
