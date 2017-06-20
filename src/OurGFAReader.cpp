@@ -274,6 +274,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
     // order they appear in the contig array (i.e., the iterator
     // order of contigid2seq).
     std::vector<std::string> refNames;
+    refNames.reserve(refMap.size());
     for (size_t i = 0; i < refMap.size(); ++i) {
       refNames.push_back(refMap[i]);
     }
@@ -286,9 +287,22 @@ void PosFinder::serializeContigTable(const std::string& odir) {
       }
     };
 
+    // Write out contig offsets and lengths
+    /*
+    {
+      std::vector<util::ContigPosInfo> cpi;
+      cpi.reserve(contigid2seq.size());
+      for (auto& kv : contigid2seq) {
+        cpi.push_back({kv.second.offset, kv.second.length});
+      }
+      ar(cpi);
+    }
+    */
+
     spp::sparse_hash_map<std::vector<uint32_t>, uint32_t, VecHasher> eqMap;
     std::vector<uint32_t> eqIDs;
     std::vector<std::vector<util::Position>> cpos;
+
     for (auto& kv : contigid2seq) {
       cpos.push_back(contig2pos[kv.first]);
       std::vector<uint32_t> tlist;

@@ -32,6 +32,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     std::ifstream contigTableStream(indexDir + "/ctable.bin");
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
+    //contigTableArchive(cPosInfo_);
     contigTableArchive(contigTable_);
     contigTableStream.close();
   }
@@ -148,9 +149,11 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
       auto& pvec = contigTable_[rank];
       // start position of this contig
       uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+      //uint64_t sp = (rank == 0) ? 0 : cPosInfo_[rank].offset();//static_cast<uint64_t>(contigSelect_(rank)) + 1;
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
       // start position of the next contig - start position of this one
       auto clen = static_cast<uint64_t>(contigSelect_(rank + 1) + 1 - sp);
+      //auto clen = cPosInfo_[rank].length();//static_cast<uint64_t>(contigSelect_(rank + 1) + 1 - sp);
       bool hitFW = keq == KmerMatchType::IDENTITY_MATCH;
       return {relPos, hitFW, clen, k_, core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {

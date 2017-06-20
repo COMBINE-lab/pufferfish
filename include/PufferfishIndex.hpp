@@ -24,6 +24,7 @@ private:
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
+  //std::vector<util::ContigPosInfo> cPosInfo_;
   std::vector<std::vector<util::Position>> contigTable_;
   uint64_t numContigs_{0};
   sdsl::bit_vector contigBoundary_;

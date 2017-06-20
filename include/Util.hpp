@@ -155,6 +155,19 @@ string str(T& container) {
     //uint32_t orientMask_
   };
 
+  struct ContigPosInfo {
+    size_t offset_;
+    uint32_t length_;
+
+    inline size_t offset() { return offset_; }
+    inline uint32_t length() { return length_; }
+
+    template <class Archive>
+    void serialize(Archive& ar) {
+      ar(offset_, length_);
+    }
+  };
+
   struct PackedContigInfo {
     size_t fileOrder;
     size_t offset;
