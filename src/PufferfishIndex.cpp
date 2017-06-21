@@ -55,6 +55,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     hash_.reset(new boophf_t);
     hash_->load(hstream);
     hstream.close();
+    hash_raw_ = hash_.get();
   }
 
   {
@@ -69,6 +70,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     CLI::AutoTimer timer {"Loading sequence", CLI::Timer::Big};
     std::string sfile = indexDir + "/seq.bin";
     sdsl::load_from_file(seq_, sfile);
+    lastSeqPos_ = seq_.size() - k_;
   }
 
   {
@@ -89,16 +91,13 @@ const PufferfishIndex::EqClassLabel& PufferfishIndex::getEqClassLabel(uint32_t c
 //auto endContigMap() -> decltype(contigTable_.begin()) { return contigTable_.end(); }
 uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
   auto km = mer.getCanonicalWord();
-  size_t res = hash_->lookup(km);
+  size_t res = hash_raw_->lookup(km);
   uint64_t pos =
     (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
-  if (pos <= seq_.size() - k_) {
+  if (pos <= lastSeqPos_) {
     uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
-    my_mer fkm;
-    fkm.word__(0) = fk;
-    auto keq = mer.isEquivalent(fkm);
+    auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
-      //}mer.fwWord() == fkm.word(0) or mer.rcWord() == fkm.word(0)) {
       return pos;
     }
   }
@@ -116,14 +115,12 @@ bool PufferfishIndex::isValidPos(uint64_t pos) {
 
 uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
     auto km = mer.getCanonicalWord();
-    size_t res = hash_->lookup(km);
+    size_t res = hash_raw_->lookup(km);
     uint64_t pos =
       (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
-    if (pos <= seq_.size() - k_) {
+    if (pos <= lastSeqPos_) {
       uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
-      my_mer fkm;
-      fkm.word__(0) = fk;
-      auto keq = mer.isEquivalent(fkm);
+      auto keq = mer.isEquivalent(fk);
       if (keq != KmerMatchType::NO_MATCH) {
         auto rank = contigRank_(pos);
         return rank;
@@ -134,16 +131,14 @@ uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
 
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
 
-  using IterT = std::vector<util::Position>::iterator;//decltype(contigTable_.begin());
+  using IterT = std::vector<util::Position>::iterator;
   auto km = mer.getCanonicalWord();
-  size_t res = hash_->lookup(km);
+  size_t res = hash_raw_->lookup(km);
   uint64_t pos =
     (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
-  if (pos <= seq_.size() - k_) {
+  if (pos <= lastSeqPos_) {
     uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
-    my_mer fkm;
-    fkm.word__(0) = fk;
-    auto keq = mer.isEquivalent(fkm);
+    auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       auto rank = contigRank_(pos);
       auto& pvec = contigTable_[rank];

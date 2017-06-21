@@ -33,6 +33,8 @@ private:
   sdsl::int_vector<> seq_;
   sdsl::int_vector<> pos_;
   std::unique_ptr<boophf_t> hash_{nullptr};
+  boophf_t* hash_raw_{nullptr};
+  size_t lastSeqPos_{std::numeric_limits<size_t>::max()};
 public:
   PufferfishIndex();
   PufferfishIndex(const std::string& indexPath);

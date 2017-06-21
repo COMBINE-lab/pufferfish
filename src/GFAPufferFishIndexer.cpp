@@ -241,7 +241,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
   auto keyIt = boomphf::range(kb, ke);
-  boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 2.5); // keys.size(), keys, 16);
+  boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 4.5); // keys.size(), keys, 16);
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
 

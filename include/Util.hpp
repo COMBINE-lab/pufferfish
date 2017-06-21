@@ -144,7 +144,7 @@ string str(T& container) {
 
     inline uint32_t transcript_id() { return transcript_id_; }
     inline uint32_t pos() { return (pos_ & 0x7FFFFFFF); }
-    inline bool orientation() { return (pos_ & 0x80000000) > 0; }
+    inline bool orientation() { return (pos_ & 0x80000000); }
 
     template <class Archive>
     void serialize(Archive& ar) {
@@ -194,7 +194,7 @@ string str(T& container) {
 
     inline bool empty() { return refRange.empty(); }
 
-    RefPos decodeHit(util::Position& p) {
+    inline RefPos decodeHit(util::Position& p) {
       // true if the contig is fowrard on the reference
       bool contigFW = p.orientation();
       // we are forward with respect to the reference if :

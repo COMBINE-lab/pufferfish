@@ -48,64 +48,34 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
         ++rn;
         auto& r1 = rp.seq;
         CanonicalKmer mer;
-        bool merOK = mer.fromStr(r1); // mer.from_chars(r1.begin());
-        if (!merOK) {
-          std::cerr << "contig too short!";
-          std::exit(1);
-        }
-
-        auto phits = pi.getRefPos(mer);
-        if (phits.empty()) {
-          ++notFound;
-        } else {
-          ++found;
-          bool correctPos = false;
-          bool foundTxp = false;
-          for (auto& rpos : phits.refRange) {
-            if (pi.refName(rpos.transcript_id()) == rp.name) {
-              foundTxp = true;
-              auto refInfo = phits.decodeHit(rpos);
-              if (refInfo.pos == 0) {
-                correctPos = true;
-              }
-            } else {
-            }
-          }
-          if (foundTxp) {
-            ++numTrueTxp;
-            if (correctPos) { ++correctPosCntr; } else { ++incorrectPosCntr; }
-          } else {
-            ++numLostTxp;
-          }
-        }
-        
-        for (size_t i = k; i < r1.length(); ++i) {
+        for (size_t i = 0; i < r1.length(); ++i) {
           mer.shiftFw(r1[i]);
-          auto phits = pi.getRefPos(mer);
-          if (phits.empty()) {
-            ++notFound;
-          } else {
-            ++found;
-            bool correctPos = false;
-            bool foundTxp = false;
-            bool cor = false;
-            uint32_t clen = 0;
-            std::vector<uint32_t> wrongPos;
-            for (auto& rpos : phits.refRange) {
-              if (pi.refName(rpos.transcript_id()) == rp.name) {
-                foundTxp = true;
-                auto refInfo = phits.decodeHit(rpos);
-                if (refInfo.pos == i - k + 1) {
-                correctPos = true;
+          if (i >= k - 1) {
+            auto phits = pi.getRefPos(mer);
+            if (phits.empty()) {
+              ++notFound;
+            } else {
+              ++found;
+              bool correctPos = false;
+              bool foundTxp = false;
+              bool cor = false;
+              uint32_t clen = 0;
+              std::vector<uint32_t> wrongPos;
+              for (auto& rpos : phits.refRange) {
+                if (pi.refName(rpos.transcript_id()) == rp.name) {
+                  foundTxp = true;
+                  auto refInfo = phits.decodeHit(rpos);
+                  if (refInfo.pos == i - k + 1) {
+                    correctPos = true;
+                  } else {
+                    //cor = phits.contigOrientation_;
+                    //clen = phits.contigLen_;
+                    // wrongPos.push_back(refInfo.pos);
+                  }
                 } else {
-                  cor = phits.contigOrientation_;
-                  clen = phits.contigLen_;
-                  wrongPos.push_back(refInfo.pos);
                 }
-              } else {
-                }
-                }
-                if (foundTxp) {
+              }
+              if (foundTxp) {
                 ++numTrueTxp;
                 if (correctPos) {
                   ++correctPosCntr;
@@ -115,10 +85,11 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
                             << ", contig rank = " << pi.contigID(mer) << '\n';
                   ++incorrectPosCntr;
                 }
-            } else {
-              ++numLostTxp;
+              } else {
+                ++numLostTxp;
+              }
             }
-        }
+          }
       }
     }
   }
