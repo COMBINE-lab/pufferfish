@@ -32,6 +32,7 @@
 int pufferfishIndex(util::IndexOptions& indexOpts);//int argc, char* argv[]);
 int pufferfishTest(util::TestOptions& testOpts);//int argc, char* argv[]);
 int pufferfishValidate(util::ValidateOptions& validateOpts);//int argc, char* argv[]);
+int pufferfishTestLookup(util::ValidateOptions& lookupOpts);//int argc, char* argv[]);
 //int rapMapMap(int argc, char* argv[]);
 //int rapMapSAMap(int argc, char* argv[]);
 
@@ -58,6 +59,7 @@ int main(int argc, char* argv[]) {
   auto indexApp = app.add_subcommand("index", "build the pufferfish index");
   auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
   auto validateApp = app.add_subcommand("validate", "test k-mer lookup for reference sequences");
+  auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
 
   util::IndexOptions indexOpt;
   indexApp->add_option("-k,--klen", indexOpt.k,
@@ -73,6 +75,13 @@ int main(int argc, char* argv[]) {
                           "directory where the pufferfish index is stored")->required();
   validateApp->add_option("-r,--ref", validateOpt.refFile,
                           "fasta file with reference sequences")->required();
+
+  util::ValidateOptions lookupOpt;
+  lookupApp->add_option("-i,--index", lookupOpt.indexDir,
+                          "directory where the pufferfish index is stored")->required();
+  lookupApp->add_option("-r,--ref", lookupOpt.refFile,
+                          "fasta file with reference sequences")->required();
+
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError &e) {
@@ -85,7 +94,9 @@ int main(int argc, char* argv[]) {
     return pufferfishTest(testOpt);
   } else if (app.got_subcommand(validateApp)) {
     return pufferfishValidate(validateOpt);
-  } else {
+  } else if (app.got_subcommand(lookupApp)){
+    return pufferfishTestLookup(lookupOpt);
+  } else{
     std::cerr << "I don't know the requested sub-command\n";
     return 1;
   }

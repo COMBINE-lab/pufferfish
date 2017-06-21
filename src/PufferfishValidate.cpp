@@ -11,6 +11,7 @@
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
 #include "CanonicalKmer.hpp"
+#include "CanonicalKmerIterator.hpp"
 
 #include "Util.hpp"
 #include "PufferfishIndex.hpp"
@@ -47,11 +48,13 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
         }
         ++rn;
         auto& r1 = rp.seq;
-        CanonicalKmer mer;
-        for (size_t i = 0; i < r1.length(); ++i) {
-          mer.shiftFw(r1[i]);
-          if (i >= k - 1) {
-            auto phits = pi.getRefPos(mer);
+        pufferfish::CanonicalKmerIterator kit1(r1.c_str()), kit_end;
+        //CanonicalKmer mer;
+        for (size_t i = 0; kit1 != kit_end; ++kit1, ++i) {
+          //for (size_t i = 0; i < r1.length(); ++i) {
+          //mer.shiftFw(r1[i]);
+          //if (i >= k - 1) {
+            auto phits = pi.getRefPos(kit1->first);
             if (phits.empty()) {
               ++notFound;
             } else {
@@ -82,14 +85,14 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
                 } else {
                   std::cerr << "correct pos = " << i - k + 1 << ", found " << util::str(wrongPos)
                             << ", contig orientation = " << cor << ", contig len = " << clen
-                            << ", contig rank = " << pi.contigID(mer) << '\n';
+                            << ", contig rank = " << pi.contigID(kit1->first) << '\n';
                   ++incorrectPosCntr;
                 }
               } else {
                 ++numLostTxp;
               }
             }
-          }
+            //}
       }
     }
   }

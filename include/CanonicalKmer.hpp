@@ -28,12 +28,22 @@ public:
   CanonicalKmer(const CanonicalKmer& other) = default;
   CanonicalKmer& operator=(CanonicalKmer& other) = default;
 
-  static void k(int kIn) { my_mer::k(kIn); }
-  static int k() { return my_mer::k(); }
+  static inline void k(int kIn) { my_mer::k(kIn); }
+  static inline int k() { return my_mer::k(); }
 
   inline bool fromStr(const std::string& s) {
     auto k = my_mer::k();
     if (s.length() < k) { return false; }
+    for (size_t i = 0; i < k; ++i) {
+      fw_.shift_right(s[i]);
+      rc_.shift_left(my_mer::complement(s[i]));
+    }
+    return true;
+  }
+
+  inline bool fromStr(const char* s) {
+    auto k = my_mer::k();
+    //if (s.length() < k) { return false; }
     for (size_t i = 0; i < k; ++i) {
       fw_.shift_right(s[i]);
       rc_.shift_left(my_mer::complement(s[i]));
@@ -96,16 +106,16 @@ public:
     return rc_.word(0);
   }
 
-  inline KmerMatchType isEquivalent(const my_mer& m) {
+  inline KmerMatchType isEquivalent(const my_mer& m) const {
     return m.word(0) == fwWord() ? KmerMatchType::IDENTITY_MATCH :
       (m.word(0) == rcWord() ? KmerMatchType::TWIN_MATCH : KmerMatchType::NO_MATCH);
   }
-  inline KmerMatchType isEquivalent(uint64_t m) {
+  inline KmerMatchType isEquivalent(uint64_t m) const {
     return m == fwWord() ? KmerMatchType::IDENTITY_MATCH :
       (m == rcWord() ? KmerMatchType::TWIN_MATCH : KmerMatchType::NO_MATCH);
   }
 
-  inline std::string to_str() { return fw_.to_str(); }
+  inline std::string to_str() const { return fw_.to_str(); }
 
   bool operator==(const CanonicalKmer& rhs) const { return this->fw_ == rhs.fw_; }
   bool operator!=(const CanonicalKmer& rhs) const { return !this->operator==(rhs); }
