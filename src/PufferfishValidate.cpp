@@ -54,7 +54,8 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
           //for (size_t i = 0; i < r1.length(); ++i) {
           //mer.shiftFw(r1[i]);
           //if (i >= k - 1) {
-            auto phits = pi.getRefPos(kit1->first);
+          //auto phits = pi.getRefPos(kit1->first);
+          auto phits = pi.getRefPos(*kit1);
             if (phits.empty()) {
               ++notFound;
             } else {
@@ -85,7 +86,8 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
                 } else {
                   std::cerr << "correct pos = " << i - k + 1 << ", found " << util::str(wrongPos)
                             << ", contig orientation = " << cor << ", contig len = " << clen
-                            << ", contig rank = " << pi.contigID(kit1->first) << '\n';
+                    //<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
+                            << ", contig rank = " << pi.contigID(*kit1) << '\n';
                   ++incorrectPosCntr;
                 }
               } else {

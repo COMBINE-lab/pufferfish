@@ -47,7 +47,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
         }
         ++rn;
         auto& r1 = rp.seq;
-        
+        /*
         CanonicalKmer mer;
         bool valid = true;
         int lastinvalid = -1;
@@ -75,19 +75,23 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
             }
            }
            }
+          */
         
-        /*
+          
         pufferfish::CanonicalKmerIterator kit1(r1);
-        for (size_t i = 0; kit1 != kit_end; ++kit1, ++i) {
-            auto phits = pi.getRefPos(kit1->first);
+        for (; kit1 != kit_end; ++kit1) {
+          if (kit1.kmerIsValid()) {
+            auto phits = pi.getRefPos(*kit1);
             if (phits.empty()) {
               ++notFound;
             } else {
               ++found;
               totalHits += phits.refRange.size();
             }
-      }
-        */
+            }
+        }
+          
+        
     }
   }
   }

@@ -13,18 +13,28 @@ namespace pufferfish {
 // pre:
 // post: *iter is now exhausted
 //       OR *iter is the next valid pair of kmer and location
-CanonicalKmerIterator& CanonicalKmerIterator::operator++() {
-  int pos_ = p_.second;
+inline CanonicalKmerIterator& CanonicalKmerIterator::operator++() {
+  auto lpos = pos_ + k_;
+  invalid_ = invalid_ || lpos >= s_.length();
+  if (!invalid_) {
+    int c = my_mer::code(s_[lpos]);
+    if (c!=-1) { km_.shiftFw(c); } else { lastinvalid_ = pos_ + k_; }
+    ++pos_;
+  }
+  return *this;
+  //int pos_ = p_.second;
+  /*
   if (!invalid_) {
     if (pos_+k_ >= s_.length()) {
       invalid_ = true;
       return *this;
     } else {
-      find_next(pos_,pos_+k_-1,true);
+      find_next(pos_,pos_+k_-1);//,true);
       return *this;
     }
   }
   return *this;
+  */
 }
 
 
@@ -44,19 +54,26 @@ CanonicalKmerIterator CanonicalKmerIterator::operator++(int) {
 //       OR a and b are in the same location of the same string.
 //       (val == false) otherwise.
 bool CanonicalKmerIterator::operator==(const CanonicalKmerIterator& o) {
+  return (invalid_  || o.invalid_) ? invalid_ && o.invalid_ : ((km_ == o.km_) && (pos_ == o.pos_));
+  /*
   if (invalid_  || o.invalid_) {
     return invalid_ && o.invalid_;
   } else {
-    return (s_ == o.s_) && (p_.second == o.p_.second);
+    //return (s_ == o.s_) && (p_.second == o.p_.second);
+    return (s_ == o.s_) && (pos_ == o.pos_);
   }
+  */
 }
 
+bool CanonicalKmerIterator::kmerIsValid() {
+  return (pos_+k_ - lastinvalid_ > k_);
+}
 
 // use:  p = *iter;
 // pre:
 // post: p is NULL or a pair of Kmer and int
-std::pair<CanonicalKmer, int>& CanonicalKmerIterator::operator*() {
-  return p_;
+CanonicalKmerIterator::reference CanonicalKmerIterator::operator*() {
+  return km_;
 }
 
 
@@ -64,7 +81,7 @@ std::pair<CanonicalKmer, int>& CanonicalKmerIterator::operator*() {
 //       example 2:  i = iter->second;
 // pre:  *iter is not NULL
 // post: km will be (*iter).first, i will be (*iter).second
-std::pair<CanonicalKmer, int> *CanonicalKmerIterator::operator->() {
+CanonicalKmerIterator::pointer CanonicalKmerIterator::operator->() {
   return &(operator*());
 }
 
@@ -87,7 +104,7 @@ void CanonicalKmerIterator::raise(Kmer& km, Kmer& rep) {
 // post: *iter is either invalid or is a pair of:
 //       1) the next valid kmer in the string that does not have any 'N'
 //       2) the location of that kmer in the string
-void CanonicalKmerIterator::find_next(int i, int j, bool last_valid) {
+void CanonicalKmerIterator::find_next(int i, int j){//}, bool last_valid) {
   ++i;
   ++j;
   bool valid{false};
@@ -97,7 +114,7 @@ void CanonicalKmerIterator::find_next(int i, int j, bool last_valid) {
     int c = my_mer::code(s_[j]);
     // c is a valid code if != -1
     if (c != -1) {
-      p_.first.shiftFw(c);
+      km_.shiftFw(c);
       valid = (j - lastinvalid_ >= k_);
     } else {
       // if c is not a valid code, then j is the last invalid position
@@ -108,7 +125,8 @@ void CanonicalKmerIterator::find_next(int i, int j, bool last_valid) {
       valid = false;
     }
     if (valid) {
-      p_.second = i;
+      //p_.second = i;
+      pos_ = i;
       return;
     }
     ++j;
