@@ -134,11 +134,11 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
-  uint64_t pos =
-    (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
-  if (pos <= lastSeqPos_) {
+  if (res < numKmers_) {
+    uint64_t pos = pos_[res];
     uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
     auto keq = mer.isEquivalent(fk);
+    //auto keq = KmerMatchType::IDENTITY_MATCH;
     if (keq != KmerMatchType::NO_MATCH) {
       auto rank = contigRank_(pos);
       auto& pvec = contigTable_[rank];

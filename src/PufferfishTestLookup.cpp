@@ -82,10 +82,13 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
               ++notFound;
             } else {
               ++found;
+              totalHits += phits.refRange.size();
+              /*
               for (auto& rpos : phits.refRange) {
                 (void)rpos;
                 ++totalHits;
               }
+              */
             }
       }
     }
