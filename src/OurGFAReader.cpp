@@ -120,14 +120,14 @@ size_t PosFinder::fillContigInfoMap_() {
     return total_len;
 }
 
-void PosFinder::encodeSeq(sdsl::int_vector<>& seqVec, size_t offset, stx::string_view str) {
+void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset, stx::string_view str) {
   for (size_t i = 0; i < str.length(); ++i) {
     auto c = my_mer::code(str[i]);
     seqVec[offset + i] = c;
   }
 }
 
-sdsl::int_vector<>& PosFinder::getContigSeqVec() {
+sdsl::int_vector<2>& PosFinder::getContigSeqVec() {
   return seqVec_;
 }
 
@@ -136,7 +136,7 @@ void PosFinder::parseFile() {
   file.reset(new zstr::ifstream(filename_));
   std::cerr << "total contig length = " << total_len << "\n";
   std::cerr << "packing contigs into contig vector\n";
-  seqVec_ = sdsl::int_vector<>(total_len, 0, 2);
+  seqVec_ = sdsl::int_vector<2>(total_len, 0);
 
 	std::string ln;
 	std::string tag, id, value;

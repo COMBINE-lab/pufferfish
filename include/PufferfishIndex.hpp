@@ -20,6 +20,7 @@ class PufferfishIndex {
   using EqClassLabel = std::vector<uint32_t>;
 private:
   uint32_t k_{0};
+  uint32_t twok_{0};
   uint64_t numKmers_{0};
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
@@ -30,7 +31,7 @@ private:
   sdsl::bit_vector contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;
-  sdsl::int_vector<> seq_;
+  sdsl::int_vector<2> seq_;
   sdsl::int_vector<> pos_;
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};

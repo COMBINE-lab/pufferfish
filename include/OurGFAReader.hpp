@@ -48,13 +48,13 @@ class PosFinder {
 		std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathStart ;
 		std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathEnd ;
 
-  sdsl::int_vector<> seqVec_;
+  sdsl::int_vector<2> seqVec_;
 		std::vector<std::pair<std::string, std::string> > newSegments;
 		pufg::Graph semiCG;
 
   size_t fillContigInfoMap_();
 		bool is_number(const std::string& s);
-  void encodeSeq(sdsl::int_vector<>& seqVec, size_t offset, stx::string_view str);
+  void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset, stx::string_view str);
 
 		// Avoiding un-necessary stream creation + replacing strings with string view
 		// is a bit > than a 2x win!
@@ -72,7 +72,7 @@ class PosFinder {
     std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& getPathStart() ;
     std::map<std::pair<std::string,bool>, bool, util::cmpByPair>& getPathEnd() ;
     std::vector<std::pair<std::string, std::string> >& getNewSegments() ;
-  sdsl::int_vector<>& getContigSeqVec();
+  sdsl::int_vector<2>& getContigSeqVec();
     //spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > >& getPaths() {return path;}
     //spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool> > >& getPaths() {return path;}
     pufg::Graph& getSemiCG() ;

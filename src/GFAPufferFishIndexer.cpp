@@ -38,7 +38,7 @@ public:
   typedef std::forward_iterator_tag iterator_category;
   typedef int64_t difference_type;
 
-  ContigKmerIterator(sdsl::int_vector<>* storage, sdsl::bit_vector* rank,
+  ContigKmerIterator(sdsl::int_vector<2>* storage, sdsl::bit_vector* rank,
                      uint8_t k, uint64_t startAt)
       : storage_(storage), rank_(rank), k_(k), curr_(startAt) {
     if (curr_ + k_ <= rank_->size()) {
@@ -110,7 +110,7 @@ private:
       ++curr_;
     }
   }
-  sdsl::int_vector<>* storage_{nullptr};
+  sdsl::int_vector<2>* storage_{nullptr};
   sdsl::bit_vector* rank_{nullptr};
   uint8_t k_{0};
   uint64_t curr_{0};
@@ -241,7 +241,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
   auto keyIt = boomphf::range(kb, ke);
-  boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 4.5); // keys.size(), keys, 16);
+  boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 3.5); // keys.size(), keys, 16);
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
 

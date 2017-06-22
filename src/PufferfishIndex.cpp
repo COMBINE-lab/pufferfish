@@ -4,7 +4,7 @@
 #include "cereal/archives/json.hpp"
 #include "cereal/archives/binary.hpp"
 #include "CLI/Timer.hpp"
-
+#include "sdsl/bits.hpp"
 #include "PufferfishIndex.hpp"
 #include "PufferFS.hpp"
 
@@ -24,6 +24,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     std::cerr << "k = " << k_ << '\n';
     std::cerr << "num kmers = " << numKmers_ << '\n';
     infoStream.close();
+    twok_ = 2 * k_;
   }
 
   //std::cerr << "loading contig table ... ";
@@ -88,21 +89,18 @@ const PufferfishIndex::EqClassLabel& PufferfishIndex::getEqClassLabel(uint32_t c
   return eqLabels_[getEqClassID(contigID)];
 }
 
-//auto endContigMap() -> decltype(contigTable_.begin()) { return contigTable_.end(); }
 uint64_t PufferfishIndex::getRawPos(CanonicalKmer& mer)  {
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
-  uint64_t pos =
-    (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
-  if (pos <= lastSeqPos_) {
-    uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
+  if (res < numKmers_) {
+    uint64_t pos = pos_[res];
+    uint64_t fk = seq_.get_int(2 * pos, twok_);
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       return pos;
     }
   }
-  pos = std::numeric_limits<uint64_t>::max();
-  return pos;
+  return std::numeric_limits<uint64_t>::max();
 }
 
 bool PufferfishIndex::contains(CanonicalKmer& mer) {
@@ -116,10 +114,9 @@ bool PufferfishIndex::isValidPos(uint64_t pos) {
 uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
     auto km = mer.getCanonicalWord();
     size_t res = hash_raw_->lookup(km);
-    uint64_t pos =
-      (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
-    if (pos <= lastSeqPos_) {
-      uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
+    if (res < numKmers_) {
+      uint64_t pos = pos_[res];
+      uint64_t fk = seq_.get_int(2 * pos, twok_);
       auto keq = mer.isEquivalent(fk);
       if (keq != KmerMatchType::NO_MATCH) {
         auto rank = contigRank_(pos);
@@ -130,26 +127,34 @@ uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
   }
 
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
-
   using IterT = std::vector<util::Position>::iterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
     uint64_t pos = pos_[res];
-    uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
+    uint64_t twopos = pos << 1;
+    uint64_t fk = seq_.get_int(twopos, twok_);
+    // say how the kmer fk matches mer; either 
+    // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
-    //auto keq = KmerMatchType::IDENTITY_MATCH;
     if (keq != KmerMatchType::NO_MATCH) {
+      // the index of this contig
       auto rank = contigRank_(pos);
+      // the reference information in the contig table
       auto& pvec = contigTable_[rank];
       // start position of this contig
       uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
       //uint64_t sp = (rank == 0) ? 0 : cPosInfo_[rank].offset();//static_cast<uint64_t>(contigSelect_(rank)) + 1;
+
+      // relative offset of this k-mer in the contig
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
+
       // start position of the next contig - start position of this one
       auto clen = static_cast<uint64_t>(contigSelect_(rank + 1) + 1 - sp);
       //auto clen = cPosInfo_[rank].length();//static_cast<uint64_t>(contigSelect_(rank + 1) + 1 - sp);
-      bool hitFW = keq == KmerMatchType::IDENTITY_MATCH;
+
+      // how the k-mer hits the contig (true if k-mer in fwd orientation, false otherwise)
+      bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
       return {relPos, hitFW, clen, k_, core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
       return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
