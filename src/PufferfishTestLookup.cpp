@@ -12,6 +12,7 @@
 #include "Util.hpp"
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
+#include "CLI/Timer.hpp"
 
 #include "Util.hpp"
 #include "PufferfishIndex.hpp"
@@ -19,21 +20,21 @@
 int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
   PufferfishIndex pi(validateOpts.indexDir);
   CanonicalKmer::k(pi.k());
+  int k = pi.k();
+  (void)k;
   size_t found = 0;
   size_t notFound = 0;
   size_t totalHits = 0;
   {
-    ScopedTimer st;
+    CLI::AutoTimer timer {"searching kmers", CLI::Timer::Big};
     std::vector<std::string> read_file = {validateOpts.refFile};
     fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
     parser.start();
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     size_t rn{0};
-    //size_t kmer_pos{0};
     pufferfish::CanonicalKmerIterator kit_end;
     auto rg = parser.getReadGroup();
-    //pufferfish::CanonicalKmerIterator kit_end;
     while (parser.refill(rg)) {
       // Here, rg will contain a chunk of read pairs
       // we can process.
@@ -46,8 +47,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
         }
         ++rn;
         auto& r1 = rp.seq;
-        pufferfish::CanonicalKmerIterator kit1(r1);
-        /*
+        
         CanonicalKmer mer;
         bool valid = true;
         int lastinvalid = -1;
@@ -75,7 +75,9 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
             }
            }
            }
-        */
+        
+        /*
+        pufferfish::CanonicalKmerIterator kit1(r1);
         for (size_t i = 0; kit1 != kit_end; ++kit1, ++i) {
             auto phits = pi.getRefPos(kit1->first);
             if (phits.empty()) {
@@ -83,14 +85,9 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
             } else {
               ++found;
               totalHits += phits.refRange.size();
-              /*
-              for (auto& rpos : phits.refRange) {
-                (void)rpos;
-                ++totalHits;
-              }
-              */
             }
       }
+        */
     }
   }
   }

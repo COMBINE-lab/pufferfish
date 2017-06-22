@@ -4,7 +4,6 @@
 #include "cereal/archives/json.hpp"
 #include "cereal/archives/binary.hpp"
 #include "CLI/Timer.hpp"
-#include "sdsl/bits.hpp"
 #include "PufferfishIndex.hpp"
 #include "PufferFS.hpp"
 
@@ -27,7 +26,6 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     twok_ = 2 * k_;
   }
 
-  //std::cerr << "loading contig table ... ";
   {
     CLI::AutoTimer timer {"Loading contig table", CLI::Timer::Big};
     std::ifstream contigTableStream(indexDir + "/ctable.bin");
@@ -47,7 +45,6 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     eqTableArchive(eqLabels_);
     eqTableStream.close();
   }
-  //std::cerr << "done\n";
 
   {
     CLI::AutoTimer timer {"Loading mphf table", CLI::Timer::Big};
