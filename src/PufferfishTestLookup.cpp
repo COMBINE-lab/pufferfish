@@ -80,7 +80,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
           
         pufferfish::CanonicalKmerIterator kit1(r1);
         for (; kit1 != kit_end; ++kit1) {
-          if (kit1.kmerIsValid()) {
+          //if (kit1.kmerIsValid()) {
             auto phits = pi.getRefPos(*kit1);
             if (phits.empty()) {
               ++notFound;
@@ -88,7 +88,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
               ++found;
               totalHits += phits.refRange.size();
             }
-            }
+            //}
         }
           
         

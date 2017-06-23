@@ -25,10 +25,31 @@ namespace pufferfish {
 		typedef std::input_iterator_tag iterator_category;
 		typedef int64_t difference_type;
     CanonicalKmerIterator() : s_(), /*p_(),*/ km_(), pos_(), invalid_(true), lastinvalid_(-1), k_(CanonicalKmer::k()) {}
-    CanonicalKmerIterator(const std::string& s) : s_(s), /*p_(),*/ km_(), pos_(), invalid_(false), lastinvalid_(-1), k_(CanonicalKmer::k()) { find_next(-1,-1);/*,false)*/;}
+    CanonicalKmerIterator(const std::string& s) : s_(s), /*p_(),*/ km_(), pos_(), invalid_(false), lastinvalid_(-1), k_(CanonicalKmer::k()) { find_next(-1, -1); }
     CanonicalKmerIterator(const CanonicalKmerIterator& o) : s_(o.s_), /*p_(o.p_),*/ km_(o.km_), pos_(o.pos_), invalid_(o.invalid_), lastinvalid_(o.lastinvalid_), k_(o.k_) {}
 
-    //void find_next(int i, int j);//, bool last_valid);
+  private:
+    inline void find_next(int i, int j){
+      ++i; ++j;
+      // j is the last nucleotide in the k-mer we're building
+      for (; j < s_.length(); ++j) {
+        // get the code for the last nucleotide, save it as c
+        int c = my_mer::code(s_[j]);
+        // c is a valid code if != -1
+        if (c != -1) {
+          km_.shiftFw(c);
+          if (j - lastinvalid_ >= k_) { pos_ = i; return; }
+        } else {
+          // this k-mer is clearly not valid
+          // if c is not a valid code, then j is the last invalid position
+          lastinvalid_ = j;
+          i = j+1;
+        }
+      }
+      invalid_ = true;
+    }
+
+  public:
 // use:  ++iter;
 // pre:
 // post: *iter is now exhausted
@@ -37,9 +58,12 @@ inline CanonicalKmerIterator& operator++() {
   auto lpos = pos_ + k_;
   invalid_ = invalid_ || lpos >= s_.length();
   if (!invalid_) {
+    find_next(pos_,lpos-1);
+    /** --- implementation that doesn't skip non-{ACGT}
     int c = my_mer::code(s_[lpos]);
     if (c!=-1) { km_.shiftFw(c); } else { lastinvalid_ = pos_ + k_; }
     ++pos_;
+    */
   }
   return *this;
 }
@@ -86,6 +110,7 @@ inline pointer operator->() {
   return &(operator*());
 }
   private:
+    /*
 // use:  find_next(i,j, last_valid);
 // pre:
 // post: *iter is either invalid or is a pair of:
@@ -120,6 +145,7 @@ inline void find_next(int i, int j){//}, bool last_valid) {
   }
   invalid_ = true;
 }
+*/
 
 
 

@@ -9,6 +9,44 @@
 namespace pufferfish {
 /* Note: That an iter is exhausted means that (iter._invalid == true) */
 
+
+// use:  find_next(i,j, last_valid);
+// pre:
+// post: *iter is either invalid or is a pair of:
+//       1) the next valid kmer in the string that does not have any 'N'
+//       2) the location of that kmer in the string
+void CanonicalKmerIterator::find_next(int j){//}, bool last_valid) {
+  ++i;
+  ++j;
+  int dist{(j - lastinvalid_)};
+  // j is the last nucleotide in the k-mer we're building
+  for (; j < s_.length(); ++j) {
+  //while (j < s_.length()) {
+    // get the code for the last nucleotide, save it as c
+    int c = my_mer::code(s_[j]);
+    // c is a valid code if != -1
+    if (c != -1) {
+      km_.shiftFw(c);
+      ++dist;
+      valid = (dist >= k_);
+    } else {
+      // if c is not a valid code, then j is the last invalid position
+      lastinvalid_ = j;
+      // the start position is the next (potentially) valid position
+      i = j+1;
+      // this k-mer is clearly not valid
+      valid = false;
+    }
+    if (valid) {
+      //p_.second = i;
+      pos_ = i;
+      return;
+    }
+    ++j;
+  }
+  invalid_ = true;
+}
+
 // use:  ++iter;
 // pre:
 // post: *iter is now exhausted
@@ -17,9 +55,12 @@ inline CanonicalKmerIterator& CanonicalKmerIterator::operator++() {
   auto lpos = pos_ + k_;
   invalid_ = invalid_ || lpos >= s_.length();
   if (!invalid_) {
+    find_next(pos_, lpos - 1);
+    /*
     int c = my_mer::code(s_[lpos]);
     if (c!=-1) { km_.shiftFw(c); } else { lastinvalid_ = pos_ + k_; }
     ++pos_;
+    */
   }
   return *this;
   //int pos_ = p_.second;
@@ -98,41 +139,6 @@ void CanonicalKmerIterator::raise(Kmer& km, Kmer& rep) {
   }
 }
 */
-
-// use:  find_next(i,j, last_valid);
-// pre:
-// post: *iter is either invalid or is a pair of:
-//       1) the next valid kmer in the string that does not have any 'N'
-//       2) the location of that kmer in the string
-void CanonicalKmerIterator::find_next(int i, int j){//}, bool last_valid) {
-  ++i;
-  ++j;
-  bool valid{false};
-  // j is the last nucleotide in the k-mer we're building
-  while (j < s_.length()) {
-    // get the code for the last nucleotide, save it as c
-    int c = my_mer::code(s_[j]);
-    // c is a valid code if != -1
-    if (c != -1) {
-      km_.shiftFw(c);
-      valid = (j - lastinvalid_ >= k_);
-    } else {
-      // if c is not a valid code, then j is the last invalid position
-      lastinvalid_ = j;
-      // the start position is the next (potentially) valid position
-      i = j+1;
-      // this k-mer is clearly not valid
-      valid = false;
-    }
-    if (valid) {
-      //p_.second = i;
-      pos_ = i;
-      return;
-    }
-    ++j;
-  }
-  invalid_ = true;
-}
 
 // use:  find_next(i,j, last_valid);
 // pre:
