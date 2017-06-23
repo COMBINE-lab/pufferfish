@@ -1,6 +1,6 @@
 //
 // Pufferfish - An efficient compacted dBG index
-// 
+//
 // Copyright (C) 2017 Rob Patro, Fatemeh Almodaresi, Hirak Sarkar
 //
 // This file is part of Pufferfish.
@@ -19,30 +19,31 @@
 // along with RapMap.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <iostream>
-#include <fstream>
-#include <vector>
 #include "CLI/CLI.hpp"
+#include <fstream>
+#include <iostream>
+#include <vector>
 //#include <cereal/archives/json.hpp>
 
-#include "Util.hpp"
 #include "PufferfishConfig.hpp"
+#include "Util.hpp"
 //#include "IndexHeader.hpp"
 
-int pufferfishIndex(util::IndexOptions& indexOpts);//int argc, char* argv[]);
-int pufferfishTest(util::TestOptions& testOpts);//int argc, char* argv[]);
-int pufferfishValidate(util::ValidateOptions& validateOpts);//int argc, char* argv[]);
-int pufferfishTestLookup(util::ValidateOptions& lookupOpts);//int argc, char* argv[]);
-//int rapMapMap(int argc, char* argv[]);
-//int rapMapSAMap(int argc, char* argv[]);
+int pufferfishIndex(util::IndexOptions& indexOpts); // int argc, char* argv[]);
+int pufferfishTest(util::TestOptions& testOpts);    // int argc, char* argv[]);
+int pufferfishValidate(
+    util::ValidateOptions& validateOpts); // int argc, char* argv[]);
+int pufferfishTestLookup(
+    util::ValidateOptions& lookupOpts); // int argc, char* argv[]);
+// int rapMapMap(int argc, char* argv[]);
+// int rapMapSAMap(int argc, char* argv[]);
 
 void printUsage() {
-    std::string versionString = pufferfish::version;
-    std::cerr << "Pufferfish v"
-              << versionString << '\n';
-    std::cerr << "=====================================\n";
-    auto usage =
-        R"(
+  std::string versionString = pufferfish::version;
+  std::cerr << "Pufferfish v" << versionString << '\n';
+  std::cerr << "=====================================\n";
+  auto usage =
+      R"(
 There are currently 2 Pufferfish subcommands
     index --- builds a Pufferfish index
     test --- tests k-mer lookup in the index
@@ -50,7 +51,7 @@ There are currently 2 Pufferfish subcommands
 Run a corresponding command "pufferrish <cmd> -h" for
 more information on each of the possible Pufferfish
 commands.)";
-    std::cerr << usage << '\n';
+  std::cerr << usage << '\n';
 }
 
 int main(int argc, char* argv[]) {
@@ -58,33 +59,48 @@ int main(int argc, char* argv[]) {
   CLI::App app{"Pufferfish : An efficient dBG index."};
   auto indexApp = app.add_subcommand("index", "build the pufferfish index");
   auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
-  auto validateApp = app.add_subcommand("validate", "test k-mer lookup for reference sequences");
+  auto validateApp = app.add_subcommand(
+      "validate", "test k-mer lookup for reference sequences");
   auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
 
   util::IndexOptions indexOpt;
-  indexApp->add_option("-k,--klen", indexOpt.k,
-                       "length of the k-mer with which the compacted dBG was built",
-                       static_cast<uint32_t>(31))->required();
-  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file")->required();
-  indexApp->add_option("-o,--output", indexOpt.outdir, "directory where index is written")->required();
+  indexApp
+      ->add_option("-k,--klen", indexOpt.k,
+                   "length of the k-mer with which the compacted dBG was built",
+                   static_cast<uint32_t>(31))
+      ->required();
+  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file")
+      ->required();
+  indexApp
+      ->add_option("-o,--output", indexOpt.outdir,
+                   "directory where index is written")
+      ->required();
 
   util::TestOptions testOpt;
 
   util::ValidateOptions validateOpt;
-  validateApp->add_option("-i,--index", validateOpt.indexDir,
-                          "directory where the pufferfish index is stored")->required();
-  validateApp->add_option("-r,--ref", validateOpt.refFile,
-                          "fasta file with reference sequences")->required();
+  validateApp
+      ->add_option("-i,--index", validateOpt.indexDir,
+                   "directory where the pufferfish index is stored")
+      ->required();
+  validateApp
+      ->add_option("-r,--ref", validateOpt.refFile,
+                   "fasta file with reference sequences")
+      ->required();
 
   util::ValidateOptions lookupOpt;
-  lookupApp->add_option("-i,--index", lookupOpt.indexDir,
-                          "directory where the pufferfish index is stored")->required();
-  lookupApp->add_option("-r,--ref", lookupOpt.refFile,
-                          "fasta file with reference sequences")->required();
+  lookupApp
+      ->add_option("-i,--index", lookupOpt.indexDir,
+                   "directory where the pufferfish index is stored")
+      ->required();
+  lookupApp
+      ->add_option("-r,--ref", lookupOpt.refFile,
+                   "fasta file with reference sequences")
+      ->required();
 
   try {
     app.parse(argc, argv);
-  } catch (const CLI::ParseError &e) {
+  } catch (const CLI::ParseError& e) {
     return app.exit(e);
   }
 
@@ -94,9 +110,9 @@ int main(int argc, char* argv[]) {
     return pufferfishTest(testOpt);
   } else if (app.got_subcommand(validateApp)) {
     return pufferfishValidate(validateOpt);
-  } else if (app.got_subcommand(lookupApp)){
+  } else if (app.got_subcommand(lookupApp)) {
     return pufferfishTestLookup(lookupOpt);
-  } else{
+  } else {
     std::cerr << "I don't know the requested sub-command\n";
     return 1;
   }

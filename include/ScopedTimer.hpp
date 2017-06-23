@@ -25,22 +25,21 @@
 #include <chrono>
 #include <iostream>
 
-struct ScopedTimer
-{
-    std::chrono::high_resolution_clock::time_point t0;
+struct ScopedTimer {
+  std::chrono::high_resolution_clock::time_point t0;
 
-    ScopedTimer(bool print=true)
-        : t0(std::chrono::high_resolution_clock::now()), print_(print)
-    { }
-    ~ScopedTimer(void)
-    {
-        auto  t1 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsedSec =  t1 - t0;
-        if (print_) { std::cerr << "Elapsed time: " << elapsedSec.count() << "s\n"; }
+  ScopedTimer(bool print = true)
+      : t0(std::chrono::high_resolution_clock::now()), print_(print) {}
+  ~ScopedTimer(void) {
+    auto t1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsedSec = t1 - t0;
+    if (print_) {
+      std::cerr << "Elapsed time: " << elapsedSec.count() << "s\n";
     }
+  }
 
-private: 
-bool print_;
+private:
+  bool print_;
 };
 
 #endif //__SCOPED_TIMER_HPP__

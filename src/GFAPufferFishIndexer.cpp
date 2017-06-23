@@ -5,18 +5,18 @@
 #include <type_traits>
 #include <vector>
 
-#include "cereal/archives/json.hpp"
 #include "CanonicalKmer.hpp"
 #include "OurGFAReader.hpp"
 #include "PufferFS.hpp"
+#include "PufferfishIndex.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
+#include "cereal/archives/json.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "sdsl/int_vector.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "spdlog/spdlog.h"
-#include "PufferfishIndex.hpp"
 //#include "gfakluge.hpp"
 
 uint64_t swap_uint64(uint64_t val) {
@@ -50,8 +50,8 @@ public:
 
   ContigKmerIterator&
   operator=(ContigKmerIterator& other) { //}= default;//(sdsl::int_vector<>*
-                                         //storage, sdsl::bit_vector* rank,
-                                         //uint8_t k, uint64_t startAt) :
+                                         // storage, sdsl::bit_vector* rank,
+    // uint8_t k, uint64_t startAt) :
     storage_ = other.storage_;
     rank_ = other.rank_;
     k_ = other.k_;
@@ -83,7 +83,7 @@ public:
 
   pointer operator->() {
     word_ = mer_.getCanonicalWord(); //(mer_.word(0) < rcMer_.word(0)) ?
-                                     //mer_.word(0) : rcMer_.word(0);
+                                     // mer_.word(0) : rcMer_.word(0);
     return &word_;
   }
   bool operator==(const self_type& rhs) { return curr_ == rhs.curr_; }
@@ -118,13 +118,11 @@ private:
   uint64_t word_{0};
 };
 
-
 int pufferfishTest(util::TestOptions& testOpts) {
   (void)testOpts;
   std::cerr << "this command is not yet implemented\n";
   return 1;
 }
-
 
 int pufferfishIndex(util::IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
@@ -134,7 +132,9 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
   // If the user included the '/' in the output directory path, remove
   // it here
-  if (outdir.back() == '/') { outdir.pop_back(); }
+  if (outdir.back() == '/') {
+    outdir.pop_back();
+  }
   std::vector<std::string> read_file = {rfile};
 
   auto console = spdlog::stderr_color_mt("console");
@@ -148,7 +148,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
   PosFinder pf(gfa_file.c_str(), k - 1);
   pf.parseFile();
-  //std::exit(1);
+  // std::exit(1);
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
   pf.clearContigTable();
@@ -169,7 +169,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   size_t gpos{0};
   size_t w = std::log2(tlen) + 1;
   console->info("positional integer width = {}", w);
-  //sdsl::int_vector<> seqVec(tlen, 0, 2);
+  // sdsl::int_vector<> seqVec(tlen, 0, 2);
   auto& seqVec = pf.getContigSeqVec();
   sdsl::bit_vector rankVec(tlen);
   auto& cnmap = pf.getContigNameMap();
@@ -223,7 +223,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   */
   std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
   std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
-  //std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
+  // std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
   std::cerr << "num keys = " << nkeys << "\n";
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
   ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -235,23 +235,24 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     nkeyIt++;
   }
   std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
-#endif //PUFFER_DEBUG
+#endif // PUFFER_DEBUG
 
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
   auto keyIt = boomphf::range(kb, ke);
-  boophf_t* bphf = new boophf_t(nkeys, keyIt, 16, 3.5); // keys.size(), keys, 16);
+  boophf_t* bphf =
+      new boophf_t(nkeys, keyIt, 16, 3.5); // keys.size(), keys, 16);
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
 
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
 
-  //size_t slen = seqVec.size();
+  // size_t slen = seqVec.size();
   //#ifndef PUFFER_DEBUG
-  //seqVec.resize(0);
-  //rankVec.resize(0);
+  // seqVec.resize(0);
+  // rankVec.resize(0);
   //#endif
 
   sdsl::int_vector<> posVec(tlen, 0, w);
@@ -267,7 +268,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
       }
       posVec[idx] = kb1.pos();
 
-      // validate
+// validate
 #ifdef PUFFER_DEBUG
       uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
       CanonicalKmer sk;
@@ -275,7 +276,8 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
       if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
         my_mer r;
         r.word__(0) = *kb1;
-        std::cerr << "I thought I saw " << sk.to_str() << ", but I saw " << r.to_str() << "\n";
+        std::cerr << "I thought I saw " << sk.to_str() << ", but I saw "
+                  << r.to_str() << "\n";
       }
 #endif
     }
@@ -299,5 +301,5 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   bphf->save(hstream);
   hstream.close();
 
-   return 0;
+  return 0;
 }

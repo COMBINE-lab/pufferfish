@@ -1,21 +1,21 @@
 #include "FastxParser.hpp"
-#include <vector>
-#include <iostream>
 #include <cmath>
+#include <iostream>
 #include <iterator>
 #include <type_traits>
+#include <vector>
 
-#include "spdlog/spdlog.h"
-#include "jellyfish/mer_dna.hpp"
+#include "CLI/Timer.hpp"
+#include "CanonicalKmer.hpp"
+#include "CanonicalKmerIterator.hpp"
 #include "PufferFS.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
-#include "CanonicalKmer.hpp"
-#include "CanonicalKmerIterator.hpp"
-#include "CLI/Timer.hpp"
+#include "jellyfish/mer_dna.hpp"
+#include "spdlog/spdlog.h"
 
-#include "Util.hpp"
 #include "PufferfishIndex.hpp"
+#include "Util.hpp"
 
 int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
   PufferfishIndex pi(validateOpts.indexDir);
@@ -26,7 +26,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
   size_t notFound = 0;
   size_t totalHits = 0;
   {
-    CLI::AutoTimer timer {"searching kmers", CLI::Timer::Big};
+    CLI::AutoTimer timer{"searching kmers", CLI::Timer::Big};
     std::vector<std::string> read_file = {validateOpts.refFile};
     fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
     parser.start();
@@ -39,7 +39,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
       // Here, rg will contain a chunk of read pairs
       // we can process.
       for (auto& rp : rg) {
-        //kmer_pos = 0;
+        // kmer_pos = 0;
         if (rn % 500000 == 0) {
           std::cerr << "rn : " << rn << "\n";
           std::cerr << "found = " << found << ", notFound = " << notFound
@@ -76,24 +76,19 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
            }
            }
           */
-        
-          
+
         pufferfish::CanonicalKmerIterator kit1(r1);
         for (; kit1 != kit_end; ++kit1) {
-          //if (kit1.kmerIsValid()) {
-            auto phits = pi.getRefPos(*kit1);
-            if (phits.empty()) {
-              ++notFound;
-            } else {
-              ++found;
-              totalHits += phits.refRange.size();
-            }
-            //}
+          auto phits = pi.getRefPos(*kit1);
+          if (phits.empty()) {
+            ++notFound;
+          } else {
+            ++found;
+            totalHits += phits.refRange.size();
+          }
         }
-          
-        
+      }
     }
-  }
   }
   std::cerr << "found = " << found << ", not found = " << notFound << "\n";
   std::cerr << "total hits = " << totalHits << "\n";

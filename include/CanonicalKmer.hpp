@@ -3,10 +3,11 @@
 
 #include "jellyfish/mer_dna.hpp"
 
-// NO_MATCH => two k-mers k1, and k2 are distinct such that k1 != k2 and rc(k1) != k2
+// NO_MATCH => two k-mers k1, and k2 are distinct such that k1 != k2 and rc(k1)
+// != k2
 // IDENTITY_MATCH => k1 = k2
 // TWIN_MATCH => rc(k1) = k2
-enum class KmerMatchType : uint8_t {NO_MATCH=0, IDENTITY_MATCH, TWIN_MATCH};
+enum class KmerMatchType : uint8_t { NO_MATCH = 0, IDENTITY_MATCH, TWIN_MATCH };
 
 using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
 
@@ -21,8 +22,9 @@ class CanonicalKmer {
 private:
   my_mer fw_;
   my_mer rc_;
+
 public:
-  CanonicalKmer()=default;
+  CanonicalKmer() = default;
   CanonicalKmer(CanonicalKmer&& other) = default;
   CanonicalKmer(CanonicalKmer& other) = default;
   CanonicalKmer(const CanonicalKmer& other) = default;
@@ -33,7 +35,9 @@ public:
 
   inline bool fromStr(const std::string& s) {
     auto k = my_mer::k();
-    if (s.length() < k) { return false; }
+    if (s.length() < k) {
+      return false;
+    }
     for (size_t i = 0; i < k; ++i) {
       fw_.shift_right(s[i]);
       rc_.shift_left(my_mer::complement(s[i]));
@@ -43,7 +47,7 @@ public:
 
   inline bool fromStr(const char* s) {
     auto k = my_mer::k();
-    //if (s.length() < k) { return false; }
+    // if (s.length() < k) { return false; }
     for (size_t i = 0; i < k; ++i) {
       fw_.shift_right(s[i]);
       rc_.shift_left(my_mer::complement(s[i]));
@@ -66,17 +70,17 @@ public:
     return fw_.shift_left(c);
   }
 
-  inline auto shiftFw(char c) -> decltype(this->fw_.shift_right(c)){
+  inline auto shiftFw(char c) -> decltype(this->fw_.shift_right(c)) {
     int x = my_mer::code(c);
-    if(x == -1)
+    if (x == -1)
       return 'N';
     rc_.shift_left(my_mer::complement(x));
     return my_mer::rev_code(fw_.shift_right(x));
   }
 
-  inline auto shiftBw(char c) -> decltype(this->fw_.shift_left(c)){
+  inline auto shiftBw(char c) -> decltype(this->fw_.shift_left(c)) {
     int x = my_mer::code(c);
-    if(x == -1)
+    if (x == -1)
       return 'N';
     rc_.shift_right(my_mer::complement(x));
     return my_mer::rev_code(fw_.shift_left(x));
@@ -90,39 +94,40 @@ public:
     return (fw_.word(0) < rc_.word(0)) ? fw_ : rc_;
   }
 
-  inline const my_mer& fwMer() const {
-    return fw_;
-  }
+  inline const my_mer& fwMer() const { return fw_; }
 
-  inline const my_mer& rcMer() const {
-    return rc_;
-  }
+  inline const my_mer& rcMer() const { return rc_; }
 
-  inline uint64_t fwWord() const {
-    return fw_.word(0);
-  }
+  inline uint64_t fwWord() const { return fw_.word(0); }
 
-  inline uint64_t rcWord() const {
-    return rc_.word(0);
-  }
+  inline uint64_t rcWord() const { return rc_.word(0); }
 
   inline KmerMatchType isEquivalent(const my_mer& m) const {
-    return m.word(0) == fwWord() ? KmerMatchType::IDENTITY_MATCH :
-      (m.word(0) == rcWord() ? KmerMatchType::TWIN_MATCH : KmerMatchType::NO_MATCH);
+    return m.word(0) == fwWord()
+               ? KmerMatchType::IDENTITY_MATCH
+               : (m.word(0) == rcWord() ? KmerMatchType::TWIN_MATCH
+                                        : KmerMatchType::NO_MATCH);
   }
   inline KmerMatchType isEquivalent(uint64_t m) const {
-    return m == fwWord() ? KmerMatchType::IDENTITY_MATCH :
-      (m == rcWord() ? KmerMatchType::TWIN_MATCH : KmerMatchType::NO_MATCH);
+    return m == fwWord() ? KmerMatchType::IDENTITY_MATCH
+                         : (m == rcWord() ? KmerMatchType::TWIN_MATCH
+                                          : KmerMatchType::NO_MATCH);
   }
 
   inline std::string to_str() const { return fw_.to_str(); }
 
-  bool operator==(const CanonicalKmer& rhs) const { return this->fw_ == rhs.fw_; }
-  bool operator!=(const CanonicalKmer& rhs) const { return !this->operator==(rhs); }
+  bool operator==(const CanonicalKmer& rhs) const {
+    return this->fw_ == rhs.fw_;
+  }
+  bool operator!=(const CanonicalKmer& rhs) const {
+    return !this->operator==(rhs);
+  }
   bool operator<(const CanonicalKmer& rhs) const { return this->fw_ < rhs.fw_; }
-  bool operator<=(const CanonicalKmer& rhs) const {return *this < rhs || *this == rhs;}
-  bool operator>(const CanonicalKmer& rhs) const {return !(*this <= rhs);}
-  bool operator>=(const CanonicalKmer& rhs) const {return !(*this < rhs);}
+  bool operator<=(const CanonicalKmer& rhs) const {
+    return *this < rhs || *this == rhs;
+  }
+  bool operator>(const CanonicalKmer& rhs) const { return !(*this <= rhs); }
+  bool operator>=(const CanonicalKmer& rhs) const { return !(*this < rhs); }
   bool is_homopolymer() const { return fw_.is_homopolymer(); }
 };
 

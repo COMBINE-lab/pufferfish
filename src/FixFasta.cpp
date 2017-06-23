@@ -1,39 +1,36 @@
+#include "FastxParser.hpp"
+#include "jellyfish/mer_dna.hpp"
+#include "popl.hpp"
+#include "sparsepp/spp.h"
+#include "spdlog/spdlog.h"
+#include "xxhash.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <random>
 #include <type_traits>
 #include <unordered_map>
-#include <map>
 #include <vector>
-#include "FastxParser.hpp"
-#include "xxhash.h"
-#include "sparsepp/spp.h"
-#include "jellyfish/mer_dna.hpp"
-#include "spdlog/spdlog.h"
-#include "popl.hpp"
 
 using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
 void fixFasta(single_parser* parser,
-              //std::string& outputDir,
-              bool keepDuplicates,
-              uint32_t k,
-              std::mutex& iomutex,
-              std::shared_ptr<spdlog::logger> log,
-              std::string outFile) {
-              //std::shared_ptr<spdlog::logger> log) {
+              // std::string& outputDir,
+              bool keepDuplicates, uint32_t k, std::mutex& iomutex,
+              std::shared_ptr<spdlog::logger> log, std::string outFile) {
+  // std::shared_ptr<spdlog::logger> log) {
   // Create a random uniform distribution
   std::default_random_engine eng(271828);
   std::uniform_int_distribution<> dis(0, 3);
   // Hashers for getting txome signature
-  //picosha2::hash256_one_by_one seqHasher; seqHasher.init();
-  //picosha2::hash256_one_by_one nameHasher; nameHasher.init();
+  // picosha2::hash256_one_by_one seqHasher; seqHasher.init();
+  // picosha2::hash256_one_by_one nameHasher; nameHasher.init();
 
   uint32_t n{0};
   std::vector<std::string> transcriptNames;
@@ -47,7 +44,7 @@ void fixFasta(single_parser* parser,
   using TranscriptList = std::vector<uint32_t>;
   using KmerBinT = uint64_t;
 
-  bool clipPolyA = true; 
+  bool clipPolyA = true;
 
   struct DupInfo {
     uint64_t txId;
@@ -73,12 +70,13 @@ void fixFasta(single_parser* parser,
   // rsdic::RSDicBuilder rsdb;
   std::vector<uint64_t>
       onePos; // Positions in the bit array where we should write a '1'
-  // remember the initial lengths (e.g., before clipping etc., of all transcripts)
+  // remember the initial lengths (e.g., before clipping etc., of all
+  // transcripts)
   std::vector<uint32_t> completeLengths;
   // the stream of transcript sequence
   fmt::MemoryWriter txpSeqStream;
   {
-    //ScopedTimer timer;
+    // ScopedTimer timer;
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     auto rg = parser->getReadGroup();
@@ -91,13 +89,15 @@ void fixFasta(single_parser* parser,
                            [](const char a) -> bool { return !(isprint(a)); }),
             readStr.end());
 
-        //seqHasher.process(readStr.begin(), readStr.end());
+        // seqHasher.process(readStr.begin(), readStr.end());
 
         uint32_t readLen = readStr.size();
         uint32_t completeLen = readLen;
 
         // get the hash to check for collisions before we change anything.
-        auto txStringHash = XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())), readLen, 0);
+        auto txStringHash =
+            XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
+                  readLen, 0);
 
         // First, replace non ATCG nucleotides
         for (size_t b = 0; b < readLen; ++b) {
@@ -152,7 +152,8 @@ void fixFasta(single_parser* parser,
 
           // The name of the current transcript
           auto& recHeader = read.name;
-          auto processedName = recHeader.substr(0, recHeader.find_first_of(sepStr));
+          auto processedName =
+              recHeader.substr(0, recHeader.find_first_of(sepStr));
 
           // Add this transcript, indexed by it's sequence's hash value
           // to the potential duplicate list.
@@ -163,16 +164,19 @@ void fixFasta(single_parser* parser,
             for (auto& dupInfo : dupList) {
               // they must be of the same length
               if (readLen == dupInfo.txLen) {
-                bool collision = (readStr.compare(0, readLen, txpSeqStream.data() + dupInfo.txOffset, readLen) == 0);
+                bool collision =
+                    (readStr.compare(0, readLen,
+                                     txpSeqStream.data() + dupInfo.txOffset,
+                                     readLen) == 0);
                 if (collision) {
                   ++numDups;
                   didCollide = true;
                   duplicateNames[dupInfo.txId].push_back(processedName);
                   continue;
                 } // if collision
-              } // if readLen == dupInfo.txLen
-            } // for dupInfo : dupList
-          } // if we had a potential duplicate
+              }   // if readLen == dupInfo.txLen
+            }     // for dupInfo : dupList
+          }       // if we had a potential duplicate
 
           if (!keepDuplicates and didCollide) {
             // roll back the txp index & skip the rest of this loop
@@ -182,17 +186,19 @@ void fixFasta(single_parser* parser,
 
           // If there was no collision, then add the transcript
           transcriptNames.emplace_back(processedName);
-          //nameHasher.process(processedName.begin(), processedName.end());
+          // nameHasher.process(processedName.begin(), processedName.end());
 
           // The position at which this transcript starts
           transcriptStarts.push_back(currIndex);
           // The un-molested length of this transcript
           completeLengths.push_back(completeLen);
 
-          // If we made it here, we were not an actual duplicate, so add this transcript
+          // If we made it here, we were not an actual duplicate, so add this
+          // transcript
           // for future duplicate checking.
           if (!keepDuplicates or (keepDuplicates and !didCollide)) {
-            potentialDuplicates[txStringHash].push_back({txpIndex, currIndex, readLen});
+            potentialDuplicates[txStringHash].push_back(
+                {txpIndex, currIndex, readLen});
           }
 
           txpSeqStream << readStr;
@@ -200,9 +206,9 @@ void fixFasta(single_parser* parser,
           currIndex += readLen + 1;
           onePos.push_back(currIndex - 1);
         } else {
-            log->warn("Discarding entry with header [{}], since it had length 0 "
-                      "(perhaps after poly-A clipping)",
-                      read.name);
+          log->warn("Discarding entry with header [{}], since it had length 0 "
+                    "(perhaps after poly-A clipping)",
+                    read.name);
         }
       }
       if (n % 10000 == 0) {
@@ -213,10 +219,15 @@ void fixFasta(single_parser* parser,
   std::cerr << "\n";
   if (numDups > 0) {
     if (!keepDuplicates) {
-      log->warn("Removed {} transcripts that were sequence duplicates of indexed transcripts.", numDups);
-      log->warn("If you wish to retain duplicate transcripts, please use the `--keepDuplicates` flag");
+      log->warn("Removed {} transcripts that were sequence duplicates of "
+                "indexed transcripts.",
+                numDups);
+      log->warn("If you wish to retain duplicate transcripts, please use the "
+                "`--keepDuplicates` flag");
     } else {
-      log->warn("There were {} transcripts that would need to be removed to avoid duplicates.", numDups);
+      log->warn("There were {} transcripts that would need to be removed to "
+                "avoid duplicates.",
+                numDups);
     }
   }
 
@@ -224,7 +235,8 @@ void fixFasta(single_parser* parser,
   std::ofstream dupClusterStream(outputDir + "duplicate_clusters.tsv");
   {
     dupClusterStream << "RetainedTxp" << '\t' << "DuplicateTxp" << '\n';
-    for (auto kvIt = duplicateNames.begin(); kvIt != duplicateNames.end(); ++kvIt) {
+    for (auto kvIt = duplicateNames.begin(); kvIt != duplicateNames.end();
+  ++kvIt) {
       auto& retainedName = transcriptNames[kvIt->first];
       for (auto& droppedName : kvIt->second) {
         dupClusterStream << retainedName << '\t' << droppedName << '\n';
@@ -244,7 +256,6 @@ void fixFasta(single_parser* parser,
   // And clear the stream
   txpSeqStream.clear();
 
-
   std::ofstream ffa(outFile);
   size_t prev1{0};
   for (size_t i = 0; i < transcriptNames.size(); ++i) {
@@ -257,21 +268,19 @@ void fixFasta(single_parser* parser,
   ffa.close();
 }
 
-
 int main(int argc, char* argv[]) {
   uint32_t k;
   std::string cfile;
   std::string rfile;
   popl::Switch helpOption("h", "help", "produce help message");
-  popl::Value<uint32_t> kOpt("k", "klen", "length of the k-mer with which the compacted dBG was built", 31, &k);
+  popl::Value<uint32_t> kOpt(
+      "k", "klen", "length of the k-mer with which the compacted dBG was built",
+      31, &k);
   popl::Value<std::string> inOpt("i", "input", "input fasta file");
   popl::Value<std::string> outOpt("o", "out", "output fasta file");
 
   popl::OptionParser op("Allowed options");
-	op.add(helpOption)
-    .add(kOpt)
-    .add(inOpt)
-    .add(outOpt);
+  op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
 
   op.parse(argc, argv);
   if (helpOption.isSet()) {
@@ -293,6 +302,7 @@ int main(int argc, char* argv[]) {
   transcriptParserPtr->start();
   std::mutex iomutex;
   bool keepDuplicates{true};
-  fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console, outFile);
+  fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console,
+           outFile);
   return 0;
 }

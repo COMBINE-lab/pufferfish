@@ -3,14 +3,14 @@
 
 #include <vector>
 
+#include "cereal/archives/json.hpp"
 #include "core/range.hpp"
 #include "sdsl/int_vector.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
-#include "cereal/archives/json.hpp"
 
-#include "CanonicalKmer.hpp"
 #include "BooPHF.h"
+#include "CanonicalKmer.hpp"
 #include "Util.hpp"
 
 class PufferfishIndex {
@@ -18,6 +18,7 @@ class PufferfishIndex {
   using boophf_t = boomphf::mphf<uint64_t, hasher_t>;
   using EqClassID = uint32_t;
   using EqClassLabel = std::vector<uint32_t>;
+
 private:
   uint32_t k_{0};
   uint32_t twok_{0};
@@ -25,7 +26,7 @@ private:
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
-  //std::vector<util::ContigPosInfo> cPosInfo_;
+  // std::vector<util::ContigPosInfo> cPosInfo_;
   std::vector<std::vector<util::Position>> contigTable_;
   uint64_t numContigs_{0};
   sdsl::bit_vector contigBoundary_;
@@ -36,6 +37,7 @@ private:
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
   size_t lastSeqPos_{std::numeric_limits<size_t>::max()};
+
 public:
   PufferfishIndex();
   PufferfishIndex(const std::string& indexPath);
@@ -44,7 +46,8 @@ public:
   // for a given contig.
   EqClassID getEqClassID(uint32_t contigID);
 
-  // Get the equivalence class label for a contig (i.e., the set of reference sequences containing
+  // Get the equivalence class label for a contig (i.e., the set of reference
+  // sequences containing
   // the contig).
   const EqClassLabel& getEqClassLabel(uint32_t contigID);
 
