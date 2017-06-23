@@ -1,6 +1,6 @@
 # What is pufferfish?
 
-**short answer** : Pufferfish is a new time and memory-efficient data structure for indexing the compacted, colored de Bruijn graph (ccdBG).  
+**short answer** : Pufferfish is a new time and memory-efficient data structure for indexing a compacted, colored de Bruijn graph (ccdBG).  
 
 **long answer** : Though the de Bruijn Graph (dBG) has enjoyed tremendous popularity as an assembly and comparision data structure, it has only relatively recently begun to see use as an index of the reference sequences (e.g. [deBGA](https://github.com/HongzheGuo/deBGA), [kallisto](https://github.com/pachterlab/kallisto)).  Particularly, these tools index the _compacted_ dBG (cdBG), in which all non-branching paths are collapsed into individual nodes and labeled with the string they spell out.  This data structure is particularly well-suited for representing repetitive reference sequences, since a single contig in the cdBG represents all occurences of the repeated sequence.  The original positions in the reference can be recovered with the help of an auxiliary "contig table", that maps each contig to the reference sequence, position (and orientation) where it appears as a substring.  Moreoever, the cdBG can be built on multiple reference sequences (transcripts, chromosomes, genomes), where each reference is given a distinct color.  The resulting structure, which also encodes the relationships between the cdBGs of the underlying refernece sequences is called the compacted, colored de Bruijn graph.
 
