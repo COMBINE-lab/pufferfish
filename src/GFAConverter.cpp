@@ -176,7 +176,7 @@ void GFAConverter::processContigSeq(
       ids.emplace_back(contigId, plus);
       new2seqAoldids[newId] = std::make_pair(seq, ids);
       if (seq.size() == k)
-        notVisited[newId] = true;
+        ksizeContig.push_back(newId);
     }
     old2newids[contigId].emplace_back(newId, plus);
   }
@@ -184,10 +184,10 @@ void GFAConverter::processContigSeq(
 
 void GFAConverter::randomWalk() {
   spp::sparse_hash_map<uint64_t, pufg::Node>& nodes = semiCG.getVertices();
-  std::cerr << "# of contigs with length = 31 : " << notVisited.size() << "\n";
+  std::cerr << "# of contigs with length = 31 : " << ksizeContig.size() << "\n";
   std::cerr << "\nStart merging .. \n";
-  for (auto& kv : notVisited) {
-    uint64_t curId = kv.first;
+  for (auto& v : ksizeContig) {
+    uint64_t curId = v;
     pufg::Node& curNode = nodes[curId];
     // I strongly rely on TwoPaCo here for not having a case of possible merging
     // for in & out nodes both while none of in/out nodes are of size k!!

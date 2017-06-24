@@ -29,7 +29,7 @@ private:
       uint64_t,
       std::pair<std::string, std::vector<std::pair<uint64_t, bool>>>>
       new2seqAoldids;
-  spp::sparse_hash_map<uint64_t, bool> notVisited;
+  std::vector<uint64_t> ksizeContig;
   spp::sparse_hash_map<uint64_t, std::vector<std::pair<uint64_t, bool>>>
       old2newids;
   // path maps each transcript_id to a pair of <contig_id, orientation>
