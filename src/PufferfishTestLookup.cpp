@@ -79,7 +79,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
 
         pufferfish::CanonicalKmerIterator kit1(r1);
         for (; kit1 != kit_end; ++kit1) {
-          auto phits = pi.getRefPos(*kit1);
+          auto phits = pi.getRefPos(kit1->first);
           if (phits.empty()) {
             ++notFound;
           } else {

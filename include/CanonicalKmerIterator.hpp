@@ -13,31 +13,31 @@ namespace pufferfish {
 // class CanonicalKmerIterator : public std::iterator<std::input_iterator_tag,
 // std::pair<CanonicalKmer, int>, int> {
 class CanonicalKmerIterator
-    : public std::iterator<std::input_iterator_tag, CanonicalKmer, int> {
+  : public std::iterator<std::input_iterator_tag, std::pair<CanonicalKmer, int>, int> {
   stx::string_view s_;
-  // std::pair<CanonicalKmer, int> p_;
-  CanonicalKmer km_;
-  int pos_;
+  std::pair<CanonicalKmer, int> p_;
+  //CanonicalKmer km_;
+  //int pos_;
   bool invalid_;
   int lastinvalid_;
   int k_;
 
 public:
-  typedef CanonicalKmer value_type;
+  typedef std::pair<CanonicalKmer,int> value_type;
   typedef value_type& reference;
   typedef value_type* pointer;
   typedef std::input_iterator_tag iterator_category;
   typedef int64_t difference_type;
   CanonicalKmerIterator()
-      : s_(), /*p_(),*/ km_(), pos_(), invalid_(true), lastinvalid_(-1),
+    : s_(), p_(), /*km_(), pos_(),*/ invalid_(true), lastinvalid_(-1),
         k_(CanonicalKmer::k()) {}
   CanonicalKmerIterator(const std::string& s)
-      : s_(s), /*p_(),*/ km_(), pos_(), invalid_(false), lastinvalid_(-1),
+    : s_(s), p_(), /*km_(), pos_(),*/ invalid_(false), lastinvalid_(-1),
         k_(CanonicalKmer::k()) {
     find_next(-1, -1);
   }
   CanonicalKmerIterator(const CanonicalKmerIterator& o)
-      : s_(o.s_), /*p_(o.p_),*/ km_(o.km_), pos_(o.pos_), invalid_(o.invalid_),
+    : s_(o.s_), p_(o.p_), /*km_(o.km_), pos_(o.pos_),*/ invalid_(o.invalid_),
         lastinvalid_(o.lastinvalid_), k_(o.k_) {}
 
 private:
@@ -50,9 +50,9 @@ private:
       int c = my_mer::code(s_[j]);
       // c is a valid code if != -1
       if (c != -1) {
-        km_.shiftFw(c);
+        p_.first.shiftFw(c);
         if (j - lastinvalid_ >= k_) {
-          pos_ = i;
+          p_.second = i;
           return;
         }
       } else {
@@ -71,10 +71,10 @@ public:
   // post: *iter is now exhausted
   //       OR *iter is the next valid pair of kmer and location
   inline CanonicalKmerIterator& operator++() {
-    auto lpos = pos_ + k_;
+    auto lpos = p_.second + k_;
     invalid_ = invalid_ || lpos >= s_.length();
     if (!invalid_) {
-      find_next(pos_, lpos - 1);
+      find_next(p_.second, lpos - 1);
       /** --- implementation that doesn't skip non-{ACGT}
       int c = my_mer::code(s_[lpos]);
       if (c!=-1) { km_.shiftFw(c); } else { lastinvalid_ = pos_ + k_; }
@@ -100,19 +100,19 @@ public:
   //       (val == false) otherwise.
   inline bool operator==(const CanonicalKmerIterator& o) {
     return (invalid_ || o.invalid_) ? invalid_ && o.invalid_
-                                    : ((km_ == o.km_) && (pos_ == o.pos_));
+                                    : ((p_.first == o.p_.first) && (p_.second == o.p_.second));
   }
 
   inline bool operator!=(const CanonicalKmerIterator& o) {
     return !this->operator==(o);
   }
 
-  inline bool kmerIsValid() { return (pos_ + k_ - lastinvalid_ > k_); }
+  inline bool kmerIsValid() { return (p_.second + k_ - lastinvalid_ > k_); }
 
   // use:  p = *iter;
   // pre:
   // post: p is NULL or a pair of Kmer and int
-  inline reference operator*() { return km_; }
+  inline reference operator*() { return p_; }
 
   // use:  example 1: km = iter->first;
   //       example 2:  i = iter->second;

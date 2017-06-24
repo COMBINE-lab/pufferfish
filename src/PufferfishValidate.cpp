@@ -50,8 +50,8 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
         ++rn;
         auto& r1 = rp.seq;
         pufferfish::CanonicalKmerIterator kit1(r1);
-        for (size_t i = 0; kit1 != kit_end; ++kit1, ++i) {
-          auto phits = pi.getRefPos(*kit1);
+        for (; kit1 != kit_end; ++kit1) {
+          auto phits = pi.getRefPos(kit1->first);
           if (phits.empty()) {
             ++notFound;
           } else {
@@ -65,12 +65,12 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
               if (pi.refName(rpos.transcript_id()) == rp.name) {
                 foundTxp = true;
                 auto refInfo = phits.decodeHit(rpos);
-                if (refInfo.pos == i - k + 1) {
+                if (refInfo.pos == kit1->second) {
                   correctPos = true;
                 } else {
-                  // cor = phits.contigOrientation_;
-                  // clen = phits.contigLen_;
-                  // wrongPos.push_back(refInfo.pos);
+                  cor = phits.contigOrientation_;
+                  clen = phits.contigLen_;
+                  wrongPos.push_back(refInfo.pos);
                 }
               } else {
               }
@@ -81,11 +81,11 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
                 ++correctPosCntr;
               } else {
                 std::cerr
-                    << "correct pos = " << i - k + 1 << ", found "
+                    << "correct pos = " << kit1->second << ", found "
                     << util::str(wrongPos) << ", contig orientation = " << cor
                     << ", contig len = " << clen
-                    //<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
-                    << ", contig rank = " << pi.contigID(*kit1) << '\n';
+                   ///<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
+                    << ", contig rank = " << pi.contigID(kit1->first) << '\n';
                 ++incorrectPosCntr;
               }
             } else {
