@@ -44,7 +44,37 @@ bool isRevcomp(std::string s) {
   }
   return true;
 }
-std::vector<std::pair<std::string, bool>> explode(const stx::string_view str,
+
+std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str, const char& ch) {
+  std::string next;
+  std::vector<std::pair<uint64_t, bool>> result;
+  // For each character in the string
+  for (auto it = str.begin(); it != str.end(); it++) {
+    // If we've hit the terminal character
+    if (*it == '+' or *it == '-') {
+      bool orientation = true;
+      // If we have some characters accumulated
+      // Add them to the result vector
+      if (!next.empty()) {
+        if (*it == '-') {
+          orientation = false;
+        }
+        result.emplace_back(std::stoll(next), orientation);
+        next.clear();
+      }
+    } else if (*it != ch) {
+      // Accumulate the next character into the sequence
+      next += *it;
+    }
+  }
+  if (!next.empty())
+    result.emplace_back(std::stoll(next),
+                        true); // this case shouldn't even happen
+  return result;
+}
+
+
+/*std::vector<std::pair<std::string, bool>> explode(const stx::string_view str,
                                                   const char& ch) {
   std::string next;
   std::vector<std::pair<std::string, bool>> result;
@@ -71,7 +101,7 @@ std::vector<std::pair<std::string, bool>> explode(const stx::string_view str,
     result.emplace_back(next, true); // this case shouldn't even happen
   return result;
 }
-
+*/
 bool is_number(const std::string& s) {
   return !s.empty() && std::find_if(s.begin(), s.end(), [](char c) {
                          return !std::isdigit(c);

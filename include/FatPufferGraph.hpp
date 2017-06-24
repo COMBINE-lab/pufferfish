@@ -5,7 +5,7 @@
 #include "sparsepp/spp.h"
 #include <algorithm>
 #include <iostream>
-#include <map>
+//#include <map>
 
 namespace pufg {
 
@@ -36,7 +36,7 @@ inline EdgeType typeFromBools_(bool sign, bool toSign) {
 }
 
 struct edgetuple {
-  edgetuple(bool fSign, std::string cId, bool tSign) : contigId(cId) {
+  edgetuple(bool fSign, uint64_t cId, bool tSign) : contigId(cId) {
     t = typeFromBools_(fSign, tSign);
   }
 
@@ -50,7 +50,7 @@ struct edgetuple {
   }
 
   EdgeType t;
-  std::string contigId;
+  uint64_t contigId;
 };
 
 inline bool operator==(const edgetuple& e1, const edgetuple& e2) {
@@ -83,7 +83,7 @@ class Node {
 
 public:
   Node() {}
-  Node(std::string idIn) { id = idIn; }
+  Node(uint64_t idIn) { id = idIn; }
 
   int8_t getIndegP() { return getCountPlus_(in_edges); }
 
@@ -98,13 +98,13 @@ public:
     spp::sparse_hash_set<std::string> distinctNeighbors;
     for (auto& e : in_edges) {
       if (!e.baseSign()) {
-        std::string name = e.contigId + (e.neighborSign() ? "-" : "+");
+        std::string name = std::to_string(e.contigId) + (e.neighborSign() ? "-" : "+");
         distinctNeighbors.insert(name);
       }
     }
     for (auto& e : out_edges) {
       if (e.baseSign()) {
-        std::string name = e.contigId + (e.neighborSign() ? "+" : "-");
+        std::string name = std::to_string(e.contigId) + (e.neighborSign() ? "+" : "-");
         distinctNeighbors.insert(name);
       }
     }
@@ -115,13 +115,13 @@ public:
     spp::sparse_hash_set<std::string> distinctNeighbors;
     for (auto& e : in_edges) {
       if (e.baseSign()) {
-        std::string name = e.contigId + (e.neighborSign() ? "+" : "-");
+        std::string name = std::to_string(e.contigId) + (e.neighborSign() ? "+" : "-");
         distinctNeighbors.insert(name);
       }
     }
     for (auto& e : out_edges) {
       if (!e.baseSign()) {
-        std::string name = e.contigId + (e.neighborSign() ? "-" : "+");
+        std::string name = std::to_string(e.contigId) + (e.neighborSign() ? "-" : "+");
         distinctNeighbors.insert(name);
       }
     }
@@ -161,9 +161,9 @@ public:
     return out_edges.front();
   }
 
-  std::string& getId() { return id; }
+  uint64_t& getId() { return id; }
 
-  void insertNodeTo(std::string nodeId, bool sign, bool toSign) {
+  void insertNodeTo(uint64_t nodeId, bool sign, bool toSign) {
     edgetuple ekey = {sign, nodeId, toSign};
     if (std::find(out_edges.begin(), out_edges.end(), ekey) ==
         out_edges.end()) {
@@ -171,7 +171,7 @@ public:
     }
   }
 
-  void removeEdgeTo(std::string nodeId) {
+  void removeEdgeTo(uint64_t nodeId) {
     out_edges.erase(std::remove_if(out_edges.begin(), out_edges.end(),
                                    [&nodeId](edgetuple& etup) -> bool {
                                      return etup.contigId == nodeId;
@@ -179,14 +179,14 @@ public:
                     out_edges.end());
   }
 
-  void insertNodeFrom(std::string nodeId, bool sign, bool fromSign) {
+  void insertNodeFrom(uint64_t nodeId, bool sign, bool fromSign) {
     edgetuple ekey = {sign, nodeId, fromSign};
     if (std::find(in_edges.begin(), in_edges.end(), ekey) == in_edges.end()) {
       in_edges.emplace_back(ekey);
     }
   }
 
-  void removeEdgeFrom(std::string nodeId) {
+  void removeEdgeFrom(uint64_t nodeId) {
     in_edges.erase(std::remove_if(in_edges.begin(), in_edges.end(),
                                   [&nodeId](edgetuple& etup) -> bool {
                                     return etup.contigId == nodeId;
@@ -194,7 +194,7 @@ public:
                    in_edges.end());
   }
 
-  bool checkExistence(bool bSign, std::string toId, bool toSign) {
+  bool checkExistence(bool bSign, uint64_t toId, bool toSign) {
     edgetuple ekey = {bSign, toId, toSign};
     return (std::find(out_edges.begin(), out_edges.end(), ekey) !=
             out_edges.end());
@@ -206,23 +206,23 @@ public:
 private:
   // TODO: Make the actual node IDs into numbers instead of strings
   // uint64_t id_;
-  std::string id;
+  uint64_t id;
   std::vector<edgetuple> out_edges;
   std::vector<edgetuple> in_edges;
 };
 
 class Graph {
 private:
-  spp::sparse_hash_map<std::string, Node> Vertices;
+  spp::sparse_hash_map<uint64_t, Node> Vertices;
   // std::vector<Node> Vertices;
   // std::vector<std::string> NodeNames;
   // std::vector<std::pair<Node,Node> > Edges ;
 
 public:
   // case where I do
-  spp::sparse_hash_map<std::string, Node>& getVertices() { return Vertices; }
+  spp::sparse_hash_map<uint64_t, Node>& getVertices() { return Vertices; }
 
-  bool getNode(std::string nodeId) {
+  bool getNode(uint64_t nodeId) {
     // return (Vertices.find(nodeId) == Vertices.end());
     if (Vertices.find(nodeId) == Vertices.end())
       return true;
@@ -230,7 +230,7 @@ public:
       return false;
   }
 
-  bool addEdge(std::string fromId, bool fromSign, std::string toId,
+  bool addEdge(uint64_t fromId, bool fromSign, uint64_t toId,
                bool toSign) {
     // case 1 where the from node does not exist
     // None of the nodes exists
@@ -256,7 +256,7 @@ public:
     // Edges.emplace_back(fromNode,toNode) ;
   }
 
-  bool removeNode(std::string id) {
+  bool removeNode(uint64_t id) {
     //		if (id == "00125208939" or id == "00225208939" or id ==
     //"00325208939")
     //				std::cerr << "remove node " << id << "\n";
