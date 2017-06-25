@@ -186,6 +186,7 @@ int main(int argc, char* argv[]) {
 
   return 0;
 
+  /*
   int found = 0;
   int notFound = 0;
   int notSub = 0;
@@ -212,4 +213,5 @@ int main(int argc, char* argv[]) {
             << " Sub-strings " << notSub << "\n";
 
   return 0;
+  */
 }

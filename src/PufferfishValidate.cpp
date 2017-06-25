@@ -19,7 +19,7 @@
 int pufferfishValidate(util::ValidateOptions& validateOpts) {
   PufferfishIndex pi(validateOpts.indexDir);
   CanonicalKmer::k(pi.k());
-  size_t k = pi.k();
+  //size_t k = pi.k();
   size_t found = 0;
   size_t notFound = 0;
   size_t correctPosCntr = 0;
@@ -65,7 +65,7 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
               if (pi.refName(rpos.transcript_id()) == rp.name) {
                 foundTxp = true;
                 auto refInfo = phits.decodeHit(rpos);
-                if (refInfo.pos == kit1->second) {
+                if (static_cast<int>(refInfo.pos) == kit1->second) {
                   correctPos = true;
                 } else {
                   cor = phits.contigOrientation_;

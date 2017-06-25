@@ -72,6 +72,14 @@ public:
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
+
+  // Returns a ProjectedHits object that contains all of the
+  // projected reference hits for the given kmer.  Uses the results
+  // of the previous contig info (start, end) from qc if the same
+  // contig contains the match.  For correlated searches (e.g., from a read)
+  // this can considerably speed up querying.
+  auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
+
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_

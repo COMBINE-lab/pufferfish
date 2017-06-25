@@ -166,7 +166,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   }
 
   // now we know the size we need --- create our bitvectors and pack!
-  size_t gpos{0};
   size_t w = std::log2(tlen) + 1;
   console->info("positional integer width = {}", w);
   // sdsl::int_vector<> seqVec(tlen, 0, 2);

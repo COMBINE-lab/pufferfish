@@ -144,6 +144,12 @@ private:
   // uint32_t orientMask_
 };
 
+struct QueryCache {
+  uint64_t prevRank;
+  uint64_t contigStart;
+  uint64_t contigEnd;
+};
+
 struct ContigPosInfo {
   size_t offset_;
   uint32_t length_;

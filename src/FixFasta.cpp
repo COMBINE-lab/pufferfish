@@ -24,6 +24,7 @@ void fixFasta(single_parser* parser,
               // std::string& outputDir,
               bool keepDuplicates, uint32_t k, std::mutex& iomutex,
               std::shared_ptr<spdlog::logger> log, std::string outFile) {
+  (void)iomutex;
   // std::shared_ptr<spdlog::logger> log) {
   // Create a random uniform distribution
   std::default_random_engine eng(271828);
@@ -41,8 +42,8 @@ void fixFasta(single_parser* parser,
   uint32_t numNucleotidesReplaced{0};
   std::string polyA(polyAClipLength, 'A');
 
-  using TranscriptList = std::vector<uint32_t>;
-  using KmerBinT = uint64_t;
+  //using TranscriptList = std::vector<uint32_t>;
+  //using KmerBinT = uint64_t;
 
   bool clipPolyA = true;
 
@@ -59,8 +60,8 @@ void fixFasta(single_parser* parser,
   // leeway before
   // we issue any warning.
   size_t tooLong = 200000;
-  size_t numDistinctKmers{0};
-  size_t numKmers{0};
+  //size_t numDistinctKmers{0};
+  //size_t numKmers{0};
   size_t currIndex{0};
   size_t numDups{0};
   std::map<XXH64_hash_t, std::vector<DupInfo>> potentialDuplicates;

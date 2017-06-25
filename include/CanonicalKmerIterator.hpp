@@ -45,7 +45,7 @@ private:
     ++i;
     ++j;
     // j is the last nucleotide in the k-mer we're building
-    for (; j < s_.length(); ++j) {
+    for (; j < static_cast<int>(s_.length()); ++j) {
       // get the code for the last nucleotide, save it as c
       int c = my_mer::code(s_[j]);
       // c is a valid code if != -1
@@ -72,7 +72,7 @@ public:
   //       OR *iter is the next valid pair of kmer and location
   inline CanonicalKmerIterator& operator++() {
     auto lpos = p_.second + k_;
-    invalid_ = invalid_ || lpos >= s_.length();
+    invalid_ = invalid_ || lpos >= static_cast<int>(s_.length());
     if (!invalid_) {
       find_next(p_.second, lpos - 1);
       /** --- implementation that doesn't skip non-{ACGT}

@@ -33,6 +33,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     size_t rn{0};
+    util::QueryCache qc;
     pufferfish::CanonicalKmerIterator kit_end;
     auto rg = parser.getReadGroup();
     while (parser.refill(rg)) {
@@ -79,7 +80,7 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
 
         pufferfish::CanonicalKmerIterator kit1(r1);
         for (; kit1 != kit_end; ++kit1) {
-          auto phits = pi.getRefPos(kit1->first);
+          auto phits = pi.getRefPos(kit1->first, qc);
           if (phits.empty()) {
             ++notFound;
           } else {
