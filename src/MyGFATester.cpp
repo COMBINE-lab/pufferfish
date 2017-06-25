@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
   size_t contig_cnt{0};
   // size_t ref_cnt{0};
   spp::sparse_hash_map<std::string, bool> touchedSegment;
-  spp::sparse_hash_map<std::string, std::string> contigid2seq;
+  spp::sparse_hash_map<uint64_t, std::string> contigid2seq;
   spp::sparse_hash_map<std::string, std::string> reconstructedTr;
 
   int k = 31;
@@ -78,7 +78,8 @@ int main(int argc, char* argv[]) {
     // A segment line
     if (tag == "S") {
       if (util::is_number(id)) {
-        contigid2seq[id] = value;
+		uint64_t contigId = std::stoll(id);
+        contigid2seq[contigId] = value;
         // std::cerr << value << "\n" ;
         // std::exit(2) ;
         // touchedSegment[id] = false ;
@@ -89,7 +90,7 @@ int main(int argc, char* argv[]) {
     // A path line
     if (tag == "P") {
       auto pvalue = splited[2];
-      std::vector<std::pair<std::string, bool>> contigVec =
+      std::vector<std::pair<uint64_t, bool>> contigVec =
           util::explode(pvalue, ',');
       // parse value and add all conitgs to contigVec
       // if(reconstructedTr[id] != "") continue ;

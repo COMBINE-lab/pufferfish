@@ -17,8 +17,8 @@ namespace util {
 using namespace std;
 
 struct cmpByPair {
-  bool operator()(std::pair<std::string, bool> a,
-                  std::pair<std::string, bool> b) const {
+  bool operator()(std::pair<uint64_t, bool> a,
+                  std::pair<uint64_t, bool> b) const {
     return (a.first != b.first) ? (a.first < b.first) : (a.second < b.second);
   }
 };
@@ -232,7 +232,7 @@ struct ProjectedHits {
 char complement(char& c);
 std::string revcomp(std::string s);
 bool isRevcomp(std::string s);
-std::vector<std::pair<std::string, bool>> explode(const stx::string_view str,
+std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str,
                                                   const char& ch);
 bool is_number(const std::string& s);
 // Avoiding un-necessary stream creation + replacing strings with string view

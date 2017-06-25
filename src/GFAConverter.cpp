@@ -13,12 +13,12 @@ void GFAConverter::parseFile() {
   std::string ln;
   std::string tag, id, value;
   size_t contig_cnt{0};
-  std::map<std::pair<std::string, bool>, bool> oldPathStart;
-  std::map<std::pair<std::string, bool>, bool> oldPathEnd;
+  std::map<std::pair<uint64_t, bool>, bool> oldPathStart;
+  std::map<std::pair<uint64_t, bool>, bool> oldPathEnd;
   {
     std::cerr << "Start reading GFA file... \n";
-    spp::sparse_hash_map<std::string, std::string> seq2newid;
-    uint64_t idCntr = 1;
+    spp::sparse_hash_map<std::string, uint64_t> seq2newid;
+    uint64_t idCntr = 0;
     while (std::getline(*file, ln)) {
       char firstC = ln[0];
       if (firstC != 'S' and firstC != 'P')
@@ -31,14 +31,15 @@ void GFAConverter::parseFile() {
       // A segment line
       if (tag == "S") {
         if (util::is_number(id)) {
-          processContigSeq(id, value, seq2newid, idCntr);
+		  uint64_t contigId = std::stoll(id);
+          processContigSeq(contigId, value, seq2newid, idCntr);
         }
         contig_cnt++;
       }
       // A path line
       if (tag == "P") {
         auto pvalue = splited[2];
-        std::vector<std::pair<std::string, bool>> contigVec =
+        std::vector<std::pair<uint64_t, bool>> contigVec =
             util::explode(pvalue, ',');
         // parse value and add all conitgs to contigVec
         path[id] = contigVec;
@@ -91,13 +92,13 @@ void GFAConverter::buildGraph() {
   std::cerr << "Start building the graph...\n";
   // build the graph
   for (auto& kv : path) {
-    std::string pathId = kv.first;
+	//std::string pathId = kv.first;
     auto& contigVec = kv.second;
 
-    std::pair<std::string, bool> prev;
+    std::pair<uint64_t, bool> prev;
     bool pathStart = true;
     for (auto& idOri : contigVec) {
-      std::vector<std::pair<std::string, bool>> newIdList =
+      std::vector<std::pair<uint64_t, bool>> newIdList =
           old2newids[idOri.first];
       if (!idOri.second) {
         std::reverse(newIdList.begin(), newIdList.end()); // As newIdList is a
@@ -107,21 +108,14 @@ void GFAConverter::buildGraph() {
                                                           // old2newids (tested)
       }
       if (pathStart) {
-        std::string id = newIdList[0].first;
+        uint64_t id = newIdList[0].first;
         bool ori = (idOri.second ? newIdList[0].second : !newIdList[0].second);
         prev = std::make_pair(id, ori);
         pathStart = false;
       }
       for (size_t i = 1; i < newIdList.size(); i++) {
-        std::string id = newIdList[i].first;
+        uint64_t id = newIdList[i].first;
         bool ori = (idOri.second ? newIdList[i].second : !newIdList[i].second);
-
-        //						if (id == "00125208939" or id == "00225208939" or id ==
-        //"00325208939" or prev.first == "00125208939" or prev.first ==
-        //"00225208939" or prev.first == "00325208939")
-        //								std::cerr << " Add edge " << prev.first << " " <<
-        //prev.second << " to " << id << " " << ori << "\n";
-
         semiCG.addEdge(prev.first, prev.second, id, ori);
         prev = std::make_pair(id, ori);
       }
@@ -131,8 +125,8 @@ void GFAConverter::buildGraph() {
 }
 
 void GFAConverter::processContigSeq(
-    std::string& contigId, std::string& contigSeq,
-    spp::sparse_hash_map<std::string, std::string>& seq2newid,
+    uint64_t& contigId, std::string& contigSeq,
+    spp::sparse_hash_map<std::string, uint64_t>& seq2newid,
     uint64_t& idCntr) {
   /**
    * Divide every segment into 3 pieces
@@ -161,7 +155,7 @@ void GFAConverter::processContigSeq(
   // assign the proper (new/retrieved) contig id to it
   // int cntr = 1;
   for (std::string seq : seqParts) {
-    std::string newId;
+    uint64_t newId;
     bool plus = true;
     if (seq2newid.find(seq) != seq2newid.end()) {
       newId = seq2newid[seq];
@@ -170,7 +164,7 @@ void GFAConverter::processContigSeq(
       newId = seq2newid[util::revcomp(seq)];
     } else {
       // newId = prefix + std::to_string(cntr) + contigId;
-      newId = std::to_string(idCntr);
+      newId = idCntr;
       idCntr++;
       seq2newid[seq] = newId;
     }
@@ -178,28 +172,22 @@ void GFAConverter::processContigSeq(
     if (new2seqAoldids.find(newId) != new2seqAoldids.end()) {
       new2seqAoldids[newId].second.emplace_back(contigId, plus);
     } else {
-      std::vector<std::pair<std::string, bool>> ids;
+      std::vector<std::pair<uint64_t, bool>> ids;
       ids.emplace_back(contigId, plus);
       new2seqAoldids[newId] = std::make_pair(seq, ids);
       if (seq.size() == k)
-        notVisited[newId] = true;
+        ksizeContig.push_back(newId);
     }
     old2newids[contigId].emplace_back(newId, plus);
-    //	if (contigId == "25208939" or newId == "00125208939" or newId ==
-    //"00225208939" or newId == "00325208939") std::cerr << contigId << ": " <<
-    //newId << " " <<plus << " " << seq << "\n";
-    // cntr++;
   }
-  //	if (old2newids[contigId].size() > 3) std::cerr << "RevComp is true: " <<
-  //contigId << " " << contigSeq << "\n";
 }
 
 void GFAConverter::randomWalk() {
-  spp::sparse_hash_map<std::string, pufg::Node>& nodes = semiCG.getVertices();
-  std::cerr << "# of contigs with length = 31 : " << notVisited.size() << "\n";
+  spp::sparse_hash_map<uint64_t, pufg::Node>& nodes = semiCG.getVertices();
+  std::cerr << "# of contigs with length = 31 : " << ksizeContig.size() << "\n";
   std::cerr << "\nStart merging .. \n";
-  for (auto& kv : notVisited) {
-    std::string curId = kv.first;
+  for (auto& v : ksizeContig) {
+    uint64_t curId = v;
     pufg::Node& curNode = nodes[curId];
     // I strongly rely on TwoPaCo here for not having a case of possible merging
     // for in & out nodes both while none of in/out nodes are of size k!!
@@ -214,29 +202,24 @@ void GFAConverter::randomWalk() {
   std::cerr << "Done merging \n";
 }
 
-void GFAConverter::eraseFromOldList(std::string nodeId) {
+void GFAConverter::eraseFromOldList(uint64_t nodeId) {
   if (new2seqAoldids.contains(nodeId)) {
     auto& seqAoldids = new2seqAoldids[nodeId];
-    std::vector<std::pair<std::string, bool>>& oldids = seqAoldids.second;
+    std::vector<std::pair<uint64_t, bool>>& oldids = seqAoldids.second;
     for (auto& idOri : oldids) {
-      std::string& id = idOri.first;
+      uint64_t& id = idOri.first;
       auto& newids = old2newids[id];
       newids.erase(std::remove_if(
                        newids.begin(), newids.end(),
-                       [&nodeId](std::pair<std::string, bool>& newid) -> bool {
+                       [&nodeId](std::pair<uint64_t, bool>& newid) -> bool {
                          return newid.first == nodeId;
                        }),
                    newids.end());
-      /*				for (size_t i = 0; i < newids.size(); i++) {
-                          if (newids[i].first == nodeId) {
-                                  newids.erase(newids.begin()+i);
-                          }
-                      }*/
     }
   }
 }
 void GFAConverter::mergeIn(pufg::Node& n) {
-  std::string id = n.getId();
+  uint64_t id = n.getId();
   pufg::edgetuple& edge = n.getOnlyRealIn();
   if (!new2seqAoldids.contains(id)) {
     std::cerr << "[mergeIn] NO; the id " << id
@@ -278,7 +261,7 @@ void GFAConverter::mergeIn(pufg::Node& n) {
 }
 
 void GFAConverter::mergeOut(pufg::Node& n) {
-  std::string id = n.getId();
+  uint64_t id = n.getId();
   pufg::edgetuple& edge = n.getOnlyRealOut();
   if (!new2seqAoldids.contains(id)) {
     std::cerr << "[mergeOut] NO; the id " << id
@@ -357,26 +340,26 @@ bool GFAConverter::isCornerCase(pufg::Node& n, bool mergeIn) {
   return false;
 }
 
-bool GFAConverter::is_start(std::string& nodeId) {
+bool GFAConverter::is_start(uint64_t& nodeId) {
   if (pathStart.find(std::make_pair(nodeId, true)) != pathStart.end() or
       pathEnd.find(std::make_pair(nodeId, false)) != pathEnd.end())
     return true;
   return false;
 }
 
-bool GFAConverter::is_end(std::string& nodeId) {
+bool GFAConverter::is_end(uint64_t& nodeId) {
   if (pathStart.find(std::make_pair(nodeId, false)) != pathStart.end() or
       pathEnd.find(std::make_pair(nodeId, true)) != pathEnd.end())
     return true;
   return false;
 }
 
-void GFAConverter::update_start(std::string& newId, bool newOri) {
+void GFAConverter::update_start(uint64_t& newId, bool newOri) {
   pathStart[std::make_pair(newId, newOri)] = true;
   pathEnd[std::make_pair(newId, !newOri)] = true;
 }
 
-void GFAConverter::update_end(std::string& newId, bool newOri) {
+void GFAConverter::update_end(uint64_t& newId, bool newOri) {
   pathStart[std::make_pair(newId, !newOri)] = true;
   pathEnd[std::make_pair(newId, newOri)] = true;
 }
@@ -396,14 +379,14 @@ void GFAConverter::writeFile(const char* gfaFileName) {
              << "\t" << tid << "\t";
     auto vec = p.second;
     bool first = true;
-    std::pair<std::string, bool> prev;
+    std::pair<uint64_t, bool> prev;
     bool firstPiece = true;
     for (size_t i = 0; i < vec.size(); i++) {
       auto newidVec = old2newids[vec[i].first];
       if (!vec[i].second)
         std::reverse(newidVec.begin(), newidVec.end());
       for (auto& idOri : newidVec) {
-        std::string id = idOri.first;
+        uint64_t id = idOri.first;
         bool ori = vec[i].second ? idOri.second : !idOri.second;
         if (!first) {
           if (firstPiece and prev.first == id and prev.second == ori) {
