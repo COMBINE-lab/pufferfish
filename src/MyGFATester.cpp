@@ -17,13 +17,31 @@
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "sparsepp/spp.h"
+#include "CLI/CLI.hpp"
+
+
 int main(int argc, char* argv[]) {
   (void)argc;
-  std::vector<std::string> read_file = {argv[1]};
-  std::string gfa_file = argv[2];
+  std::vector<std::string> read_file;//= {argv[1]};
+  std::string rfname;//= {argv[1]};
+  std::string gfa_file;//= argv[2];
 
-  std::cerr << "\n fasta file " << argv[1] << "\n";
-  std::cerr << "\n gfa file " << argv[2] << "\n";
+  //std::cerr << "\n fasta file " << argv[1] << "\n";
+  //std::cerr << "\n gfa file " << argv[2] << "\n";
+
+  int k = 31;
+  size_t overlap = k - 1;
+  CLI::App app{"Pufferfish : An efficient dBG index."};
+  app.add_option("-g,--gfa", gfa_file, "GFA file")->required();
+  app.add_option("-r,--ref", rfname, "reference file")->required();
+  app.add_option("-k,--klen", k, "kmer length", 31);
+
+  try {
+    app.parse(argc, argv);
+  } catch (const CLI::ParseError& e) {
+    return app.exit(e);
+  }
+  read_file.push_back(rfname);
   // std::string outfile = "contigs.fa" ;
 
   spp::sparse_hash_map<std::string, std::string> fastaMap;
@@ -61,8 +79,8 @@ int main(int argc, char* argv[]) {
   spp::sparse_hash_map<uint64_t, std::string> contigid2seq;
   spp::sparse_hash_map<std::string, std::string> reconstructedTr;
 
-  int k = 31;
-  size_t overlap = k - 1;
+  //int k = 27;
+  //size_t overlap = k - 1;
 
   std::stringstream reconStream;
 
@@ -132,7 +150,9 @@ int main(int argc, char* argv[]) {
 
       if (reconStream.str() != refStr) {
         std::cerr
-            << "Reference string and reconstructed string do not match!\n";
+            << "Reference string and reconstructed string do not match for " << splited[1].to_string() << "\n";
+	std::cerr << "reconstructed = " << reconStream.str() << "\n";
+	std::cerr << "ref str       = " << refStr << "\n";
       }
 
       // std::cerr << id << "\n" ;
