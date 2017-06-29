@@ -17,51 +17,50 @@
 #include <sstream>
 #include <vector>
 
+enum class Side : uint8_t {
+		LEFT = 0,
+		RIGHT = 1,
+		LEFT_RIGHT = 2
+};
+
 class GFAConverter {
 private:
+		std::string gfaFileName_;
   std::unique_ptr<zstr::ifstream> file;
   size_t k;
-  struct Contig {
-    std::string seq;
-    std::string id;
-  };
-  spp::sparse_hash_map<
-      uint64_t,
-      std::pair<std::string, std::vector<std::pair<uint64_t, bool>>>>
-      new2seqAoldids;
+  spp::sparse_hash_map<uint64_t, std::string> id2seq;
   std::vector<uint64_t> ksizeContig;
-  spp::sparse_hash_map<uint64_t, std::vector<std::pair<uint64_t, bool>>>
-      old2newids;
   // path maps each transcript_id to a pair of <contig_id, orientation>
   // orientation : +/true main, -/false reverse
-  spp::sparse_hash_map<std::string, std::vector<std::pair<uint64_t, bool>>>
-      path;
 
-  std::map<std::pair<uint64_t, bool>, bool, util::cmpByPair> pathStart;
-  std::map<std::pair<uint64_t, bool>, bool, util::cmpByPair> pathEnd;
-
+  std::map<std::pair<uint64_t, bool>, std::vector<std::string>, util::cmpByPair> start2path;
+  spp::sparse_hash_map<uint64_t, Side> donTouch;
+  spp::sparse_hash_map<std::string, std::pair<uint64_t, bool> > path2start;
+  spp::sparse_hash_map<uint64_t, std::vector<std::pair<uint64_t, bool> > > old2newids;
   pufg::Graph semiCG;
 
   void
   processContigSeq(uint64_t& contigId, std::string& contigSeq,
-                   spp::sparse_hash_map<std::string, uint64_t>& seq2newid,
+                   spp::sparse_hash_map<std::string, uint64_t>& seq2id,
                    uint64_t& idCntr);
-  bool is_start(uint64_t& nodeId);
-  bool is_end(uint64_t& nodeId);
-  void update_start(uint64_t& newId, bool newOri);
-  void update_end(uint64_t& newId, bool newOri);
-  // bool isCornerCase(pufg::Node& n, pufg::edgetuple, bool mergeIn);
-  bool isCornerCase(pufg::Node& n, bool mergeIn);
-  void mergeIn(pufg::Node& n);
-  void mergeOut(pufg::Node& n);
-  void eraseFromOldList(uint64_t nodeId);
+  std::vector<std::pair<uint64_t, bool> >& convertOld2newPath(std::vector<std::pair<uint64_t, bool> >& oContigVec);
+  void setDonTouchSide(std::vector<std::pair<uint64_t, bool> >& contigVec); 
+  void updateDonTouchSide(uint64_t& id, Side side);
+  void mergeDonTouchSides(uint64_t& mergedId, bool mergedOri, uint64_t& mergingId, bool mergingOri);
+  bool dont_touch(uint64_t& nodeId, Side side);
+  void setPathStart(std::string& pathId, std::pair<uint64_t, bool>& startNode);
+  void updatePathStart(uint64_t& oStartNodeId, bool oStartNodeOri, uint64_t& nStartNodeId, bool nStartNodeOri);
+  bool isCornerCase(pufg::Node& n, bool mergeLeft);
+  void mergeLeft(pufg::Node& n);
+  void mergeRight(pufg::Node& n);
+  void updateGraph(std::vector<std::pair<uint64_t, bool> >& contigVec);
 
 public:
   GFAConverter(const char* gfaFileName, size_t input_k);
   void parseFile();
-  void buildGraph();
+//  void buildGraph();
   void randomWalk();
-  void writeFile(const char* gfaFileName);
+  void reconstructPathAndWrite(const char* gfaOutFileName, const char* refFileName);
 };
 
 #endif

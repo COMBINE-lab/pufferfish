@@ -232,6 +232,8 @@ public:
 
   bool addEdge(uint64_t fromId, bool fromSign, uint64_t toId,
                bool toSign) {
+//		  if (fromId == 70545 or fromId == 70547 or toId == 70545 or toId == 70547)
+//				  std::cerr << "ADD EDGE FROM " << fromId << " " << fromSign << " TO " << toId << " " << toSign << "\n";
     // case 1 where the from node does not exist
     // None of the nodes exists
     if (Vertices.find(fromId) == Vertices.end()) {
@@ -256,20 +258,31 @@ public:
     // Edges.emplace_back(fromNode,toNode) ;
   }
 
-  bool removeNode(uint64_t id) {
-    //		if (id == "00125208939" or id == "00225208939" or id ==
-    //"00325208939")
-    //				std::cerr << "remove node " << id << "\n";
+  bool merge(uint64_t tobeMerged, bool tobeMergedOri, uint64_t remaining, bool remainingOri, bool isMergeRight) {
+		if (!Vertices.contains(tobeMerged) or !Vertices.contains(remaining)) return false;
+		Node& tobeMergedNode = Vertices[tobeMerged];
 
-    if (Vertices.find(id) == Vertices.end())
-      return false;
-    Node& n = Vertices[id];
-    for (auto& in : n.getPredecessors()) {
-      for (auto& out : n.getSuccessors()) {
-        addEdge(in.contigId, in.neighborSign(), out.contigId,
-                out.neighborSign());
-      }
-    }
+		for (auto& in : tobeMergedNode.getPredecessors()) {
+			if (isMergeRight != in.baseSign()){ 
+					if (in.contigId == remaining and ( (in.neighborSign() == remainingOri and in.baseSign() == tobeMergedOri) or (in.neighborSign() != remainingOri and in.baseSign() != tobeMergedOri) ) ) continue;
+					std::cerr << "BUG BUG!! IN GRAPH MERGING Predecessors. isMergeRight=" <<isMergeRight << " " << tobeMerged << "," << tobeMergedOri << " " << remaining << "," << remainingOri << " buggi: " << in.contigId << "," <<in.neighborSign() << "\n";
+			}
+	        addEdge(in.contigId, in.neighborSign(), remaining, isMergeRight?remainingOri == tobeMergedOri:remainingOri!=tobeMergedOri);
+		}
+		for (auto& out : tobeMergedNode.getSuccessors()) {			
+			if (isMergeRight == out.baseSign()) { 
+					if (out.contigId == remaining and ( (out.neighborSign() == remainingOri and out.baseSign() == tobeMergedOri) or (out.neighborSign() != remainingOri and out.baseSign() != tobeMergedOri) ) ) continue;
+					std::cerr << "BUG BUG!! IN GRAPH MERGING Successors. isMergeRight=" << isMergeRight << " " << tobeMerged << "," << tobeMergedOri << " " << remaining << "," << remainingOri << "\n";
+			}
+	        addEdge(remaining, isMergeRight?remainingOri != tobeMergedOri:remainingOri==tobeMergedOri, out.contigId, out.neighborSign());					
+		}
+		removeNode(tobeMerged);
+		return true;
+
+  }
+
+  bool removeNode(uint64_t id) {
+	Node& n = Vertices[id];
     for (auto& in : n.getPredecessors()) {
       Node& from = Vertices[in.contigId];
       from.removeEdgeTo(id);
@@ -278,6 +291,7 @@ public:
       Node& to = Vertices[out.contigId];
       to.removeEdgeFrom(id);
     }
+	Vertices.erase(n.getId());
     return false;
   }
 

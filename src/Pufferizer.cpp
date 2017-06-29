@@ -8,6 +8,7 @@ struct PufferizeOpts {
   uint32_t k = 31;
   std::string gfaFile;
   std::string outFile;
+  std::string fastaFile;
 };
 
 int main(int argc, char* argv[]) {
@@ -21,6 +22,8 @@ int main(int argc, char* argv[]) {
       ->required();
   app.add_option("-g,--gfa", popts.gfaFile, "path to the input GFA file")
       ->required();
+  app.add_option("-f,--fasta", popts.fastaFile, "path to the input Fasta file")
+      ->required();
   app.add_option("-o,--output", popts.outFile, "path to the output GFA file")
       ->required();
 
@@ -32,9 +35,8 @@ int main(int argc, char* argv[]) {
 
   GFAConverter gc(popts.gfaFile.c_str(), popts.k);
   gc.parseFile();
-  gc.buildGraph();
   gc.randomWalk();
-  gc.writeFile(popts.outFile.c_str());
+  gc.reconstructPathAndWrite(popts.outFile.c_str(), popts.fastaFile.c_str());
   /*	PosFinder pf(argv[1], k);
       pf.parseFile();
 
