@@ -376,7 +376,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     //debug flags
     int loopCounter = 0;
     size_t ourKeys = 0 ;
-    spp::sparse_hash_set<size_t> idxset;
     while(kb1 != ke1){
         sampledInds.clear();
         auto clen = contigLengths[contigId];
@@ -391,6 +390,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
         auto skipLen = kb1.pos() - zeroPos;
         bool didSample = false;
         bool done = false;
+        spp::sparse_hash_set<size_t> idxset;
 
         for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
           skipLen = kb1.pos() - zeroPos;

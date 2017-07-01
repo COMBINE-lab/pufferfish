@@ -30,7 +30,6 @@ int main(int argc, char* argv[]) {
   //std::cerr << "\n gfa file " << argv[2] << "\n";
 
   int k = 31;
-  size_t overlap = k - 1;
   CLI::App app{"Pufferfish : An efficient dBG index."};
   app.add_option("-g,--gfa", gfa_file, "GFA file")->required();
   app.add_option("-r,--ref", rfname, "reference file")->required();
@@ -41,6 +40,9 @@ int main(int argc, char* argv[]) {
   } catch (const CLI::ParseError& e) {
     return app.exit(e);
   }
+  std::cerr << "k = " << k << "\n";
+
+  size_t overlap = k - 1;
   read_file.push_back(rfname);
   // std::string outfile = "contigs.fa" ;
 

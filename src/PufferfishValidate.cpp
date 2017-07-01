@@ -82,6 +82,8 @@ int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
                 ++correctPosCntr;
               } else {
                 std::cerr
+                  << "txp = [" << rp.name << "], "
+                  << "kmer = [" << kit1->first.to_str() << "], "
                     << "correct pos = " << kit1->second << ", found "
                     << util::str(wrongPos) << ", contig orientation = " << cor
                     << ", contig len = " << clen << "\n";

@@ -120,7 +120,11 @@ public:
                                           : KmerMatchType::NO_MATCH);
   }
 
-  inline std::string to_str() const { return fw_.to_str(); }
+  inline std::string to_str() const {
+    std::string s = fw_.to_str();
+    std::reverse(s.begin(), s.end());
+    return s;
+  }
 
   bool operator==(const CanonicalKmer& rhs) const {
     return this->fw_ == rhs.fw_;
