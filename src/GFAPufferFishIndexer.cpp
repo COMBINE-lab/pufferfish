@@ -4,6 +4,8 @@
 #include <iterator>
 #include <type_traits>
 #include <vector>
+#include <sstream>
+#include <bitset>
 
 #include "CanonicalKmer.hpp"
 #include "OurGFAReader.hpp"
@@ -81,6 +83,15 @@ public:
 
   difference_type pos() { return curr_; }
 
+  bool isCanonical(){
+	  return mer_.fwWord() == mer_.getCanonicalWord() ;
+  }
+
+  bool isEndKmer() {
+	  size_t endPos = curr_ + k_ - 1;
+	  return ((*rank_)[endPos] == 1);
+  }
+
   pointer operator->() {
     word_ = mer_.getCanonicalWord(); //(mer_.word(0) < rcMer_.word(0)) ?
                                      // mer_.word(0) : rcMer_.word(0);
@@ -122,6 +133,68 @@ int pufferfishTest(util::TestOptions& testOpts) {
   (void)testOpts;
   std::cerr << "this command is not yet implemented\n";
   return 1;
+}
+
+void computeSampledPositions(size_t tlen, uint32_t k, int sampleSize, std::vector<size_t>& sampledInds){
+  sampledInds.clear() ;
+  auto numOfKmers = tlen - k;
+  size_t lastCovered = 0 ;
+  for(size_t j = 0 ; j <= numOfKmers; j++){
+    if(j > lastCovered){
+      auto next_samp = std::min(j + sampleSize/2 - 1 ,numOfKmers) ;
+      sampledInds.push_back(next_samp) ;
+      lastCovered = next_samp + sampleSize/2 + 1;
+    }
+  }
+  if(lastCovered == numOfKmers)
+    sampledInds.push_back(lastCovered) ;
+}
+
+std::string packedToString(sdsl::int_vector<2>& seqVec, uint64_t offset, uint32_t len) {
+  std::stringstream s;
+  for (size_t i = offset; i < offset + len; ++i) {
+    auto c = seqVec[i];
+    s << my_mer::rev_code(c);
+  }
+  auto st = s.str();
+  return st;
+}
+
+enum class NextSampleDirection : uint8_t { FORWARD = 0, REVERSE=1 };
+
+uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos, uint64_t distToSamplePos,
+                             uint32_t maxExt, NextSampleDirection dir, bool print=false) {
+  uint32_t encodedNucs{0};
+  uint32_t bitsPerCode{3};
+  std::vector<uint32_t> charsToExtend;
+  size_t i = 0;
+  for (; i < distToSamplePos; ++i) {
+    if ( firstSampPos + i >= seqVec.size() ) {
+      std::cerr << "seqVec.size() " << seqVec.size() << ", looking for index " << firstSampPos + i << "\n";
+      std::cerr << "dist to sample is " << distToSamplePos << ", i = " << i << "\n";
+    }
+    auto c = seqVec[firstSampPos + i];
+    charsToExtend.push_back(c);
+  }
+  if (dir == NextSampleDirection::REVERSE) {
+    std::reverse(charsToExtend.begin(), charsToExtend.end());
+  }
+  if (i < maxExt) {
+    charsToExtend.push_back(0x4);
+  }
+
+  if (print) {
+  std::cerr << "ext = [";
+  }
+  for (size_t j = 0; j < charsToExtend.size(); ++j) {
+    auto c = charsToExtend[j];
+    if (print) { std::cerr << c << ", "; }
+    encodedNucs |= (c << (bitsPerCode  * (maxExt - j - 1)));
+    std::bitset<32> pIt(encodedNucs) ;
+    if(print){std::cerr << " j:  " << j << " bits: " << pIt << "\n" ; }
+  }
+  if (print) {std::cerr << "]\n";}
+  return encodedNucs;
 }
 
 int pufferfishIndex(util::IndexOptions& indexOpts) {
@@ -177,49 +250,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   }
   size_t nkeys{numKmers};
   size_t numContigs{cnmap.size()};
-  /*
-  tlen = 0;
 
-  size_t numContigs{0};
-  size_t nkeys{0};
-  {
-    auto& cnmap = pf.getContigNameMap();
-    for (auto& kv : cnmap) {
-      ++numContigs;
-      size_t len{0};
-      const auto& r1 = kv.second;
-      CanonicalKmer mer;
-      for (size_t i = 0; i < r1.length(); ++i) {
-        auto offset = i; // r1.length() - i - 1;
-        // NOTE: Having to add things in the reverse order here is strange
-        // we should make sure that this doesn't mess with the positions we
-        // end up storing!
-        auto c = my_mer::code(r1[i]);
-        seqVec[gpos + offset] = c;
-        mer.shiftFw(c);
-        ++len;
-        if (len >= k) {
-#ifdef PUFFER_DEBUG
-          my_mer mm;
-          uint64_t num = seqVec.get_int(2 * (gpos + len - k), 2 * k);
-          mm.word__(0) = num; // mm.canonicalize();
-          if (!(mm == mer.fwMer() or
-                mm == mer.rcMer())) { //}mm != mer.get_canonical()) {
-            std::cerr << "num & 0x3 = " << (num & 0x3) << "\n";
-            std::cerr << "i = " << i << "\n";
-            std::cerr << mer.to_str() << ", " << mm.to_str() << "\n";
-          }
-#endif // PUFFER_DEBUG
-          ++nkeys;
-        }
-        //++gpos;
-      }
-      gpos += r1.length();
-      tlen += r1.length();
-      rankVec[tlen - 1] = 1;
-    }
-  }
-  */
   std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
   std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
   // std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
@@ -235,7 +266,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   }
   std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
 #endif // PUFFER_DEBUG
-
+  
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
@@ -254,51 +285,296 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   // rankVec.resize(0);
   //#endif
 
-  sdsl::int_vector<> posVec(tlen, 0, w);
+  if (!indexOpts.isSparse) {
+    sdsl::int_vector<> posVec(tlen, 0, w);
+    {
+      size_t i = 0;
+      ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
+      ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+      for (; kb1 != ke1; ++kb1) {
+        auto idx = bphf->lookup(*kb1); // fkm.word(0));
+        if (idx >= posVec.size()) {
+          std::cerr << "i =  " << i << ", size = " << seqVec.size()
+                    << ", idx = " << idx << ", size = " << posVec.size() << "\n";
+        }
+        posVec[idx] = kb1.pos();
+
+        // validate
+#ifdef PUFFER_DEBUG
+        uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
+        CanonicalKmer sk;
+        sk.fromNum(kn);
+        if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
+          my_mer r;
+          r.word__(0) = *kb1;
+          std::cerr << "I thought I saw " << sk.to_str() << ", but I saw "
+                    << r.to_str() << "\n";
+        }
+#endif
+      }
+    }
+
+    /** Write the index **/
+    std::ofstream descStream(outdir + "/info.json");
+    {
+      cereal::JSONOutputArchive indexDesc(descStream);
+      std::string sampStr = "dense";
+      indexDesc(cereal::make_nvp("sampling_type", sampStr));
+      indexDesc(cereal::make_nvp("k", k));
+      indexDesc(cereal::make_nvp("num_kmers", nkeys));
+      indexDesc(cereal::make_nvp("num_contigs", numContigs));
+      indexDesc(cereal::make_nvp("seq_length", tlen));
+    }
+    descStream.close();
+
+    sdsl::store_to_file(posVec, outdir + "/pos.bin");
+    std::ofstream hstream(outdir + "/mphf.bin");
+    bphf->save(hstream);
+    hstream.close();
+
+
+
+  } else { // sparse index; it's GO time!
+    int extensionSize = indexOpts.extensionSize;
+    int sampleSize = 2 * extensionSize + 1;
+    sdsl::bit_vector presenceVec(nkeys);
+    size_t sampledKmers{0};
+    std::vector<size_t> sampledInds;
+    std::vector<size_t> contigLengths;
+    //fill up optimal positions
+    {
+      auto& cnmap = pf.getContigNameMap() ;
+      std::vector<size_t> sampledInds ;
+      for(auto& kv : cnmap){
+        auto& r1 = kv.second ;
+        sampledInds.clear();
+        computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
+        sampledKmers += sampledInds.size() ;
+        contigLengths.push_back(r1.length) ;
+      }
+      console->info("# sampled kmers = {}", sampledKmers) ;
+      console->info("# skipped kmers = {}", numKmers - sampledKmers) ;
+   }
+
+    //fill up the vectors
+    sdsl::int_vector<> auxInfo((numKmers-sampledKmers),0,3*extensionSize) ;
+    sdsl::bit_vector direction(numKmers - sampledKmers) ;
+    sdsl::bit_vector canonicalNess(numKmers - sampledKmers);
+    sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
+
+
+  // new presence Vec
   {
-    size_t i = 0;
+    std::cerr << "\nFilling presence Vector \n" ;
+
+    size_t i = 0 ;
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
     ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
-    for (; kb1 != ke1; ++kb1) {
-      auto idx = bphf->lookup(*kb1); // fkm.word(0));
-      if (idx >= posVec.size()) {
-        std::cerr << "i =  " << i << ", size = " << seqVec.size()
-                  << ", idx = " << idx << ", size = " << posVec.size() << "\n";
-      }
-      posVec[idx] = kb1.pos();
+    size_t contigId{0};
+    int sampleCounter = 0 ;
 
-// validate
-#ifdef PUFFER_DEBUG
-      uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
-      CanonicalKmer sk;
-      sk.fromNum(kn);
-      if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
+    //debug flags
+    int loopCounter = 0;
+    size_t ourKeys = 0 ;
+    spp::sparse_hash_set<size_t> idxset;
+    while(kb1 != ke1){
+        sampledInds.clear();
+        auto clen = contigLengths[contigId];
+        computeSampledPositions(clen, k, sampleSize, sampledInds) ;
+        contigId++;
+        loopCounter++ ;
+
         my_mer r;
-        r.word__(0) = *kb1;
-        std::cerr << "I thought I saw " << sk.to_str() << ", but I saw "
-                  << r.to_str() << "\n";
-      }
-#endif
+        auto zeroPos = kb1.pos();
+        auto nextSampIter = sampledInds.begin();
+        auto prevSamp = *nextSampIter;
+        auto skipLen = kb1.pos() - zeroPos;
+        bool didSample = false;
+        bool done = false;
+
+        for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
+          skipLen = kb1.pos() - zeroPos;
+          if (!done and skipLen == *nextSampIter) {
+            auto idx = bphf->lookup(*kb1);
+            if (idxset.contains(idx)) {
+              std::cerr << "that's some BS right there\n";
+              r.word__(0) = *kb1;
+              std::string theKmer = r.to_str();
+              std::reverse(theKmer.begin(), theKmer.end());
+              std::cerr <<  theKmer << "\n";
+            }
+            presenceVec[idx] = 1 ;
+            idxset.insert(idx);
+            i++ ;
+            didSample = true;
+            prevSamp = *nextSampIter;
+            ++nextSampIter;
+            if (nextSampIter == sampledInds.end()) {
+              done = true;
+            }
+          }
+          r.word__(0) = *kb1;
+          if(r.to_str() == "CAAGGACTCTTAGTCTCTCTGGGTCTTTTTA" or r.to_str() == "ATTTTTCTGGGTCTCTCTGATTCTCAGGAAC" or r.to_str() == "TAAAAAGACCCAGAGAGACTAAGAGTCCTTG" or r.to_str() == "GTTCCTGAGAATCAGAGAGACCCAGAAAAAT"){
+            if (didSample) {
+              std::cerr << "I skipped , I should not skip " << skipLen << " " << prevSamp <<"\n" ;
+              std::cerr << "contig id and length " << contigId -1 << " " << contigLengths[contigId-1] << "\n" ;
+              auto cseq = packedToString(seqVec,zeroPos,contigLengths[contigId-1]);
+              std::cerr << "cotig: " << cseq <<"\n" ;
+              //std::exit(1) ;
+            }
+          }
+
+          didSample = false;
+        }
+        if (nextSampIter != sampledInds.end()) {
+          std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
+          std::cerr << "last sample is " << sampledInds.back() << "\n";
+          std::cerr << "contig length is " << contigLengths[contigId-1] << "\n";
+        }
     }
+
+    std::cerr << "i = " << i
+              << " sampledKmers = " << sampledKmers
+              << " Loops = "<< loopCounter
+              << " Contig array = "<<contigLengths.size()
+              << "\n" ;
+
   }
+
+  sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
+  std::cerr << " num ones in presenceVec = " << realPresenceRank(presenceVec.size()-1) << "\n" ;
+
+  //bidirectional version 1
+  {
+
+    ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
+    ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+
+    size_t contigId{0} ;
+    size_t coveredKeys{0} ;
+    size_t totalKmersIshouldSee{0} ;
+
+    // For every valid k-mer (i.e. every contig)
+    while(kb1 != ke1){
+      sampledInds.clear();
+      auto clen = contigLengths[contigId];
+      auto thisContigLength = clen;
+      computeSampledPositions(clen, k, sampleSize, sampledInds) ;
+      //auto sampledPositions = allSampledPositions[contigId] ;
+      totalKmersIshouldSee += (thisContigLength - k + 1);
+
+      contigId++ ;
+
+      size_t skip = 0 ;
+
+      my_mer r;
+
+      auto zeroPos = kb1.pos();
+      auto nextSampIter = sampledInds.begin();
+      auto prevSampIter = sampledInds.end();
+      auto skipLen = kb1.pos() - zeroPos;
+      NextSampleDirection sampDir = NextSampleDirection::FORWARD;
+      bool done = false;
+      for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
+          int64_t nextSampPos = (nextSampIter != sampledInds.end()) ? *nextSampIter : -1;
+          int64_t prevSampPos = (prevSampIter != sampledInds.end()) ? *prevSampIter : -1;
+          uint64_t distToNext = (nextSampPos >= 0) ? nextSampPos - j : std::numeric_limits<uint64_t>::max();
+          uint64_t distToPrev = (prevSampPos >= 0) ? j - prevSampPos : std::numeric_limits<uint64_t>::max();
+
+          if (distToNext == std::numeric_limits<uint64_t>::max() and
+              distToPrev == std::numeric_limits<uint64_t>::max()) {
+            std::cerr << "We have fucked up royally\n";
+          }
+
+          sampDir = (distToNext < distToPrev) ? NextSampleDirection::FORWARD : NextSampleDirection::REVERSE;
+          skipLen = kb1.pos() - zeroPos;
+          // If this is a sampled position
+          if (!done and skipLen == *nextSampIter) {
+            prevSampIter = nextSampIter;
+            ++nextSampIter;
+            if (nextSampIter == sampledInds.end()) {
+              done = true;
+            }
+            auto idx = bphf->lookup(*kb1);
+            if (idx >= realPresenceRank.size()) {
+              std::cerr << "idx = " << "realpresencerank.size() = " << realPresenceRank.size()  << "\n";
+            }
+            auto rank = (idx == 0) ? 0 : realPresenceRank(idx);
+            samplePosVec[rank] = kb1.pos();
+          } else { // not a sampled position
+            uint32_t ext = 0;
+            size_t firstSampPos = 0;
+            if (sampDir == NextSampleDirection::FORWARD) {
+              firstSampPos = zeroPos + j + k;
+
+              bool doPrint = false;
+              my_mer r1 ;
+              r1.word__(0) = *kb1 ;
+              if(r1.to_str() == "ATGGTGACTGAATTCATTTTTCTGGGTCTCT" or r1.to_str() == "AGAGACCCAGAAAAATGAATTCAGTCACCAT" or r1.to_str() == "TCTCTGGGTCTTTTTACTTAAGTCAGTGGTA" or r1.to_str() == "TACCACTGACTTAAGTAAAAAGACCCAGAGA"){
+                doPrint = true;
+              }
+              ext = getEncodedExtension(seqVec, firstSampPos, distToNext, extensionSize, sampDir, doPrint);
+            } else if (sampDir == NextSampleDirection::REVERSE) {
+              firstSampPos = zeroPos + prevSampPos;
+              ext = getEncodedExtension(seqVec, firstSampPos, distToPrev, extensionSize, sampDir);
+            } else {
+              std::cerr << "go home, you're drunk!\n";
+              std::exit(1);
+            }
+            auto idx = bphf->lookup(*kb1);
+            if (idx >= realPresenceRank.size()) {
+              std::cerr << "idx = " << idx << "realpresencerank.size() = " << realPresenceRank.size()  << "\n";
+            }
+            auto rank = (idx == 0) ? 0 : realPresenceRank(idx);
+            
+            //debug print 
+            my_mer r1 ;
+            r1.word__(0) = *kb1 ;
+            if(r1.to_str() == "ATGGTGACTGAATTCATTTTTCTGGGTCTCT" or r1.to_str() == "AGAGACCCAGAAAAATGAATTCAGTCACCAT" or r1.to_str() == "TCTCTGGGTCTTTTTACTTAAGTCAGTGGTA" or r1.to_str() == "TACCACTGACTTAAGTAAAAAGACCCAGAGA"){
+              std::bitset<6> ext1(ext) ;
+              std::string contigSeq = packedToString(seqVec, zeroPos, contigLengths[contigId-1]);
+              std::cerr << "contig = " << contigSeq << "\n";
+              std::cerr << "zeroPos = " << zeroPos << ", j = " << j << ", firstSampPos = " << firstSampPos << "\n";
+              std::cerr << "backward nucl  " << ext1 << "\n" ;
+              //std::exit(1) ;
+            }
+            canonicalNess[idx - rank] = kb1.isCanonical();
+            auxInfo[idx - rank] = ext;
+            direction[idx - rank] = (sampDir == NextSampleDirection::FORWARD) ? 1 : 0;
+          }
+        }
+    }
+
+
+  }
+
 
   /** Write the index **/
   std::ofstream descStream(outdir + "/info.json");
   {
     cereal::JSONOutputArchive indexDesc(descStream);
-    std::string sampStr = "dense";
+    std::string sampStr = "sparse";
     indexDesc(cereal::make_nvp("sampling_type", sampStr));
+    indexDesc(cereal::make_nvp("sample_size", sampleSize));
+    indexDesc(cereal::make_nvp("extension_size", extensionSize));
     indexDesc(cereal::make_nvp("k", k));
     indexDesc(cereal::make_nvp("num_kmers", nkeys));
+    indexDesc(cereal::make_nvp("num_sampled_kmers",sampledKmers));
     indexDesc(cereal::make_nvp("num_contigs", numContigs));
     indexDesc(cereal::make_nvp("seq_length", tlen));
   }
   descStream.close();
 
-  sdsl::store_to_file(posVec, outdir + "/pos.bin");
+  //sdsl::store_to_file(posVec, outdir + "/pos.bin");
   std::ofstream hstream(outdir + "/mphf.bin");
+  sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
+  sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
+  sdsl::store_to_file(auxInfo, outdir + "/extension.bin");
+  sdsl::store_to_file(canonicalNess, outdir + "/canonical.bin");
+  sdsl::store_to_file(direction, outdir + "/direction.bin");
   bphf->save(hstream);
   hstream.close();
 
+  } 
   return 0;
 }

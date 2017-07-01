@@ -60,6 +60,12 @@ public:
     rc_ = fw_.get_reverse_complement();
   }
 
+  inline void swap(){
+    my_mer tmp = fw_ ;
+    fw_ = rc_ ;
+    rc_ = tmp ;
+  }
+
   inline auto shiftFw(int c) -> decltype(this->fw_.shift_right(c)) {
     rc_.shift_left(my_mer::complement(c));
     return fw_.shift_right(c);

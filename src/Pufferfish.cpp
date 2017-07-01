@@ -75,6 +75,13 @@ int main(int argc, char* argv[]) {
       ->add_option("-o,--output", indexOpt.outdir,
                    "directory where index is written")
       ->required();
+  indexApp
+    ->add_flag("-s,--sparse", indexOpt.isSparse,
+               "use the sparse pufferfish index (less space, but slower lookup)");
+  indexApp
+    ->add_option("-e,--extension", indexOpt.extensionSize,
+                 "length of the extension to store in the sparse index",
+                 static_cast<uint32_t>(4));
 
   util::TestOptions testOpt;
 

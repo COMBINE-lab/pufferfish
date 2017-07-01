@@ -176,6 +176,9 @@ public:
   std::string cfile;
   std::string rfile;
   std::string outdir;
+  bool isSparse{false};
+  uint32_t extensionSize{4};
+  uint32_t sampleSize{9};
 };
 
 class TestOptions {

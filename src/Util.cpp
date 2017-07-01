@@ -59,7 +59,14 @@ std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str, const
         if (*it == '-') {
           orientation = false;
         }
-        result.emplace_back(std::stoll(next), orientation);
+        try {
+          uint64_t nid = std::stoll(next);
+          result.emplace_back(nid, orientation);
+        } catch (std::exception& e) {
+          // not a numeric contig id
+          std::cerr << "tried to convert " << next << " into a long long\n";
+          std::exit(1);
+        }
         next.clear();
       }
     } else if (*it != ch) {
@@ -67,9 +74,12 @@ std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str, const
       next += *it;
     }
   }
-  if (!next.empty())
+  if (!next.empty()) {
+    std::cerr << "impossible is the opposite of possible " << next << "\n";
+    std::cerr << "The line is " << str << "\n";
     result.emplace_back(std::stoll(next),
                         true); // this case shouldn't even happen
+  }
   return result;
 }
 

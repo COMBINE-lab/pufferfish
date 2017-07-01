@@ -14,12 +14,13 @@
 #include "spdlog/spdlog.h"
 
 #include "PufferfishIndex.hpp"
+#include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 
-int pufferfishValidate(util::ValidateOptions& validateOpts) {
-  PufferfishIndex pi(validateOpts.indexDir);
-  CanonicalKmer::k(pi.k());
+template <typename IndexT>
+int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
   //size_t k = pi.k();
+  CanonicalKmer::k(pi.k());
   size_t found = 0;
   size_t notFound = 0;
   size_t correctPosCntr = 0;
@@ -83,9 +84,9 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
                 std::cerr
                     << "correct pos = " << kit1->second << ", found "
                     << util::str(wrongPos) << ", contig orientation = " << cor
-                    << ", contig len = " << clen
+                    << ", contig len = " << clen << "\n";
                    ///<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
-                    << ", contig rank = " << pi.contigID(kit1->first) << '\n';
+                  //<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
                 ++incorrectPosCntr;
               }
             } else {
@@ -104,3 +105,28 @@ int pufferfishValidate(util::ValidateOptions& validateOpts) {
 
   return 0;
 }
+
+
+int pufferfishValidate(util::ValidateOptions& validateOpts) {
+
+  auto indexDir = validateOpts.indexDir;
+  std::string indexType;
+    {
+      std::ifstream infoStream(indexDir + "/info.json");
+      cereal::JSONInputArchive infoArchive(infoStream);
+      infoArchive(cereal::make_nvp("sampling_type", indexType));
+      std::cerr << "Index type = " << indexType << '\n';
+      infoStream.close();
+    }
+
+    if (indexType == "sparse") { 
+      PufferfishSparseIndex pi(validateOpts.indexDir);
+      return doPufferfishValidate(pi, validateOpts);
+    } else if (indexType == "dense") {
+      PufferfishIndex pi(validateOpts.indexDir);
+      return doPufferfishValidate(pi, validateOpts);
+    }
+    return 0;
+}
+
+

@@ -44,8 +44,16 @@ void GFAConverter::parseFile() {
 			continue;
       	stx::string_view lnview(ln);
 	    std::vector<stx::string_view> splited = util::split(lnview, '\t');
+      if (splited.size() != 4) {
+        std::cerr << "the path line should have 4 fields (tab separated) --- skipping!\n";
+        continue;
+      }
   	    // tag = splited[0].to_string();
     	id = splited[1].to_string();
+      if (id == "") {
+        std::cerr << "interesting; the ID is empty.  Skipping\n";
+        continue;
+      }
         // A path line
         auto pvalue = splited[2];
         // parse value and add all conitgs to contigVec
