@@ -248,7 +248,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos) -
       if (rankInterval > 0) {
       // get the rank at the end of the k-mer to make sure it's valid
       //auto rankEnd = contigRank_(pos + k_ - 1);
-      if (rank != rankEnd) {
+      //if (rank != rankEnd) {
         return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
       }
 
