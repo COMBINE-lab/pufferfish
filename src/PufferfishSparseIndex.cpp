@@ -182,7 +182,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, u
       auto rank = contigRank_(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
-      auto rankInterval = contigRank_.get_int(twopos, 2*(k-1));
+      auto rankInterval = contigRank_.get_int(twopos, 2*(k_-1));
       //auto rankEnd = contigRank_(pos + k_ - 1);
       if (rankInterval > 0) {
         return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
@@ -243,7 +243,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos) -
       auto rank = contigRank_(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
-      auto rankInterval = contigRank_.get_int(twopos, 2*(k-1));
+      auto rankInterval = contigRank_.get_int(twopos, 2*(k_-1));
       //auto rankEnd = contigRank_(pos + k_ - 1);
       if (rankInterval > 0) {
       // get the rank at the end of the k-mer to make sure it's valid
