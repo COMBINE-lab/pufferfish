@@ -45,6 +45,8 @@ private:
   sdsl::int_vector<> sampledPos_;
 
   std::unique_ptr<boophf_t> hash_{nullptr};
+  //util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+
 public:
   PufferfishSparseIndex();
   PufferfishSparseIndex(const std::string& indexPath);
@@ -86,7 +88,7 @@ public:
   auto getRefPos(CanonicalKmer mer) -> util::ProjectedHits;
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
 private:
-  auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk=false) -> util::ProjectedHits;
+  auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos) -> util::ProjectedHits;
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc) -> util::ProjectedHits;
 
 };

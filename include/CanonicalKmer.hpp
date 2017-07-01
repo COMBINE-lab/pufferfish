@@ -61,10 +61,13 @@ public:
   }
 
   inline void swap(){
-    my_mer tmp = fw_ ;
-    fw_ = rc_ ;
-    rc_ = tmp ;
+    std::swap(fw_, rc_);
+    //my_mer tmp = fw_ ;
+    //fw_ = rc_ ;
+    //rc_ = tmp ;
   }
+
+  inline bool isFwCanonical() const { return fw_ < rc_; }
 
   inline auto shiftFw(int c) -> decltype(this->fw_.shift_right(c)) {
     rc_.shift_left(my_mer::complement(c));

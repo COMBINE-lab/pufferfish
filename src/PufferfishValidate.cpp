@@ -51,8 +51,9 @@ int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
         ++rn;
         auto& r1 = rp.seq;
         pufferfish::CanonicalKmerIterator kit1(r1);
+        util::QueryCache qc;
         for (; kit1 != kit_end; ++kit1) {
-          auto phits = pi.getRefPos(kit1->first);
+          auto phits = pi.getRefPos(kit1->first, qc);
           if (phits.empty()) {
             ++notFound;
           } else {

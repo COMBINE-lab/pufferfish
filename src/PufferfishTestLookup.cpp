@@ -15,10 +15,11 @@
 #include "spdlog/spdlog.h"
 
 #include "PufferfishIndex.hpp"
+#include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 
-int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
-  PufferfishIndex pi(validateOpts.indexDir);
+template <typename IndexT>
+int doPufferfishTestLookup(IndexT& pi, util::ValidateOptions& validateOpts) {
   CanonicalKmer::k(pi.k());
   int k = pi.k();
   (void)k;
@@ -95,3 +96,25 @@ int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
   std::cerr << "total hits = " << totalHits << "\n";
   return 0;
 }
+
+int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
+  auto indexDir = validateOpts.indexDir;
+  std::string indexType;
+  {
+    std::ifstream infoStream(indexDir + "/info.json");
+    cereal::JSONInputArchive infoArchive(infoStream);
+    infoArchive(cereal::make_nvp("sampling_type", indexType));
+    std::cerr << "Index type = " << indexType << '\n';
+    infoStream.close();
+  }
+
+  if (indexType == "sparse") { 
+    PufferfishSparseIndex pi(validateOpts.indexDir);
+    return doPufferfishTestLookup(pi, validateOpts);
+  } else if (indexType == "dense") {
+    PufferfishIndex pi(validateOpts.indexDir);
+    return doPufferfishTestLookup(pi, validateOpts);
+  }
+  return 0;
+}
+
