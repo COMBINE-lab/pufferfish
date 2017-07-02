@@ -21,7 +21,7 @@ class PufferfishSparseIndex {
 private:
   uint32_t k_{0};
   uint32_t twok_{0};
-  uint32_t extensionSize_{0};
+  int32_t extensionSize_{0};
   uint64_t numKmers_{0};
   uint64_t lastSeqPos_{0};
   uint64_t numSampledKmers_{0};
@@ -39,6 +39,7 @@ private:
   sdsl::bit_vector presenceVec_;
   sdsl::bit_vector canonicalNess_;
   sdsl::bit_vector directionVec_ ;
+  sdsl::int_vector<> extSize_ ;
   sdsl::bit_vector::rank_1_type presenceRank_;
   sdsl::bit_vector::select_1_type presenceSelect_;
   sdsl::int_vector<> auxInfo_ ;

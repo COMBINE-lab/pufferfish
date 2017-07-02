@@ -165,7 +165,7 @@ enum class NextSampleDirection : uint8_t { FORWARD = 0, REVERSE=1 };
 uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos, uint64_t distToSamplePos,
                              uint32_t maxExt, NextSampleDirection dir, bool print=false) {
   uint32_t encodedNucs{0};
-  uint32_t bitsPerCode{3};
+  uint32_t bitsPerCode{2};
   std::vector<uint32_t> charsToExtend;
   size_t i = 0;
   for (; i < distToSamplePos; ++i) {
@@ -179,21 +179,22 @@ uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos,
   if (dir == NextSampleDirection::REVERSE) {
     std::reverse(charsToExtend.begin(), charsToExtend.end());
   }
+  /*
   if (i < maxExt) {
     charsToExtend.push_back(0x4);
   }
+  */
+  
 
-  if (print) {
-  std::cerr << "ext = [";
-  }
+  //if (print) {std::cerr << "ext = [";}
   for (size_t j = 0; j < charsToExtend.size(); ++j) {
     auto c = charsToExtend[j];
-    if (print) { std::cerr << c << ", "; }
+    //if (print) { std::cerr << c << ", "; }
     encodedNucs |= (c << (bitsPerCode  * (maxExt - j - 1)));
-    std::bitset<32> pIt(encodedNucs) ;
-    if(print){std::cerr << " j:  " << j << " bits: " << pIt << "\n" ; }
+    //std::bitset<32> pIt(encodedNucs) ;
+    //if(print){std::cerr << " j:  " << j << " bits: " << pIt << "\n" ; }
   }
-  if (print) {std::cerr << "]\n";}
+  //if (print) {std::cerr << "]\n";}
   return encodedNucs;
 }
 
@@ -357,7 +358,12 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
    }
 
     //fill up the vectors
-    sdsl::int_vector<> auxInfo((numKmers-sampledKmers),0,3*extensionSize) ;
+    uint32_t extSymbolWidth = 2;
+    uint32_t extWidth = std::log2(extensionSize);
+    std::cerr << "extWidth = " << extWidth << "\n";
+    sdsl::int_vector<> auxInfo((numKmers-sampledKmers), 0, extSymbolWidth*extensionSize) ;
+    sdsl::int_vector<> extSize((numKmers-sampledKmers), 0, extWidth) ;
+    //extSize[idx - rank] = extensionDist;
     sdsl::bit_vector direction(numKmers - sampledKmers) ;
     sdsl::bit_vector canonicalNess(numKmers - sampledKmers);
     sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
@@ -504,6 +510,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
           } else { // not a sampled position
             uint32_t ext = 0;
             size_t firstSampPos = 0;
+            uint32_t extensionDist = 0;
             if (sampDir == NextSampleDirection::FORWARD) {
               firstSampPos = zeroPos + j + k;
 
@@ -513,9 +520,11 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
               if(r1.to_str() == "ATGGTGACTGAATTCATTTTTCTGGGTCTCT" or r1.to_str() == "AGAGACCCAGAAAAATGAATTCAGTCACCAT" or r1.to_str() == "TCTCTGGGTCTTTTTACTTAAGTCAGTGGTA" or r1.to_str() == "TACCACTGACTTAAGTAAAAAGACCCAGAGA"){
                 doPrint = true;
               }
+              extensionDist = distToNext - 1;
               ext = getEncodedExtension(seqVec, firstSampPos, distToNext, extensionSize, sampDir, doPrint);
             } else if (sampDir == NextSampleDirection::REVERSE) {
               firstSampPos = zeroPos + prevSampPos;
+              extensionDist = distToPrev - 1;
               ext = getEncodedExtension(seqVec, firstSampPos, distToPrev, extensionSize, sampDir);
             } else {
               std::cerr << "go home, you're drunk!\n";
@@ -539,6 +548,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
               //std::exit(1) ;
             }
             canonicalNess[idx - rank] = kb1.isCanonical();
+            extSize[idx - rank] = extensionDist;
             auxInfo[idx - rank] = ext;
             direction[idx - rank] = (sampDir == NextSampleDirection::FORWARD) ? 1 : 0;
           }
@@ -570,6 +580,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
   sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
   sdsl::store_to_file(auxInfo, outdir + "/extension.bin");
+  sdsl::store_to_file(extSize, outdir + "/extensionSize.bin");
   sdsl::store_to_file(canonicalNess, outdir + "/canonical.bin");
   sdsl::store_to_file(direction, outdir + "/direction.bin");
   bphf->save(hstream);

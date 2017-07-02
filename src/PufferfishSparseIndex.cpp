@@ -105,6 +105,8 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     CLI::AutoTimer timer {"Loading extension vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/extension.bin";
     sdsl::load_from_file(auxInfo_, pfile);
+    std::string pfileSize = indexDir + "/extensionSize.bin";
+    sdsl::load_from_file(extSize_, pfileSize);
   }
 
   {
@@ -321,36 +323,28 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc) 
         mer.swap();
       }
 
-      int i = extensionSize_;
-			int movements = 0;
       bool shiftFw = (directionVec_[extensionPos] == 1);
-			while(i > 0){
-        uint32_t ssize = 3 * (i-1);
-				int currCode = static_cast<int>((extensionWord & (0x7 << ssize)) >> ssize);
-        //auto currCode = extensionWord & shiftTable_[i-1];
-        if(currCode >= 4){
-					break ;
-				} else{
-          if(shiftFw){
-            mer.shiftFw(currCode ) ;
-            --signedShift;
-            //shiftp++ ;
-          }else{
-            mer.shiftBw(currCode ) ;
-            ++signedShift;
-            //shiftm++ ;
-          }
-				}
-				--i;
-				++movements;
-			}
-      /*
-			if(movements > 10) {
-				std::exit(1) ;
-      }
-      */
+      // + 1 because we encode 1 as 00, 2 as 01, etc.
+      int32_t llimit = extensionSize_ - static_cast<int32_t>(extSize_[extensionPos] + 1);
 
-			km = mer.getCanonicalWord() ;
+      if(shiftFw){
+        for( int32_t i = extensionSize_; i > llimit; --i) {
+          uint32_t ssize = 2 * (i-1);
+          int currCode = static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
+          mer.shiftFw(currCode) ;
+          --signedShift;
+        }
+      } else {
+        for( int32_t i = extensionSize_; i > llimit; --i) {
+          uint32_t ssize = 2 * (i-1);
+          int currCode = static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
+          mer.shiftBw(currCode) ;
+          ++signedShift;
+        }
+      }
+
+
+      km = mer.getCanonicalWord() ;
 			idx = hash_->lookup(km) ;
 
       if(idx >= numKmers_) {
@@ -359,9 +353,11 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc) 
 
 			currRank = (idx == 0) ? 0 : presenceRank_(idx) ;
 			inLoop++ ;
+
       /*
 		}while(presenceVec_[idx] != 1) ;
       */
+
       // if we didn't find a present kmer after extension, this is a no-go
       if (presenceVec_[idx] != 1) {
         return emptyHit;
