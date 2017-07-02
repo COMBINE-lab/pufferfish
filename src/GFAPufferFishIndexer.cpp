@@ -179,22 +179,11 @@ uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos,
   if (dir == NextSampleDirection::REVERSE) {
     std::reverse(charsToExtend.begin(), charsToExtend.end());
   }
-  /*
-  if (i < maxExt) {
-    charsToExtend.push_back(0x4);
-  }
-  */
-  
 
-  //if (print) {std::cerr << "ext = [";}
   for (size_t j = 0; j < charsToExtend.size(); ++j) {
     auto c = charsToExtend[j];
-    //if (print) { std::cerr << c << ", "; }
     encodedNucs |= (c << (bitsPerCode  * (maxExt - j - 1)));
-    //std::bitset<32> pIt(encodedNucs) ;
-    //if(print){std::cerr << " j:  " << j << " bits: " << pIt << "\n" ; }
   }
-  //if (print) {std::cerr << "]\n";}
   return encodedNucs;
 }
 
@@ -396,21 +385,12 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
         auto skipLen = kb1.pos() - zeroPos;
         bool didSample = false;
         bool done = false;
-        spp::sparse_hash_set<size_t> idxset;
 
         for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
           skipLen = kb1.pos() - zeroPos;
           if (!done and skipLen == *nextSampIter) {
             auto idx = bphf->lookup(*kb1);
-            if (idxset.contains(idx)) {
-              std::cerr << "that's some BS right there\n";
-              r.word__(0) = *kb1;
-              std::string theKmer = r.to_str();
-              std::reverse(theKmer.begin(), theKmer.end());
-              std::cerr <<  theKmer << "\n";
-            }
             presenceVec[idx] = 1 ;
-            idxset.insert(idx);
             i++ ;
             didSample = true;
             prevSamp = *nextSampIter;
@@ -419,17 +399,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
               done = true;
             }
           }
-          r.word__(0) = *kb1;
-          if(r.to_str() == "CAAGGACTCTTAGTCTCTCTGGGTCTTTTTA" or r.to_str() == "ATTTTTCTGGGTCTCTCTGATTCTCAGGAAC" or r.to_str() == "TAAAAAGACCCAGAGAGACTAAGAGTCCTTG" or r.to_str() == "GTTCCTGAGAATCAGAGAGACCCAGAAAAAT"){
-            if (didSample) {
-              std::cerr << "I skipped , I should not skip " << skipLen << " " << prevSamp <<"\n" ;
-              std::cerr << "contig id and length " << contigId -1 << " " << contigLengths[contigId-1] << "\n" ;
-              auto cseq = packedToString(seqVec,zeroPos,contigLengths[contigId-1]);
-              std::cerr << "cotig: " << cseq <<"\n" ;
-              //std::exit(1) ;
-            }
-          }
-
           didSample = false;
         }
         if (nextSampIter != sampledInds.end()) {
@@ -439,7 +408,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
         }
     }
 
-    std::cerr << "i = " << i
+    std::cerr << " i = " << i
               << " sampledKmers = " << sampledKmers
               << " Loops = "<< loopCounter
               << " Contig array = "<<contigLengths.size()
@@ -450,7 +419,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
   std::cerr << " num ones in presenceVec = " << realPresenceRank(presenceVec.size()-1) << "\n" ;
 
-  //bidirectional version 1
+  //bidirectional sampling
   {
 
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
@@ -466,7 +435,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
       auto clen = contigLengths[contigId];
       auto thisContigLength = clen;
       computeSampledPositions(clen, k, sampleSize, sampledInds) ;
-      //auto sampledPositions = allSampledPositions[contigId] ;
       totalKmersIshouldSee += (thisContigLength - k + 1);
 
       contigId++ ;
@@ -489,7 +457,8 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
           if (distToNext == std::numeric_limits<uint64_t>::max() and
               distToPrev == std::numeric_limits<uint64_t>::max()) {
-            std::cerr << "We have fucked up royally\n";
+            std::cerr << "Could not find valid sample position, should not happen!\n";
+            std::exit(1);
           }
 
           sampDir = (distToNext < distToPrev) ? NextSampleDirection::FORWARD : NextSampleDirection::REVERSE;
@@ -502,9 +471,6 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
               done = true;
             }
             auto idx = bphf->lookup(*kb1);
-            if (idx >= realPresenceRank.size()) {
-              std::cerr << "idx = " << "realpresencerank.size() = " << realPresenceRank.size()  << "\n";
-            }
             auto rank = (idx == 0) ? 0 : realPresenceRank(idx);
             samplePosVec[rank] = kb1.pos();
           } else { // not a sampled position
@@ -513,40 +479,18 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
             uint32_t extensionDist = 0;
             if (sampDir == NextSampleDirection::FORWARD) {
               firstSampPos = zeroPos + j + k;
-
-              bool doPrint = false;
-              my_mer r1 ;
-              r1.word__(0) = *kb1 ;
-              if(r1.to_str() == "ATGGTGACTGAATTCATTTTTCTGGGTCTCT" or r1.to_str() == "AGAGACCCAGAAAAATGAATTCAGTCACCAT" or r1.to_str() == "TCTCTGGGTCTTTTTACTTAAGTCAGTGGTA" or r1.to_str() == "TACCACTGACTTAAGTAAAAAGACCCAGAGA"){
-                doPrint = true;
-              }
               extensionDist = distToNext - 1;
-              ext = getEncodedExtension(seqVec, firstSampPos, distToNext, extensionSize, sampDir, doPrint);
+              ext = getEncodedExtension(seqVec, firstSampPos, distToNext, extensionSize, sampDir);
             } else if (sampDir == NextSampleDirection::REVERSE) {
               firstSampPos = zeroPos + prevSampPos;
               extensionDist = distToPrev - 1;
               ext = getEncodedExtension(seqVec, firstSampPos, distToPrev, extensionSize, sampDir);
             } else {
-              std::cerr << "go home, you're drunk!\n";
+              std::cerr << "Error during extension encoding, should not happen!\n";
               std::exit(1);
             }
             auto idx = bphf->lookup(*kb1);
-            if (idx >= realPresenceRank.size()) {
-              std::cerr << "idx = " << idx << "realpresencerank.size() = " << realPresenceRank.size()  << "\n";
-            }
             auto rank = (idx == 0) ? 0 : realPresenceRank(idx);
-            
-            //debug print 
-            my_mer r1 ;
-            r1.word__(0) = *kb1 ;
-            if(r1.to_str() == "ATGGTGACTGAATTCATTTTTCTGGGTCTCT" or r1.to_str() == "AGAGACCCAGAAAAATGAATTCAGTCACCAT" or r1.to_str() == "TCTCTGGGTCTTTTTACTTAAGTCAGTGGTA" or r1.to_str() == "TACCACTGACTTAAGTAAAAAGACCCAGAGA"){
-              std::bitset<6> ext1(ext) ;
-              std::string contigSeq = packedToString(seqVec, zeroPos, contigLengths[contigId-1]);
-              std::cerr << "contig = " << contigSeq << "\n";
-              std::cerr << "zeroPos = " << zeroPos << ", j = " << j << ", firstSampPos = " << firstSampPos << "\n";
-              std::cerr << "backward nucl  " << ext1 << "\n" ;
-              //std::exit(1) ;
-            }
             canonicalNess[idx - rank] = kb1.isCanonical();
             extSize[idx - rank] = extensionDist;
             auxInfo[idx - rank] = ext;
