@@ -47,6 +47,13 @@ private:
   std::unique_ptr<boophf_t> hash_{nullptr};
   //util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
 
+  static const constexpr uint64_t shiftTable_[] = {
+    0x0, 0x7, 0x38, 0x1c0, 0xe00, 0x7000, 0x38000, 0x1c0000,
+    0xe00000, 0x7000000, 0x38000000, 0x1c0000000, 0xe00000000,
+    0x7000000000, 0x38000000000, 0x1c0000000000, 0xe00000000000,
+    0x7000000000000, 0x38000000000000, 0x1c0000000000000,
+    0xe00000000000000, 0x7000000000000000};
+
 public:
   PufferfishSparseIndex();
   PufferfishSparseIndex(const std::string& indexPath);
@@ -89,7 +96,7 @@ public:
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos) -> util::ProjectedHits;
-  auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc) -> util::ProjectedHits;
+  auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk = false) -> util::ProjectedHits;
 
 };
 
