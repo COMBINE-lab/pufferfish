@@ -95,8 +95,9 @@ public:
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer mer) -> util::ProjectedHits;
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
+
 private:
-  auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos) -> util::ProjectedHits;
+  auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk = false) -> util::ProjectedHits;
 
 };
