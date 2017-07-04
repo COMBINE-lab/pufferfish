@@ -66,7 +66,7 @@ public:
     //fw_ = rc_ ;
     //rc_ = tmp ;
   }
-
+  
   inline bool isFwCanonical() const { return fw_ < rc_; }
 
   inline auto shiftFw(int c) -> decltype(this->fw_.shift_right(c)) {
