@@ -251,7 +251,7 @@ struct PackedContigInfo {
   size_t offset;
   uint32_t length;
 };
-
+  
 struct RefPos {
   uint32_t pos;
   bool isFW;

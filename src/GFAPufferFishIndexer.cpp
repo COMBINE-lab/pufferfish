@@ -256,7 +256,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   }
   std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
 #endif // PUFFER_DEBUG
-  
+ 
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
@@ -276,7 +276,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   //#endif
 
   if (!indexOpts.isSparse) {
-    sdsl::int_vector<> posVec(tlen, 0, w);
+    sdsl::int_vector<> posVec(nkeys, 0, w);
     {
       size_t i = 0;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);

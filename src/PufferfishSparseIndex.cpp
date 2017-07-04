@@ -452,6 +452,7 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern) -> util::ProjectedHits
 	}
 	//end of sampling based pos detection
   return getRefPosHelper_(mern, pos, didWalk);
+  
 }
 
 uint32_t PufferfishSparseIndex::k() { return k_; }
