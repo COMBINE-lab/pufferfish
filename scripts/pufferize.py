@@ -43,14 +43,13 @@ def normalize(kmer):
 #for header, ref in fasta_iter(references):
 #  for kmer in [ref[:k], ref[-k:]]:
 #        ref_kmers.add(normalize(kmer))
-
+#        print(kmer)
 
 ref_kmers={}
 # parse references
-# information we keep for each ref_kmer : start/end[0/1], unitigID, unitigLen
 for header, ref in fasta_iter(references):
-    ref_kmers[normalize(ref[:k])] = [0, -1, -1]
-    ref_kmers[normalize(ref[-k:])] = [1, -1, -1]
+    ref_kmers[normalize(ref[:k])] = True
+    ref_kmers[normalize(ref[-k:])] = False
 
 
 # parse unitigs and split if necessary
@@ -72,41 +71,66 @@ def save_unitig(header,seq):
     return(nb_unitigs)
 
 print("Started parsing and spliting unitigs .. ")
+unitig_skmer = {}
 for header, unitig in fasta_iter(unitigs):
     seq = unitig
     already_split = False
     prev = 0
+    i = 0
     for i in range(1,len(unitig)-k+1):
+    #while i < len(unitig)-k+1:
         kmer = normalize(unitig[i:i+k])
         if kmer in ref_kmers:
             #if already_split:
             #    exit("Error: this dataset violates the assumption that a unitig only needs to be split once.")
             #if i > 0 and i < len(unitig)-k+1:
-            unitig_id=save_unitig(header,unitig[prev:i+k-1])
-            if (ref_kmers[kmer][1]) != -1:
-                exit("Error: a kmer cannot belong to more than one unitig")
-            ref_kmers[kmer][1] = unitig_id
-            ref_kmers[kmer][2] = i+k-1-prev
-            #save_unitig(header,unitig[i:])
-            #print("split",unitig,"at",i)
-            #already_split = True
-            prev = i            
+            unitig_len = 0
+            if ref_kmers[kmer]: # is a starting kmer                
+                if i+k-1-prev < k:
+                    continue
+                unitig_id=save_unitig(header,unitig[prev:i+k-1])
+                unitig_len = i+k-1-prev
+            else: # is an ending kmer
+                unitig_id=save_unitig(header,unitig[prev:i+k])
+                unitig_len = i+k-prev
+                
+            if normalize(unitig[prev:prev+k]) in unitig_skmer:
+                exit("Error: Initial kmer is repeated.")
+            if normalize(unitig[unitig_len-k:unitig_len]) in unitig_skmer:
+                exit("Error: Last kmer is repeated.")
+            unitig_skmer[normalize(unitig[prev:prev+k])] = [unitig_id, unitig_len, True]
+            unitig_skmer[normalize(unitig[unitig_len-k:unitig_len])] = [unitig_id, unitig_len, False]
+            print(prev, prev+unitig_len, unitig[prev:prev+k],normalize(unitig[prev:prev+k]), unitig_id, unitig_len)
+            if ref_kmers[kmer]:
+                prev = i
+            else:
+                prev = i+1
     #if not already_split:
-    save_unitig(header,unitig[prev:])
+    if len(unitig)-prev >= k:
+        unitig_id=save_unitig(header,unitig[prev:])
+        unitig_len = len(unitig)-prev
+        if normalize(unitig[prev:prev+k]) in unitig_skmer:
+            exit("Error: The initial kmer is repeated.")
+        if normalize(unitig[unitig_len-k:unitig_len]) in unitig_skmer:
+            exit("Error: The last kmer is repeated.")
+        unitig_skmer[normalize(unitig[prev:prev+k])] = [unitig_id, unitig_len, True]
+        unitig_skmer[normalize(unitig[unitig_len-k:unitig_len])] = [unitig_id, unitig_len, False]
+        print(prev, prev+unitig_len, unitig[prev:prev+k],normalize(unitig[prev:prev+k]), unitig_id, unitig_len)
 
 
 print("Started reconstructing the path .. ")
-for ref in fasta_iter(references):
+for header, ref in fasta_iter(references):
     output.write("\nP\t")
-    i = 0    
+    i = 0   
+    print("new reference: ", header, len(ref))
     while (i < len(ref)-k+1):
         kmer = ref[i:i+k]
         normalizedkmer = normalize(kmer)        
-        unitigInfo = ref_kmers[normalizedkmer]
-        if unitigInfo[0] != 0:
-            exit("Error: this kmer is supposed to be a starting kmer, but it's not")
-        output.write("%s%s," % (unitigInfo[1], "+-"[kmer==normalizedkmer]))
-        i += (unitigInfo[2]-k+1)    
+        print(i, kmer, normalizedkmer)
+        unitigInfo = unitig_skmer[normalizedkmer]
+        print(unitigInfo[0], unitigInfo[1], unitigInfo[2])
+        output.write("%s%s," % (unitigInfo[0], "-+"[unitigInfo[2]]))
+        i += (unitigInfo[1]-k+1)    
 
 
 output.close()
