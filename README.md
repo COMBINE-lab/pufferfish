@@ -14,7 +14,9 @@ Currently, Pufferfish is the software implementing this efficient ccdBG index, a
 Dependency:
 Pufferfish depends on sdsl-lite, to install from the pufferfish root directory execute following, 
 >git clone https://github.com/simongog/sdsl-lite.git
+
 >cd sdsl-lite
+
 >./install.sh ../
 
 
