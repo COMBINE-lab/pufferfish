@@ -17,7 +17,7 @@ char complement(char& c) {
     c = 'C';
     return c;
   }
-  return 'A';
+  return 'N';
 }
 
 std::string revcomp(std::string s) {

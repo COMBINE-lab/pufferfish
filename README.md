@@ -11,6 +11,13 @@ While existing hash-based indices based on the cdBG (and ccdBG) are very efficie
 **about pufferfish development:**
 Currently, Pufferfish is the software implementing this efficient ccdBG index, and allowing point (i.e., k-mer) queries.  Pufferfish is under active development, but we want to be as open (and as useful to as many people) as possible early on. However, we are also in the process of building higher-level tools (e.g., read mappers and aligners) around this index, so stay tuned!
 
+Dependency:
+Pufferfish depends on sdsl-lite, to install from the pufferfish root directory execute following, 
+>git clone https://github.com/simongog/sdsl-lite.git
+>cd sdsl-lite
+>./install.sh ../
+
+
 **branches:**
 The **master** branch of pufferfish is _not_ necessarily stable, but it should, at any given time contain a working version of the index.  That is, breaking changes should not be pushed to master.  The **develop** branch of pufferfish is guaranteed to be neither stable nor working at any given point, but a best-faith effort will be made to not commit broken code to this branch.  For feature branches, all bets are off.
 
