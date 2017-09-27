@@ -35,6 +35,7 @@ int pufferfishValidate(
     util::ValidateOptions& validateOpts); // int argc, char* argv[]);
 int pufferfishTestLookup(
     util::ValidateOptions& lookupOpts); // int argc, char* argv[]);
+int pufferfishMapper(util::MappingOpts& mapOpts) ;
 // int rapMapMap(int argc, char* argv[]);
 // int rapMapSAMap(int argc, char* argv[]);
 
@@ -62,6 +63,7 @@ int main(int argc, char* argv[]) {
   auto validateApp = app.add_subcommand(
       "validate", "test k-mer lookup for reference sequences");
   auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
+  auto mapApp = app.add_subcommand("map", "map paired end RNA-seq reads") ;
 
   util::IndexOptions indexOpt;
   indexApp
@@ -92,7 +94,7 @@ int main(int argc, char* argv[]) {
       ->required();
   validateApp
       ->add_option("-r,--ref", validateOpt.refFile,
-                   "fasta file with reference sequences")
+                   "fasta file with reference sequences") 
       ->required();
 
   util::ValidateOptions lookupOpt;
@@ -104,6 +106,29 @@ int main(int argc, char* argv[]) {
       ->add_option("-r,--ref", lookupOpt.refFile,
                    "fasta file with reference sequences")
       ->required();
+
+  util::MappingOpts mappingOpt ;
+  mapApp
+    ->add_option("-i,--index", mappingOpt.indexDir,
+                 "directory where the pufferfish index is stored")
+    ->required() ;
+  mapApp
+    ->add_option(",--mate1", mappingOpt.read1,
+                 "path to left end of the read files")
+    ->required() ;
+  mapApp
+    ->add_option(",--mate2", mappingOpt.read2,
+                 "path to right end of the read files")
+    ->required() ;
+  mapApp
+    ->add_option("-p,--threads", mappingOpt.numThreads,
+                 "specfy number of threads") ;
+  mapApp
+    ->add_option("-o,--outdir", mappingOpt.outname,
+                 "output directory where the mapping results would get stored")
+    ->required() ;
+
+
 
   try {
     app.parse(argc, argv);
@@ -119,7 +144,10 @@ int main(int argc, char* argv[]) {
     return pufferfishValidate(validateOpt);
   } else if (app.got_subcommand(lookupApp)) {
     return pufferfishTestLookup(lookupOpt);
-  } else {
+  } else if (app.got_subcommand(mapApp)) {
+    return pufferfishMapper(mappingOpt);
+  }
+  else {
     std::cerr << "I don't know the requested sub-command\n";
     return 1;
   }

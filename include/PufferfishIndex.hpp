@@ -58,6 +58,9 @@ public:
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
 
+  // Get the list of reference names
+  const std::vector<std::string>& getRefNames() ;
+
   // Returns true if the given k-mer appears in the dBG, false otherwise
   bool contains(CanonicalKmer& mer);
 
@@ -79,7 +82,6 @@ public:
   // contig contains the match.  For correlated searches (e.g., from a read)
   // this can considerably speed up querying.
   auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
-
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_

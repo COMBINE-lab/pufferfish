@@ -235,3 +235,7 @@ PufferfishIndex::refList(uint64_t contigRank) {
 const std::string& PufferfishIndex::refName(uint64_t refRank) {
   return refNames_[refRank];
 }
+
+const std::vector<std::string>& PufferfishIndex::getRefNames(){
+    return refNames_ ;
+}

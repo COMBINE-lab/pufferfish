@@ -452,7 +452,7 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern) -> util::ProjectedHits
 	}
 	//end of sampling based pos detection
   return getRefPosHelper_(mern, pos, didWalk);
-  
+
 }
 
 uint32_t PufferfishSparseIndex::k() { return k_; }
@@ -466,4 +466,8 @@ const std::vector<util::Position>& PufferfishSparseIndex::refList(uint64_t conti
 
 const std::string& PufferfishSparseIndex::refName(uint64_t refRank) {
   return refNames_[refRank];
+}
+
+const std::vector<std::string>& PufferfishSparseIndex::getRefNames(){
+    return refNames_ ;
 }

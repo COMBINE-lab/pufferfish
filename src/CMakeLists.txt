@@ -1,6 +1,20 @@
 #set(gfalib_srcs gfakluge.cpp)
 #add_library(gfakluge STATIC ${gfalib_srcs})
-set(pufferfish_lib_srcs GFAPufferFishIndexer.cpp PufferfishIndex.cpp PufferfishSparseIndex.cpp Util.cpp PufferfishValidate.cpp PufferfishTestLookup.cpp FastxParser.cpp OurGFAReader.cpp PufferFS.cpp xxhash.c GFAConverter.cpp)#CanonicalKmerIterator.cpp)
+set(pufferfish_lib_srcs 
+    GFAPufferFishIndexer.cpp 
+    PufferfishIndex.cpp 
+    PufferfishSparseIndex.cpp 
+    Util.cpp 
+    PufferfishValidate.cpp 
+    PufferfishTestLookup.cpp 
+    FastxParser.cpp 
+    OurGFAReader.cpp 
+    PufferFS.cpp 
+    xxhash.c 
+    GFAConverter.cpp
+    PufferfishMapper.cpp
+    )
+
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 
 #add_executable(pufferfish-index-old PufferFishIndexer.cpp FastxParser.cpp)

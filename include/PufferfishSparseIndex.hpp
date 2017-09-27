@@ -74,6 +74,7 @@ public:
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
 
+  const std::vector<std::string>& getRefNames() ;
   // Returns true if the given k-mer appears in the dBG, false otherwise
   bool contains(CanonicalKmer& mer);
 
@@ -99,7 +100,7 @@ public:
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk = false) -> util::ProjectedHits;
-  
+
 
 };
 

@@ -118,9 +118,23 @@ bool is_number(const std::string& s) {
                        }) == s.end();
 }
 
+// tokenize the file names
+// later TODO: replace string streams with string_view 
+std::vector<std::string> tokenize(const std::string &s, char delim) {
+  std::stringstream ss(s);
+  std::string item;
+  std::vector<std::string> elems;
+  while (std::getline(ss, item, delim)) {
+    elems.push_back(item);
+  }
+  return elems;
+}
+
+
 // Avoiding un-necessary stream creation + replacing strings with string view
 // is a bit > than a 2x win!
 // implementation from : https://marcoarena.wordpress.com/tag/string_view/
+
 std::vector<stx::string_view> split(stx::string_view str, char delims) {
   std::vector<stx::string_view> ret;
 
