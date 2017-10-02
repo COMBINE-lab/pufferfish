@@ -111,7 +111,7 @@ void processReadsPair(paired_parser* parser,
   std::vector<QuasiAlignment> leftHits ;
   std::vector<QuasiAlignment> rightHits ;
   std::vector<QuasiAlignment> jointHits ;
-  PairedAlignmentFormatter formatter ;
+  PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
 
 
   auto rg = parser->getReadGroup() ;
@@ -157,7 +157,7 @@ void processReadsPair(paired_parser* parser,
       //TODO Write them to a sam file
       hctr.totHits += jointHits.size() ;
 
-      std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
+      //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
 
       if(jointHits.size() > 0){
         writeAlignmentsToStream(rpair, formatter, jointHits, sstream) ;

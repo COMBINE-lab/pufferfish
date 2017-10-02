@@ -25,24 +25,27 @@
 //#include "RapMapUtils.hpp"
 #include "Util.hpp"
 
+template <typename IndexPtrT>
 struct PairedAlignmentFormatter {
-    PairedAlignmentFormatter() : read1Temp(1000, 'A'),
-    qual1Temp(1000, '~'),
-    read2Temp(1000, 'A'),
-    qual2Temp(1000, '~'),
-    cigarStr1(buff1, 1000),
-    cigarStr2(buff2, 1000) {
-    }
+  PairedAlignmentFormatter(IndexPtrT indexIn) : index(indexIn),
+                                                read1Temp(1000, 'A'),
+                                                qual1Temp(1000, '~'),
+                                                read2Temp(1000, 'A'),
+                                                qual2Temp(1000, '~'),
+                                                cigarStr1(buff1, 1000),
+                                                cigarStr2(buff2, 1000) {
+  }
 
-    // Data members
-    std::string read1Temp;
-    std::string qual1Temp;
-    std::string read2Temp;
-    std::string qual2Temp;
-    char buff1[1000];
-    char buff2[1000];
-    util::FixedWriter cigarStr1;
-    util::FixedWriter cigarStr2;
+  // Data members
+  IndexPtrT index;
+  std::string read1Temp;
+  std::string qual1Temp;
+  std::string read2Temp;
+  std::string qual2Temp;
+  char buff1[1000];
+  char buff2[1000];
+  util::FixedWriter cigarStr1;
+  util::FixedWriter cigarStr2;
 };
 
 #endif //__PAIR_ALIGNMENT_FORMATTER_HPP__

@@ -110,10 +110,10 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
 }
 
 
-template<typename ReadPairT>
+template<typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r,
-    PairedAlignmentFormatter& formatter,
+    PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<util::QuasiAlignment>& jointHits,
     fmt::MemoryWriter& sstream) {
 
@@ -167,7 +167,7 @@ inline uint32_t writeAlignmentsToStream(
 	size_t i{0} ;
 	for(auto& qa : jointHits){
 		++i ;
-		auto transcriptName = qa.tid ;
+		auto& transcriptName = formatter.index->refName(qa.tid);
 		                  // === SAM
                     if (qa.isPaired) {
                         getSamFlags(qa, true, flags1, flags2);

@@ -231,14 +231,14 @@ enum class MateStatus : uint8_t {
 
 struct QuasiAlignment {
   	QuasiAlignment() :
-		tid(""),
+    tid(std::numeric_limits<uint32_t>::max()),
 		pos(std::numeric_limits<int32_t>::max()),
 		fwd(true),
 		fragLen(std::numeric_limits<uint32_t>::max()),
 		readLen(std::numeric_limits<uint32_t>::max()),
 		isPaired(false){}
 
-        QuasiAlignment(std::string tidIn, int32_t posIn,
+        QuasiAlignment(uint32_t tidIn, int32_t posIn,
                 bool fwdIn, uint32_t readLenIn,
                 uint32_t fragLenIn = 0,
                 bool isPairedIn = false) :
@@ -283,7 +283,7 @@ struct QuasiAlignment {
 */
         // Only 1 since the mate must have the same tid
         // we won't call *chimeric* alignments here.
-        std::string tid;
+        uint32_t tid;
         // Left-most position of the hit
         int32_t pos;
         // left-most position of the mate

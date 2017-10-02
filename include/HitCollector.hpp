@@ -16,11 +16,12 @@
 #define JUMPSIZE 10
 
 template<typename PufferfishIndexT> class HitCollector {
+  using RawHitMap = std::map<uint32_t, std::vector<util::HitQueryPos>>;
 public:
   HitCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
 
 
-  int updateHitMap(util::ProjectedHits& phits, std::map<std::string, std::vector<util::HitQueryPos> >& rawHitMap, int posIn){
+  int updateHitMap(util::ProjectedHits& phits, RawHitMap& rawHitMap, int posIn){
       int32_t jump{0};
 
 
@@ -30,7 +31,7 @@ public:
        **/
       jump = phits.contigLen_ - phits.contigPos_;
     for(auto& rpos : phits.refRange){
-      auto tid = pfi_->refName(rpos.transcript_id()) ;
+      auto tid = rpos.transcript_id();//pfi_->refName(rpos.transcript_id()) ;
       auto refInfo = phits.decodeHit(rpos) ;
 
 
@@ -43,7 +44,7 @@ public:
 
 
 
-  void processRawHitMap(std::map<std::string, std::vector<util::HitQueryPos> >& rawHitMap, std::vector<util::QuasiAlignment>& hits, int readLen){
+  void processRawHitMap(RawHitMap& rawHitMap, std::vector<util::QuasiAlignment>& hits, int readLen){
     for(auto& rh : rawHitMap){
       auto tid = rh.first ;
       std::sort(rh.second.begin(),
@@ -74,8 +75,6 @@ public:
       int32_t hitPos = maxCov->first ;
 
       hits.emplace_back(tid,hitPos,isFwd,readLen) ;
-
-
     }
   }
 
@@ -91,15 +90,15 @@ public:
     using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
     using ProjectedHits = util::ProjectedHits ;
     using QueryCache = util::QueryCache ;
-    using HitQueryPos = util::HitQueryPos ;
-    using HitMap = std::map<std::string,std::vector<HitQueryPos> > ;
+    //using HitQueryPos = util::HitQueryPos ;
+    //using RawHitMap = std::map<std::string,std::vector<HitQueryPos> > ;
 
 
     //read is same as seq in @Rob's mapper
     int32_t readLen = static_cast<int32_t>(read.length()) ;
 
     ProjectedHits phits ;
-    HitMap rawHitMap ;
+    RawHitMap rawHitMap ;
 
     //size of the kmer
     k = pfi_->k() ;
@@ -109,7 +108,7 @@ public:
     //start of kmer
 
     //print log
-    std::cerr << "\n In hit collector now with k " << k << "\n" ;
+    //std::cerr << "\n In hit collector now with k " << k << "\n" ;
 
 
     CanonicalKmerIterator kit1(read) ;
