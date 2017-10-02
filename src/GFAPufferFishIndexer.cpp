@@ -163,7 +163,7 @@ std::string packedToString(sdsl::int_vector<2>& seqVec, uint64_t offset, uint32_
 enum class NextSampleDirection : uint8_t { FORWARD = 0, REVERSE=1 };
 
 uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos, uint64_t distToSamplePos,
-                             uint32_t maxExt, NextSampleDirection dir, bool print=false) {
+                             uint32_t maxExt, NextSampleDirection dir) {
   uint32_t encodedNucs{0};
   uint32_t bitsPerCode{2};
   std::vector<uint32_t> charsToExtend;
@@ -366,11 +366,10 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
     ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
     size_t contigId{0};
-    int sampleCounter = 0 ;
 
     //debug flags
     int loopCounter = 0;
-    size_t ourKeys = 0 ;
+    //size_t ourKeys = 0 ;
     while(kb1 != ke1){
         sampledInds.clear();
         auto clen = contigLengths[contigId];
@@ -380,26 +379,26 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
         my_mer r;
         auto zeroPos = kb1.pos();
-        auto nextSampIter = sampledInds.begin();
-        auto prevSamp = *nextSampIter;
         auto skipLen = kb1.pos() - zeroPos;
-        bool didSample = false;
+        auto nextSampIter = sampledInds.begin();
+        //auto prevSamp = *nextSampIter;
+        //bool didSample = false;
         bool done = false;
 
         for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
           skipLen = kb1.pos() - zeroPos;
-          if (!done and skipLen == *nextSampIter) {
+          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
             auto idx = bphf->lookup(*kb1);
             presenceVec[idx] = 1 ;
             i++ ;
-            didSample = true;
-            prevSamp = *nextSampIter;
+            //didSample = true;
+            //prevSamp = *nextSampIter;
             ++nextSampIter;
             if (nextSampIter == sampledInds.end()) {
               done = true;
             }
           }
-          didSample = false;
+          //didSample = false;
         }
         if (nextSampIter != sampledInds.end()) {
           std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
@@ -426,7 +425,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
 
     size_t contigId{0} ;
-    size_t coveredKeys{0} ;
+    //size_t coveredKeys{0} ;
     size_t totalKmersIshouldSee{0} ;
 
     // For every valid k-mer (i.e. every contig)
@@ -439,7 +438,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
       contigId++ ;
 
-      size_t skip = 0 ;
+      //size_t skip = 0 ;
 
       my_mer r;
 
@@ -464,7 +463,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
           sampDir = (distToNext < distToPrev) ? NextSampleDirection::FORWARD : NextSampleDirection::REVERSE;
           skipLen = kb1.pos() - zeroPos;
           // If this is a sampled position
-          if (!done and skipLen == *nextSampIter) {
+          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
             prevSampIter = nextSampIter;
             ++nextSampIter;
             if (nextSampIter == sampledInds.end()) {

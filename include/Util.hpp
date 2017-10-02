@@ -234,8 +234,8 @@ struct QuasiAlignment {
 		tid(""),
 		pos(std::numeric_limits<int32_t>::max()),
 		fwd(true),
-		readLen(std::numeric_limits<uint32_t>::max()),
 		fragLen(std::numeric_limits<uint32_t>::max()),
+		readLen(std::numeric_limits<uint32_t>::max()),
 		isPaired(false){}
 
         QuasiAlignment(std::string tidIn, int32_t posIn,
@@ -243,7 +243,7 @@ struct QuasiAlignment {
                 uint32_t fragLenIn = 0,
                 bool isPairedIn = false) :
             tid(tidIn), pos(posIn), fwd(fwdIn),
-            readLen(readLenIn), fragLen(fragLenIn),
+            fragLen(fragLenIn), readLen(readLenIn), 
             isPaired(isPairedIn){}
 
         QuasiAlignment(QuasiAlignment&& other) = default;
@@ -312,6 +312,7 @@ struct QuasiAlignment {
 
         protected:
             void grow(std::size_t size) {
+                (void) size;
                 throw std::runtime_error("buffer overflow");
             }
     };

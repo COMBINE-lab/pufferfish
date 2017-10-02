@@ -7,11 +7,14 @@
 
         inline void getSamFlags(const util::QuasiAlignment& qaln,
                 uint16_t& flags) {
+          /*
             constexpr uint16_t pairedInSeq = 0x1;
             constexpr uint16_t mappedInProperPair = 0x2;
             constexpr uint16_t unmapped = 0x4;
             constexpr uint16_t mateUnmapped = 0x8;
+          */
             constexpr uint16_t isRC = 0x10;
+            /*
             constexpr uint16_t mateIsRC = 0x20;
             constexpr uint16_t isRead1 = 0x40;
             constexpr uint16_t isRead2 = 0x80;
@@ -19,6 +22,7 @@
             constexpr uint16_t failedQC = 0x200;
             constexpr uint16_t isPCRDup = 0x400;
             constexpr uint16_t supplementaryAln = 0x800;
+          */
 
             flags = 0;
             // Not paired in sequencing
@@ -49,10 +53,10 @@
             constexpr uint16_t mateIsRC = 0x20;
             constexpr uint16_t isRead1 = 0x40;
             constexpr uint16_t isRead2 = 0x80;
-            constexpr uint16_t isSecondaryAlignment = 0x100;
-            constexpr uint16_t failedQC = 0x200;
-            constexpr uint16_t isPCRDup = 0x400;
-            constexpr uint16_t supplementaryAln = 0x800;
+            //constexpr uint16_t isSecondaryAlignment = 0x100;
+            //constexpr uint16_t failedQC = 0x200;
+            //onstexpr uint16_t isPCRDup = 0x400;
+            //constexpr uint16_t supplementaryAln = 0x800;
 
             flags1 = flags2 = 0;
             flags1 = (peInput) ? pairedInSeq : 0;
@@ -153,11 +157,11 @@ inline uint32_t writeAlignmentsToStream(
 
 	std::string numHitFlag = fmt::format("NH:i:{}", jointHits.size());
 	uint32_t alnCtr{0};
-	uint32_t trueHitCtr{0};
-	util::QuasiAlignment* firstTrueHit{nullptr};
+	//uint32_t trueHitCtr{0};
+	//util::QuasiAlignment* firstTrueHit{nullptr};
 	bool haveRev1{false};
 	bool haveRev2{false};
-	bool* haveRev = nullptr;
+	//bool* haveRev = nullptr;
 
 
 	size_t i{0} ;
@@ -171,7 +175,8 @@ inline uint32_t writeAlignmentsToStream(
                             flags1 |= 0x100; flags2 |= 0x100;
                         }
 
-				 auto txpLen = 100;
+                        /** NOTE : WHY IS txpLen 100 here???? shouldn't this be readLen? **/
+				 uint32_t txpLen = 100;
                         //rapmap::utils::adjustOverhang(qa, txpLens[qa.tid], cigarStr1, cigarStr2);
 
                         // Reverse complement the read and reverse
@@ -242,6 +247,7 @@ inline uint32_t writeAlignmentsToStream(
 
 	}
 
+  return 0;
 }
 
 

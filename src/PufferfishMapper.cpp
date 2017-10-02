@@ -104,8 +104,8 @@ void processReadsPair(paired_parser* parser,
 
   auto logger = spdlog::get("stderrLog") ;
   fmt::MemoryWriter sstream ;
-  size_t batchSize{2500} ;
-  size_t readLen ;
+  //size_t batchSize{2500} ;
+  //size_t readLen ;
 
 
   std::vector<QuasiAlignment> leftHits ;
@@ -118,7 +118,7 @@ void processReadsPair(paired_parser* parser,
 
   while(parser->refill(rg)){
     for(auto& rpair : rg){
-      readLen = rpair.first.seq.length() ;
+      //readLen = rpair.first.seq.length() ;
       ++hctr.numReads ;
 
       jointHits.clear() ;
@@ -247,14 +247,14 @@ bool mapReads(
 
   std::streambuf* outBuf ;
   std::ofstream outFile ;
-  bool haveOutputFile{false} ;
+  //bool haveOutputFile{false} ;
   if(mopts->outname == ""){
 
     outBuf = std::cout.rdbuf() ;
   }else{
     outFile.open(mopts->outname) ;
     outBuf = outFile.rdbuf() ;
-    haveOutputFile = true ;
+    //haveOutputFile = true ;
   }
 
   //out stream to the buffer
@@ -326,7 +326,7 @@ int pufferfishMapper(MappingOpts& mapargs){
     auto consoleLog = spdlog::stderr_color_mt("console");
 
 
-  bool success{false} ;
+    bool success{false} ;
 
   auto indexDir = mapargs.indexDir ;
 
@@ -348,5 +348,8 @@ int pufferfishMapper(MappingOpts& mapargs){
     success = mapReads(pfi, consoleLog, &mapargs) ;
   }
 
+  if (!success) {
+    consoleLog->warn("Problem mapping.");
+  }
   return 0 ;
 }

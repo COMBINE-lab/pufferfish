@@ -98,12 +98,12 @@ public:
   // post: *iter is now exhausted
   //       OR *iter is the next valid pair of kmer and location after advancing
   inline CanonicalKmerIterator& operator+=(int advance) {
-    CanonicalKmerIterator tmp(*this) ;
+    //CanonicalKmerIterator tmp(*this) ;
     while(advance > 0){
         operator++() ;
         advance-- ;
     }
-    return tmp ;
+    return *this;
   }
 
 

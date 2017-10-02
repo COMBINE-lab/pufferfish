@@ -55,7 +55,7 @@ public:
       std::map<int32_t , int> hitCov ;
       auto it = rh.second.begin() ;
       while(it != rh.second.end()){
-        int numOfCov = 0 ;
+        //int numOfCov = 0 ;
         int32_t hitKey = it->pos - it->queryPos ;
         if(hitCov.count(hitKey) == 0){
           hitCov[hitKey] = 1 ;
@@ -84,8 +84,10 @@ public:
                   std::vector<util::QuasiAlignment>& hits,
                   util::MateStatus mateStatus,
                   bool consistentHits = false) {
-    using QuasiAlignment = util::QuasiAlignment ;
-    using MateStatus = util::MateStatus ;
+    (void) mateStatus;
+    (void) consistentHits;
+    //using QuasiAlignment = util::QuasiAlignment ;
+    //using MateStatus = util::MateStatus ;
     using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
     using ProjectedHits = util::ProjectedHits ;
     using QueryCache = util::QueryCache ;
@@ -141,7 +143,7 @@ public:
       bool queryFW = kit1->first.isFwCanonical();
       // the k-mer we queried with hit the contig in the forward orientation
       bool hitFW = phits.contigOrientation_;
-      bool ore = (queryFW == hitFW) ;
+      //bool ore = (queryFW == hitFW) ;
 
 
 
