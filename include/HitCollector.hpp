@@ -31,7 +31,7 @@ public:
     //std::map<uint32_t, MappingInfo> mappings;
     std::map<uint32_t, util::QuasiAlignment> mappings;
 
-    if (hits.empty()) { return mappings; }
+    if (hits.empty()) { return false; }
 
     // find the smallest target set
     std::vector<std::pair<int, util::ProjectedHits>>::iterator minHit;
@@ -46,7 +46,7 @@ public:
     // Put the targets from the smallest set into the map
     auto& lab = pi.getEqClassLabel(minHit->second.contigID());
     for (auto l : lab) {
-      mappings[l] = { l, std::numeric_limits<int32_t>::max(), true, readLen, 0, true };
+      mappings[l] = { l, std::numeric_limits<int32_t>::max(), true, readLen };// 0, true };
       //{l, std::numeric_limits<int32_t>::max(), true, readLen, 0, true}, // the read mapping
                       //{l, std::numeric_limits<int32_t>::max(), true, -1, 0, false}, // the mate mapping
                       //ms, -1 };
@@ -79,7 +79,7 @@ public:
           //if (verbose) { std::cerr << "hit : t = " << pi.refName(mapIt->first) << ", pos = " << refPos.pos + offset << ", fw = " << refPos.isFW << "\n";}
           if (offset < mapIt->second.pos) {
             mapIt->second.pos = refPos.pos + offset;
-            mapIt->second.isFW = refPos.isFW;
+            mapIt->second.fwd = refPos.isFW;
           }
         }
       }
@@ -92,7 +92,6 @@ public:
         qhits.push_back(mapIt->second);
       }
     }
-
 
     return true;
   }
@@ -176,7 +175,7 @@ public:
     ProjectedHits phits ;
     RawHitMap rawHitMap ;
 
-    std::vector<std::pair<int, util::ProjectedHits>>& rawHits;
+    std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
     //size of the kmer
     k = pfi_->k() ;
@@ -319,9 +318,9 @@ public:
     }*/
 
 
-    if(rawHitMap.size() > 0){
+    if(rawHits.size() > 0){
       //processRawHitMap(rawHitMap, hits, readLen) ;
-      hitsToMappings(*pfi_, readLen, k, rawHits);
+      hitsToMappings(*pfi_, readLen, k, rawHits, hits);
       return true ;
     }
 

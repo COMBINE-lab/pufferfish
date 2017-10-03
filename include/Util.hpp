@@ -421,6 +421,7 @@ struct HitCounters {
 // Structure to hold a list of "projected" (i.e. reference) hits
 // for a k-mer
 struct ProjectedHits {
+  uint32_t contigIdx_;
   // The relative position of the k-mer inducing this hit on the
   // contig
   uint32_t contigPos_;
@@ -433,6 +434,7 @@ struct ProjectedHits {
 
   inline bool empty() { return refRange.empty(); }
 
+  inline uint32_t contigID() const { return contigIdx_; }
   inline RefPos decodeHit(util::Position& p) {
     // true if the contig is fowrard on the reference
     bool contigFW = p.orientation();

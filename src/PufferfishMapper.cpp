@@ -162,7 +162,6 @@ void processReadsPair(paired_parser* parser,
                              rightHits,
                              MateStatus::PAIRED_END_RIGHT,
                              mopts->consistentHits) ;
-
       //do intersection on the basis of
       //performance, or going towards selective alignment
       //otherwise orphan
