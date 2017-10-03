@@ -21,7 +21,7 @@ public:
   HitCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
 
 
-  int updateHitMap(util::ProjectedHits& phits, RawHitMap& rawHitMap, int posIn){
+  int updateHitMap(util::ProjectedHits& phits, RawHitMap& rawHitMap, int posIn, int32_t readLen, int32_t k){
       int32_t jump{0};
 
 
@@ -34,8 +34,8 @@ public:
       auto tid = rpos.transcript_id();//pfi_->refName(rpos.transcript_id()) ;
       auto refInfo = phits.decodeHit(rpos) ;
 
-
-      rawHitMap[tid].emplace_back(static_cast<uint32_t>(posIn), refInfo.pos, refInfo.isFW) ;
+      int offset = refInfo.isFW ? -posIn : (posIn + k) - readLen;
+      rawHitMap[tid].emplace_back(static_cast<uint32_t>(posIn), refInfo.pos + offset, refInfo.isFW) ;
 
     }
     //int dist =  phits.contigLen_ - pfi_->k() - phits.contigPos_ ;
@@ -102,6 +102,7 @@ public:
 
     //size of the kmer
     k = pfi_->k() ;
+    int32_t ks = static_cast<int32_t>(k);
     CanonicalKmer::k(pfi_->k()) ;
     //end of the kmer
     CanonicalKmerIterator kit_end ;
@@ -175,7 +176,7 @@ public:
 
       //update the raw hit map
       //and get the next queryPos
-      jump = updateHitMap(phits, rawHitMap, kit1->second) ;
+      jump = updateHitMap(phits, rawHitMap, kit1->second, readLen, k) ;
 
       // the position where we should look
       if (lastSearch or done) { done = true; continue; }
