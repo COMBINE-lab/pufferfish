@@ -166,6 +166,11 @@ inline uint32_t writeAlignmentsToStream(
   auto& cigarStr1 = formatter.cigarStr1;
   auto& cigarStr2 = formatter.cigarStr2;
 
+  cigarStr1.clear();
+  cigarStr2.clear();
+  cigarStr1.write("{}M", r.first.seq.length());
+  cigarStr2.write("{}M", r.second.seq.length());
+  //std::cerr << cigarStr1.c_str() << "\n";
   uint16_t flags1, flags2;
 
   auto& readName = r.first.name;
