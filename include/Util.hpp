@@ -302,6 +302,8 @@ struct QuasiAlignment {
         // Is this a paired *alignment* or not
         bool isPaired;
         MateStatus mateStatus;
+  bool active = true;
+  uint32_t numHits = 0;
  };
 
 // from https://github.com/cppformat/cppformat/issues/105

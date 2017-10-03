@@ -21,6 +21,82 @@ public:
   HitCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
 
 
+  bool hitsToMappings(PufferfishIndexT& pi,
+                      int32_t readLen,
+                      uint32_t k,
+                      std::vector<std::pair<int, util::ProjectedHits>>& hits,
+                      std::vector<util::QuasiAlignment>& qhits,
+                      bool verbose = false) {
+    (void)verbose;
+    //std::map<uint32_t, MappingInfo> mappings;
+    std::map<uint32_t, util::QuasiAlignment> mappings;
+
+    if (hits.empty()) { return mappings; }
+
+    // find the smallest target set
+    std::vector<std::pair<int, util::ProjectedHits>>::iterator minHit;
+    uint32_t minSize{std::numeric_limits<uint32_t>::max()};
+    for (auto hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
+      auto& lab = pi.getEqClassLabel(hitIt->second.contigID());
+      if (lab.size() < minSize) {
+        minHit = hitIt;
+      }
+    }
+
+    // Put the targets from the smallest set into the map
+    auto& lab = pi.getEqClassLabel(minHit->second.contigID());
+    for (auto l : lab) {
+      mappings[l] = { l, std::numeric_limits<int32_t>::max(), true, readLen, 0, true };
+      //{l, std::numeric_limits<int32_t>::max(), true, readLen, 0, true}, // the read mapping
+                      //{l, std::numeric_limits<int32_t>::max(), true, -1, 0, false}, // the mate mapping
+                      //ms, -1 };
+    }
+
+    auto mapEnd = mappings.end();
+    auto hEnd = hits.end();
+    // a mapping must have this many hits to remain active
+    size_t currThresh={0};
+    for (auto hIter = hits.begin(); hIter != hEnd; ++hIter) {
+      ++currThresh;
+      auto& projHits = hIter->second;
+      for (auto& posIt : projHits.refRange) {
+        // if we will produce a mapping for this target
+        auto mapIt = mappings.find(posIt.transcript_id());
+        if (mapIt != mapEnd) {
+          auto refPos = projHits.decodeHit(posIt);
+          int offset = refPos.isFW ? -hIter->first : (hIter->first + k) - readLen;
+          if (mapIt->second.active and mapIt->second.numHits == currThresh - 1) {
+            //if (verbose) {std::cerr << "thresh = " << currThresh << ", nhits = " << mapIt->second.read.numHits << "\n";}
+            if (mapIt->second.numHits > 0) {
+              auto d = std::abs(mapIt->second.pos - (refPos.pos + offset));
+              if (d > readLen / 5) { continue; }
+            } 
+            ++(mapIt->second.numHits);
+          } else if (mapIt->second.numHits < currThresh - 1) {
+            mapIt->second.active = false;
+            continue;
+          }
+          //if (verbose) { std::cerr << "hit : t = " << pi.refName(mapIt->first) << ", pos = " << refPos.pos + offset << ", fw = " << refPos.isFW << "\n";}
+          if (offset < mapIt->second.pos) {
+            mapIt->second.pos = refPos.pos + offset;
+            mapIt->second.isFW = refPos.isFW;
+          }
+        }
+      }
+    }
+
+    for (auto mapIt = mappings.begin(); mapIt != mappings.end(); ++mapIt) {
+      if (mapIt->second.numHits != currThresh) {
+        mapIt->second.active = false;
+      } else {
+        qhits.push_back(mapIt->second);
+      }
+    }
+
+
+    return true;
+  }
+
   int updateHitMap(util::ProjectedHits& phits, RawHitMap& rawHitMap, int posIn, int32_t readLen, int32_t k){
       int32_t jump{0};
 
@@ -34,7 +110,7 @@ public:
       auto tid = rpos.transcript_id();//pfi_->refName(rpos.transcript_id()) ;
       auto refInfo = phits.decodeHit(rpos) ;
 
-      int offset = refInfo.isFW ? -posIn : (posIn + k) - readLen;
+      int offset = 0;//refInfo.isFW ? -posIn : (posIn + k) - readLen;
       rawHitMap[tid].emplace_back(static_cast<uint32_t>(posIn), refInfo.pos + offset, refInfo.isFW) ;
 
     }
@@ -100,6 +176,8 @@ public:
     ProjectedHits phits ;
     RawHitMap rawHitMap ;
 
+    std::vector<std::pair<int, util::ProjectedHits>>& rawHits;
+
     //size of the kmer
     k = pfi_->k() ;
     int32_t ks = static_cast<int32_t>(k);
@@ -131,7 +209,7 @@ public:
       //get position
     auto phits = pfi_->getRefPos(kit1->first, qc);
     if (!phits.empty()) {
-
+      rawHits.push_back(std::make_pair(kit1->second, phits));
       //@rob stores the quesry position and the phits pair in
       //a vector, I used a processed hit map
       //they are almost same with some suttle differences
@@ -176,7 +254,7 @@ public:
 
       //update the raw hit map
       //and get the next queryPos
-      jump = updateHitMap(phits, rawHitMap, kit1->second, readLen, k) ;
+      //jump = updateHitMap(phits, rawHitMap, kit1->second, readLen, k) ;
 
       // the position where we should look
       if (lastSearch or done) { done = true; continue; }
@@ -242,7 +320,8 @@ public:
 
 
     if(rawHitMap.size() > 0){
-      processRawHitMap(rawHitMap, hits, readLen) ;
+      //processRawHitMap(rawHitMap, hits, readLen) ;
+      hitsToMappings(*pfi_, readLen, k, rawHits);
       return true ;
     }
 
