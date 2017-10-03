@@ -62,6 +62,7 @@ using SpinLockT = std::mutex ;
 
 
 void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment>& rightHits, std::vector<QuasiAlignment>& jointHits){
+  /*
   //sort leftHits
   if(leftHits.size() > 1)
     std::sort(leftHits.begin(),leftHits.end(),
@@ -75,6 +76,7 @@ void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment
               [](QuasiAlignment& q1, QuasiAlignment& q2) -> bool{
                 return q1.tid < q2.tid ;
               });
+  */
   /**
    * based on potential standard implementation :http://en.cppreference.com/w/cpp/algorithm/set_intersection
    **/
@@ -176,7 +178,7 @@ void processReadsPair(paired_parser* parser,
       //otherwise orphan
 
       if(lh && rh){
-        mergeHits(rightHits, leftHits, jointHits) ;
+        mergeHits(leftHits, rightHits, jointHits) ;
       }
       else{
         //ignore orphans for now

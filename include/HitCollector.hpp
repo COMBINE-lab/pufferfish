@@ -79,7 +79,7 @@ public:
           //if (verbose) { std::cerr << "hit : t = " << pi.refName(mapIt->first) << ", pos = " << refPos.pos + offset << ", fw = " << refPos.isFW << "\n";}
           if (offset < mapIt->second.pos) {
             mapIt->second.pos = refPos.pos + offset;
-            mapIt->second.fwd = !(refPos.isFW);
+            mapIt->second.fwd = refPos.isFW;
           }
         }
       }
