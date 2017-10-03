@@ -46,7 +46,7 @@ public:
     // Put the targets from the smallest set into the map
     auto& lab = pi.getEqClassLabel(minHit->second.contigID());
     for (auto l : lab) {
-      mappings[l] = { l, std::numeric_limits<int32_t>::max(), true, readLen };// 0, true };
+      mappings[l] = { l, std::numeric_limits<int32_t>::max(), true, static_cast<uint32_t>(readLen) };// 0, true };
       //{l, std::numeric_limits<int32_t>::max(), true, readLen, 0, true}, // the read mapping
                       //{l, std::numeric_limits<int32_t>::max(), true, -1, 0, false}, // the mate mapping
                       //ms, -1 };
@@ -179,7 +179,7 @@ public:
 
     //size of the kmer
     k = pfi_->k() ;
-    int32_t ks = static_cast<int32_t>(k);
+    //int32_t ks = static_cast<int32_t>(k);
     CanonicalKmer::k(pfi_->k()) ;
     //end of the kmer
     CanonicalKmerIterator kit_end ;
