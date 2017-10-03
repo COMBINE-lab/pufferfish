@@ -75,16 +75,37 @@ void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment
               [](QuasiAlignment& q1, QuasiAlignment& q2) -> bool{
                 return q1.tid < q2.tid ;
               });
-
+  
+  int32_t signedZero{0};
   for(auto& lq : leftHits){
     auto lid = lq.tid ;
     for(auto& rq : rightHits){
       //for now let's ignore chimetic reads
       if(rq.tid == lid){
-        auto fpos = std::min(lq.pos, rq.pos) ;
+        int32_t startRead1 = std::max(lq.pos, signedZero);
+        int32_t startRead2 = std::max(rq.pos, signedZero);
+        bool read1First{(startRead1 < startRead2)};
+        int32_t fragStartPos = read1First ? startRead1 : startRead2;
+        int32_t fragEndPos = read1First ?
+          (startRead2 + rq.readLen) : (startRead1 + lq.readLen);
+        uint32_t fragLen = fragEndPos - fragStartPos;
+        jointHits.emplace_back(lid,
+                               lq.pos,
+                               lq.fwd,
+                               lq.readLen,
+                               fragLen, true);
+        // Fill in the mate info
+        auto& qaln = jointHits.back();
+        qaln.mateLen = rq.readLen;
+        qaln.matePos = rq.pos;
+        qaln.mateIsFwd = rq.fwd;
+        jointHits.back().mateStatus = MateStatus::PAIRED_END_PAIRED;
+        /*
+        int32_t fpos = std::min(lq.pos, rq.pos) ;
         jointHits.emplace_back(lid,fpos,lq.fwd,lq.readLen) ;
         jointHits.back().mateStatus = util::MateStatus::PAIRED_END_PAIRED ;
         jointHits.back().isPaired = true ;
+        */
       }
     }
   }

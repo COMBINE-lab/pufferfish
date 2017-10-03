@@ -90,24 +90,72 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
 	//auto& txpLens = rmi.txpLens;
 
 	auto numRef = txpNames.size();
-	// for now go with constant length
-    // TODO read transcript information
-    // while reading the index
-
-    int txpLen = 1000 ;
-	for (size_t i = 0; i < numRef; ++i) {
-		hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLen);
-	}
-	// Eventually output a @PG line
+  // for now go with constant length
+  // TODO read transcript information
+  // while reading the index
+  int txpLen = 1000 ;
+  for (size_t i = 0; i < numRef; ++i) {
+    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLen);
+  }
+  // Eventually output a @PG line
     //some other version nnumber for now,
     // will think about it later
-    std::string version = "1.0.0";
+    std::string version = "0.1.0";
 	hd.write("@PG\tID:rapmap\tPN:rapmap\tVN:{}\n", version);
 	std::string headerStr(hd.str());
 	// Don't include the last '\n', since the logger will do it for us.
 	headerStr.pop_back();
 	out->info(headerStr);
 }
+
+
+  // Declarations for functions dealing with SAM formatting and output
+    //
+    inline void adjustOverhang(int32_t& pos, uint32_t readLen,
+                               uint32_t txpLen, util::FixedWriter& cigarStr) {
+	    cigarStr.clear();
+      int32_t readLenS = static_cast<int32_t>(readLen);
+      int32_t txpLenS = static_cast<int32_t>(txpLen);
+	    if (pos + readLenS < 0) {
+            cigarStr.write("{}S", readLen);
+            pos = 0;
+        } else if (pos < 0) {
+        int32_t matchLen = readLenS + pos;
+        int32_t clipLen = readLenS - matchLen;
+        cigarStr.write("{}S{}M", clipLen, matchLen);
+        // Now adjust the mapping position
+		    pos = 0;
+	    } else if (pos > txpLenS) {
+            cigarStr.write("{}S", readLen);
+        } else if (pos + readLenS > txpLenS) {
+		    int32_t matchLen = txpLenS - pos;
+		    int32_t clipLen = readLenS - matchLen;
+		    cigarStr.write("{}M{}S", matchLen, clipLen);
+	    } else {
+		    cigarStr.write("{}M", readLen);
+	    }
+    }
+
+inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
+                           util::FixedWriter& cigarStr1, util::FixedWriter& cigarStr2) {
+	    if (qa.isPaired) { // both mapped
+		    adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1);
+		    adjustOverhang(qa.matePos, qa.mateLen, txpLen, cigarStr2);
+	    } else if (qa.mateStatus == util::MateStatus::PAIRED_END_LEFT ) {
+		    // left read mapped
+		    adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1);
+		    // right read un-mapped will just be read length * S
+		    cigarStr2.clear();
+		    cigarStr2.write("{}S", qa.mateLen);
+	    } else if (qa.mateStatus == util::MateStatus::PAIRED_END_RIGHT) {
+		    // right read mapped
+		    adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr2);
+		    // left read un-mapped will just be read length * S
+		    cigarStr1.clear();
+		    cigarStr1.write("{}S", qa.readLen);
+	    }
+    }
+
 
 
 template<typename ReadPairT, typename IndexT>
@@ -176,9 +224,8 @@ inline uint32_t writeAlignmentsToStream(
                         }
 
                         /** NOTE : WHY IS txpLen 100 here???? shouldn't this be readLen? **/
-				 uint32_t txpLen = 100;
+                        //uint32_t txpLen = 100;
                         //rapmap::utils::adjustOverhang(qa, txpLens[qa.tid], cigarStr1, cigarStr2);
-
                         // Reverse complement the read and reverse
                         // the quality string if we need to
                         std::string* readSeq1 = &(r.first.seq);
@@ -202,14 +249,14 @@ inline uint32_t writeAlignmentsToStream(
                             readSeq2 = &(read2Temp);
                             //qstr2 = &(qual2Temp);
                         }
-
                         // If the fragment overhangs the right end of the transcript
                         // adjust fragLen (overhanging the left end is already handled).
                         int32_t read1Pos = qa.pos;
                         int32_t read2Pos = qa.matePos;
                         const bool read1First{read1Pos < read2Pos};
-                        const int32_t minPos = read1First ? read1Pos : read2Pos;
-                        if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
+                        //const int32_t minPos = read1First ? read1Pos : read2Pos;
+                        // TODO : We don't have access to the txp len yet
+                        //if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
 
                         // get the fragment length as a signed int
                         const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
