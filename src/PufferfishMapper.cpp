@@ -75,40 +75,49 @@ void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment
               [](QuasiAlignment& q1, QuasiAlignment& q2) -> bool{
                 return q1.tid < q2.tid ;
               });
-  
+  /**
+   * based on potential standard implementation :http://en.cppreference.com/w/cpp/algorithm/set_intersection
+   **/
   int32_t signedZero{0};
-  for(auto& lq : leftHits){
-    auto lid = lq.tid ;
-    for(auto& rq : rightHits){
+  auto rqIt = rightHits.begin();
+  auto rqEnd = rightHits.end();
+  auto lqIt = leftHits.begin();
+  auto lqEnd = leftHits.end();
+  while (lqIt != lqEnd and rqIt != rqEnd) {
+    auto lid = lqIt->tid ;
+    auto rid = rqIt->tid;
+    if (lid < rid) {
+      ++lqIt;
+    } else {
+    //for(auto rqIt = rightHits.begin(); rqIt != rightHits.end(); ++rqIt) {
+      //for(auto& rq : rightHits){
       //for now let's ignore chimetic reads
-      if(rq.tid == lid){
-        int32_t startRead1 = std::max(lq.pos, signedZero);
-        int32_t startRead2 = std::max(rq.pos, signedZero);
+      if(!(rid < lid)){
+        int32_t startRead1 = std::max(lqIt->pos, signedZero);
+        int32_t startRead2 = std::max(rqIt->pos, signedZero);
         bool read1First{(startRead1 < startRead2)};
         int32_t fragStartPos = read1First ? startRead1 : startRead2;
         int32_t fragEndPos = read1First ?
-          (startRead2 + rq.readLen) : (startRead1 + lq.readLen);
+          (startRead2 + rqIt->readLen) : (startRead1 + lqIt->readLen);
         uint32_t fragLen = fragEndPos - fragStartPos;
-        jointHits.emplace_back(lid,
-                               lq.pos,
-                               lq.fwd,
-                               lq.readLen,
-                               fragLen, true);
+        jointHits.emplace_back(lid,           // reference id
+                               lqIt->pos,     // reference pos
+                               lqIt->fwd,     // fwd direction
+                               lqIt->readLen, // read length
+                               fragLen,       // fragment length
+                               true);         // properly paired
+
         // Fill in the mate info
         auto& qaln = jointHits.back();
-        qaln.mateLen = rq.readLen;
-        qaln.matePos = rq.pos;
-        qaln.mateIsFwd = rq.fwd;
-        jointHits.back().mateStatus = MateStatus::PAIRED_END_PAIRED;
-        /*
-        int32_t fpos = std::min(lq.pos, rq.pos) ;
-        jointHits.emplace_back(lid,fpos,lq.fwd,lq.readLen) ;
-        jointHits.back().mateStatus = util::MateStatus::PAIRED_END_PAIRED ;
-        jointHits.back().isPaired = true ;
-        */
+        qaln.mateLen = rqIt->readLen;
+        qaln.matePos = rqIt->pos;
+        qaln.mateIsFwd = rqIt->fwd;
+        qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
+        ++lqIt;
       }
-    }
-  }
+      ++rqIt;
+    } // end else
+  } // end while
 
 }
 
