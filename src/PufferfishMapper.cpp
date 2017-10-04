@@ -189,8 +189,7 @@ void processReadsPair(paired_parser* parser,
       hctr.totHits += jointHits.size() ;
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
-
-      if(jointHits.size() > 0){
+      if(jointHits.size() > 0 and !mopts->noOutput){
         writeAlignmentsToStream(rpair, formatter, jointHits, sstream) ;
       }
 
@@ -222,7 +221,7 @@ void processReadsPair(paired_parser* parser,
     // DUMP OUTPUT
     if (!mopts->noOutput) {
       std::string outStr(sstream.str());
-      std::cerr << "\n OutStream size "<< outStr.size() << "\n" ;
+      //std::cerr << "\n OutStream size "<< outStr.size() << "\n" ;
       // Get rid of last newline
       if (!outStr.empty()) {
         outStr.pop_back();
@@ -300,6 +299,7 @@ bool mapReads(
 
   auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(outStream) ;
   std::shared_ptr<spdlog::logger> outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
+  outLog->set_pattern("%v");
 
   uint32_t nthread = mopts->numThreads ;
   std::unique_ptr<paired_parser> pairParserPtr{nullptr} ;
