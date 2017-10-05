@@ -7,6 +7,10 @@
 #include "cereal/archives/binary.hpp"
 #include "cereal/archives/json.hpp"
 
+#include "jellyfish/mer_dna.hpp"
+
+
+
 PufferfishIndex::PufferfishIndex() {}
 
 PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
@@ -124,6 +128,38 @@ uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
   return std::numeric_limits<uint32_t>::max();
 }
 
+//TODO does the orientation of the contig matter while chopping sequence ?
+void PufferfishIndex::getRawSeq(uint64_t& globalPos, size_t len, std::string& contigStr){
+    uint32_t twoLen_ = 2*len ;
+    int i = 0;
+    contigStr = "";
+    while(twoLen_ > 0){
+        //if the length is k we are done
+        if(twoLen_ >= twok_){
+            uint64_t fk = seq_.get_int(2*globalPos+i*twok_,twok_) ;
+            CanonicalKmer mer ;
+            mer.fromNum(fk) ;
+            contigStr += mer.to_str() ;
+            i++ ;
+            twoLen_ -= twok_ ;
+        }else{
+            //we are less than k
+            //its go time
+            //figure out how much to fetch
+            uint64_t fk = seq_.get_int(2*globalPos+i*twok_,twoLen_) ;
+            CanonicalKmer mer ;
+            mer.fromNum(fk) ;
+
+            contigStr += mer.to_str().substr(0,twoLen_/2) ;
+            contigStr += "\0";
+            return ;
+
+        }
+    }
+    //return contigStr ;
+
+}
+
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
   auto km = mer.getCanonicalWord();
@@ -166,15 +202,15 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> uti
       // how the k-mer hits the contig (true if k-mer in fwd orientation, false
       // otherwise)
       bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
-      return {rank, relPos, hitFW, static_cast<uint32_t>(clen), k_,
+      return {rank, pos, relPos, hitFW, static_cast<uint32_t>(clen), k_,
               core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
+      return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
               core::range<IterT>{}};
     }
   }
 
-  return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
+  return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
           core::range<IterT>{}};
 }
 
@@ -210,15 +246,15 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
       // how the k-mer hits the contig (true if k-mer in fwd orientation, false
       // otherwise)
       bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
-      return {rank, relPos, hitFW, static_cast<uint32_t>(clen), k_,
+      return {rank,  pos, relPos, hitFW, static_cast<uint32_t>(clen), k_,
               core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
+      return {std::numeric_limits<uint32_t>::max(),  std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
               core::range<IterT>{}};
     }
   }
 
-  return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
+  return {std::numeric_limits<uint32_t>::max(),  std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
           core::range<IterT>{}};
 }
 

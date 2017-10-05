@@ -76,6 +76,8 @@ public:
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
 
+  void getRawSeq(uint64_t& globalPos, size_t len, std::string& contigStr);
+
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.  Uses the results
   // of the previous contig info (start, end) from qc if the same

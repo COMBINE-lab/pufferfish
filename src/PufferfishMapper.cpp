@@ -150,11 +150,15 @@ void processReadsPair(paired_parser* parser,
   HitCollector<PufferfishIndexT> hitCollector(&pfi) ;
 
   //std::cerr << "\n In process reads pair\n" ;
+    //TODO create a memory layout to store
+    //strings then will allocate alignment to them
+    //accordingly
+  std::vector<std::string> refBlocks ;
 
   auto logger = spdlog::get("stderrLog") ;
   fmt::MemoryWriter sstream ;
   //size_t batchSize{2500} ;
-  //size_t readLen ;
+  size_t readLen{0} ;
 
 
   std::vector<QuasiAlignment> leftHits ;
@@ -180,16 +184,19 @@ void processReadsPair(paired_parser* parser,
       //std::cerr << "\n second seq in pair " << rpair.second.seq << "\n" ;
 
       //std::cerr << "\n going inside hit collector \n" ;
+      readLen = rpair.first.seq.length() ;
 
       bool lh = hitCollector(rpair.first.seq,
                              leftHits,
                              MateStatus::PAIRED_END_LEFT,
-                             mopts->consistentHits) ;
+                             mopts->consistentHits,
+                             refBlocks) ;
 
       bool rh = hitCollector(rpair.second.seq,
                              rightHits,
                              MateStatus::PAIRED_END_RIGHT,
-                             mopts->consistentHits) ;
+                             mopts->consistentHits,
+                             refBlocks) ;
       //do intersection on the basis of
       //performance, or going towards selective alignment
       //otherwise orphan
@@ -270,6 +277,7 @@ bool spawnProcessReadsthreads(
   std::cerr << "\n In spawn threads\n" ;
 
   for(size_t i = 0; i < nthread ; ++i){
+
     threads.emplace_back(processReadsPair<PufferfishIndexT>,
                          parser,
                          std::ref(pfi),

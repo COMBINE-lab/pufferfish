@@ -26,6 +26,7 @@ public:
                       uint32_t k,
                       std::vector<std::pair<int, util::ProjectedHits>>& hits,
                       std::vector<util::QuasiAlignment>& qhits,
+                      std::vector<std::string>& refBlocks,
                       bool verbose = false) {
     (void)verbose;
     //std::map<uint32_t, MappingInfo> mappings;
@@ -157,7 +158,8 @@ public:
   bool operator()(std::string& read,
                   std::vector<util::QuasiAlignment>& hits,
                   util::MateStatus mateStatus,
-                  bool consistentHits = false) {
+                  bool consistentHits,
+                  std::vector<std::string>& refBlocks) {
     (void) mateStatus;
     (void) consistentHits;
     //using QuasiAlignment = util::QuasiAlignment ;
@@ -169,8 +171,15 @@ public:
     //using RawHitMap = std::map<std::string,std::vector<HitQueryPos> > ;
 
 
+    //clear the refBlocks now
+    //have to think about a clever
+    //mechanism later
+    //refBlocks.clear() ;
+
     //read is same as seq in @Rob's mapper
     int32_t readLen = static_cast<int32_t>(read.length()) ;
+    if(refBlocks.size() != readLen)
+        refBlocks.resize(readLen) ;
 
     ProjectedHits phits ;
     RawHitMap rawHitMap ;
@@ -199,74 +208,93 @@ public:
     //I am rewriting my mapper to match
     //Rob's convension, the += operator in
     //my code is not working as I imagined.
+    //
+    //string block iterator
+    decltype(refBlocks.begin()) bl ;
+    //initialize
+    bl = refBlocks.begin() ;
 
     while(kit1 != kit_end and !done) {
-    ++x;
-    //if (x % 1000 == 0) {
-    //std::cerr << "read_num = " << read_num << ", x = " << x << ", pos = " << kit1->second << "\n";
-      //}
-      //get position
-    auto phits = pfi_->getRefPos(kit1->first, qc);
-    if (!phits.empty()) {
-      rawHits.push_back(std::make_pair(kit1->second, phits));
-      //@rob stores the query position and the phits pair in
-      //a vector, I used a processed hit map
-      //they are almost same with some subtle differences
-      //where I used the selective alignment kind of idea to
-      //refine reads.
-      //hits.push_back(std::make_pair(kit1->second, phits));
-      // we looked with the fw version of this k-mer
-      size_t jump{0} ;
-      bool queryFW = kit1->first.isFwCanonical();
-      // the k-mer we queried with hit the contig in the forward orientation
-      bool hitFW = phits.contigOrientation_;
-      //bool ore = (queryFW == hitFW) ;
+        ++x;
+        //if (x % 1000 == 0) {
+        //std::cerr << "read_num = " << read_num << ", x = " << x << ", pos = " << kit1->second << "\n";
+          //}
+          //get position
+        auto phits = pfi_->getRefPos(kit1->first, qc);
+        if (!phits.empty()) {
+          rawHits.push_back(std::make_pair(kit1->second, phits));
+          //@rob stores the query position and the phits pair in
+          //a vector, I used a processed hit map
+          //they are almost same with some subtle differences
+          //where I used the selective alignment kind of idea to
+          //refine reads.
+          //hits.push_back(std::make_pair(kit1->second, phits));
+          // we looked with the fw version of this k-mer
+          size_t jump{0} ;
+          bool queryFW = kit1->first.isFwCanonical();
+          // the k-mer we queried with hit the contig in the forward orientation
+          bool hitFW = phits.contigOrientation_;
+          //bool ore = (queryFW == hitFW) ;
 
 
 
-    //this line has to be removed later
-    jump = phits.contigLen_ - phits.contigPos_;
-      //this is just a check let's keep it here for now
-
-      if (queryFW == hitFW) { // jump to the end of the contig
-        if (jump <= 0) {
-         // std::cerr << "(1) rnum = " << read_num
-        std::cerr   << ", queryFW = " << queryFW
-                    << ", hitFW = " << hitFW
-                    << ", jump = " << jump
-                    << ", pos = " << kit1->second
-                    << ", x = " << x
-                    << ", kmer = " << read.substr(kit1->second, k)
-                    << ", read = " <<  read << "\n"; std::exit(1);
-        }
-      } else {
-        // k-mer is RC, but is fw on contig = read is rc on contig
+        //this line has to be removed later
+        //TODO we are jumping here irrespective of the match
+        //extension but we want to do selective alignment
+        //get the contig sequence accordingly
         jump = phits.contigLen_ - phits.contigPos_;
-        if (jump <= 0) {
-        //  std::cerr << "(2) rnum = " << read_num
-            std::cerr<< ", queryFW = " << queryFW
-                    << ", hitFW = " << hitFW
-                    << ", jump = " << jump
-                    << ", pos = " << kit1->second
-                    << ", x = " << x << ", kmer = " << read.substr(kit1->second, k) << ", read = " <<  read << "\n"; std::exit(1);}
-      }
+        int32_t clipLen = std::min(readLen-kit1->second,static_cast<int32_t>(jump)) ;
+        auto globalPos = phits.globalPos_ ;
+        std::string contigStr ;
+        pfi_->getRawSeq(globalPos, clipLen, contigStr) ;
+        //std::cerr << contigStr ;
+        *bl = contigStr ;
+        //bl = pfi_->getRawSeq(globalPos, jump) ;
 
-      //update the raw hit map
-      //and get the next queryPos
-      //jump = updateHitMap(phits, rawHitMap, kit1->second, readLen, k) ;
+        //std::cerr << *bl << "\n" ;
+        bl++ ;
 
-      // the position where we should look
-      if (lastSearch or done) { done = true; continue; }
-      int32_t newPos = kit1->second + jump;
-      if (newPos > readLen - k) {
-        lastSearch = true;
-        newPos = readLen - k;
-      }
-      kit1.jumpTo(newPos);
-      continue;
-    } else {
-      ++kit1;
-    }
+
+
+          //this is just a check let's keep it here for now
+
+          if (queryFW == hitFW) { // jump to the end of the contig
+            if (jump <= 0) {
+             // std::cerr << "(1) rnum = " << read_num
+            std::cerr   << ", queryFW = " << queryFW
+                        << ", hitFW = " << hitFW
+                        << ", jump = " << jump
+                        << ", pos = " << kit1->second
+                        << ", x = " << x
+                        << ", kmer = " << read.substr(kit1->second, k)
+                        << ", read = " <<  read << "\n"; std::exit(1);
+            }
+          } else {
+            // k-mer is RC, but is fw on contig = read is rc on contig
+            jump = phits.contigLen_ - phits.contigPos_;
+            if (jump <= 0) {
+            //  std::cerr << "(2) rnum = " << read_num
+                std::cerr<< ", queryFW = " << queryFW
+                        << ", hitFW = " << hitFW
+                        << ", jump = " << jump
+                        << ", pos = " << kit1->second
+                        << ", x = " << x << ", kmer = " << read.substr(kit1->second, k) << ", read = " <<  read << "\n"; std::exit(1);}
+          }
+
+
+          // the position where we should look
+          if (lastSearch or done) { done = true; continue; }
+          int32_t newPos = kit1->second + jump;
+          if (newPos > readLen - k) {
+            lastSearch = true;
+            newPos = readLen - k;
+          }
+          kit1.jumpTo(newPos);
+          continue;
+        }
+        else {
+          ++kit1;
+        }
   }
 
     /* old implementation
@@ -320,7 +348,7 @@ public:
 
     if(rawHits.size() > 0){
       //processRawHitMap(rawHitMap, hits, readLen) ;
-      hitsToMappings(*pfi_, readLen, k, rawHits, hits);
+      hitsToMappings(*pfi_, readLen, k, rawHits, hits, refBlocks);
       return true ;
     }
 

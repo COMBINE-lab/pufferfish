@@ -425,6 +425,8 @@ struct ProjectedHits {
   uint32_t contigIdx_;
   // The relative position of the k-mer inducing this hit on the
   // contig
+  uint64_t globalPos_ ;
+
   uint32_t contigPos_;
   // How the k-mer inducing this hit maps to the contig
   // true for fw, false for rc
@@ -436,6 +438,7 @@ struct ProjectedHits {
   inline bool empty() { return refRange.empty(); }
 
   inline uint32_t contigID() const { return contigIdx_; }
+  //inline uint64_t getGlobalPos() const { return globalPos_; }
   inline RefPos decodeHit(util::Position& p) {
     // true if the contig is fowrard on the reference
     bool contigFW = p.orientation();

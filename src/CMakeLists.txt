@@ -13,6 +13,7 @@ set(pufferfish_lib_srcs
     xxhash.c 
     GFAConverter.cpp
     PufferfishMapper.cpp
+    edlib.cpp
     )
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})
