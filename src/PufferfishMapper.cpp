@@ -318,6 +318,8 @@ bool mapReads(
   std::shared_ptr<spdlog::logger> outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
   outLog->set_pattern("%v");
 
+  //mopts->noOutput = true;
+
   uint32_t nthread = mopts->numThreads ;
   std::unique_ptr<paired_parser> pairParserPtr{nullptr} ;
 
