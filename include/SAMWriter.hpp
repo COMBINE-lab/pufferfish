@@ -157,7 +157,7 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream) {
+    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans) {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
@@ -208,7 +208,7 @@ inline uint32_t writeAlignmentsToStream(
   // util::QuasiAlignment* firstTrueHit{nullptr};
   bool haveRev1{false};
   bool haveRev2{false};
-  // bool* haveRev = nullptr;
+  bool* haveRev = nullptr;
 
   size_t i{0};
   for (auto& qa : jointHits) {
@@ -288,7 +288,113 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\n';
 
-    } else {
+    } else if(writeOrphans){
+		//added orphan support
+	  //std::cerr<<"orphans here";
+
+      getSamFlags(qa, true, flags1, flags2);
+      if (alnCtr != 0) {
+        flags1 |= 0x100;
+        flags2 |= 0x100;
+      }
+
+      /** NOTE : WHY IS txpLen 100 here --- we should store and read this from the index. **/
+      // uint32_t txpLen = 100;
+      // rapmap::utils::adjustOverhang(qa, txpLens[qa.tid], cigarStr1,
+      // cigarStr2);
+      // Reverse complement the read and reverse
+      // the quality string if we need to
+
+	  std::string* readSeq{nullptr} ;
+	  std::string* unalignedSeq{nullptr} ;
+
+	  uint32_t flags, unalignedFlags ;
+
+	  std::string* alignedName{nullptr} ;
+	  std::string* unalignedName{nullptr} ;
+	  std::string* readTemp{nullptr} ;
+
+	  auto& cigarStr = formatter.cigarStr1;
+  	  cigarStr.clear();
+      cigarStr.write("{}M", r.first.seq.length());
+
+	  //logic for assigning orphans
+	  if(qa.mateStatus == util::MateStatus::PAIRED_END_LEFT){ //left read
+		alignedName = &readName ;
+		unalignedName = &mateName ;
+
+		readSeq = &(r.first.seq) ;
+		unalignedSeq = &(r.second.seq) ;
+
+		flags = flags1 ;
+		unalignedFlags = flags2 ;
+
+		haveRev = &haveRev1 ;
+		readTemp = &read1Temp ;
+	  }else{
+		alignedName = &mateName ;
+		unalignedName = &readName ;
+
+		readSeq = &(r.second.seq) ;
+		unalignedSeq = &(r.first.seq) ;
+
+		flags = flags2 ;
+		unalignedFlags = flags2 ;
+
+		haveRev = &haveRev2 ;
+		readTemp = &read2Temp ;
+
+	  }
+
+
+      // std::string* qstr1 = &(r.first.qual);
+      if (!qa.fwd) {
+        if (!*haveRev) {
+          util::reverseRead(*readSeq, *readTemp);
+          *haveRev = true;
+        }
+        readSeq = readTemp;
+      }
+
+      // If the fragment overhangs the right end of the reference
+      // adjust fragLen (overhanging the left end is already handled).
+      int32_t read1Pos = qa.pos;
+      int32_t read2Pos = qa.matePos;
+      const bool read1First{read1Pos < read2Pos};
+
+      // TODO : We don't have access to the txp len yet
+      // const int32_t minPos = read1First ? read1Pos : read2Pos;
+      // if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
+
+      // get the fragment length as a signed int
+      const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
+
+      sstream << alignedName->c_str() << '\t'                    // QNAME
+              << flags << '\t'                              // FLAGS
+              << refName << '\t'                             // RNAME
+              << qa.pos + 1 << '\t'                          // POS (1-based)
+              << 1 << '\t'                                   // MAPQ
+              << cigarStr.c_str() << '\t'                   // CIGAR
+              << '=' << '\t'                                 // RNEXT
+              << qa.matePos + 1 << '\t'                      // PNEXT
+              << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
+              << *readSeq << '\t'                           // SEQ
+              << "*\t"                                       // QUAL
+              << numHitFlag << '\n';
+
+      sstream << unalignedName->c_str() << '\t'                    // QNAME
+              << unalignedFlags << '\t'                              // FLAGS
+              << refName << '\t'                             // RNAME
+              << qa.pos + 1 << '\t'                      // POS (1-based)
+              << 0 << '\t'                                   // MAPQ
+              << "*\t"                   // CIGAR
+              << '=' << '\t'                                 // RNEXT
+              << qa.pos + 1 << '\t'                          // PNEXT
+              << ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
+              << *unalignedSeq << '\t'                           // SEQ
+              << "*\t"                                       // QUAL
+              << numHitFlag << '\n';
+
     }
     ++alnCtr;
   }

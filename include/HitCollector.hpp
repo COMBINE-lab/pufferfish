@@ -70,7 +70,7 @@ public:
             if (mapIt->second.numHits > 0) {
               auto d = std::abs(mapIt->second.pos - (refPos.pos + offset));
               if (d > readLen / 5) { continue; }
-            } 
+            }
             ++(mapIt->second.numHits);
           } else if (mapIt->second.numHits < currThresh - 1) {
             mapIt->second.active = false;
@@ -209,9 +209,9 @@ public:
     auto phits = pfi_->getRefPos(kit1->first, qc);
     if (!phits.empty()) {
       rawHits.push_back(std::make_pair(kit1->second, phits));
-      //@rob stores the quesry position and the phits pair in
+      //@rob stores the query position and the phits pair in
       //a vector, I used a processed hit map
-      //they are almost same with some suttle differences
+      //they are almost same with some subtle differences
       //where I used the selective alignment kind of idea to
       //refine reads.
       //hits.push_back(std::make_pair(kit1->second, phits));

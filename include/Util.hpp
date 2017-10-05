@@ -214,6 +214,7 @@ class MappingOpts{
     bool fuzzy{false};
     bool consistentHits{false};
     bool quiet{false};
+	bool writeOrphans{false} ;
 };
 
 
@@ -243,7 +244,7 @@ struct QuasiAlignment {
                 uint32_t fragLenIn = 0,
                 bool isPairedIn = false) :
             tid(tidIn), pos(posIn), fwd(fwdIn),
-            fragLen(fragLenIn), readLen(readLenIn), 
+            fragLen(fragLenIn), readLen(readLenIn),
             isPaired(isPairedIn){}
 
         QuasiAlignment(QuasiAlignment&& other) = default;

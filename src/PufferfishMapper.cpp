@@ -80,6 +80,8 @@ void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment
   /**
    * based on potential standard implementation :http://en.cppreference.com/w/cpp/algorithm/set_intersection
    **/
+
+  // We will not handle chimetric reads
   int32_t signedZero{0};
   auto rqIt = rightHits.begin();
   auto rqEnd = rightHits.end();
@@ -93,7 +95,7 @@ void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment
     } else {
     //for(auto rqIt = rightHits.begin(); rqIt != rightHits.end(); ++rqIt) {
       //for(auto& rq : rightHits){
-      //for now let's ignore chimetic reads
+      //for now let's ignore chimeric reads
       if(!(rid < lid)){
         int32_t startRead1 = std::max(lqIt->pos, signedZero);
         int32_t startRead2 = std::max(rqIt->pos, signedZero);
@@ -120,6 +122,21 @@ void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment
       ++rqIt;
     } // end else
   } // end while
+
+    //if there is no jointHits then
+    //add orphan reads to the list
+    if(jointHits.size() == 0){
+        if(leftHits.size() + rightHits.size() > 0){
+	        //std::cerr<<"orphans here\n";
+            jointHits.insert(jointHits.end(),
+                    std::make_move_iterator(leftHits.begin()),
+                    std::make_move_iterator(leftHits.end()));
+            jointHits.insert(jointHits.end(),
+                    std::make_move_iterator(rightHits.begin()),
+                    std::make_move_iterator(rightHits.end()));
+
+        }
+    }
 
 }
 
@@ -190,7 +207,7 @@ void processReadsPair(paired_parser* parser,
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
       if(jointHits.size() > 0 and !mopts->noOutput){
-        writeAlignmentsToStream(rpair, formatter, jointHits, sstream) ;
+        writeAlignmentsToStream(rpair, formatter, jointHits, sstream, mopts->writeOrphans) ;
       }
 
 

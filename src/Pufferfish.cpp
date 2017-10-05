@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
       ->required();
   validateApp
       ->add_option("-r,--ref", validateOpt.refFile,
-                   "fasta file with reference sequences") 
+                   "fasta file with reference sequences")
       ->required();
 
   util::ValidateOptions lookupOpt;
@@ -128,6 +128,13 @@ int main(int argc, char* argv[]) {
                  "output directory where the mapping results would get stored")
     ->required() ;
 
+  mapApp
+    ->add_flag(",--writeOrphans", mappingOpt.writeOrphans,
+                 "write Orphans flag");
+
+  mapApp
+    ->add_flag(",--noOutput", mappingOpt.noOutput,
+                 "run without writing sam");
 
 
   try {
