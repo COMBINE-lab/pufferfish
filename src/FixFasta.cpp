@@ -87,6 +87,7 @@ void fixFasta(single_parser* parser,
 
     while (parser->refill(rg)) {
       for (auto& read : rg) { // for each sequence
+        tooShort = false;
         std::string& readStr = read.seq;
         readStr.erase(
             std::remove_if(readStr.begin(), readStr.end(),
@@ -267,16 +268,19 @@ void fixFasta(single_parser* parser,
 
   std::ofstream ffa(outFile);
   size_t prev1{0};
+  size_t numWritten{0};
   for (size_t i = 0; i < transcriptNames.size(); ++i) {
     size_t next1 = onePos[i];
     size_t len = next1 - prev1;
     if(!shortFlag[transcriptNames[i]]){
         ffa << ">" << transcriptNames[i] << "\n";
         ffa << concatText.substr(prev1, len) << "\n";
+        ++numWritten;
     }
     prev1 = next1 + 1;
   }
   ffa.close();
+  std::cerr << "wrote " << numWritten << " contigs\n";
 }
 
 int main(int argc, char* argv[]) {
