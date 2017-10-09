@@ -7,6 +7,7 @@
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "jellyfish/mer_dna.hpp"
+#include "edlib.h"
 
 #include <algorithm>
 #include <iostream>
@@ -235,31 +236,11 @@ public:
           // the k-mer we queried with hit the contig in the forward orientation
           bool hitFW = phits.contigOrientation_;
           //bool ore = (queryFW == hitFW) ;
-
-
-
-        //this line has to be removed later
-        //TODO we are jumping here irrespective of the match
-        //extension but we want to do selective alignment
-        //get the contig sequence accordingly
-        jump = phits.contigLen_ - phits.contigPos_;
-        int32_t clipLen = std::min(readLen-kit1->second,static_cast<int32_t>(jump)) ;
-        auto globalPos = phits.globalPos_ ;
-        std::string contigStr ;
-        pfi_->getRawSeq(globalPos, clipLen, contigStr) ;
-        //std::cerr << contigStr ;
-        *bl = contigStr ;
-        //bl = pfi_->getRawSeq(globalPos, jump) ;
-
-        //std::cerr << *bl << "\n" ;
-        bl++ ;
-
-
-
           //this is just a check let's keep it here for now
 
           if (queryFW == hitFW) { // jump to the end of the contig
-            if (jump <= 0) {
+              jump = phits.contigLen_ - phits.contigPos_ ;
+            if (jump < 0) {
              // std::cerr << "(1) rnum = " << read_num
             std::cerr   << ", queryFW = " << queryFW
                         << ", hitFW = " << hitFW
@@ -271,8 +252,8 @@ public:
             }
           } else {
             // k-mer is RC, but is fw on contig = read is rc on contig
-            jump = phits.contigLen_ - phits.contigPos_;
-            if (jump <= 0) {
+            jump = phits.contigPos_;
+            if (jump < 0) {
             //  std::cerr << "(2) rnum = " << read_num
                 std::cerr<< ", queryFW = " << queryFW
                         << ", hitFW = " << hitFW
@@ -282,8 +263,43 @@ public:
           }
 
 
+
+        //this line has to be removed later
+        //TODO we are jumping here irrespective of the match
+        //extension but we want to do selective alignment
+        //get the contig sequence accordingly
+        //Don't we want to see
+        //jump = phits.contigLen_ - phits.contigPos_;
+
+        auto remainingReasLen = readLen - (kit1->second+k);
+        //int32_t clipLen = std::min(readLen - kit1->second, static_cast<int32_t>(jump)) ;
+
+        auto globalPos = phits.globalPos_ ;
+        std::string contigStr ;
+        //pfi_->getRawSeq(globalPos, clipLen, contigStr) ;
+        //std::cerr << contigStr ;
+        /*
+        *bl = contigStr ;
+        if (contigStr.length() > readLen){
+            std::cerr << clipLen << "\n";
+            std::cerr << kit1->second << "\n" ;
+            std::cerr << *bl << "\n" ;
+            std::exit(1) ;
+        }
+        //bl = pfi_->getRawSeq(globalPos, jump) ;
+
+        //std::cerr << *bl << "\n" ;
+        bl++ ;
+        */
+        //I
+
+
+
+
+
           // the position where we should look
           if (lastSearch or done) { done = true; continue; }
+          if (jump == 0){ ++kit1 ; continue ; }
           int32_t newPos = kit1->second + jump;
           if (newPos > readLen - k) {
             lastSearch = true;
@@ -361,5 +377,6 @@ public:
 private:
   PufferfishIndexT* pfi_ ;
   int k ;
+  AlignerEngine ae_ ;
 };
 #endif
