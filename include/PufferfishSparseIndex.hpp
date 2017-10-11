@@ -10,6 +10,7 @@
 #include "cereal/archives/json.hpp"
 
 #include "CanonicalKmer.hpp"
+#include "CanonicalKmerIterator.hpp"
 #include "BooPHF.h"
 #include "Util.hpp"
 
@@ -18,6 +19,8 @@ class PufferfishSparseIndex {
   using boophf_t = boomphf::mphf<uint64_t, hasher_t>;
   using EqClassID = uint32_t;
   using EqClassLabel = std::vector<uint32_t>;
+  using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
+
 private:
   uint32_t k_{0};
   uint32_t twok_{0};
@@ -98,7 +101,7 @@ public:
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
 
   //
-  void getRawSeq(uint64_t& globalPos, size_t len, std::string& contigStr);
+  void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
 
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;

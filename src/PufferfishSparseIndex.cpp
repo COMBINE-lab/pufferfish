@@ -172,34 +172,7 @@ uint32_t PufferfishSparseIndex::contigID(CanonicalKmer& mer) {
   }
 
 //TODO does the orientation of the contig matter while chopping sequence ?
-void PufferfishSparseIndex::getRawSeq(uint64_t& globalPos, size_t len, std::string& contigStr){
-    uint32_t twoLen_ = 2*len ;
-    int i = 0;
-    contigStr = "";
-    while(twoLen_ > 0){
-        //if the length is k we are done
-        if(twoLen_ >= twok_){
-            uint64_t fk = seq_.get_int(2*globalPos+i*twok_,twok_) ;
-            CanonicalKmer mer ;
-            mer.fromNum(fk) ;
-            contigStr += mer.to_str() ;
-            i++ ;
-            twoLen_ -= twok_ ;
-        }else{
-            //we are less than k
-            //its go time
-            //figure out how much to fetch
-            uint64_t fk = seq_.get_int(2*globalPos+i*twok_,twoLen_) ;
-            CanonicalKmer mer ;
-            mer.fromNum(fk) ;
-
-            contigStr += mer.to_str().substr(0,twoLen_/2) ;
-            contigStr += "\0";
-            return ;
-
-        }
-    }
-    //return contigStr ;
+void PufferfishSparseIndex::getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen){
 
 }
 

@@ -11,6 +11,7 @@
 
 #include "BooPHF.h"
 #include "CanonicalKmer.hpp"
+#include "CanonicalKmerIterator.hpp"
 #include "Util.hpp"
 
 class PufferfishIndex {
@@ -18,6 +19,7 @@ class PufferfishIndex {
   using boophf_t = boomphf::mphf<uint64_t, hasher_t>;
   using EqClassID = uint32_t;
   using EqClassLabel = std::vector<uint32_t>;
+  using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
 
 private:
   uint32_t k_{0};
@@ -76,13 +78,13 @@ public:
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
 
-  void getRawSeq(uint64_t& globalPos, size_t len, std::string& contigStr);
+  void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
 
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.  Uses the results
   // of the previous contig info (start, end) from qc if the same
   // contig contains the match.  For correlated searches (e.g., from a read)
-  // this can considerably speed up querying.
+  //http://downloads.asperasoft.com/en/downloads/2 this can considerably speed up querying.
   auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
 };
 

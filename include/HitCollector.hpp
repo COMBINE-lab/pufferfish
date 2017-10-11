@@ -217,10 +217,6 @@ public:
 
     while(kit1 != kit_end and !done) {
         ++x;
-        //if (x % 1000 == 0) {
-        //std::cerr << "read_num = " << read_num << ", x = " << x << ", pos = " << kit1->second << "\n";
-          //}
-          //get position
         auto phits = pfi_->getRefPos(kit1->first, qc);
         if (!phits.empty()) {
           rawHits.push_back(std::make_pair(kit1->second, phits));
@@ -235,71 +231,93 @@ public:
           bool queryFW = kit1->first.isFwCanonical();
           // the k-mer we queried with hit the contig in the forward orientation
           bool hitFW = phits.contigOrientation_;
-          //bool ore = (queryFW == hitFW) ;
+          bool ore = (queryFW == hitFW) ;
           //this is just a check let's keep it here for now
 
-          if (queryFW == hitFW) { // jump to the end of the contig
+
+          if (hitFW) { // jump to the end of the contig
               jump = phits.contigLen_ - phits.contigPos_ ;
-            if (jump < 0) {
-             // std::cerr << "(1) rnum = " << read_num
-            std::cerr   << ", queryFW = " << queryFW
-                        << ", hitFW = " << hitFW
-                        << ", jump = " << jump
-                        << ", pos = " << kit1->second
-                        << ", x = " << x
-                        << ", kmer = " << read.substr(kit1->second, k)
-                        << ", read = " <<  read << "\n"; std::exit(1);
-            }
+              //@debug purpose
+              //judge quality
+              /* 
+              if(jump > 0 ){
+                auto remainingReasLen = readLen - (kit1->second+k); // checkout the residual length
+                int32_t clipLen = std::min(readLen, static_cast<int32_t>(jump)) ; // how much to clip from the contig
+                auto globalPos = phits.globalPos_ ; //find out the position on the concatenated sequence
+                std::string contigStr ; //fetch it into the contig sequence
+
+                pfi_->getRawSeq(phits, kit1, contigStr, readLen) ; //the seq caller, returns the sequence
+                *bl = contigStr ; // place it into the memory
+                bl++ ; //inclrease the pointer
+
+                //print them
+                std::cerr << "the read is and reference are in same direction "<<int(queryFW)<<"\n"
+                        << "read: " << read << "\n"
+                        << "contigPos: " << phits.contigPos_ << "\n"
+                        << "contigLen: " << phits.contigLen_ << "\n"
+                        << "pos: " << kit1->second << "\n"
+                        << "k-mer: "<< read.substr(kit1->second,k) << "\n"
+                        << "jump size: " << jump << "\n" 
+                          << "seq: " << contigStr << "\n"  ; std::exit(1) ;
+
+                          }*/
+
+              if (jump < 0) {
+              // std::cerr << "(1) rnum = " << read_num
+                std::cerr  << ", queryFW = " << queryFW
+                          << ", hitFW = " << hitFW
+                          << ", jump = " << jump
+                          << ", pos = " << kit1->second
+                          << ", x = " << x
+                          << ", kmer = " << read.substr(kit1->second, k)
+                          << ", read = " <<  read << "\n"; std::exit(1);
+              }
+
+
           } else {
             // k-mer is RC, but is fw on contig = read is rc on contig
             jump = phits.contigPos_;
+
+            /*if(jump > 0 ){
+              
+              auto remainingReasLen = readLen - (kit1->second+k); // checkout the residual length
+              int32_t clipLen = std::min(readLen, static_cast<int32_t>(jump)) ; // how much to clip from the contig
+              auto globalPos = phits.globalPos_ ; //find out the position on the concatenated sequence
+              std::string contigStr ; //fetch it into the contig sequence
+
+              pfi_->getRawSeq(phits, kit1, contigStr, readLen) ; //the seq caller, returns the sequence
+              *bl = contigStr ; // place it into the memory
+              bl++ ; //inclrease the pointer
+
+              //print them
+              std::cerr << "the read is and reference are in different direction "<<int(queryFW)<<"\n"
+                        << "read: " << read << "\n"
+                        << "contigPos: " << phits.contigPos_ << "\n"
+                        << "contigLen: " << phits.contigLen_ << "\n"
+                        << "pos: " << kit1->second << "\n"
+                        << "k-mer: "<< read.substr(kit1->second, k) << "\n"
+                        << "jump size: " << jump << "\n"
+                        << "seq: " << contigStr << "\n" ;
+
+
+                        }*/
+
             if (jump < 0) {
             //  std::cerr << "(2) rnum = " << read_num
+
                 std::cerr<< ", queryFW = " << queryFW
                         << ", hitFW = " << hitFW
                         << ", jump = " << jump
                         << ", pos = " << kit1->second
-                        << ", x = " << x << ", kmer = " << read.substr(kit1->second, k) << ", read = " <<  read << "\n"; std::exit(1);}
+                        << ", x = " << x << ", kmer = " << read.substr(kit1->second,k) << ", read = " <<  read << "\n"; std::exit(1);}
+
           }
-
-
-
-        //this line has to be removed later
-        //TODO we are jumping here irrespective of the match
-        //extension but we want to do selective alignment
-        //get the contig sequence accordingly
-        //Don't we want to see
-        //jump = phits.contigLen_ - phits.contigPos_;
-
-        auto remainingReasLen = readLen - (kit1->second+k);
-        //int32_t clipLen = std::min(readLen - kit1->second, static_cast<int32_t>(jump)) ;
-
-        auto globalPos = phits.globalPos_ ;
-        std::string contigStr ;
-        //pfi_->getRawSeq(globalPos, clipLen, contigStr) ;
-        //std::cerr << contigStr ;
-        /*
-        *bl = contigStr ;
-        if (contigStr.length() > readLen){
-            std::cerr << clipLen << "\n";
-            std::cerr << kit1->second << "\n" ;
-            std::cerr << *bl << "\n" ;
-            std::exit(1) ;
-        }
-        //bl = pfi_->getRawSeq(globalPos, jump) ;
-
-        //std::cerr << *bl << "\n" ;
-        bl++ ;
-        */
-        //I
-
-
-
-
 
           // the position where we should look
           if (lastSearch or done) { done = true; continue; }
           if (jump == 0){ ++kit1 ; continue ; }
+
+
           int32_t newPos = kit1->second + jump;
           if (newPos > readLen - k) {
             lastSearch = true;
@@ -309,9 +327,13 @@ public:
           continue;
         }
         else {
+          //std::cerr << kit1->first.to_str() << " not found" << "\n" ;
           ++kit1;
         }
   }
+
+    //exit after first pass
+    //std::exit(1) ;
 
     /* old implementation
      * which was also based
