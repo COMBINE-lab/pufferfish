@@ -41,6 +41,7 @@ public:
     for (auto hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
       auto& lab = pi.getEqClassLabel(hitIt->second.contigID());
       if (lab.size() < minSize) {
+		minSize = lab.size();
         minHit = hitIt;
       }
     }
