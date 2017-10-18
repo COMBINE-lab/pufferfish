@@ -158,9 +158,6 @@ void fixFasta(single_parser* parser,
         if (readStr.size() >= k) {
           // If we're suspicious the user has fed in a *genome* rather
           // than a transcriptome, say so here.
-            tooShort = true ;
-          }
-
           uint32_t txpIndex = n++;
 
           // The name of the current transcript
