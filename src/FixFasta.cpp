@@ -4,6 +4,7 @@
 #include "sparsepp/spp.h"
 #include "spdlog/spdlog.h"
 #include "xxhash.h"
+#include "Util.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -66,7 +67,7 @@ void fixFasta(single_parser* parser,
   size_t numDups{0};
   std::map<XXH64_hash_t, std::vector<DupInfo>> potentialDuplicates;
   spp::sparse_hash_map<uint64_t, std::vector<std::string>> duplicateNames;
-  std::cerr << "\n[Step 1 of 4] : counting k-mers\n";
+  std::cerr << "\n[Step 1 of 4] : counting k-mers: "<<k<<"\n";
 
   // rsdic::RSDicBuilder rsdb;
   std::vector<uint64_t>
@@ -85,6 +86,10 @@ void fixFasta(single_parser* parser,
     while (parser->refill(rg)) {
       for (auto& read : rg) { // for each sequence
         std::string& readStr = read.seq;
+        uint32_t readLen = readStr.size();
+        uint32_t completeLen = readLen;
+
+
         readStr.erase(
             std::remove_if(readStr.begin(), readStr.end(),
                            [](const char a) -> bool { return !(isprint(a)); }),
@@ -92,12 +97,23 @@ void fixFasta(single_parser* parser,
 
         // seqHasher.process(readStr.begin(), readStr.end());
 
-        uint32_t readLen = readStr.size();
-        uint32_t completeLen = readLen;
+        std::string revCompStr;
+        util::reverseRead(readStr,revCompStr) ;
+
+        revCompStr.erase(
+            std::remove_if(revCompStr.begin(), revCompStr.end(),
+                           [](const char a) -> bool { return !(isprint(a)); }),
+            revCompStr.end());
+
+
 
         // get the hash to check for collisions before we change anything.
         auto txStringHash =
             XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
+                  readLen, 0);
+        //RC hash calculation
+        auto txRCStringHash =
+            XXH64(reinterpret_cast<void*>(const_cast<char*>(revCompStr.data())),
                   readLen, 0);
 
         // First, replace non ATCG nucleotides
@@ -135,10 +151,11 @@ void fixFasta(single_parser* parser,
         readLen = readStr.size();
         // If the transcript was completely removed during clipping, don't
         // include it in the index.
-        if (readStr.size() > 0) {
+        if (readStr.size() >= k) {
           // If we're suspicious the user has fed in a *genome* rather
           // than a transcriptome, say so here.
-          if (readStr.size() >= tooLong) {
+         /*
+         if (readStr.size() >= tooLong) {
             log->warn("Entry with header [{}] was longer than {} nucleotides.  "
                       "Are you certain that "
                       "we are indexing a transcriptome and not a genome?",
@@ -147,7 +164,7 @@ void fixFasta(single_parser* parser,
             log->warn("Entry with header [{}], had length less than "
                       "the k-mer length of {} (perhaps after poly-A clipping)",
                       read.name, k);
-          }
+          }*/
 
           uint32_t txpIndex = n++;
 
@@ -159,8 +176,10 @@ void fixFasta(single_parser* parser,
           // Add this transcript, indexed by it's sequence's hash value
           // to the potential duplicate list.
           bool didCollide{false};
+          bool didCollideRC{false};
           auto dupIt = potentialDuplicates.find(txStringHash);
-          if (dupIt != potentialDuplicates.end()) {
+          auto dupRCIt = potentialDuplicates.find(txRCStringHash) ;
+          if (dupIt != potentialDuplicates.end()){
             auto& dupList = dupIt->second;
             for (auto& dupInfo : dupList) {
               // they must be of the same length
@@ -178,6 +197,27 @@ void fixFasta(single_parser* parser,
               }   // if readLen == dupInfo.txLen
             }     // for dupInfo : dupList
           }       // if we had a potential duplicate
+
+          /*
+          if (dupRCIt != potentialDuplicates.end()) {
+            auto& dupList = dupRCIt->second;
+            for (auto& dupInfo : dupList) {
+              // they must be of the same length
+              if (readLen == dupInfo.txLen) {
+                bool collisionRC =
+                    (revCompStr.compare(0, readLen,
+                                     txpSeqStream.data() + dupInfo.txOffset,
+                                     readLen) == 0);
+                if (collisionRC) {
+                  ++numDups;
+                  didCollide = true;
+                  duplicateNames[dupInfo.txId].push_back(processedName);
+                  continue;
+                } // if collision
+              }   // if readLen == dupInfo.txLen
+            }     // for dupInfo : dupList
+          }       // if we had a potential duplicate
+          */
 
           if (!keepDuplicates and didCollide) {
             // roll back the txp index & skip the rest of this loop
@@ -302,7 +342,8 @@ int main(int argc, char* argv[]) {
   transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
   transcriptParserPtr->start();
   std::mutex iomutex;
-  bool keepDuplicates{true};
+  //bool keepDuplicates{true};
+  bool keepDuplicates{false};
   fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console,
            outFile);
   return 0;
