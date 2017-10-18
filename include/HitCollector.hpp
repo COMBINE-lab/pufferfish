@@ -41,7 +41,7 @@ public:
     for (auto hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
       auto& lab = pi.getEqClassLabel(hitIt->second.contigID());
       if (lab.size() < minSize) {
-		minSize = lab.size();
+	minSize = lab.size();
         minHit = hitIt;
       }
     }
@@ -157,6 +157,101 @@ public:
   }
 
 
+  size_t expandHitEfficient(util::ProjectedHits& hit, pufferfish::CanonicalKmerIterator& kit) {
+		auto& allContigs = pfi_->getSeq();
+  		//startPos points to the next kmer in contig (which can be the left or right based on the orientation of match)
+    k = pfi_->k();
+		size_t cCurrPos = hit.globalPos_+hit.contigPos_+k+1; //start from next character if fw match
+    size_t cEndPos = hit.globalPos_+hit.contigLen_-k+1; //TODO check + 1
+    size_t cStartPos = hit.globalPos_-1; 
+		//next kmer in the read
+    kit++;
+		size_t readStart = kit->second;
+    pufferfish::CanonicalKmerIterator kit_end;
+    bool stillMatch = true;
+    std::cerr <<"-------- In expandHitEfficient --------";
+    while (stillMatch && cCurrPos < cEndPos && cCurrPos > cStartPos && kit != kit_end) {
+      if (hit.contigOrientation_) {
+        auto baseCnt = k < cEndPos - cCurrPos? k : cEndPos - cCurrPos;
+        uint64_t fk = allContigs.get_int(2*(cCurrPos), 2*baseCnt);
+        cCurrPos += baseCnt;
+        std::cerr << "readPos:" << kit->second
+                  << " , contigPos:" << cCurrPos
+                  << " , readWord:" << kit->first.fwWord()
+                  <<" , contigWord:" << fk << "\n";
+        for (int i = baseCnt-1; i >=0 && kit != kit_end; i--) {
+          auto readCode = (kit->first.fwWord()) >> (2*(k-1)) & 0x3;
+          auto contigCode = (fk >> (2*i)) & 0x3;
+          if (readCode != contigCode) {
+            stillMatch = false;
+            break;
+          }
+          hit.k_++;
+          kit++;
+        }
+      }
+      else {
+        auto baseCnt = k < cCurrPos - cStartPos? k : cCurrPos - cStartPos;
+        uint64_t fk = allContigs.get_int(2*(cCurrPos-baseCnt), 2*baseCnt);
+        cCurrPos -= baseCnt;
+        std::cerr << "readPos:" << kit->second
+                  << " , contigPos:" << cCurrPos
+                  << " , readWord:" << kit->first.rcWord()
+                  <<" , contigWord:" << fk << "\n";
+        for (int i = 0; i < baseCnt && kit != kit_end; i++) {
+          auto readCode = kit->first.rcWord() & 0x3;
+          auto contigCode = (fk >> (2*i)) & 0x3;
+          if (readCode != contigCode) {
+            stillMatch = false;
+            break;
+          }
+          hit.k_++;
+          kit++;
+        }
+      }
+    }
+    return readStart;
+  }
+
+ 
+
+  size_t expandHit(util::ProjectedHits& hit, pufferfish::CanonicalKmerIterator& kit) {
+		auto& allContigs = pfi_->getSeq();
+  		//startPos points to the next kmer in contig (which can be the left or right based on the orientation of match)
+		size_t startPos = hit.globalPos_+hit.contigPos_+(hit.contigOrientation_?+1:-1);
+		//next kmer in the read
+		kit++;
+		size_t readStart = kit->second;
+		CanonicalKmer mer;
+		uint64_t fk = allContigs.get_int(2*startPos, 2*pfi_->k());
+		mer.fromNum(fk);
+		bool boundaryReached = false;//TODO FIX IT!!
+		//simple case: extend the match toward the end of the read
+		while(!boundaryReached && kit->first == mer) {
+			if (hit.contigOrientation_) {
+				startPos++;
+				boundaryReached = startPos-hit.globalPos_ >= hit.contigLen_-pfi_->k()+1;
+			} else {
+				startPos--;
+				boundaryReached = startPos < hit.globalPos_;
+			}
+			//next kmer in contig
+			fk = allContigs.get_int(2*startPos, 2*pfi_->k());
+			mer.fromNum(fk);
+			//next kmer in read
+			kit++;
+			//increase match length
+			hit.k_++;
+		}
+		//ContigPos_ should be updated since now the match starting position has moved back toward the begining of the contig bc of the rc match
+		if (!hit.contigOrientation_)
+			hit.contigPos_ = startPos;
+	//Expand the match toward the beginning of the read
+		//
+		//return the new read starting position
+		return readStart;
+  }
+
   bool operator()(std::string& read,
                   std::vector<util::QuasiAlignment>& hits,
                   util::MateStatus mateStatus,
@@ -164,21 +259,10 @@ public:
                   std::vector<std::string>& refBlocks) {
     (void) mateStatus;
     (void) consistentHits;
-    //using QuasiAlignment = util::QuasiAlignment ;
-    //using MateStatus = util::MateStatus ;
     using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
     using ProjectedHits = util::ProjectedHits ;
     using QueryCache = util::QueryCache ;
-    //using HitQueryPos = util::HitQueryPos ;
-    //using RawHitMap = std::map<std::string,std::vector<HitQueryPos> > ;
 
-
-    //clear the refBlocks now
-    //have to think about a clever
-    //mechanism later
-    //refBlocks.clear() ;
-
-    //read is same as seq in @Rob's mapper
     int32_t readLen = static_cast<int32_t>(read.length()) ;
     if(refBlocks.size() != readLen)
         refBlocks.resize(readLen) ;
@@ -188,17 +272,9 @@ public:
 
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
-    //size of the kmer
     k = pfi_->k() ;
-    //int32_t ks = static_cast<int32_t>(k);
-    CanonicalKmer::k(pfi_->k()) ;
-    //end of the kmer
-    CanonicalKmerIterator kit_end ;
-    //start of kmer
-
-    //print log
-    //std::cerr << "\n In hit collector now with k " << k << "\n" ;
-
+    CanonicalKmer::k(k);
+    CanonicalKmerIterator kit_end;
 
     CanonicalKmerIterator kit1(read) ;
     QueryCache qc ;
@@ -206,65 +282,34 @@ public:
     bool done{false} ;
     size_t x{0} ;
 
-
-    //I am rewriting my mapper to match
-    //Rob's convension, the += operator in
-    //my code is not working as I imagined.
-    //
     //string block iterator
     decltype(refBlocks.begin()) bl ;
     //initialize
     bl = refBlocks.begin() ;
-
-    while(kit1 != kit_end and !done) {
+	while(kit1 != kit_end) {
+		auto phits = pfi_->getRefPos(kit1->first);
+		if (!phits.empty()) {
+		      size_t readPos = expandHitEfficient(phits, kit1); 
+          rawHits.push_back(std::make_pair(readPos, phits));
+		}
+    else ++kit1;
+		//no need!!
+		//++kit1;
+	}
+/*    while(kit1 != kit_end and !done) {
         ++x;
         auto phits = pfi_->getRefPos(kit1->first, qc);
         if (!phits.empty()) {
+		  size_t jump = expandHit(phits, kit1); 
           rawHits.push_back(std::make_pair(kit1->second, phits));
-          //@rob stores the query position and the phits pair in
-          //a vector, I used a processed hit map
-          //they are almost same with some subtle differences
-          //where I used the selective alignment kind of idea to
-          //refine reads.
-          //hits.push_back(std::make_pair(kit1->second, phits));
-          // we looked with the fw version of this k-mer
+		  kit1 += jump;
           size_t jump{0} ;
           bool queryFW = kit1->first.isFwCanonical();
-          // the k-mer we queried with hit the contig in the forward orientation
           bool hitFW = phits.contigOrientation_;
           bool ore = (queryFW == hitFW) ;
-          //this is just a check let's keep it here for now
-
-
           if (hitFW) { // jump to the end of the contig
               jump = phits.contigLen_ - phits.contigPos_ ;
-              //@debug purpose
-              //judge quality
-              /* 
-              if(jump > 0 ){
-                auto remainingReasLen = readLen - (kit1->second+k); // checkout the residual length
-                int32_t clipLen = std::min(readLen, static_cast<int32_t>(jump)) ; // how much to clip from the contig
-                auto globalPos = phits.globalPos_ ; //find out the position on the concatenated sequence
-                std::string contigStr ; //fetch it into the contig sequence
-
-                pfi_->getRawSeq(phits, kit1, contigStr, readLen) ; //the seq caller, returns the sequence
-                *bl = contigStr ; // place it into the memory
-                bl++ ; //inclrease the pointer
-
-                //print them
-                std::cerr << "the read is and reference are in same direction "<<int(queryFW)<<"\n"
-                        << "read: " << read << "\n"
-                        << "contigPos: " << phits.contigPos_ << "\n"
-                        << "contigLen: " << phits.contigLen_ << "\n"
-                        << "pos: " << kit1->second << "\n"
-                        << "k-mer: "<< read.substr(kit1->second,k) << "\n"
-                        << "jump size: " << jump << "\n" 
-                          << "seq: " << contigStr << "\n"  ; std::exit(1) ;
-
-                          }*/
-
               if (jump < 0) {
-              // std::cerr << "(1) rnum = " << read_num
                 std::cerr  << ", queryFW = " << queryFW
                           << ", hitFW = " << hitFW
                           << ", jump = " << jump
@@ -273,39 +318,9 @@ public:
                           << ", kmer = " << read.substr(kit1->second, k)
                           << ", read = " <<  read << "\n"; std::exit(1);
               }
-
-
           } else {
-            // k-mer is RC, but is fw on contig = read is rc on contig
             jump = phits.contigPos_;
-
-            /*if(jump > 0 ){
-              
-              auto remainingReasLen = readLen - (kit1->second+k); // checkout the residual length
-              int32_t clipLen = std::min(readLen, static_cast<int32_t>(jump)) ; // how much to clip from the contig
-              auto globalPos = phits.globalPos_ ; //find out the position on the concatenated sequence
-              std::string contigStr ; //fetch it into the contig sequence
-
-              pfi_->getRawSeq(phits, kit1, contigStr, readLen) ; //the seq caller, returns the sequence
-              *bl = contigStr ; // place it into the memory
-              bl++ ; //inclrease the pointer
-
-              //print them
-              std::cerr << "the read is and reference are in different direction "<<int(queryFW)<<"\n"
-                        << "read: " << read << "\n"
-                        << "contigPos: " << phits.contigPos_ << "\n"
-                        << "contigLen: " << phits.contigLen_ << "\n"
-                        << "pos: " << kit1->second << "\n"
-                        << "k-mer: "<< read.substr(kit1->second, k) << "\n"
-                        << "jump size: " << jump << "\n"
-                        << "seq: " << contigStr << "\n" ;
-
-
-                        }*/
-
             if (jump < 0) {
-            //  std::cerr << "(2) rnum = " << read_num
-
                 std::cerr<< ", queryFW = " << queryFW
                         << ", hitFW = " << hitFW
                         << ", jump = " << jump
@@ -313,12 +328,8 @@ public:
                         << ", x = " << x << ", kmer = " << read.substr(kit1->second,k) << ", read = " <<  read << "\n"; std::exit(1);}
 
           }
-
-          // the position where we should look
           if (lastSearch or done) { done = true; continue; }
           if (jump == 0){ ++kit1 ; continue ; }
-
-
           int32_t newPos = kit1->second + jump;
           if (newPos > readLen - k) {
             lastSearch = true;
@@ -328,11 +339,10 @@ public:
           continue;
         }
         else {
-          //std::cerr << kit1->first.to_str() << " not found" << "\n" ;
           ++kit1;
         }
   }
-
+*/
     //exit after first pass
     //std::exit(1) ;
 

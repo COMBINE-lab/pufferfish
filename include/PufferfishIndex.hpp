@@ -86,6 +86,8 @@ public:
   // contig contains the match.  For correlated searches (e.g., from a read)
   //http://downloads.asperasoft.com/en/downloads/2 this can considerably speed up querying.
   auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
+
+  sdsl::int_vector<2>& getSeq() {return seq_;}
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_
