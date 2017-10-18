@@ -36,6 +36,8 @@ void fixFasta(single_parser* parser,
 
   uint32_t n{0};
   std::vector<std::string> transcriptNames;
+  std::map<std::string, bool> shortFlag ;
+
   std::vector<int64_t> transcriptStarts;
   constexpr char bases[] = {'A', 'C', 'G', 'T'};
   uint32_t polyAClipLength{10};
@@ -82,9 +84,11 @@ void fixFasta(single_parser* parser,
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     auto rg = parser->getReadGroup();
+    bool tooShort{false} ;
 
     while (parser->refill(rg)) {
       for (auto& read : rg) { // for each sequence
+        tooShort = false;
         std::string& readStr = read.seq;
         uint32_t readLen = readStr.size();
         uint32_t completeLen = readLen;
@@ -154,17 +158,8 @@ void fixFasta(single_parser* parser,
         if (readStr.size() >= k) {
           // If we're suspicious the user has fed in a *genome* rather
           // than a transcriptome, say so here.
-         /*
-         if (readStr.size() >= tooLong) {
-            log->warn("Entry with header [{}] was longer than {} nucleotides.  "
-                      "Are you certain that "
-                      "we are indexing a transcriptome and not a genome?",
-                      read.name, tooLong);
-          } else if (readStr.size() < k) {
-            log->warn("Entry with header [{}], had length less than "
-                      "the k-mer length of {} (perhaps after poly-A clipping)",
-                      read.name, k);
-          }*/
+            tooShort = true ;
+          }
 
           uint32_t txpIndex = n++;
 
@@ -227,6 +222,10 @@ void fixFasta(single_parser* parser,
 
           // If there was no collision, then add the transcript
           transcriptNames.emplace_back(processedName);
+          if(!tooShort)
+              shortFlag[processedName] = false ;
+          else
+              shortFlag[processedName] = true ;
           // nameHasher.process(processedName.begin(), processedName.end());
 
           // The position at which this transcript starts
@@ -299,14 +298,19 @@ void fixFasta(single_parser* parser,
 
   std::ofstream ffa(outFile);
   size_t prev1{0};
+  size_t numWritten{0};
   for (size_t i = 0; i < transcriptNames.size(); ++i) {
     size_t next1 = onePos[i];
     size_t len = next1 - prev1;
-    ffa << ">" << transcriptNames[i] << "\n";
-    ffa << concatText.substr(prev1, len) << "\n";
+    if(!shortFlag[transcriptNames[i]]){
+        ffa << ">" << transcriptNames[i] << "\n";
+        ffa << concatText.substr(prev1, len) << "\n";
+        ++numWritten;
+    }
     prev1 = next1 + 1;
   }
   ffa.close();
+  std::cerr << "wrote " << numWritten << " contigs\n";
 }
 
 int main(int argc, char* argv[]) {

@@ -171,6 +171,11 @@ uint32_t PufferfishSparseIndex::contigID(CanonicalKmer& mer) {
     return std::numeric_limits<uint32_t>::max();
   }
 
+//TODO does the orientation of the contig matter while chopping sequence ?
+void PufferfishSparseIndex::getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen){
+
+}
+
 auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
   if (pos <= lastSeqPos_) {
@@ -187,7 +192,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, u
       auto rankInterval = (didWalk) ? contigBoundary_.get_int(pos, (k_-1)) : 0;
       //auto rankEnd = contigRank_(pos + k_ - 1);
       if (rankInterval > 0) {
-        return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+        return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
       }
       // the reference information in the contig table
       auto& pvec = contigTable_[rank];
@@ -217,15 +222,15 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, u
       // how the k-mer hits the contig (true if k-mer in fwd orientation, false
       // otherwise)
       bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
-      return {relPos, hitFW, static_cast<uint32_t>(clen), k_,
+      return {rank, pos, relPos, hitFW, static_cast<uint32_t>(clen), k_,
               core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
+      return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
               core::range<IterT>{}};
     }
   }
 
-  return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
+  return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
           core::range<IterT>{}};
 }
 
@@ -248,7 +253,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, b
       auto rankInterval = (didWalk) ? contigBoundary_.get_int(pos, (k_-1)) : 0;
       //auto rankEnd = contigRank_(pos + k_ - 1);
       if (rankInterval > 0) {
-        return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+        return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
       }
 
       // the reference information in the contig table
@@ -266,21 +271,21 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, b
       bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
       // how the k-mer hits the contig (true if k-mer in fwd orientation, false
       // otherwise)
-      return {relPos, hitFW, static_cast<uint32_t>(clen), k_,
+      return {rank, pos, relPos, hitFW, static_cast<uint32_t>(clen), k_,
               core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
+      return {std::numeric_limits<uint32_t>::max(),  std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
               core::range<IterT>{}};
     }
   }
- return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
+ return {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_,
      core::range<IterT>{}};
 }
 
 
 auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
-  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
 
   bool didWalk{false};
 
@@ -368,7 +373,8 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc) 
 
 auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
-  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+
 
   bool didWalk{false};
 
@@ -452,7 +458,7 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern) -> util::ProjectedHits
 	}
 	//end of sampling based pos detection
   return getRefPosHelper_(mern, pos, didWalk);
-  
+
 }
 
 uint32_t PufferfishSparseIndex::k() { return k_; }
@@ -467,3 +473,8 @@ const std::vector<util::Position>& PufferfishSparseIndex::refList(uint64_t conti
 const std::string& PufferfishSparseIndex::refName(uint64_t refRank) {
   return refNames_[refRank];
 }
+
+const std::vector<std::string>& PufferfishSparseIndex::getRefNames(){
+  return refNames_ ;
+}
+

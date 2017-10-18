@@ -10,6 +10,7 @@
 #include "cereal/archives/json.hpp"
 
 #include "CanonicalKmer.hpp"
+#include "CanonicalKmerIterator.hpp"
 #include "BooPHF.h"
 #include "Util.hpp"
 
@@ -18,6 +19,8 @@ class PufferfishSparseIndex {
   using boophf_t = boomphf::mphf<uint64_t, hasher_t>;
   using EqClassID = uint32_t;
   using EqClassLabel = std::vector<uint32_t>;
+  using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
+
 private:
   uint32_t k_{0};
   uint32_t twok_{0};
@@ -74,6 +77,7 @@ public:
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
 
+  const std::vector<std::string>& getRefNames() ;
   // Returns true if the given k-mer appears in the dBG, false otherwise
   bool contains(CanonicalKmer& mer);
 
@@ -96,10 +100,13 @@ public:
   auto getRefPos(CanonicalKmer mer) -> util::ProjectedHits;
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
 
+  //
+  void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
+
+	sdsl::int_vector<2>& getSeq() {return seq_;}
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk = false) -> util::ProjectedHits;
-  
 
 };
 
