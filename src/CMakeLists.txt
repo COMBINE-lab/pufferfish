@@ -12,7 +12,7 @@ set(pufferfish_lib_srcs
     PufferFS.cpp 
     xxhash.c 
     GFAConverter.cpp
-    PufferfishMapper.cpp
+    PufferfishAligner.cpp
     edlib.cpp
     )
 

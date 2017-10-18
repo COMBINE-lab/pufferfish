@@ -196,7 +196,7 @@ public:
   std::string refFile;
 };
 
-class MappingOpts{
+class AlignmentOpts{
 	public:
 
     std::string indexDir;

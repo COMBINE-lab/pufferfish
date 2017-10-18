@@ -49,11 +49,11 @@
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
 #include "SpinLock.hpp"
-#include "HitCollector.hpp"
+#include "MemCollector.hpp"
 #include "SAMWriter.hpp"
 
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
-using MappingOpts = util::MappingOpts ;
+using AlignmentOpts = util::AlignmentOpts ;
 using HitCounters = util::HitCounters ;
 using QuasiAlignment = util::QuasiAlignment ;
 using MateStatus = util::MateStatus ;
@@ -146,8 +146,8 @@ void processReadsPair(paired_parser* parser,
                      SpinLockT* iomutex,
                      std::shared_ptr<spdlog::logger> outQueue,
                      HitCounters& hctr,
-                     MappingOpts* mopts){
-  HitCollector<PufferfishIndexT> hitCollector(&pfi) ;
+                     AlignmentOpts* mopts){
+  MemCollector<PufferfishIndexT> memCollector(&pfi) ;
 
   //std::cerr << "\n In process reads pair\n" ;
     //TODO create a memory layout to store
@@ -186,13 +186,13 @@ void processReadsPair(paired_parser* parser,
       //std::cerr << "\n going inside hit collector \n" ;
       readLen = rpair.first.seq.length() ;
 
-      bool lh = hitCollector(rpair.first.seq,
+      bool lh = memCollector(rpair.first.seq,
                              leftHits,
                              MateStatus::PAIRED_END_LEFT,
                              mopts->consistentHits,
                              refBlocks) ;
 
-      bool rh = hitCollector(rpair.second.seq,
+      bool rh = memCollector(rpair.second.seq,
                              rightHits,
                              MateStatus::PAIRED_END_RIGHT,
                              mopts->consistentHits,
@@ -271,7 +271,7 @@ bool spawnProcessReadsthreads(
                               SpinLockT& iomutex,
                               std::shared_ptr<spdlog::logger> outQueue,
                               HitCounters& hctr,
-                              MappingOpts* mopts){
+                              AlignmentOpts* mopts){
 
   std::vector<std::thread> threads ;
   std::cerr << "\n In spawn threads\n" ;
@@ -293,10 +293,10 @@ bool spawnProcessReadsthreads(
 
 
 template <typename PufferfishIndexT>
-bool mapReads(
+bool alignReads(
               PufferfishIndexT& pfi,
               std::shared_ptr<spdlog::logger> consoleLog,
-              MappingOpts* mopts) {
+              AlignmentOpts* mopts) {
 
 
 
@@ -373,7 +373,7 @@ bool mapReads(
 
 }
 
-int pufferfishMapper(MappingOpts& mapargs){
+int pufferfishAligner(AlignmentOpts& alnargs){
 
   //auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(outStream) ;
   //std::shared_ptr<spdlog::logger> outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
@@ -386,7 +386,7 @@ int pufferfishMapper(MappingOpts& mapargs){
 
     bool success{false} ;
 
-  auto indexDir = mapargs.indexDir ;
+  auto indexDir = alnargs.indexDir ;
 
   std::string indexType;
   {
@@ -399,11 +399,11 @@ int pufferfishMapper(MappingOpts& mapargs){
 
   if(indexType == "dense"){
     PufferfishIndex pfi(indexDir) ;
-    success = mapReads(pfi, consoleLog, &mapargs) ;
+    success = alignReads(pfi, consoleLog, &alnargs) ;
 
   }else if(indexType == "sparse"){
     PufferfishSparseIndex pfi(indexDir) ;
-    success = mapReads(pfi, consoleLog, &mapargs) ;
+    success = alignReads(pfi, consoleLog, &alnargs) ;
   }
 
   if (!success) {

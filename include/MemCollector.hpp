@@ -16,10 +16,10 @@
 
 #define JUMPSIZE 10
 
-template<typename PufferfishIndexT> class HitCollector {
+template<typename PufferfishIndexT> class MemCollector {
   using RawHitMap = std::map<uint32_t, std::vector<util::HitQueryPos>>;
 public:
-  HitCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
+  MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
 
 
   bool hitsToMappings(PufferfishIndexT& pi,
