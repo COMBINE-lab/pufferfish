@@ -62,7 +62,7 @@ void fixFasta(single_parser* parser,
   // longest human transcript is Titin (108861), so this gives us a *lot* of
   // leeway before
   // we issue any warning.
-  size_t tooLong = 200000;
+  //size_t tooLong = 200000;
   //size_t numDistinctKmers{0};
   //size_t numKmers{0};
   size_t currIndex{0};
@@ -116,9 +116,9 @@ void fixFasta(single_parser* parser,
             XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
                   readLen, 0);
         //RC hash calculation
-        auto txRCStringHash =
-            XXH64(reinterpret_cast<void*>(const_cast<char*>(revCompStr.data())),
-                  readLen, 0);
+        //auto txRCStringHash =
+        //    XXH64(reinterpret_cast<void*>(const_cast<char*>(revCompStr.data())),
+        //          readLen, 0);
 
         // First, replace non ATCG nucleotides
         for (size_t b = 0; b < readLen; ++b) {
@@ -168,9 +168,9 @@ void fixFasta(single_parser* parser,
           // Add this transcript, indexed by it's sequence's hash value
           // to the potential duplicate list.
           bool didCollide{false};
-          bool didCollideRC{false};
+          //bool didCollideRC{false};
           auto dupIt = potentialDuplicates.find(txStringHash);
-          auto dupRCIt = potentialDuplicates.find(txRCStringHash) ;
+          //auto dupRCIt = potentialDuplicates.find(txRCStringHash) ;
           if (dupIt != potentialDuplicates.end()){
             auto& dupList = dupIt->second;
             for (auto& dupInfo : dupList) {

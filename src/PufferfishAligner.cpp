@@ -158,7 +158,7 @@ void processReadsPair(paired_parser* parser,
   auto logger = spdlog::get("stderrLog") ;
   fmt::MemoryWriter sstream ;
   //size_t batchSize{2500} ;
-  size_t readLen{0} ;
+  //size_t readLen{0} ;
 
 
   std::vector<QuasiAlignment> leftHits ;
@@ -184,7 +184,7 @@ void processReadsPair(paired_parser* parser,
       //std::cerr << "\n second seq in pair " << rpair.second.seq << "\n" ;
 
       //std::cerr << "\n going inside hit collector \n" ;
-      readLen = rpair.first.seq.length() ;
+      //readLen = rpair.first.seq.length() ;
 
       bool lh = memCollector(rpair.first.seq,
                              leftHits,

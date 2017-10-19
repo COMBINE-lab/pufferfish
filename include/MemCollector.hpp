@@ -41,7 +41,7 @@ public:
     for (auto hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
       auto& lab = pi.getEqClassLabel(hitIt->second.contigID());
       if (lab.size() < minSize) {
-	minSize = lab.size();
+        minSize = lab.size();
         minHit = hitIt;
       }
     }
@@ -160,7 +160,6 @@ public:
   size_t expandHitEfficient(util::ProjectedHits& hit, pufferfish::CanonicalKmerIterator& kit) {
 		auto& allContigs = pfi_->getSeq();
   		//startPos points to the next kmer in contig (which can be the left or right based on the orientation of match)
-    k = pfi_->k();
 		size_t cCurrPos = hit.globalPos_+hit.contigPos_+k+1; //start from next character if fw match
     size_t cEndPos = hit.globalPos_+hit.contigLen_-k+1; //TODO check + 1
     size_t cStartPos = hit.globalPos_-1; 
@@ -179,7 +178,7 @@ public:
                   << " , contigPos:" << cCurrPos
                   << " , readWord:" << kit->first.fwWord()
                   <<" , contigWord:" << fk << "\n";
-        for (int i = baseCnt-1; i >=0 && kit != kit_end; i--) {
+        for (size_t i = baseCnt-1; i >=0 && kit != kit_end; i--) {
           auto readCode = (kit->first.fwWord()) >> (2*(k-1)) & 0x3;
           auto contigCode = (fk >> (2*i)) & 0x3;
           if (readCode != contigCode) {
@@ -198,7 +197,7 @@ public:
                   << " , contigPos:" << cCurrPos
                   << " , readWord:" << kit->first.rcWord()
                   <<" , contigWord:" << fk << "\n";
-        for (int i = 0; i < baseCnt && kit != kit_end; i++) {
+        for (size_t i = 0; i < baseCnt && kit != kit_end; i++) {
           auto readCode = kit->first.rcWord() & 0x3;
           auto contigCode = (fk >> (2*i)) & 0x3;
           if (readCode != contigCode) {
@@ -263,7 +262,7 @@ public:
     using ProjectedHits = util::ProjectedHits ;
     using QueryCache = util::QueryCache ;
 
-    int32_t readLen = static_cast<int32_t>(read.length()) ;
+    uint32_t readLen = static_cast<uint32_t>(read.length()) ;
     if(refBlocks.size() != readLen)
         refBlocks.resize(readLen) ;
 
@@ -275,141 +274,36 @@ public:
     k = pfi_->k() ;
     CanonicalKmer::k(k);
     CanonicalKmerIterator kit_end;
-
     CanonicalKmerIterator kit1(read) ;
     QueryCache qc ;
-    bool lastSearch{false} ;
-    bool done{false} ;
-    size_t x{0} ;
 
     //string block iterator
     decltype(refBlocks.begin()) bl ;
     //initialize
     bl = refBlocks.begin() ;
-	while(kit1 != kit_end) {
-		auto phits = pfi_->getRefPos(kit1->first);
-		if (!phits.empty()) {
-		      size_t readPos = expandHitEfficient(phits, kit1); 
+    while(kit1 != kit_end) {
+      auto phits = pfi_->getRefPos(kit1->first);
+      if (!phits.empty()) {
+          // kit1 gets updated inside expandHitEfficient function
+		      size_t readPos = expandHitEfficient(phits, kit1);
           rawHits.push_back(std::make_pair(readPos, phits));
-		}
-    else ++kit1;
-		//no need!!
-		//++kit1;
-	}
-/*    while(kit1 != kit_end and !done) {
-        ++x;
-        auto phits = pfi_->getRefPos(kit1->first, qc);
-        if (!phits.empty()) {
-		  size_t jump = expandHit(phits, kit1); 
-          rawHits.push_back(std::make_pair(kit1->second, phits));
-		  kit1 += jump;
-          size_t jump{0} ;
-          bool queryFW = kit1->first.isFwCanonical();
-          bool hitFW = phits.contigOrientation_;
-          bool ore = (queryFW == hitFW) ;
-          if (hitFW) { // jump to the end of the contig
-              jump = phits.contigLen_ - phits.contigPos_ ;
-              if (jump < 0) {
-                std::cerr  << ", queryFW = " << queryFW
-                          << ", hitFW = " << hitFW
-                          << ", jump = " << jump
-                          << ", pos = " << kit1->second
-                          << ", x = " << x
-                          << ", kmer = " << read.substr(kit1->second, k)
-                          << ", read = " <<  read << "\n"; std::exit(1);
-              }
-          } else {
-            jump = phits.contigPos_;
-            if (jump < 0) {
-                std::cerr<< ", queryFW = " << queryFW
-                        << ", hitFW = " << hitFW
-                        << ", jump = " << jump
-                        << ", pos = " << kit1->second
-                        << ", x = " << x << ", kmer = " << read.substr(kit1->second,k) << ", read = " <<  read << "\n"; std::exit(1);}
-
-          }
-          if (lastSearch or done) { done = true; continue; }
-          if (jump == 0){ ++kit1 ; continue ; }
-          int32_t newPos = kit1->second + jump;
-          if (newPos > readLen - k) {
-            lastSearch = true;
-            newPos = readLen - k;
-          }
-          kit1.jumpTo(newPos);
-          continue;
-        }
-        else {
-          ++kit1;
-        }
-  }
-*/
-    //exit after first pass
-    //std::exit(1) ;
-
-    /* old implementation
-     * which was also based
-     * on the logic of jump
-    while(kit1 != kit_end){
-
-      std::cerr << "\nGoing over k-mer " << kit1->first.to_str() << "\n" ;
-      phits = pfi_->getRefPos(kit1->first, qc) ;
-      if(!phits.empty())
-        break ;
-      ++kit1 ;
+      }
+      else ++kit1;
     }
-
-    //TODO load the sequence and
-    //properly extend the read to find
-    //next safe jump without SNP
-    //have to change projectedHits
-
-    int counter_check = 0 ;
-
-    if(kit1 != kit_end){
-
-      if (counter_check == 20){
-    	  std::exit(1) ;
-      }else{
-    	  counter_check++ ;
-      }
-      std::cerr << "\n in the loop forever \n" ;
-      auto queryPos = kit1->second ;
-      auto dist = updateHitMap(phits, rawHitMap, queryPos) ;
-      //Either I jump by 10 or end of Contig ;
-      //
-      int advanceBy = std::min(JUMPSIZE, dist) ;
-      kit1 += advanceBy ;
-      while(kit1 != kit_end and kit1.kmerIsValid()){
-          if (counter_check == 20){
-              std::exit(1) ;
-          }else{
-              counter_check++ ;
-          }
-    	std::cerr << "\n in the inner loop forever \n" ;
-        queryPos = kit1->second ;
-        phits = pfi_->getRefPos(kit1->first,qc);
-        dist = updateHitMap(phits, rawHitMap, queryPos) ;
-        advanceBy = std::min(JUMPSIZE, dist) ;
-        kit1 += advanceBy ;
-      }
-    }*/
-
 
     if(rawHits.size() > 0){
       //processRawHitMap(rawHitMap, hits, readLen) ;
       hitsToMappings(*pfi_, readLen, k, rawHits, hits, refBlocks);
       return true ;
     }
-
     return false ;
-
-
 
   }
 
 private:
   PufferfishIndexT* pfi_ ;
-  int k ;
+  size_t k ;
   AlignerEngine ae_ ;
 };
 #endif
+

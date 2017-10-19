@@ -78,7 +78,7 @@ public:
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
 
-  void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
+  //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
 
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.  Uses the results

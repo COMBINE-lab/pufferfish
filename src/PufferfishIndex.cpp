@@ -144,17 +144,17 @@ void PufferfishIndex::getContigSeq(bool hitFW, uint64_t globalPos, int clipLen ,
 
 }*/
 
-
+/*
 //TODO does the orientation of the contig matter while chopping sequence ?
 //not needed
 void PufferfishIndex::getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit,  std::string& contigStr, int readLen){
-    auto queryPos = kit->second ;
+  //auto queryPos = kit->second ;
 
-    auto remainingContigLen = phits.contigLen_ - (phits.contigPos_ + k_) ;
-    auto remainingReadLen = readLen - (kit->second + k_ ) ;
+  //auto remainingContigLen = phits.contigLen_ - (phits.contigPos_ + k_) ;
+  //auto remainingReadLen = readLen - (kit->second + k_ ) ;
     
     uint64_t globalPos = phits.globalPos_ ;
-    uint64_t twoGlobalPos = globalPos << 1 ;
+    //uint64_t twoGlobalPos = globalPos << 1 ;
 
     //index of the contig
     auto rank = contigRank_(globalPos) ;
@@ -165,7 +165,7 @@ void PufferfishIndex::getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterato
     //go to right by read length
     //if contigLen < 2*readLen then
     //get back the entire contig 
-    int clipLen = 2*readLen ;
+    uint64_t clipLen = 2*readLen ;
     uint64_t clipStart = sp ;
     if(phits.contigLen_ < clipLen){
       clipLen = phits.contigLen_ ;
@@ -176,7 +176,7 @@ void PufferfishIndex::getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterato
     uint64_t twoSp = clipStart << 1 ;
     auto numOfKmers = clipLen / k_ ;
     auto resLen  = clipLen % k_ ;
-    int i{0} ;
+    uint64_t i{0} ;
     while(i < numOfKmers){
       uint64_t fk = seq_.get_int(twoSp + i*twok_ , twok_) ;
       CanonicalKmer mer ;
@@ -199,6 +199,7 @@ void PufferfishIndex::getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterato
     //return contigStr ;
 
 }
+*/
 
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;

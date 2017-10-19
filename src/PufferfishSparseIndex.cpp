@@ -171,10 +171,12 @@ uint32_t PufferfishSparseIndex::contigID(CanonicalKmer& mer) {
     return std::numeric_limits<uint32_t>::max();
   }
 
+/*
 //TODO does the orientation of the contig matter while chopping sequence ?
 void PufferfishSparseIndex::getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen){
 
 }
+*/
 
 auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;

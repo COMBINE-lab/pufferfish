@@ -101,7 +101,7 @@ public:
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
 
   //
-  void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
+  //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
 
 	sdsl::int_vector<2>& getSeq() {return seq_;}
 private:
