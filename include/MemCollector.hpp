@@ -99,63 +99,6 @@ public:
     return true;
   }
 
-  int updateHitMap(util::ProjectedHits& phits, RawHitMap& rawHitMap, int posIn, int32_t readLen, int32_t k){
-      int32_t jump{0};
-
-
-      /**
-       * Sigh ... we really need to deal with this right-to-left encoding deal.  It makes
-       * the below the reverse of what we would normally expect
-       **/
-      jump = phits.contigLen_ - phits.contigPos_;
-    for(auto& rpos : phits.refRange){
-      auto tid = rpos.transcript_id();//pfi_->refName(rpos.transcript_id()) ;
-      auto refInfo = phits.decodeHit(rpos) ;
-
-      int offset = 0;//refInfo.isFW ? -posIn : (posIn + k) - readLen;
-      rawHitMap[tid].emplace_back(static_cast<uint32_t>(posIn), refInfo.pos + offset, refInfo.isFW) ;
-
-    }
-    //int dist =  phits.contigLen_ - pfi_->k() - phits.contigPos_ ;
-    return jump ;
-  }
-
-
-
-  void processRawHitMap(RawHitMap& rawHitMap, std::vector<util::QuasiAlignment>& hits, int readLen){
-    for(auto& rh : rawHitMap){
-      auto tid = rh.first ;
-      std::sort(rh.second.begin(),
-                rh.second.end(),
-                [](const util::HitQueryPos& a, const util::HitQueryPos& b)-> bool {
-                  return a.pos < b.pos ;
-                });
-
-      std::map<int32_t , int> hitCov ;
-      auto it = rh.second.begin() ;
-      while(it != rh.second.end()){
-        //int numOfCov = 0 ;
-        int32_t hitKey = it->pos - it->queryPos ;
-        if(hitCov.count(hitKey) == 0){
-          hitCov[hitKey] = 1 ;
-        }else{
-          hitCov[hitKey] += 1 ;
-        }
-        ++it ;
-      }
-
-      using pair_type = decltype(hitCov)::value_type ;
-      auto maxCov = std::max_element(hitCov.begin(), hitCov.end(),
-                                       [](const pair_type& p1 , const pair_type& p2) -> bool {
-                                         return p1.second > p2.second ;
-                                       });
-      bool isFwd = rh.second[0].queryFwd ;
-      int32_t hitPos = maxCov->first ;
-
-      hits.emplace_back(tid,hitPos,isFwd,readLen) ;
-    }
-  }
-
 
   size_t expandHitEfficient(util::ProjectedHits& hit, pufferfish::CanonicalKmerIterator& kit) {
 		auto& allContigs = pfi_->getSeq();
@@ -251,7 +194,6 @@ public:
     }
 
     if(rawHits.size() > 0){
-      //processRawHitMap(rawHitMap, hits, readLen) ;
       hitsToMappings(*pfi_, readLen, k, rawHits, hits, refBlocks);
       return true ;
     }
