@@ -17,7 +17,7 @@
 #define JUMPSIZE 10
 
 template<typename PufferfishIndexT> class MemCollector {
-  using RawHitMap = std::map<uint32_t, std::vector<util::HitQueryPos>>;
+
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
 
@@ -27,7 +27,7 @@ public:
                       uint32_t k,
                       std::vector<std::pair<int, util::ProjectedHits>>& hits,
                       std::vector<util::QuasiAlignment>& qhits,
-                      std::vector<std::string>& refBlocks,
+                      /*std::vector<std::string>& refBlocks,*/
                       bool verbose = false) {
     (void)verbose;
     //std::map<uint32_t, MappingInfo> mappings;
@@ -153,35 +153,29 @@ public:
 
 
   bool operator()(std::string& read,
-                  std::vector<util::QuasiAlignment>& hits,
+                  std::vector<util::QuasiAlignment>& hits
+                  /*,
                   util::MateStatus mateStatus,
                   bool consistentHits,
-                  std::vector<std::string>& refBlocks) {
-    (void) mateStatus;
-    (void) consistentHits;
-    using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
-    using ProjectedHits = util::ProjectedHits ;
-    using QueryCache = util::QueryCache ;
-
+                  std::vector<std::string>& refBlocks*/) {
     uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-    if(refBlocks.size() != readLen)
+      /*if(refBlocks.size() != readLen)
         refBlocks.resize(readLen) ;
+    */
 
-    ProjectedHits phits ;
-    RawHitMap rawHitMap ;
-
+    util::ProjectedHits phits ;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
     k = pfi_->k() ;
     CanonicalKmer::k(k);
-    CanonicalKmerIterator kit_end;
-    CanonicalKmerIterator kit1(read) ;
-    QueryCache qc ;
+    pufferfish::CanonicalKmerIterator kit_end;
+    pufferfish::CanonicalKmerIterator kit1(read) ;
+    util::QueryCache qc ;
 
     //string block iterator
-    decltype(refBlocks.begin()) bl ;
+    //decltype(refBlocks.begin()) bl ;
     //initialize
-    bl = refBlocks.begin() ;
+    //bl = refBlocks.begin() ;
     while(kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
       if (!phits.empty()) {
@@ -194,7 +188,7 @@ public:
     }
 
     if(rawHits.size() > 0){
-      hitsToMappings(*pfi_, readLen, k, rawHits, hits, refBlocks);
+      hitsToMappings(*pfi_, readLen, k, rawHits, hits/*, refBlocks*/);
       return true ;
     }
     return false ;

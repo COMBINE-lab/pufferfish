@@ -187,16 +187,18 @@ void processReadsPair(paired_parser* parser,
       //readLen = rpair.first.seq.length() ;
 
       bool lh = memCollector(rpair.first.seq,
-                             leftHits,
-                             MateStatus::PAIRED_END_LEFT,
+                             leftHits
+                             /*,
+                             MateStatus::PAIRED_END_LEFT,                             
                              mopts->consistentHits,
-                             refBlocks) ;
+                             refBlocks*/) ;
 
       bool rh = memCollector(rpair.second.seq,
-                             rightHits,
+                             rightHits
+                             /*,
                              MateStatus::PAIRED_END_RIGHT,
                              mopts->consistentHits,
-                             refBlocks) ;
+                             refBlocks*/) ;
       //do intersection on the basis of
       //performance, or going towards selective alignment
       //otherwise orphan
