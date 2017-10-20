@@ -209,46 +209,6 @@ public:
   }
 
 
-  /*
-  // simple expansion 
-  size_t expandHit(util::ProjectedHits& hit, pufferfish::CanonicalKmerIterator& kit) {
-		auto& allContigs = pfi_->getSeq();
-  		//startPos points to the next kmer in contig (which can be the left or right based on the orientation of match)
-		size_t startPos = hit.globalPos_+hit.contigPos_+(hit.contigOrientation_?+1:-1);
-		//next kmer in the read
-		kit++;
-		size_t readStart = kit->second;
-		CanonicalKmer mer;
-		uint64_t fk = allContigs.get_int(2*startPos, 2*pfi_->k());
-		mer.fromNum(fk);
-		bool boundaryReached = false;//TODO FIX IT!!
-		//simple case: extend the match toward the end of the read
-		while(!boundaryReached && kit->first == mer) {
-			if (hit.contigOrientation_) {
-				startPos++;
-				boundaryReached = startPos-hit.globalPos_ >= hit.contigLen_-pfi_->k()+1;
-			} else {
-				startPos--;
-				boundaryReached = startPos < hit.globalPos_;
-			}
-			//next kmer in contig
-			fk = allContigs.get_int(2*startPos, 2*pfi_->k());
-			mer.fromNum(fk);
-			//next kmer in read
-			kit++;
-			//increase match length
-			hit.k_++;
-		}
-		//ContigPos_ should be updated since now the match starting position has moved back toward the begining of the contig bc of the rc match
-		if (!hit.contigOrientation_)
-			hit.contigPos_ = startPos;
-	//Expand the match toward the beginning of the read
-		//
-		//return the new read starting position
-		return readStart;
-  }
-  */
-
   bool operator()(std::string& read,
                   std::vector<util::QuasiAlignment>& hits,
                   util::MateStatus mateStatus,
