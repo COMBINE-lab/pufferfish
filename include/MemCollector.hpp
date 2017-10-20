@@ -172,7 +172,7 @@ public:
     bool stillMatch = true;
     CanonicalKmer cmer;
     while (stillMatch && cCurrPos < cEndPos && cCurrPos > cStartPos && kit != kit_end) { // over kmers in contig
-      if (hit.contigOrientation_) {
+      if (hit.contigOrientation_) { // if fw match, compare read last base with contig first base and move fw in the contig
         auto baseCnt = k < cEndPos - cCurrPos? k : cEndPos - cCurrPos;
         uint64_t fk = allContigs.get_int(2*(cCurrPos), 2*baseCnt);
         cmer.fromNum(fk);
@@ -188,7 +188,7 @@ public:
           kit++;
         }
       }
-      else {
+      else { // if rc match, compare read last base with contig last base and move backward in the contig
         auto baseCnt = k < cCurrPos - cStartPos? k : cCurrPos - cStartPos;
         uint64_t fk = allContigs.get_int(2*(cCurrPos-baseCnt), 2*baseCnt);
         cmer.fromNum(fk);
