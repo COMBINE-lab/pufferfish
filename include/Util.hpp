@@ -230,6 +230,26 @@ enum class MateStatus : uint8_t {
         PAIRED_END_PAIRED = 3 };
 
 
+  struct MemInfo {
+    size_t tpos;
+    uint32_t rpos;
+    uint32_t memlen;
+
+    MemInfo(size_t tposIn, uint32_t rposIn, uint32_t memlenIn) :
+      tpos(tposIn), rpos(rposIn), memlen(memlenIn){}
+  };
+
+  struct MemCluster {
+    size_t tid;
+    bool ori;
+    std::vector<MemInfo> mems;
+
+    MemCluster(size_t tidIn, bool oriIn, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) :
+      tid(tidIn), ori(oriIn){
+      mems.emplace_back(tposIn, rposIn, memlenIn);
+    }
+  };
+
 struct QuasiAlignment {
   	QuasiAlignment() :
     tid(std::numeric_limits<uint32_t>::max()),

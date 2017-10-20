@@ -12,7 +12,8 @@
 #include <algorithm>
 #include <iostream>
 #include <iterator>
-
+#include <sparsepp/spp.h>
+//using spp:sparse_hash_map;
 
 #define JUMPSIZE 10
 
@@ -22,81 +23,62 @@ public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
 
 
-  bool hitsToMappings(PufferfishIndexT& pi,
+  bool clusterMems(PufferfishIndexT& pi,
                       int32_t readLen,
                       uint32_t k,
                       std::vector<std::pair<int, util::ProjectedHits>>& hits,
-                      std::vector<util::QuasiAlignment>& qhits,
-                      /*std::vector<std::string>& refBlocks,*/
+                      std::vector<util::MemCluster>& memClusters,
+                   /*std::vector<util::QuasiAlignment>& qhits,
+                      std::vector<std::string>& refBlocks,*/
                       bool verbose = false) {
     (void)verbose;
-    //std::map<uint32_t, MappingInfo> mappings;
-    std::map<uint32_t, util::QuasiAlignment> mappings;
 
-    if (hits.empty()) { return false; }
+    if (hits.empty())
+      return false;
 
-    // find the smallest target set
-    std::vector<std::pair<int, util::ProjectedHits>>::iterator minHit;
-    uint32_t minSize{std::numeric_limits<uint32_t>::max()};
-    for (auto hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-      auto& lab = pi.getEqClassLabel(hitIt->second.contigID());
-      if (lab.size() < minSize) {
-        minSize = lab.size();
-        minHit = hitIt;
-      }
-    }
-
-    // Put the targets from the smallest set into the map
-    auto& lab = pi.getEqClassLabel(minHit->second.contigID());
-    for (auto l : lab) {
-      mappings[l] = { l, std::numeric_limits<int32_t>::max(), true, static_cast<uint32_t>(readLen) };// 0, true };
-      //{l, std::numeric_limits<int32_t>::max(), true, readLen, 0, true}, // the read mapping
-                      //{l, std::numeric_limits<int32_t>::max(), true, -1, 0, false}, // the mate mapping
-                      //ms, -1 };
-    }
-
-    auto mapEnd = mappings.end();
-    auto hEnd = hits.end();
-    // a mapping must have this many hits to remain active
-    size_t currThresh={0};
-    for (auto hIter = hits.begin(); hIter != hEnd; ++hIter) {
-      ++currThresh;
+    //spp::sparse_hash_map<std::pair<size_t, bool>, std::vector<util::MemInfo>> trMemMap;
+    std::map<std::pair<size_t, bool>, std::vector<util::MemInfo>, util::cmpByPair> trMemMap;
+    for (auto hIter = hits.begin(); hIter != hits.end(); ++hIter) {
+      auto& readPos = hIter->first;
       auto& projHits = hIter->second;
       for (auto& posIt : projHits.refRange) {
-        // if we will produce a mapping for this target
-        auto mapIt = mappings.find(posIt.transcript_id());
-        if (mapIt != mapEnd) {
-          auto refPos = projHits.decodeHit(posIt);
-          int offset = refPos.isFW ? -hIter->first : (hIter->first + k) - readLen;
-          if (mapIt->second.active and mapIt->second.numHits == currThresh - 1) {
-            //if (verbose) {std::cerr << "thresh = " << currThresh << ", nhits = " << mapIt->second.read.numHits << "\n";}
-            if (mapIt->second.numHits > 0) {
-              auto d = std::abs(mapIt->second.pos - (refPos.pos + offset));
-              if (d > readLen / 5) { continue; }
-            }
-            ++(mapIt->second.numHits);
-          } else if (mapIt->second.numHits < currThresh - 1) {
-            mapIt->second.active = false;
-            continue;
-          }
-          //if (verbose) { std::cerr << "hit : t = " << pi.refName(mapIt->first) << ", pos = " << refPos.pos + offset << ", fw = " << refPos.isFW << "\n";}
-          if (offset < mapIt->second.pos) {
-            mapIt->second.pos = refPos.pos + offset;
-            mapIt->second.fwd = refPos.isFW;
+        auto refPosOri = projHits.decodeHit(posIt);
+        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)].emplace_back(refPosOri.pos, readPos, projHits.k_);
+      }
+    }
+
+
+    for (auto trMemIt = trMemMap.begin(); trMemIt != trMemMap.end(); ++trMemIt) {
+      auto& trOri = trMemIt->first;
+      auto& memList = trMemIt->second;
+      auto& sortFw = trOri.second;
+      // sort memList according to mem read positions
+      std::sort(memList.begin(),memList.end(),
+                [sortFw](util::MemInfo& q1, util::MemInfo& q2) -> bool{
+                  if (sortFw)
+                    return q1.rpos < q2.rpos ;
+                  else return q1.rpos > q2.rpos;
+                });
+
+      std::vector<util::MemCluster> currMemClusters;
+      // cluster mems so that all the mems in one cluster are concordant.
+      for (auto hitIt = memList.begin(); hitIt != memList.end(); hitIt++) {
+        bool foundAtLeastOneCluster = false;
+        for (auto prevClus = currMemClusters.begin(); prevClus != currMemClusters.end(); prevClus++) {
+          auto& mems = prevClus->mems;
+          if (mems[mems.size()-1].tpos < hitIt->tpos) {
+            mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
+            foundAtLeastOneCluster = true;
           }
         }
+        if (!foundAtLeastOneCluster) {
+          currMemClusters.emplace_back(trOri.first, trOri.second, hitIt->tpos, hitIt->rpos, hitIt->memlen);
+        }
       }
+      memClusters.insert(memClusters.end(), currMemClusters.begin(), currMemClusters.end());
     }
-
-    for (auto mapIt = mappings.begin(); mapIt != mappings.end(); ++mapIt) {
-      if (mapIt->second.numHits != currThresh) {
-        mapIt->second.active = false;
-      } else {
-        qhits.push_back(mapIt->second);
-      }
-    }
-
     return true;
+
   }
 
 
@@ -109,7 +91,7 @@ public:
     if (hit.contigOrientation_) { //if match is fw, go to the next k-mer in the contig
       cCurrPos+=k;
     }
-    kit++; //go to the next kmer in the read (In read we always move fw.
+    kit++; //go to the next kmer in the read (In read we always move fw.)
 		size_t readStart = kit->second;
     pufferfish::CanonicalKmerIterator kit_end;
     bool stillMatch = true;
@@ -162,7 +144,7 @@ public:
       /*if(refBlocks.size() != readLen)
         refBlocks.resize(readLen) ;
     */
-
+    std::vector<util::MemCluster> memClusters;
     util::ProjectedHits phits ;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
@@ -188,7 +170,7 @@ public:
     }
 
     if(rawHits.size() > 0){
-      hitsToMappings(*pfi_, readLen, k, rawHits, hits/*, refBlocks*/);
+      clusterMems(*pfi_, readLen, k, rawHits, memClusters/*, refBlocks*/);
       return true ;
     }
     return false ;
