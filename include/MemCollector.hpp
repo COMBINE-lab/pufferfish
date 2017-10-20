@@ -16,21 +16,18 @@
 //using spp:sparse_hash_map;
 
 #define JUMPSIZE 10
-
+//maximum_splice_gap
+#define MAX_SPLICE_GAP 100
+//maximum_fragment_length
 template<typename PufferfishIndexT> class MemCollector {
 
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
 
 
-  bool clusterMems(PufferfishIndexT& pi,
-                      int32_t readLen,
-                      uint32_t k,
-                      std::vector<std::pair<int, util::ProjectedHits>>& hits,
-                      std::vector<util::MemCluster>& memClusters,
-                   /*std::vector<util::QuasiAlignment>& qhits,
-                      std::vector<std::string>& refBlocks,*/
-                      bool verbose = false) {
+  bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
+                   spp::sparse_hash_map<size_t, util::TrClusters>& memClusters,
+                   bool verbose = false) {
     (void)verbose;
 
     if (hits.empty())
@@ -50,12 +47,13 @@ public:
 
     for (auto trMemIt = trMemMap.begin(); trMemIt != trMemMap.end(); ++trMemIt) {
       auto& trOri = trMemIt->first;
+      auto& tid = trOri.first;
+      auto& isFw = trOri.second;
       auto& memList = trMemIt->second;
-      auto& sortFw = trOri.second;
       // sort memList according to mem read positions
       std::sort(memList.begin(),memList.end(),
-                [sortFw](util::MemInfo& q1, util::MemInfo& q2) -> bool{
-                  if (sortFw)
+                [isFw](util::MemInfo& q1, util::MemInfo& q2) -> bool{
+                  if (isFw)
                     return q1.rpos < q2.rpos ;
                   else return q1.rpos > q2.rpos;
                 });
@@ -66,16 +64,16 @@ public:
         bool foundAtLeastOneCluster = false;
         for (auto prevClus = currMemClusters.begin(); prevClus != currMemClusters.end(); prevClus++) {
           auto& mems = prevClus->mems;
-          if (mems[mems.size()-1].tpos < hitIt->tpos) {
+          if (hitIt->tpos - mems[mems.size()-1].tpos < MAX_SPLICE_GAP) {
             mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
             foundAtLeastOneCluster = true;
           }
         }
         if (!foundAtLeastOneCluster) {
-          currMemClusters.emplace_back(trOri.first, trOri.second, hitIt->tpos, hitIt->rpos, hitIt->memlen);
+          currMemClusters.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
         }
       }
-      memClusters.insert(memClusters.end(), currMemClusters.begin(), currMemClusters.end());
+      memClusters[tid].addBatchCluster(isFw, currMemClusters);
     }
     return true;
 
@@ -135,7 +133,7 @@ public:
 
 
   bool operator()(std::string& read,
-                  std::vector<util::QuasiAlignment>& hits
+                  spp::sparse_hash_map<size_t, util::TrClusters>& memClusters
                   /*,
                   util::MateStatus mateStatus,
                   bool consistentHits,
@@ -144,7 +142,6 @@ public:
       /*if(refBlocks.size() != readLen)
         refBlocks.resize(readLen) ;
     */
-    std::vector<util::MemCluster> memClusters;
     util::ProjectedHits phits ;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
@@ -170,7 +167,7 @@ public:
     }
 
     if(rawHits.size() > 0){
-      clusterMems(*pfi_, readLen, k, rawHits, memClusters/*, refBlocks*/);
+      clusterMems(rawHits, memClusters);
       return true ;
     }
     return false ;

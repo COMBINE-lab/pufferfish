@@ -240,13 +240,29 @@ enum class MateStatus : uint8_t {
   };
 
   struct MemCluster {
-    size_t tid;
-    bool ori;
     std::vector<MemInfo> mems;
 
-    MemCluster(size_t tidIn, bool oriIn, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) :
-      tid(tidIn), ori(oriIn){
+    MemCluster(size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
       mems.emplace_back(tposIn, rposIn, memlenIn);
+    }
+    
+  };
+
+  // Just for the sake of OO!
+  struct TrClusters {
+    std::vector<MemCluster> fwClusters;
+    std::vector<MemCluster> rcClusters;
+    void addCluster(bool isFw, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
+      if (isFw)
+        fwClusters.emplace_back(tposIn, rposIn, memlenIn);
+      else
+        rcClusters.emplace_back(tposIn, rposIn, memlenIn);
+    }
+    void addBatchCluster(bool isFw, std::vector<MemCluster>& currMemClusters) {
+      if (isFw)
+        fwClusters.insert(fwClusters.end(), currMemClusters.begin(), currMemClusters.end());
+      else
+        rcClusters.insert(rcClusters.end(), currMemClusters.begin(), currMemClusters.end());
     }
   };
 

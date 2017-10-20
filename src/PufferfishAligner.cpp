@@ -51,6 +51,7 @@
 #include "SpinLock.hpp"
 #include "MemCollector.hpp"
 #include "SAMWriter.hpp"
+#include <sparsepp/spp.h>
 
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
 using AlignmentOpts = util::AlignmentOpts ;
@@ -60,6 +61,15 @@ using MateStatus = util::MateStatus ;
 
 using SpinLockT = std::mutex ;
 
+
+void joinReads(spp::sparse_hash_map<size_t, util::TrClusters>& leftMemClusters, spp::sparse_hash_map<size_t, util::TrClusters>& rightMemClusters, std::vector<QuasiAlignment>& jointHits) {
+  /*for (auto leftClustItr = leftMemClusters.begin(); leftClustItr < leftMemClusters.end(); leftClustItr++) {
+    auto& lkey = leftClustItr->first;
+    auto& lClusts = leftClustItr->second;
+    auto& rClusts = rightMemClusters[lkey];
+
+    }*/
+}
 
 void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment>& rightHits, std::vector<QuasiAlignment>& jointHits){
   /*
@@ -161,8 +171,8 @@ void processReadsPair(paired_parser* parser,
   //size_t readLen{0} ;
 
 
-  std::vector<QuasiAlignment> leftHits ;
-  std::vector<QuasiAlignment> rightHits ;
+  spp::sparse_hash_map<size_t, util::TrClusters> leftHits ;
+  spp::sparse_hash_map<size_t, util::TrClusters> rightHits ;
   std::vector<QuasiAlignment> jointHits ;
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
 
@@ -204,7 +214,7 @@ void processReadsPair(paired_parser* parser,
       //otherwise orphan
 
       if(lh && rh){
-        mergeHits(leftHits, rightHits, jointHits) ;
+        joinReads(leftHits, rightHits, jointHits) ;
       }
       else{
         //ignore orphans for now
