@@ -160,25 +160,24 @@ public:
   size_t expandHitEfficient(util::ProjectedHits& hit, pufferfish::CanonicalKmerIterator& kit) {
 		auto& allContigs = pfi_->getSeq();
   		//startPos points to the next kmer in contig (which can be the left or right based on the orientation of match)
-		size_t cCurrPos = hit.globalPos_+hit.contigPos_+k+1; //start from next character if fw match
-    size_t cEndPos = hit.globalPos_+hit.contigLen_-k+1; //TODO check + 1
-    size_t cStartPos = hit.globalPos_-1; 
-		//next kmer in the read
-    kit++;
+    size_t cStartPos = hit.globalPos_-hit.contigPos_-1; //next kmer in the read
+    size_t cEndPos = cStartPos+hit.contigLen_; 
+		size_t cCurrPos = hit.globalPos_; //start from next character if fw match
+    if (hit.contigOrientation_) { //if match is fw, go to the next k-mer in the contig
+      cCurrPos+=k;
+    }
+    kit++; //go to the next kmer in the read (In read we always move fw.
 		size_t readStart = kit->second;
     pufferfish::CanonicalKmerIterator kit_end;
     bool stillMatch = true;
-    std::cerr <<"-------- In expandHitEfficient --------";
-    while (stillMatch && cCurrPos < cEndPos && cCurrPos > cStartPos && kit != kit_end) {
+    CanonicalKmer cmer;
+    while (stillMatch && cCurrPos < cEndPos && cCurrPos > cStartPos && kit != kit_end) { // over kmers in contig
       if (hit.contigOrientation_) {
         auto baseCnt = k < cEndPos - cCurrPos? k : cEndPos - cCurrPos;
         uint64_t fk = allContigs.get_int(2*(cCurrPos), 2*baseCnt);
+        cmer.fromNum(fk);
         cCurrPos += baseCnt;
-        std::cerr << "readPos:" << kit->second
-                  << " , contigPos:" << cCurrPos
-                  << " , readWord:" << kit->first.fwWord()
-                  <<" , contigWord:" << fk << "\n";
-        for (size_t i = baseCnt-1; i >=0 && kit != kit_end; i--) {
+        for (size_t i = 0; i < baseCnt && kit != kit_end; i++) {
           auto readCode = (kit->first.fwWord()) >> (2*(k-1)) & 0x3;
           auto contigCode = (fk >> (2*i)) & 0x3;
           if (readCode != contigCode) {
@@ -192,12 +191,9 @@ public:
       else {
         auto baseCnt = k < cCurrPos - cStartPos? k : cCurrPos - cStartPos;
         uint64_t fk = allContigs.get_int(2*(cCurrPos-baseCnt), 2*baseCnt);
+        cmer.fromNum(fk);
         cCurrPos -= baseCnt;
-        std::cerr << "readPos:" << kit->second
-                  << " , contigPos:" << cCurrPos
-                  << " , readWord:" << kit->first.rcWord()
-                  <<" , contigWord:" << fk << "\n";
-        for (size_t i = 0; i < baseCnt && kit != kit_end; i++) {
+        for (size_t i = baseCnt-1; i >= 0 && kit != kit_end; i--) {
           auto readCode = kit->first.rcWord() & 0x3;
           auto contigCode = (fk >> (2*i)) & 0x3;
           if (readCode != contigCode) {
@@ -212,8 +208,9 @@ public:
     return readStart;
   }
 
- 
 
+  /*
+  // simple expansion 
   size_t expandHit(util::ProjectedHits& hit, pufferfish::CanonicalKmerIterator& kit) {
 		auto& allContigs = pfi_->getSeq();
   		//startPos points to the next kmer in contig (which can be the left or right based on the orientation of match)
@@ -250,6 +247,7 @@ public:
 		//return the new read starting position
 		return readStart;
   }
+  */
 
   bool operator()(std::string& read,
                   std::vector<util::QuasiAlignment>& hits,
@@ -282,10 +280,11 @@ public:
     //initialize
     bl = refBlocks.begin() ;
     while(kit1 != kit_end) {
-      auto phits = pfi_->getRefPos(kit1->first);
+      auto phits = pfi_->getRefPos(kit1->first, qc);
       if (!phits.empty()) {
           // kit1 gets updated inside expandHitEfficient function
-		      size_t readPos = expandHitEfficient(phits, kit1);
+          size_t readPos = expandHitEfficient(phits, kit1);
+          //std::cerr<<"Final match length: " << phits.k_ << "\n";
           rawHits.push_back(std::make_pair(readPos, phits));
       }
       else ++kit1;
