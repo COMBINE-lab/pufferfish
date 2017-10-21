@@ -16,17 +16,17 @@
 //using spp:sparse_hash_map;
 
 #define JUMPSIZE 10
-//maximum_splice_gap
-#define MAX_SPLICE_GAP 100
-//maximum_fragment_length
 template<typename PufferfishIndexT> class MemCollector {
 
 public:
-  MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) {}
+  MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) {
+    k = pfi_->k() ;
+  }
 
 
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
                    spp::sparse_hash_map<size_t, util::TrClusters>& memClusters,
+                   uint32_t maxSpliceGap,
                    bool verbose = false) {
     (void)verbose;
 
@@ -64,7 +64,7 @@ public:
         bool foundAtLeastOneCluster = false;
         for (auto prevClus = currMemClusters.begin(); prevClus != currMemClusters.end(); prevClus++) {
           auto& mems = prevClus->mems;
-          if (hitIt->tpos - mems[mems.size()-1].tpos < MAX_SPLICE_GAP) {
+          if (hitIt->tpos - mems[mems.size()-1].tpos < maxSpliceGap) {
             mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
             foundAtLeastOneCluster = true;
           }
@@ -133,7 +133,8 @@ public:
 
 
   bool operator()(std::string& read,
-                  spp::sparse_hash_map<size_t, util::TrClusters>& memClusters
+                  spp::sparse_hash_map<size_t, util::TrClusters>& memClusters,
+                  uint32_t maxSpliceGap
                   /*,
                   util::MateStatus mateStatus,
                   bool consistentHits,
@@ -145,7 +146,6 @@ public:
     util::ProjectedHits phits ;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
-    k = pfi_->k() ;
     CanonicalKmer::k(k);
     pufferfish::CanonicalKmerIterator kit_end;
     pufferfish::CanonicalKmerIterator kit1(read) ;
@@ -167,7 +167,7 @@ public:
     }
 
     if(rawHits.size() > 0){
-      clusterMems(rawHits, memClusters);
+      clusterMems(rawHits, memClusters, maxSpliceGap);
       return true ;
     }
     return false ;

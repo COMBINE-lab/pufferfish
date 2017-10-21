@@ -205,6 +205,8 @@ class AlignmentOpts{
     std::string unmatedReads;
     uint32_t numThreads{1};
     uint32_t maxNumHits{200};
+    uint32_t maxSpliceGap{100};
+  uint32_t maxFragmentLength{1000};
     std::string outname;
     double quasiCov{0.0};
     bool pairedEnd{false};
@@ -266,6 +268,23 @@ enum class MateStatus : uint8_t {
     }
   };
 
+  struct JointMems {
+    uint32_t tid;
+    bool isLeftFw;
+    uint32_t coverage;
+    MemCluster leftMems;
+    MemCluster rightMems;
+    JointMems(uint32_t tidIn, bool isLeftFwIn, MemCluster& leftMemsIn, MemCluster& rightMemsIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn){
+
+      for (auto& mem : leftMems.mems) {
+        coverage += mem.memlen;
+      }
+      for (auto& mem : rightMems.mems) {
+        coverage += mem.memlen;
+      }
+    }
+  };
+ 
 struct QuasiAlignment {
   	QuasiAlignment() :
     tid(std::numeric_limits<uint32_t>::max()),

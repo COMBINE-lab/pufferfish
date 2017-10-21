@@ -62,13 +62,43 @@ using MateStatus = util::MateStatus ;
 using SpinLockT = std::mutex ;
 
 
-void joinReads(spp::sparse_hash_map<size_t, util::TrClusters>& leftMemClusters, spp::sparse_hash_map<size_t, util::TrClusters>& rightMemClusters, std::vector<QuasiAlignment>& jointHits) {
-  /*for (auto leftClustItr = leftMemClusters.begin(); leftClustItr < leftMemClusters.end(); leftClustItr++) {
-    auto& lkey = leftClustItr->first;
-    auto& lClusts = leftClustItr->second;
-    auto& rClusts = rightMemClusters[lkey];
-
-    }*/
+void joinReadsAndFilter(spp::sparse_hash_map<size_t, util::TrClusters>& leftMemClusters, spp::sparse_hash_map<size_t, util::TrClusters>& rightMemClusters, std::vector<util::JointMems>& jointMemsList, uint32_t maxFragmentLength) {
+  spp::sparse_hash_map<uint32_t, uint32_t> maxCoverage;
+  //orphan reads should be taken care of maybe with a flag!
+  for (auto& leftClustItr : leftMemClusters) {
+    auto& tid = leftClustItr.first;
+    auto& lClusts = leftClustItr.second;
+    auto& rClusts = rightMemClusters[tid];
+    bool isLeftFw = true;
+    for (auto& lclust : lClusts.fwClusters) {
+      for (auto& rclust : rClusts.rcClusters) {
+        auto& left = lclust;
+        auto& right = rclust;
+        isLeftFw = true;
+        if (lclust.mems[0].tpos > rclust.mems[0].tpos) {
+          left = rclust;
+          right = lclust;
+          isLeftFw = false;
+        }
+        // FILTER 1
+        // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
+        if (right.mems[right.mems.size()-1].tpos + right.mems[right.mems.size()-1].memlen +  - left.mems[0].tpos < maxFragmentLength) {
+          jointMemsList.emplace_back(tid, isLeftFw, left, right);
+          uint32_t currCoverage =  jointMemsList[jointMemsList.size()-1].coverage;
+          if (!maxCoverage.contains(tid) || maxCoverage[tid] < currCoverage) {
+            maxCoverage[tid] = currCoverage;
+          }
+        }
+      }
+    }
+  }
+  // FILTER 2
+  // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for that transcript)
+  jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                     [&maxCoverage](util::JointMems& pairedRead) -> bool {
+                                       return pairedRead.coverage < 0.5*maxCoverage[pairedRead.tid] ;
+                                     }),
+                      jointMemsList.end());
 }
 
 void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment>& rightHits, std::vector<QuasiAlignment>& jointHits){
@@ -173,7 +203,7 @@ void processReadsPair(paired_parser* parser,
 
   spp::sparse_hash_map<size_t, util::TrClusters> leftHits ;
   spp::sparse_hash_map<size_t, util::TrClusters> rightHits ;
-  std::vector<QuasiAlignment> jointHits ;
+  std::vector<util::JointMems> jointHits ;
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
 
 
@@ -197,14 +227,16 @@ void processReadsPair(paired_parser* parser,
       //readLen = rpair.first.seq.length() ;
 
       bool lh = memCollector(rpair.first.seq,
-                             leftHits
+                             leftHits,
+                             mopts->maxSpliceGap
                              /*,
                              MateStatus::PAIRED_END_LEFT,                             
                              mopts->consistentHits,
                              refBlocks*/) ;
 
       bool rh = memCollector(rpair.second.seq,
-                             rightHits
+                             rightHits,
+                             mopts->maxSpliceGap
                              /*,
                              MateStatus::PAIRED_END_RIGHT,
                              mopts->consistentHits,
@@ -214,7 +246,7 @@ void processReadsPair(paired_parser* parser,
       //otherwise orphan
 
       if(lh && rh){
-        joinReads(leftHits, rightHits, jointHits) ;
+        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength) ;
       }
       else{
         //ignore orphans for now
@@ -225,9 +257,10 @@ void processReadsPair(paired_parser* parser,
       hctr.totHits += jointHits.size() ;
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
-      if(jointHits.size() > 0 and !mopts->noOutput){
-        writeAlignmentsToStream(rpair, formatter, jointHits, sstream, mopts->writeOrphans) ;
-      }
+      //TODO When you get to this, you should be done aligning!!
+      //if(jointHits.size() > 0 and !mopts->noOutput){
+      //  writeAlignmentsToStream(rpair, formatter, jointHits, sstream, mopts->writeOrphans) ;
+      //}
 
 
 

@@ -135,7 +135,13 @@ int main(int argc, char* argv[]) {
   alignmentApp
     ->add_flag(",--noOutput", alignmentOpt.noOutput,
                  "run without writing sam");
-
+  alignmentApp
+    ->add_flag(",--maxSpliceGap", alignmentOpt.maxSpliceGap,
+               "specify maximum splice gap that two uni-mems should have");
+  alignmentApp
+    ->add_flag(",--maxFragmentLength", alignmentOpt.maxFragmentLength,
+               "specify maximum distance between last uni-mem of the left end and first uni-mem of the right end of the read pairs");
+ 
 
   try {
     app.parse(argc, argv);
