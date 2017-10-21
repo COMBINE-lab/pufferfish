@@ -63,8 +63,8 @@ using SpinLockT = std::mutex ;
 
 
 void joinReadsAndFilter(spp::sparse_hash_map<size_t, util::TrClusters>& leftMemClusters, spp::sparse_hash_map<size_t, util::TrClusters>& rightMemClusters, std::vector<util::JointMems>& jointMemsList, uint32_t maxFragmentLength) {
-  spp::sparse_hash_map<uint32_t, uint32_t> maxCoverage;
   //orphan reads should be taken care of maybe with a flag!
+  uint32_t maxCoverage{0};
   for (auto& leftClustItr : leftMemClusters) {
     auto& tid = leftClustItr.first;
     auto& lClusts = leftClustItr.second;
@@ -85,8 +85,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, util::TrClusters>& leftMemC
         if (right.mems[right.mems.size()-1].tpos + right.mems[right.mems.size()-1].memlen +  - left.mems[0].tpos < maxFragmentLength) {
           jointMemsList.emplace_back(tid, isLeftFw, left, right);
           uint32_t currCoverage =  jointMemsList[jointMemsList.size()-1].coverage;
-          if (!maxCoverage.contains(tid) || maxCoverage[tid] < currCoverage) {
-            maxCoverage[tid] = currCoverage;
+          if (maxCoverage < currCoverage) {
+            maxCoverage = currCoverage;
           }
         }
       }
@@ -96,7 +96,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, util::TrClusters>& leftMemC
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for that transcript)
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&maxCoverage](util::JointMems& pairedRead) -> bool {
-                                       return pairedRead.coverage < 0.5*maxCoverage[pairedRead.tid] ;
+                                       return pairedRead.coverage < 0.5*maxCoverage ;
                                      }),
                       jointMemsList.end());
 }
