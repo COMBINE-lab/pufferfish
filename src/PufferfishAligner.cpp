@@ -62,122 +62,59 @@ using MateStatus = util::MateStatus ;
 using SpinLockT = std::mutex ;
 
 
-void joinReadsAndFilter(spp::sparse_hash_map<size_t, util::TrClusters>& leftMemClusters, spp::sparse_hash_map<size_t, util::TrClusters>& rightMemClusters, std::vector<util::JointMems>& jointMemsList, uint32_t maxFragmentLength) {
-  //orphan reads should be taken care of maybe with a flag!
-  uint32_t maxCoverage{0};
-  for (auto& leftClustItr : leftMemClusters) {
-    auto& tid = leftClustItr.first;
-    auto& lClusts = leftClustItr.second;
-    auto& rClusts = rightMemClusters[tid];
-    bool isLeftFw = true;
-    for (auto& lclust : lClusts.fwClusters) {
-      for (auto& rclust : rClusts.rcClusters) {
-        auto& left = lclust;
-        auto& right = rclust;
-        isLeftFw = true;
-        if (lclust.mems[0].tpos > rclust.mems[0].tpos) {
-          left = rclust;
-          right = lclust;
-          isLeftFw = false;
-        }
-        // FILTER 1
-        // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-        if (right.mems[right.mems.size()-1].tpos + right.mems[right.mems.size()-1].memlen +  - left.mems[0].tpos < maxFragmentLength) {
-          jointMemsList.emplace_back(tid, isLeftFw, left, right);
-          uint32_t currCoverage =  jointMemsList[jointMemsList.size()-1].coverage;
-          if (maxCoverage < currCoverage) {
-            maxCoverage = currCoverage;
-          }
+inline void joinReverseOrientationMems(size_t tid,
+                                       bool isLeftFwIn,
+                                       std::vector<util::MemCluster> leftClusters,
+                                       std::vector<util::MemCluster> rightClusters,
+                                       std::vector<util::JointMems>& jointMemsList,
+                                       uint32_t maxFragmentLength,
+                                       uint32_t& maxCoverage // pass it by reference since it should be updated by both pairs <fw, rc> adn <rc, fw>
+                                       ) {
+  bool isLeftFw = isLeftFwIn;
+  for (auto& lclust : leftClusters) {
+    for (auto& rclust : rightClusters) {
+      auto& left = lclust;
+      auto& right = rclust;
+      isLeftFw = isLeftFw;
+      if (lclust.mems[0].tpos > rclust.mems[0].tpos) {
+        left = rclust;
+        right = lclust;
+        isLeftFw = !isLeftFw;
+      }
+      // FILTER 1
+      // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
+      if (right.mems[right.mems.size()-1].tpos + right.mems[right.mems.size()-1].memlen +  - left.mems[0].tpos < maxFragmentLength) {
+        jointMemsList.emplace_back(tid, isLeftFw, left, right);
+        uint32_t currCoverage =  jointMemsList[jointMemsList.size()-1].coverage;
+        if (maxCoverage < currCoverage) {
+          maxCoverage = currCoverage;
         }
       }
     }
   }
+}
+
+void joinReadsAndFilter(spp::sparse_hash_map<size_t,
+                        util::TrClusters>& leftMemClusters,
+                        spp::sparse_hash_map<size_t, util::TrClusters>& rightMemClusters,
+                        std::vector<util::JointMems>& jointMemsList,
+                        uint32_t maxFragmentLength) {
+  //orphan reads should be taken care of maybe with a flag!
+  uint32_t maxCoverage{0};
+  for (auto& leftClustItr : leftMemClusters) {
+    size_t tid = leftClustItr.first;
+    auto& lClusts = leftClustItr.second;
+    auto& rClusts = rightMemClusters[tid];
+    joinReverseOrientationMems(tid, true, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
+    joinReverseOrientationMems(tid, false, lClusts.rcClusters, rClusts.fwClusters, jointMemsList, maxFragmentLength, maxCoverage);
+  }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for that transcript)
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                     [&maxCoverage](util::JointMems& pairedRead) -> bool {
-                                       return pairedRead.coverage < 0.5*maxCoverage ;
+                                     [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
+                                       return pairedReadMems.coverage < 0.5*maxCoverage ;
                                      }),
                       jointMemsList.end());
-}
-
-void mergeHits(std::vector<QuasiAlignment>& leftHits, std::vector<QuasiAlignment>& rightHits, std::vector<QuasiAlignment>& jointHits){
-  /*
-  //sort leftHits
-  if(leftHits.size() > 1)
-    std::sort(leftHits.begin(),leftHits.end(),
-              [](QuasiAlignment& q1, QuasiAlignment& q2) -> bool{
-                return q1.tid < q2.tid ;
-              });
-
-  //sort rightHits
-  if(rightHits.size() > 1)
-    std::sort(rightHits.begin(),rightHits.end(),
-              [](QuasiAlignment& q1, QuasiAlignment& q2) -> bool{
-                return q1.tid < q2.tid ;
-              });
-  */
-  /**
-   * based on potential standard implementation :http://en.cppreference.com/w/cpp/algorithm/set_intersection
-   **/
-
-  // We will not handle chimetric reads
-  int32_t signedZero{0};
-  auto rqIt = rightHits.begin();
-  auto rqEnd = rightHits.end();
-  auto lqIt = leftHits.begin();
-  auto lqEnd = leftHits.end();
-  while (lqIt != lqEnd and rqIt != rqEnd) {
-    auto lid = lqIt->tid ;
-    auto rid = rqIt->tid;
-    if (lid < rid) {
-      ++lqIt;
-    } else {
-    //for(auto rqIt = rightHits.begin(); rqIt != rightHits.end(); ++rqIt) {
-      //for(auto& rq : rightHits){
-      //for now let's ignore chimeric reads
-      if(!(rid < lid)){
-        int32_t startRead1 = std::max(lqIt->pos, signedZero);
-        int32_t startRead2 = std::max(rqIt->pos, signedZero);
-        bool read1First{(startRead1 < startRead2)};
-        int32_t fragStartPos = read1First ? startRead1 : startRead2;
-        int32_t fragEndPos = read1First ?
-          (startRead2 + rqIt->readLen) : (startRead1 + lqIt->readLen);
-        uint32_t fragLen = fragEndPos - fragStartPos;
-        jointHits.emplace_back(lid,           // reference id
-                               lqIt->pos,     // reference pos
-                               lqIt->fwd,     // fwd direction
-                               lqIt->readLen, // read length
-                               fragLen,       // fragment length
-                               true);         // properly paired
-
-        // Fill in the mate info
-        auto& qaln = jointHits.back();
-        qaln.mateLen = rqIt->readLen;
-        qaln.matePos = rqIt->pos;
-        qaln.mateIsFwd = rqIt->fwd;
-        qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
-        ++lqIt;
-      }
-      ++rqIt;
-    } // end else
-  } // end while
-
-    //if there is no jointHits then
-    //add orphan reads to the list
-    if(jointHits.size() == 0){
-        if(leftHits.size() + rightHits.size() > 0){
-	        //std::cerr<<"orphans here\n";
-            jointHits.insert(jointHits.end(),
-                    std::make_move_iterator(leftHits.begin()),
-                    std::make_move_iterator(leftHits.end()));
-            jointHits.insert(jointHits.end(),
-                    std::make_move_iterator(rightHits.begin()),
-                    std::make_move_iterator(rightHits.end()));
-
-        }
-    }
-
 }
 
 template <typename PufferfishIndexT>
