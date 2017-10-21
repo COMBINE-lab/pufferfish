@@ -247,6 +247,9 @@ enum class MateStatus : uint8_t {
     MemCluster(size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
       mems.emplace_back(tposIn, rposIn, memlenIn);
     }
+
+    size_t& getTrFirstHitPos() {return mems[0].tpos;}
+    size_t& getTrLastHitPos() {return mems.back().tpos;}
     
   };
 
@@ -274,7 +277,12 @@ enum class MateStatus : uint8_t {
     uint32_t coverage;
     MemCluster leftMems;
     MemCluster rightMems;
-    JointMems(uint32_t tidIn, bool isLeftFwIn, MemCluster& leftMemsIn, MemCluster& rightMemsIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn){
+    size_t fragmentLen;
+    JointMems(uint32_t tidIn,
+              bool isLeftFwIn,
+              MemCluster& leftMemsIn,
+              MemCluster& rightMemsIn,
+              size_t fragmentLenIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn), fragmentLen(fragmentLenIn) {
 
       for (auto& mem : leftMems.mems) {
         coverage += mem.memlen;

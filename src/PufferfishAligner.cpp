@@ -83,9 +83,10 @@ inline void joinReverseOrientationMems(size_t tid,
       }
       // FILTER 1
       // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-      if (right.mems[right.mems.size()-1].tpos + right.mems[right.mems.size()-1].memlen +  - left.mems[0].tpos < maxFragmentLength) {
-        jointMemsList.emplace_back(tid, isLeftFw, left, right);
-        uint32_t currCoverage =  jointMemsList[jointMemsList.size()-1].coverage;
+      size_t fragmentLen = right.mems.back().tpos + right.mems.back().memlen +  - left.mems[0].tpos;
+      if ( fragmentLen < maxFragmentLength) {
+        jointMemsList.emplace_back(tid, isLeftFw, left, right, fragmentLen);
+        uint32_t currCoverage =  jointMemsList.back().coverage;
         if (maxCoverage < currCoverage) {
           maxCoverage = currCoverage;
         }
@@ -135,7 +136,7 @@ void processReadsPair(paired_parser* parser,
   auto logger = spdlog::get("stderrLog") ;
   fmt::MemoryWriter sstream ;
   //size_t batchSize{2500} ;
-  //size_t readLen{0} ;
+  size_t readLen{0} ;
 
 
   spp::sparse_hash_map<size_t, util::TrClusters> leftHits ;
@@ -148,7 +149,7 @@ void processReadsPair(paired_parser* parser,
 
   while(parser->refill(rg)){
     for(auto& rpair : rg){
-      //readLen = rpair.first.seq.length() ;
+      readLen = rpair.first.seq.length() ;
       ++hctr.numReads ;
 
       jointHits.clear() ;
@@ -195,9 +196,27 @@ void processReadsPair(paired_parser* parser,
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
       //TODO When you get to this, you should be done aligning!!
-      //if(jointHits.size() > 0 and !mopts->noOutput){
-      //  writeAlignmentsToStream(rpair, formatter, jointHits, sstream, mopts->writeOrphans) ;
-      //}
+      //fill the QuasiAlignment list
+      std::vector<QuasiAlignment> jointAlignments;
+      for (auto& jointHit : jointHits) {
+        jointAlignments.emplace_back(jointHit.tid,           // reference id		        
+                                     jointHit.leftMems.getTrFirstHitPos(),     // reference pos		                               
+                                     jointHit.isLeftFw ,     // fwd direction		                                
+                                     readLen, // read length		                                
+                                     jointHit.fragmentLen,       // fragment length 
+                                     true);         // properly paired		                                
+ 		 
+         // Fill in the mate info		         // Fill in the mate info
+         auto& qaln = jointAlignments.back();		        
+         qaln.mateLen = readLen;	         
+         qaln.matePos = jointHit.rightMems.getTrFirstHitPos();		         
+         qaln.mateIsFwd = !jointHit.isLeftFw;		         
+         qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
+      }
+
+      if(jointHits.size() > 0 and !mopts->noOutput){
+        writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans) ;
+      }
 
 
 
