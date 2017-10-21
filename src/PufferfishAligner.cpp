@@ -64,8 +64,8 @@ using SpinLockT = std::mutex ;
 
 inline void joinReverseOrientationMems(size_t tid,
                                        bool isLeftFwIn,
-                                       std::vector<util::MemCluster> leftClusters,
-                                       std::vector<util::MemCluster> rightClusters,
+                                       std::vector<util::MemCluster>& leftClusters,
+                                       std::vector<util::MemCluster>& rightClusters,
                                        std::vector<util::JointMems>& jointMemsList,
                                        uint32_t maxFragmentLength,
                                        uint32_t& maxCoverage // pass it by reference since it should be updated by both pairs <fw, rc> adn <rc, fw>
