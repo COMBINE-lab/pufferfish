@@ -314,24 +314,25 @@ int main(int argc, char* argv[]) {
   uint32_t k;
   std::string cfile;
   std::string rfile;
-  popl::Switch helpOption("h", "help", "produce help message");
-  popl::Value<uint32_t> kOpt(
-      "k", "klen", "length of the k-mer with which the compacted dBG was built",
-      31, &k);
-  popl::Value<std::string> inOpt("i", "input", "input fasta file");
-  popl::Value<std::string> outOpt("o", "out", "output fasta file");
 
   popl::OptionParser op("Allowed options");
-  op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
+  auto helpOption = op.add<popl::Switch>("h", "help", "produce help message");
+  auto kOpt = op.add<popl::Value<uint32_t>>(
+      "k", "klen", "length of the k-mer with which the compacted dBG was built",
+      31, &k);
+  auto inOpt = op.add<popl::Value<std::string>>("i", "input", "input fasta file");
+  auto outOpt = op.add<popl::Value<std::string>>("o", "out", "output fasta file");
+
+  //op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
 
   op.parse(argc, argv);
-  if (helpOption.isSet()) {
+  if (helpOption->is_set()) {
     std::cout << op << '\n';
     std::exit(0);
   }
 
-  std::string refFile = inOpt.getValue();
-  std::string outFile = outOpt.getValue();
+  std::string refFile = inOpt->value();
+  std::string outFile = outOpt->value();
 
   size_t numThreads{1};
   std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
