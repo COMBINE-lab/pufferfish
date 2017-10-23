@@ -31,6 +31,9 @@ public:
 
     // spp::sparse_hash_map<std::pair<size_t, bool>, std::vector<util::MemInfo>>
     // trMemMap;
+
+    // Map from (reference id, orientation) pair to a cluster of
+    // MEMs.
     std::map<std::pair<size_t, bool>, std::vector<util::MemInfo>,
              util::cmpByPair>
         trMemMap;
@@ -51,13 +54,21 @@ public:
       auto& isFw = trOri.second;
       auto& memList = trMemIt->second;
       // sort memList according to mem read positions
-      std::sort(memList.begin(), memList.end(),
-                [isFw](util::MemInfo& q1, util::MemInfo& q2) -> bool {
-                  if (isFw)
-                    return q1.rpos < q2.rpos;
-                  else
+
+      // pull the orientation to a top-level condition to avoid
+      // checking repeatedly during the sort.
+      if (isFw) {
+        std::sort(memList.begin(), memList.end(),
+                  (util::MemInfo& q1, util::MemInfo& q2) -> bool {
+                      return q1.rpos < q2.rpos;
+                  });
+
+      } else {
+        std::sort(memList.begin(), memList.end(),
+                  (util::MemInfo& q1, util::MemInfo& q2) -> bool {
                     return q1.rpos > q2.rpos;
-                });
+                  });
+      }
 
       std::vector<util::MemCluster> currMemClusters;
       // cluster mems so that all the mems in one cluster are concordant.
