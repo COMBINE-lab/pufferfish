@@ -59,13 +59,13 @@ public:
       // checking repeatedly during the sort.
       if (isFw) {
         std::sort(memList.begin(), memList.end(),
-                  (util::MemInfo& q1, util::MemInfo& q2) -> bool {
+                  [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
                       return q1.rpos < q2.rpos;
                   });
 
       } else {
         std::sort(memList.begin(), memList.end(),
-                  (util::MemInfo& q1, util::MemInfo& q2) -> bool {
+                  [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
                     return q1.rpos > q2.rpos;
                   });
       }
