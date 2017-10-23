@@ -71,10 +71,10 @@ public:
       }
 
       std::vector<util::MemCluster> currMemClusters;
-      // cluster mems so that all the mems in one cluster are concordant.
+      // cluster MEMs so that all the MEMs in one cluster are concordant.
       for (auto hitIt = memList.begin(); hitIt != memList.end(); hitIt++) {
         bool foundAtLeastOneCluster = false;
-        for (auto prevClus = currMemClusters.begin();
+        for (auto& prevClus = currMemClusters.begin();
              prevClus != currMemClusters.end(); prevClus++) {
           auto& mems = prevClus->mems;
           if (hitIt->tpos - mems[mems.size() - 1].tpos < maxSpliceGap) {
