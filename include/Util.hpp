@@ -247,11 +247,15 @@ enum class MateStatus : uint8_t {
 
     MemCluster(size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
       mems.emplace_back(tposIn, rposIn, memlenIn);
+      std::cerr << "mem size: " << mems.size() << "\n";
     }
 
-    size_t& getTrFirstHitPos() {return mems[0].tpos;}
-    size_t& getTrLastHitPos() {return mems.back().tpos;}
-    
+    MemCluster() {}
+
+
+    size_t getReadLastHitPos() {return mems.empty()?0:mems.back().rpos;}
+    size_t getTrLastHitPos() {return mems.empty()?0:mems.back().tpos;}
+    size_t getTrFirstHitPos() {return mems.empty()?0:mems[0].tpos;}
   };
 
   // Just for the sake of OO!
@@ -284,13 +288,28 @@ enum class MateStatus : uint8_t {
               MemCluster& leftMemsIn,
               MemCluster& rightMemsIn,
               size_t fragmentLenIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn), fragmentLen(fragmentLenIn) {
-
+      // we keep prev to take care of overlaps while calculating the coverage
+      auto& prev = leftMems.mems[0];
+      coverage = leftMems.mems[0].memlen;
       for (auto& mem : leftMems.mems) {
-        coverage += mem.memlen;
+        coverage += (mem.memlen - std::max((int)(prev.tpos+prev.memlen-mem.tpos), 0)); // TODO q: is this casting right? what is that static cast
+        prev = mem;
       }
+      prev = rightMems.mems[0];
+      coverage += rightMems.mems[0].memlen;
       for (auto& mem : rightMems.mems) {
-        coverage += mem.memlen;
+        coverage += (mem.memlen - std::max((int)(prev.tpos+prev.memlen-mem.tpos), 0));
+        prev = mem;
       }
+      /*if (coverage > 100) {
+        std::cerr << "coverage:"<<coverage<<"\n";
+        for (auto& mem : leftMems.mems) {
+          std::cerr << "left:" << mem.tpos << " , " << mem.rpos << " , " << mem.memlen << "\n";
+        }
+        for (auto& mem : rightMems.mems) {
+          std::cerr << "right:" << mem.tpos << " , " << mem.rpos << " , " << mem.memlen << "\n";
+        }
+        }*/
     }
   };
  
