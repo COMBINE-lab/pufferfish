@@ -134,6 +134,8 @@ void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
 
 sdsl::int_vector<2>& PosFinder::getContigSeqVec() { return seqVec_; }
 
+
+
 void PosFinder::parseFile() {
   size_t total_len = fillContigInfoMap_();
   file.reset(new zstr::ifstream(filename_));
@@ -145,6 +147,11 @@ void PosFinder::parseFile() {
   std::string tag, id, value;
   size_t contig_cnt{0};
   size_t ref_cnt{0};
+
+  // start and end kmer-hash over the contigs
+  // might get deprecated later
+
+
   while (std::getline(*file, ln)) {
     char firstC = ln[0];
     if (firstC != 'S' and firstC != 'P')
@@ -165,10 +172,70 @@ void PosFinder::parseFile() {
       }
       contig_cnt++;
     }
+
+
     // A path line
     if (tag == "P") {
+
+      //Initialize edgeVec_
+      //bad way, have to re-think
+      if(edgeVec_.empty()){
+        edgeVec_ = sdsl::int_vector<8>(contig_cnt, 0) ;
+      }
+
       auto pvalue = splited[2];
       std::vector<std::pair<uint64_t, bool>> contigVec = explode(pvalue, ',');
+      //go over the contigVec
+      //uint64_t kn{0} ;
+      //uint64_t knn{0} ;
+
+      //debug print
+      std::cerr << pvalue << "\n" ;
+
+      for(auto it = contigVec.begin() ; it != contigVec.end() -1 ; ++it){
+        auto cid = it->first ;
+        bool ore = it->second ;
+        auto nextcid = (it+1)->first ;
+        bool nextore = (it+1)->second ;
+        // a+,b+ end kmer of a , start kmer of b
+        // a+,b- end kmer of a , rc(end kmer of b)
+        // a-,b+ rc(start kmer of a) , start kmer of b
+        // a-,b- rc(start kmer of a) , rc(end kmer of b)
+        
+        
+        uint64_t kn = (!ore)? (seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k)) ;
+        uint64_t knn = (nextore)? (seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k)) ;
+
+
+        CanonicalKmer sk, skk ;
+        sk.fromNum(kn) ;
+        skk.fromNum(knn) ;
+
+        //validation, to be deprecated later
+        std::string kmer, nkmer, k_1mer, nk_1mer;
+        if(ore){
+          kmer = sk.to_str() ;
+          k_1mer = sk.to_str().substr(1,k-1) ;
+        }else{
+          kmer = sk.rcMer().to_str() ;
+          k_1mer = sk.rcMer().to_str().substr(0,k-1) ;
+        }
+
+        if(nextore){
+          nkmer = skk.to_str() ;
+          nk_1mer = skk.to_str().substr(0,k-1) ;
+        }else{
+          nkmer = skk.rcMer().to_str() ;
+          nk_1mer = skk.rcMer().to_str().substr(1,k-1) ;
+        }
+        if(k_1mer != nk_1mer)
+          { std::cerr << ore << "\t" << kmer << "\t" << nextore << "\t" << nkmer << "\n" ;}
+        else
+          { std::cerr << ore << "\t" << kmer << "\t" << nextore << "\t" << nkmer << "\n" ;}
+        //{ std::cerr << "bingo\n" ;}
+        //end validation
+
+      }
       // parse value and add all conitgs to contigVec
 
       path[ref_cnt] = contigVec;
