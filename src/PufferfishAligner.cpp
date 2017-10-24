@@ -67,8 +67,8 @@ inline void joinReverseOrientationMems(size_t tid,
                                        std::vector<util::MemCluster>& rcClusters,
                                        std::vector<util::JointMems>& jointMemsList,
                                        uint32_t maxFragmentLength,
-                                       uint32_t& maxCoverage // pass it by reference since it should be updated by both pairs <fw, rc> and <rc, fw>
-                                       ) {
+                                       uint32_t& maxCoverage, // pass it by reference since it should be updated by both pairs <fw, rc> and <rc, fw>
+                                       bool verbose) {
   bool isLeftFw = true;
   for (auto& lclust : fwClusters) {
     for (auto& rclust : rcClusters) {
@@ -86,11 +86,20 @@ inline void joinReverseOrientationMems(size_t tid,
       size_t fragmentLen = right.mems.back().tpos + right.mems.back().memlen - left.mems[0].tpos;
       if ( fragmentLen < maxFragmentLength) {
         jointMemsList.emplace_back(tid, isLeftFw, left, right, fragmentLen);
+        if (verbose) {
+          std::cout << isLeftFw << "\n";
+          std::cout <<"left\n";
+          for (auto& mem : left) {
+            std::cout << " t" << mem.tpos << " r" << mem.rpos << " l" << mem.memlen << "\n";
+          }
+          std::cout << "right\n";
+          for (auto& mem : right) {
+            std::cout <<  " t" << mem.tpos << " r" << mem.rpos << " l" << mem.memlen << "\n";
+          }
+        }
         uint32_t currCoverage =  jointMemsList.back().coverage;
         if (maxCoverage < currCoverage) {
           maxCoverage = currCoverage;
-          if (maxCoverage > 100)
-            std::cerr<<tid<<":"<<fwClusters.size()<<","<<rcClusters.size()<<"\n";
         }
       }
       else {
@@ -111,8 +120,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
     size_t tid = leftClustItr.first;
     auto& lClusts = leftClustItr.second;
     auto& rClusts = rightMemClusters[tid];
-    joinReverseOrientationMems(tid, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
-    joinReverseOrientationMems(tid, rClusts.fwClusters, lClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
+    bool tidIs6 = false;
+    if (tid == 6) tidIs6 = true;
+    joinReverseOrientationMems(tid, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tidIs6);
+    joinReverseOrientationMems(tid, rClusts.fwClusters, lClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tidIs6);
   }
   //std::cerr << "mc:" << maxCoverage << "\n";
   // FILTER 2

@@ -89,13 +89,12 @@ public:
         }
       }
       if (verbose) {
-        std::cerr << "cluster size:" << currMemClusters.size() << "\n";
-        size_t cntr = 0;
+        std::cout << "t" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
         for (auto& clus : currMemClusters) {
-          std::cerr << "t" << tid << " , isFw:" << isFw << " c" << cntr++ << "\n";
           for (auto& mem : clus.mems) {
-            std::cerr << "\t t" << mem.tpos << " r" << mem.rpos << " len" << mem.memlen << "\n";
+            std::cout << "\t t" << mem.tpos << " r" << mem.rpos << " len" << mem.memlen << "\n";
           }
+          std::cout << "\n";
         }
       }
       memClusters[tid].addBatchCluster(isFw, currMemClusters);
@@ -202,7 +201,7 @@ public:
     }
 
     if (rawHits.size() > 0) {
-      clusterMems(rawHits, memClusters, maxSpliceGap, true);
+      clusterMems(rawHits, memClusters, maxSpliceGap);
       return true;
     }
     return false;
