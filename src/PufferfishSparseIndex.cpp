@@ -76,6 +76,12 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     sdsl::load_from_file(seq_, sfile);
     lastSeqPos_ = seq_.size() - k_;
   }
+
+  {
+    CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
+    std::string pfile = indexDir + "/edge.bin";
+    sdsl::load_from_file(edge_, pfile);
+  }
   /*
   {
     CLI::AutoTimer timer {"Loading positions", CLI::Timer::Big};

@@ -37,6 +37,7 @@ private:
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;
   sdsl::int_vector<2> seq_;
+  sdsl::int_vector<8> edge_;
   sdsl::int_vector<> pos_;
   //for sparse representation
   sdsl::bit_vector presenceVec_;
@@ -104,6 +105,10 @@ public:
   //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
 
 	sdsl::int_vector<2>& getSeq() {return seq_;}
+	sdsl::int_vector<8>& getEdge() {return edge_;}
+
+  uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
+
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk = false) -> util::ProjectedHits;
