@@ -234,6 +234,7 @@ enum class MateStatus : uint8_t {
 
 
   //required for edge extension
+  
   enum class Direction : bool { FORWARD = 0, BACKWORD = 1 };
   struct extension{
     char c;
@@ -297,21 +298,27 @@ enum class MateStatus : uint8_t {
               MemCluster& rightMemsIn,
               size_t fragmentLenIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn), fragmentLen(fragmentLenIn) {
       // we keep prev to take care of overlaps while calculating the coverage
-      auto& fwMems = isLeftFw? leftMems : rightMems;
-      auto& rcMems = isLeftFw? rightMems : leftMems;
-
-      auto& prev = fwMems.mems[0];
-      coverage = fwMems.mems[0].memlen;
-      for (auto& mem : fwMems.mems) {
-        coverage += std::max((int)(mem.tpos + mem.memlen - (prev.tpos + prev.memlen)), 0); // TODO q: is this casting right? what is that static cast
+      auto& prev = leftMems.mems[0];
+      coverage = leftMems.mems[0].memlen;
+      for (auto& mem : leftMems.mems) {
+        coverage += (mem.memlen - std::max((int)(prev.tpos+prev.memlen-mem.tpos), 0)); // TODO q: is this casting right? what is that static cast
         prev = mem;
       }
-      prev = rcMems.mems[0];
-      coverage += rcMems.mems[0].memlen;
-      for (auto& mem : rcMems.mems) {
-        coverage += std::max((int)(mem.tpos + mem.memlen - (prev.tpos + prev.memlen)), 0);
+      prev = rightMems.mems[0];
+      coverage += rightMems.mems[0].memlen;
+      for (auto& mem : rightMems.mems) {
+        coverage += (mem.memlen - std::max((int)(prev.tpos+prev.memlen-mem.tpos), 0));
         prev = mem;
       }
+      /*if (coverage > 100) {
+        std::cerr << "coverage:"<<coverage<<"\n";
+        for (auto& mem : leftMems.mems) {
+          std::cerr << "left:" << mem.tpos << " , " << mem.rpos << " , " << mem.memlen << "\n";
+        }
+        for (auto& mem : rightMems.mems) {
+          std::cerr << "right:" << mem.tpos << " , " << mem.rpos << " , " << mem.memlen << "\n";
+        }
+        }*/
     }
   };
  
