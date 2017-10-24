@@ -24,7 +24,7 @@ public:
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
                    spp::sparse_hash_map<size_t, util::TrClusters>& memClusters,
                    uint32_t maxSpliceGap, bool verbose = false) {
-    (void)verbose;
+    //(void)verbose;
 
     if (hits.empty())
       return false;
@@ -88,6 +88,16 @@ public:
           currMemClusters.push_back(newClus);
         }
       }
+      if (verbose) {
+        std::cerr << "cluster size:" << currMemClusters.size() << "\n";
+        size_t cntr = 0;
+        for (auto& clus : currMemClusters) {
+          std::cerr << "t" << tid << " , isFw:" << isFw << " c" << cntr++ << "\n";
+          for (auto& mem : clus.mems) {
+            std::cerr << "\t t" << mem.tpos << " r" << mem.rpos << " len" << mem.memlen << "\n";
+          }
+        }
+      }
       memClusters[tid].addBatchCluster(isFw, currMemClusters);
     }
     return true;
@@ -148,6 +158,10 @@ public:
         }
       }
     }
+    if (!hit.contigOrientation_) {
+      hit.contigPos_ -= (hit.k_ - k);
+      hit.globalPos_ -= (hit.k_ - k);
+    }
     return readStart;
   }
 
@@ -188,7 +202,7 @@ public:
     }
 
     if (rawHits.size() > 0) {
-      clusterMems(rawHits, memClusters, maxSpliceGap);
+      clusterMems(rawHits, memClusters, maxSpliceGap, true);
       return true;
     }
     return false;
