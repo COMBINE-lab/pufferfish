@@ -13,7 +13,7 @@
 void parseGFA(std::string& gfaFile, pufg::Graph& g){
   std::string ln;
   std::string tag, id, value;
-  size_t contig_cnt{0};
+  //size_t contig_cnt{0};
 
   std::unique_ptr<zstr::ifstream> file;
   file.reset(new zstr::ifstream(gfaFile));
@@ -23,7 +23,7 @@ void parseGFA(std::string& gfaFile, pufg::Graph& g){
   //we just need ids and not sequences
   //spp::sparse_hash_map<std::string, uint64_t> seq2id;
 
-  uint64_t idCntr = 0;
+  //uint64_t idCntr = 0;
 
 
   while (std::getline(*file, ln)) {
