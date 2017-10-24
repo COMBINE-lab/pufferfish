@@ -194,6 +194,7 @@ class ValidateOptions {
 public:
   std::string indexDir;
   std::string refFile;
+  std::string gfaFileName ;
 };
 
 class AlignmentOpts{
