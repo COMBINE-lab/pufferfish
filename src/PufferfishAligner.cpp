@@ -63,33 +63,36 @@ using SpinLockT = std::mutex ;
 
 
 inline void joinReverseOrientationMems(size_t tid,
-                                       bool isLeftFwIn,
-                                       std::vector<util::MemCluster>& leftClusters,
-                                       std::vector<util::MemCluster>& rightClusters,
+                                       std::vector<util::MemCluster>& fwClusters,
+                                       std::vector<util::MemCluster>& rcClusters,
                                        std::vector<util::JointMems>& jointMemsList,
                                        uint32_t maxFragmentLength,
-                                       uint32_t& maxCoverage // pass it by reference since it should be updated by both pairs <fw, rc> adn <rc, fw>
+                                       uint32_t& maxCoverage // pass it by reference since it should be updated by both pairs <fw, rc> and <rc, fw>
                                        ) {
-  bool isLeftFw = isLeftFwIn;
-  for (auto& lclust : leftClusters) {
-    for (auto& rclust : rightClusters) {
+  bool isLeftFw = true;
+  for (auto& lclust : fwClusters) {
+    for (auto& rclust : rcClusters) {
       auto& left = lclust;
       auto& right = rclust;
-      isLeftFw = isLeftFw;
+      isLeftFw = true;
       if (lclust.mems[0].tpos > rclust.mems[0].tpos) {
+        std::cerr<<"isLeftFw?: " << isLeftFw << " , and this happened\n";
         left = rclust;
         right = lclust;
         isLeftFw = !isLeftFw;
       }
       // FILTER 1
       // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-      size_t fragmentLen = right.mems.back().tpos + right.mems.back().memlen +  - left.mems[0].tpos;
+      size_t fragmentLen = right.mems.back().tpos + right.mems.back().memlen - left.mems[0].tpos;
       if ( fragmentLen < maxFragmentLength) {
         jointMemsList.emplace_back(tid, isLeftFw, left, right, fragmentLen);
         uint32_t currCoverage =  jointMemsList.back().coverage;
         if (maxCoverage < currCoverage) {
           maxCoverage = currCoverage;
         }
+      }
+      else {
+        break;
       }
     }
   }
@@ -106,8 +109,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
     size_t tid = leftClustItr.first;
     auto& lClusts = leftClustItr.second;
     auto& rClusts = rightMemClusters[tid];
-    joinReverseOrientationMems(tid, true, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
-    joinReverseOrientationMems(tid, false, lClusts.rcClusters, rClusts.fwClusters, jointMemsList, maxFragmentLength, maxCoverage);
+    joinReverseOrientationMems(tid, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
+    joinReverseOrientationMems(tid, rClusts.fwClusters, lClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
   }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for that transcript)
