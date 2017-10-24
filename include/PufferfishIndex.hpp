@@ -35,6 +35,7 @@ private:
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;
   sdsl::int_vector<2> seq_;
+  sdsl::int_vector<8> edge_;
   sdsl::int_vector<> pos_;
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
@@ -88,6 +89,11 @@ public:
   auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
 
   sdsl::int_vector<2>& getSeq() {return seq_;}
+
+  sdsl::int_vector<8>& getEdge() {return edge_;}
+
+  uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
+
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_

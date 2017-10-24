@@ -233,6 +233,8 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   console->info("positional integer width = {}", w);
   // sdsl::int_vector<> seqVec(tlen, 0, 2);
   auto& seqVec = pf.getContigSeqVec();
+  auto& edgeVec = pf.getEdgeVec() ;
+
   sdsl::bit_vector rankVec(tlen);
   auto& cnmap = pf.getContigNameMap();
   for (auto& kv : cnmap) {
@@ -243,6 +245,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
   std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
   std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
+  std::cerr << "edgeVecSize = "<<sdsl::size_in_mega_bytes(edgeVec) << "\n";
   // std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
   std::cerr << "num keys = " << nkeys << "\n";
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
@@ -268,6 +271,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
+  sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
 
   // size_t slen = seqVec.size();
   //#ifndef PUFFER_DEBUG
