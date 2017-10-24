@@ -96,6 +96,9 @@ int main(int argc, char* argv[]) {
       ->add_option("-r,--ref", validateOpt.refFile,
                    "fasta file with reference sequences")
       ->required();
+  validateApp
+    ->add_option("-g,--gfa", validateOpt.gfaFileName,
+                 "GFA file name needed for edge table validation") ;
 
   util::ValidateOptions lookupOpt;
   lookupApp

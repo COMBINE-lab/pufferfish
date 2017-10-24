@@ -83,6 +83,22 @@ std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str, const
   return result;
 }
 
+ 
+  std::vector<extension> getExts(uint8_t edgeVec){
+    std::vector<extension> ext ;
+    uint8_t mask = 1 ;
+    std::vector<char> nuclmap = {'C','G','T','A','C','G','T','A'} ;
+    for(uint8_t i=0;i<8;i++){
+      if(edgeVec & (mask << i)){
+        if(i<4)
+          ext.push_back({nuclmap[i], Direction::FORWARD}) ;
+        else
+          ext.push_back({nuclmap[i], Direction::BACKWORD}) ;
+      }
+    }
+    return ext ;
+
+  }
 
 /*std::vector<std::pair<std::string, bool>> explode(const stx::string_view str,
                                                   const char& ch) {

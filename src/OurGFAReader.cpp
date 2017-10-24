@@ -4,10 +4,12 @@
 #include "xxhash.h"
 #include <algorithm>
 #include <string>
+#include <bitset>
 
 
 
 enum class Direction : bool { PREPEND, APPEND } ;
+
 
 uint8_t encodeEdge(char c, Direction dir){
   std::map<char,uint8_t> shift_table = {{'A',3}, {'T',2}, {'G',1}, {'C',0}};
@@ -292,11 +294,14 @@ void PosFinder::parseFile() {
       }
       */
 
-      //std::cerr << ore << "\t" << kmer << "\t" << nextore << "\t" << nkmer << "\n" ;
+      //std::bitset<8> b1 = edgeVec_[forder] ;
+      //std::cerr << ore << "\t" << kmer << "\t" << nextore << "\t" << nkmer << "\t" << b1 << "\n" ;
       //{ std::cerr << "bingo\n" ;}
       //end validation
 
     }
+
+   
 
   }
 
