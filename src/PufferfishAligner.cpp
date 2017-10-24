@@ -76,7 +76,7 @@ inline void joinReverseOrientationMems(size_t tid,
       auto& right = rclust;
       isLeftFw = true;
       if (lclust.mems[0].tpos > rclust.mems[0].tpos) {
-        std::cerr<<"isLeftFw?: " << isLeftFw << " , and this happened\n";
+        //std::cerr<<"isLeftFw?: " << isLeftFw << " , and this happened\n";
         left = rclust;
         right = lclust;
         isLeftFw = !isLeftFw;
@@ -89,6 +89,8 @@ inline void joinReverseOrientationMems(size_t tid,
         uint32_t currCoverage =  jointMemsList.back().coverage;
         if (maxCoverage < currCoverage) {
           maxCoverage = currCoverage;
+          if (maxCoverage > 100)
+            std::cerr<<tid<<":"<<fwClusters.size()<<","<<rcClusters.size()<<"\n";
         }
       }
       else {
@@ -112,6 +114,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
     joinReverseOrientationMems(tid, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
     joinReverseOrientationMems(tid, rClusts.fwClusters, lClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage);
   }
+  //std::cerr << "mc:" << maxCoverage << "\n";
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for that transcript)
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
@@ -171,7 +174,7 @@ void processReadsPair(paired_parser* parser,
                              leftHits,
                              mopts->maxSpliceGap
                              /*,
-                             MateStatus::PAIRED_END_LEFT,                             
+                             MateStatus::PAIRED_END_LEFT,
                              mopts->consistentHits,
                              refBlocks*/) ;
 
@@ -202,18 +205,17 @@ void processReadsPair(paired_parser* parser,
       //fill the QuasiAlignment list
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
-        jointAlignments.emplace_back(jointHit.tid,           // reference id		        
-                                     jointHit.leftMems.getTrFirstHitPos(),     // reference pos		                               
-                                     jointHit.isLeftFw ,     // fwd direction		                                
-                                     readLen, // read length		                                
-                                     jointHit.fragmentLen,       // fragment length 
-                                     true);         // properly paired		                                
- 		 
+        jointAlignments.emplace_back(jointHit.tid,           // reference id
+                                     jointHit.leftMems.getTrFirstHitPos(),     // reference pos
+                                     jointHit.isLeftFw ,     // fwd direction
+                                     readLen, // read length
+                                     jointHit.fragmentLen,       // fragment length
+                                     true);         // properly paired
          // Fill in the mate info		         // Fill in the mate info
-         auto& qaln = jointAlignments.back();		        
-         qaln.mateLen = readLen;	         
-         qaln.matePos = jointHit.rightMems.getTrFirstHitPos();		         
-         qaln.mateIsFwd = !jointHit.isLeftFw;		         
+        auto& qaln = jointAlignments.back();
+         qaln.mateLen = readLen;
+         qaln.matePos = jointHit.rightMems.getTrFirstHitPos();
+         qaln.mateIsFwd = !jointHit.isLeftFw;
          qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
       }
 

@@ -53,37 +53,39 @@ public:
       auto& tid = trOri.first;
       auto& isFw = trOri.second;
       auto& memList = trMemIt->second;
-      // sort memList according to mem read positions
-
-      // pull the orientation to a top-level condition to avoid
-      // checking repeatedly during the sort.
-      if (isFw) {
-        std::sort(memList.begin(), memList.end(),
+      // sort memList according to mem reference positions
+      std::sort(memList.begin(), memList.end(),
                   [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
-                      return q1.rpos < q2.rpos;
+                      return q1.tpos < q2.tpos;
                   });
-
-      } else {
-        std::sort(memList.begin(), memList.end(),
-                  [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
-                    return q1.rpos > q2.rpos;
-                  });
-      }
-
       std::vector<util::MemCluster> currMemClusters;
       // cluster MEMs so that all the MEMs in one cluster are concordant.
       for (auto hitIt = memList.begin(); hitIt != memList.end(); hitIt++) {
         bool foundAtLeastOneCluster = false;
-        for (auto prevClus = currMemClusters.begin();
-             prevClus != currMemClusters.end(); prevClus++) {
-          auto& mems = prevClus->mems;
-          if (hitIt->tpos - mems[mems.size() - 1].tpos < maxSpliceGap) {
-            mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
-            foundAtLeastOneCluster = true;
+        bool gapIsSmall = false;
+        for (auto prevClus = currMemClusters.rbegin();
+             prevClus != currMemClusters.rend(); prevClus++) {
+          if (hitIt->tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
+            gapIsSmall = true;
+            if ( (isFw && hitIt->rpos >= prevClus->getReadLastHitPos()) ||
+                 (!isFw && hitIt->rpos <= prevClus->getReadLastHitPos())) {
+              foundAtLeastOneCluster = true;
+              prevClus->mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
+            }
           }
+          else break;
         }
         if (!foundAtLeastOneCluster) {
-          currMemClusters.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
+          auto& lastClus = currMemClusters.back();
+          util::MemCluster newClus;
+          if (!currMemClusters.empty() && gapIsSmall) {
+          // add all previous compatable mems before this last one that was crossed
+            for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->rpos < hitIt->rpos; mem++) {
+              newClus.mems.emplace_back(mem->tpos, mem->rpos, mem->memlen);
+            }
+          }
+          newClus.mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen); // add new mem
+          currMemClusters.push_back(newClus);
         }
       }
       memClusters[tid].addBatchCluster(isFw, currMemClusters);
