@@ -244,12 +244,12 @@ void PosFinder::parseFile() {
       uint64_t knn = (nextore)? (seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k)) ;
 
 
-      CanonicalKmer sk, skk ;
+      CanonicalKmer skk ;
       //sk.fromNum(kn) ;
       skk.fromNum(knn) ;
 
       //validation, to be deprecated later
-      std::string kmer, nkmer, k_1mer, nk_1mer;
+      std::string nkmer;
       //kmer = (ore)?sk.to_str():sk.rcMer() ;
       nkmer = skk.to_str();
 
