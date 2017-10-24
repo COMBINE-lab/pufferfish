@@ -70,30 +70,33 @@ inline void joinReverseOrientationMems(size_t tid,
                                        uint32_t& maxCoverage, // pass it by reference since it should be updated by both pairs <fw, rc> and <rc, fw>
                                        bool verbose) {
   bool isLeftFw = true;
-  for (auto& lclust : fwClusters) {
-    for (auto& rclust : rcClusters) {
-      auto& left = lclust;
-      auto& right = rclust;
+  for (auto lclust =  fwClusters.begin(); lclust != fwClusters.end(); lclust++) {
+    for (auto rclust =  rcClusters.begin(); rclust != rcClusters.end(); rclust++) {
+      auto left = lclust;
+      auto right = rclust;
       isLeftFw = true;
-      if (lclust.mems[0].tpos > rclust.mems[0].tpos) {
+      if (lclust->mems[0].tpos > rclust->mems[0].tpos) {
         //std::cerr<<"isLeftFw?: " << isLeftFw << " , and this happened\n";
+        //std::swap(lclust, rclust);
         left = rclust;
         right = lclust;
         isLeftFw = !isLeftFw;
       }
       // FILTER 1
       // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-      size_t fragmentLen = right.mems.back().tpos + right.mems.back().memlen - left.mems[0].tpos;
+      size_t fragmentLen = right->mems.back().tpos + right->mems.back().memlen - left->mems[0].tpos;
       if ( fragmentLen < maxFragmentLength) {
-        jointMemsList.emplace_back(tid, isLeftFw, left, right, fragmentLen);
+        jointMemsList.emplace_back(tid, isLeftFw, *left, *right, fragmentLen);
+        auto& last = jointMemsList.back();
         if (verbose) {
           std::cout << isLeftFw << "\n";
           std::cout <<"left\n";
-          for (auto& mem : left) {
-            std::cout << " t" << mem.tpos << " r" << mem.rpos << " l" << mem.memlen << "\n";
+          std::cout <<"leftsize = " << left->mems.size() << ", last leftMems size = " << last.leftMems.mems.size() << "\n";
+          for (size_t i = 0; i < left->mems.size(); i++){
+            std::cout << " t" << left->mems[i].tpos << " t2:" << last.leftMems.mems[i].tpos << " l" << left->mems[i].memlen << "\n";
           }
           std::cout << "right\n";
-          for (auto& mem : right) {
+          for (auto& mem : last.rightMems.mems) {
             std::cout <<  " t" << mem.tpos << " r" << mem.rpos << " l" << mem.memlen << "\n";
           }
         }
@@ -120,10 +123,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
     size_t tid = leftClustItr.first;
     auto& lClusts = leftClustItr.second;
     auto& rClusts = rightMemClusters[tid];
-    bool tidIs6 = false;
-    if (tid == 6) tidIs6 = true;
-    joinReverseOrientationMems(tid, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tidIs6);
-    joinReverseOrientationMems(tid, rClusts.fwClusters, lClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tidIs6);
+    joinReverseOrientationMems(tid, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tid == 6);
+    joinReverseOrientationMems(tid, rClusts.fwClusters, lClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tid == 6);
   }
   //std::cerr << "mc:" << maxCoverage << "\n";
   // FILTER 2
@@ -216,6 +217,10 @@ void processReadsPair(paired_parser* parser,
       //fill the QuasiAlignment list
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
+        if (jointHit.tid == 6) {
+          std::cout << "ltpos:" << jointHit.leftMems.getTrFirstHitPos() << " isFw: " <<  jointHit.isLeftFw <<
+            " fragmentLen:" << jointHit.fragmentLen << " rtpos:" << jointHit.rightMems.getTrFirstHitPos() << "\n";
+        }
         jointAlignments.emplace_back(jointHit.tid,           // reference id
                                      jointHit.leftMems.getTrFirstHitPos(),     // reference pos
                                      jointHit.isLeftFw ,     // fwd direction
