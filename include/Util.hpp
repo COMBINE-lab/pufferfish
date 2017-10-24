@@ -233,6 +233,14 @@ enum class MateStatus : uint8_t {
         PAIRED_END_PAIRED = 3 };
 
 
+  //required for edge extension
+  enum class Direction : bool { FORWARD = 0, BACKWORD = 1 };
+  struct extension{
+    char c;
+    Direction dir ;
+  };
+
+
   struct MemInfo {
     size_t tpos;
     uint32_t rpos;
@@ -576,7 +584,7 @@ std::vector<std::string> tokenize(const std::string& s, char delim) ;
 // is a bit > than a 2x win!
 // implementation from : https://marcoarena.wordpress.com/tag/string_view/
 std::vector<stx::string_view> split(stx::string_view str, char delims);
-
+std::vector<extension> getExts(uint8_t e) ;
 }
 
 #endif // _UTIL__H

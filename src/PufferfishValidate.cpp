@@ -27,7 +27,29 @@ uint8_t reverseBits(uint8_t b) {
   return b;
 }
 
+/*
+enum class Direction : bool { FORWARD = 0, BACKWORD = 1 };
+struct extension{
+  char c;
+  Direction dir ;
+};
 
+std::vector<extension> getEdges(uint8_t edgeVec){
+  std::vector<extension> ext ;
+  uint8_t mask = 1 ;
+  std::vector<char> nuclmap = {'C','G','T','A','C','G','T','A'} ;
+  for(uint8_t i=0;i<8;i++){
+    if(edgeVec & (mask << i)){
+      if(i<4)
+        ext.push_back({nuclmap[i], Direction::FORWARD}) ;
+      else
+        ext.push_back({nuclmap[i], Direction::BACKWORD}) ;
+    }
+  }
+  return ext ;
+
+}
+*/
 
 template <typename IndexT>
 int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
@@ -68,9 +90,41 @@ int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
       uint8_t edgeVec = edge[ctgInfo.fileOrder] ;
       uint8_t loop = 0 ;
 
-      //std::bitset<8> b = edgeVec ;
-      //std::cerr << "Parsing vector " << b << "\n" ;
+      std::bitset<8> b = edgeVec ;
+      std::cerr << "Parsing vector " << b << "\n" ;
 
+      std::vector<util::extension> ext = util::getExts(edgeVec) ;
+      for(auto& e : ext){
+       
+        auto kbtmp = kb ;
+        auto ketmp = ke ;
+        char c = e.c ;
+
+        if(e.dir == util::Direction::FORWARD){
+          ke.shiftFw(c) ;
+          CanonicalKmer kt;
+          kt.fromNum(ke.getCanonicalWord()) ;
+          auto phits = pi.getRefPos(kt);
+          if(phits.empty()){
+            std::cerr<<" Should not happen " << ke.to_str() << " not found  " << (int)loop << " bit\n" ;
+            std::exit(1) ;
+          }
+        }else{
+          kb.shiftBw(c) ;
+          CanonicalKmer kt;
+          kt.fromNum(ke.getCanonicalWord()) ;
+          auto phits = pi.getRefPos(kt);
+          if(phits.empty()){
+            std::cerr<<" Should not happen " << ke.to_str() << " not found  " << (int)loop << " bit\n" ;
+            std::exit(1) ;
+          }
+        }
+
+        kb = kbtmp ;
+        ke = ketmp ;
+      }
+      
+      /*
       while(edgeVec){
         auto kbtmp = kb ;
         auto ketmp = ke ;
@@ -159,9 +213,9 @@ int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
         kb = kbtmp ;
         ke = ketmp ;
         loop++ ;
-      }
+        }*/
 
-    }
+      }
     
     std::cerr << "Found all edges \n" ;
 
