@@ -256,15 +256,9 @@ enum class MateStatus : uint8_t {
 
     MemCluster(size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
       mems.emplace_back(tposIn, rposIn, memlenIn);
-      std::cerr << "mem size: " << mems.size() << "\n";
     }
-    MemCluster(const MemCluster& other) {
-
-      mems = other.mems;
-      for (auto& m : other.mems) {
-        std::cout << "size = " << other.mems.size() << ", tpos = " << m.tpos << ", rpos = " << m.rpos << ", memlen = " << m.memlen << "\n";
-      }
-    }
+    MemCluster(const MemCluster& other) = default;
+    MemCluster& operator=(const MemCluster& other) = default;
     MemCluster() {}
 
 
@@ -302,19 +296,33 @@ enum class MateStatus : uint8_t {
               bool isLeftFwIn,
               const MemCluster& leftMemsIn,
               const MemCluster& rightMemsIn,
-              size_t fragmentLenIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn), fragmentLen(fragmentLenIn) {
+              size_t fragmentLenIn) {
+      tid = tidIn;
+      isLeftFw = isLeftFwIn;
+      std::cout << "copying left mems\n";
+      leftMems = leftMemsIn;
+      std::cout << "done; copying right mems\n";
+      rightMems = rightMemsIn;
+      std::cout << "done\n";
+      fragmentLen = fragmentLenIn;
       // we keep prev to take care of overlaps while calculating the coverage
-      auto& prev = leftMems.mems[0];
+      auto lstart = leftMems.mems.begin();
+      auto rstart = rightMems.mems.begin();
+      size_t offset = 0;
+      auto prev = lstart;
       coverage = leftMems.mems[0].memlen;
-      for (auto& mem : leftMems.mems) {
-        coverage += std::max((int)(mem.tpos+mem.memlen) - (int)(prev.tpos+prev.memlen), 0);
-        prev = mem;
+      for (auto&& mem : leftMems.mems) {
+        ++offset;
+        coverage += std::max((int)(mem.tpos+mem.memlen) - (int)(prev->tpos+prev->memlen), 0);
+        prev = lstart + offset;
       }
-      prev = rightMems.mems[0];
+      offset = 0;
+      prev = rstart;
       coverage += rightMems.mems[0].memlen;
-      for (auto& mem : rightMems.mems) {
-        coverage += std::max((int)(mem.tpos+mem.memlen) - (int)(prev.tpos+prev.memlen), 0);
-        prev = mem;
+      for (auto&& mem : rightMems.mems) {
+        ++offset;
+        coverage += std::max((int)(mem.tpos+mem.memlen) - (int)(prev->tpos+prev->memlen), 0);
+        prev = rstart + offset;
       }
       /*if (coverage > 100) {
         std::cerr << "coverage:"<<coverage<<"\n";

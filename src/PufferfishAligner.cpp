@@ -72,11 +72,11 @@ inline void joinReverseOrientationMems(size_t tid,
   bool isLeftFw = true;
   for (auto lclust =  fwClusters.begin(); lclust != fwClusters.end(); lclust++) {
     for (auto rclust =  rcClusters.begin(); rclust != rcClusters.end(); rclust++) {
-      auto left = lclust;
-      auto right = rclust;
+      decltype(fwClusters.begin()) left = lclust;
+      decltype(rcClusters.begin()) right = rclust;
       isLeftFw = true;
       if (lclust->mems[0].tpos > rclust->mems[0].tpos) {
-        //std::cerr<<"isLeftFw?: " << isLeftFw << " , and this happened\n";
+        std::cerr<<"isLeftFw?: " << isLeftFw << " , and this happened\n";
         //std::swap(lclust, rclust);
         left = rclust;
         right = lclust;
@@ -84,13 +84,17 @@ inline void joinReverseOrientationMems(size_t tid,
       }
       // FILTER 1
       // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-      size_t fragmentLen = right->mems.back().tpos + right->mems.back().memlen - left->mems[0].tpos;
+      size_t fragmentLen = right->mems.back().tpos + right->mems.back().memlen - left->mems.front().tpos;
       if ( fragmentLen < maxFragmentLength) {
-        std::cout << "jointMemsList start\n";
-        jointMemsList.emplace_back(tid, isLeftFw, *left, *right, fragmentLen);
-        std::cout << "jointMemsList end.\n";
-        auto& last = jointMemsList.back();
         if (verbose) {
+        std::cout << "jointMemsList start\n";
+        }
+        jointMemsList.emplace_back(tid, isLeftFw, *left, *right, fragmentLen);
+        if (verbose) {
+        std::cout << "jointMemsList end.\n";
+        }
+        if (verbose) {
+          const auto& last = jointMemsList.back();
           std::cout << isLeftFw << "\n";
           std::cout <<"left\n";
           std::cout <<"leftsize = " << left->mems.size() << ", last leftMems size = " << last.leftMems.mems.size() << "\n";
