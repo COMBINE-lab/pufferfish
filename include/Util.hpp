@@ -297,15 +297,7 @@ enum class MateStatus : uint8_t {
               bool isLeftFwIn,
               const MemCluster& leftMemsIn,
               const MemCluster& rightMemsIn,
-              size_t fragmentLenIn) {
-      tid = tidIn;
-      isLeftFw = isLeftFwIn;
-      std::cout << "copying left mems\n";
-      leftMems = leftMemsIn;
-      std::cout << "done; copying right mems\n";
-      rightMems = rightMemsIn;
-      std::cout << "done\n";
-      fragmentLen = fragmentLenIn;
+              size_t fragmentLenIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn), fragmentLen(fragmentLenIn) {
       // we keep prev to take care of overlaps while calculating the coverage
       auto lstart = leftMems.mems.begin();
       auto rstart = rightMems.mems.begin();
