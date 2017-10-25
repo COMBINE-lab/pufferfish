@@ -142,6 +142,11 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                       jointMemsList.end());
 }
 
+
+//void extractSuitableAligningPairs(std::vector<util::JointMems>& jointMemsList) {
+//}
+
+
 template <typename PufferfishIndexT>
 void processReadsPair(paired_parser* parser,
                      PufferfishIndexT& pfi,
@@ -214,7 +219,7 @@ void processReadsPair(paired_parser* parser,
         //ignore orphans for now
       }
 
-
+      //extractSuitableAligningPairs(joinHits);
       //TODO Write them to a sam file
       hctr.totHits += jointHits.size() ;
 

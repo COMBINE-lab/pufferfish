@@ -43,7 +43,7 @@ public:
       for (auto& posIt : projHits.refRange) {
         auto refPosOri = projHits.decodeHit(posIt);
         trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
-            .emplace_back(refPosOri.pos, readPos, projHits.k_);
+          .emplace_back(projHits.contigIdx_, refPosOri.pos, readPos, projHits.k_);
       }
     }
 
@@ -70,7 +70,7 @@ public:
             if ( (isFw && hitIt->rpos >= prevClus->getReadLastHitPos()) ||
                  (!isFw && hitIt->rpos <= prevClus->getReadLastHitPos())) {
               foundAtLeastOneCluster = true;
-              prevClus->mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen);
+              prevClus->mems.emplace_back(hitIt->cid, hitIt->tpos, hitIt->rpos, hitIt->memlen);
             }
           }
           else break;
@@ -81,10 +81,10 @@ public:
           if (!currMemClusters.empty() && gapIsSmall) {
           // add all previous compatable mems before this last one that was crossed
             for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->rpos < hitIt->rpos; mem++) {
-              newClus.mems.emplace_back(mem->tpos, mem->rpos, mem->memlen);
+              newClus.mems.emplace_back(mem->cid, mem->tpos, mem->rpos, mem->memlen);
             }
           }
-          newClus.mems.emplace_back(hitIt->tpos, hitIt->rpos, hitIt->memlen); // add new mem
+          newClus.mems.emplace_back(hitIt->cid, hitIt->tpos, hitIt->rpos, hitIt->memlen); // add new mem
           currMemClusters.push_back(newClus);
         }
       }

@@ -243,19 +243,20 @@ enum class MateStatus : uint8_t {
 
 
   struct MemInfo {
+    uint32_t cid;
     size_t tpos;
     uint32_t rpos;
     uint32_t memlen;
 
-    MemInfo(size_t tposIn, uint32_t rposIn, uint32_t memlenIn) :
-      tpos(tposIn), rpos(rposIn), memlen(memlenIn){}
+    MemInfo(uint32_t cidIn, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) :
+      cid(cidIn), tpos(tposIn), rpos(rposIn), memlen(memlenIn){}
   };
 
   struct MemCluster {
     std::vector<MemInfo> mems;
 
-    MemCluster(size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
-      mems.emplace_back(tposIn, rposIn, memlenIn);
+    MemCluster(uint32_t cidIn, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
+      mems.emplace_back(cidIn, tposIn, rposIn, memlenIn);
     }
     MemCluster(const MemCluster& other) = default;
     MemCluster& operator=(const MemCluster& other) = default;
@@ -271,12 +272,12 @@ enum class MateStatus : uint8_t {
   struct TrClusters {
     std::vector<MemCluster> fwClusters;
     std::vector<MemCluster> rcClusters;
-    void addCluster(bool isFw, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
+    /*void addCluster(bool isFw, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
       if (isFw)
         fwClusters.emplace_back(tposIn, rposIn, memlenIn);
       else
         rcClusters.emplace_back(tposIn, rposIn, memlenIn);
-    }
+        }*/
     void addBatchCluster(bool isFw, std::vector<MemCluster>& currMemClusters) {
       if (isFw)
         fwClusters.insert(fwClusters.end(), currMemClusters.begin(), currMemClusters.end());
