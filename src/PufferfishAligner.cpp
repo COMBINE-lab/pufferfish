@@ -53,6 +53,9 @@
 #include "SAMWriter.hpp"
 #include <sparsepp/spp.h>
 
+#define START_CONTIG_ID ((uint32_t)-1) 
+#define END_CONTIG_ID ((uint32_t)-2)
+
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
 using AlignmentOpts = util::AlignmentOpts ;
 using HitCounters = util::HitCounters ;
@@ -143,8 +146,41 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
 }
 
 
-//void extractSuitableAligningPairs(std::vector<util::JointMems>& jointMemsList) {
-//}
+void extractSuitableAligningPairs(std::vector<util::JointMems>& jointMemsList) {
+  // The idea is to separate Mems based on the contig pairs that encapsulates them
+  // start contig has id -1 and end contig has id -2
+  std::map<std::tuple<bool, uint32_t, uint32_t>, std::vector<std::pair<util::MemInfo, util::MemInfo>>,
+           util::cmpByTuple_uint32>
+    contigMap;
+
+  // TODO we can do better than saving pairs of MemInfo in a vector for each tuple key (The only things we need are tr and pair of positions for that.
+  // which we are not even keeping!! isn't it better to have another!!! struct with tid, and start and end positions?
+
+  // TODO next step: fetch unique transcript strings for each key/value pair and compare those to the key.
+  // here we can decide on the best approach. edge calling or transcript string fetching and matching???
+
+  // TODO after calculating the alignment score for the strings between contig pairs, we need to map them back to the transcripts
+  // for CIGAR string
+  for (auto & jointMem : jointMemsList) {
+    // fill up all the unique contig pairs for the left (first) read
+    util::MemInfo startMem{START_CONTIG_ID, 0, 0, 0};
+    util::MemInfo* prev = &startMem;
+    for (auto mem = jointMem.leftMems.mems.begin(); mem != jointMem.leftMems.mems.end(); mem++) {
+      contigMap[std::make_tuple(jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, *mem));
+      prev = &(*mem);
+    }
+    util::MemInfo endMem{END_CONTIG_ID, 0, 0, 0};
+    contigMap[std::make_tuple(jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, endMem));
+
+    // fill up all the unique contig pairs for the right (second) read
+    prev = &startMem;
+    for (auto mem = jointMem.rightMems.mems.begin(); mem != jointMem.rightMems.mems.end(); mem++) {
+      contigMap[std::make_tuple(!jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, *mem));
+      prev = &(*mem);
+    }
+    contigMap[std::make_tuple(!jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, endMem));
+  }
+}
 
 
 template <typename PufferfishIndexT>

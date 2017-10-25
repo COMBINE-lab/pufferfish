@@ -111,6 +111,13 @@ struct cmpByPair {
   }
 };
 
+  struct cmpByTuple_uint32 {
+    bool operator()(std::tuple<bool, uint32_t, uint32_t> a,
+                    std::tuple<bool, uint32_t, uint32_t> b) const {
+      return (std::get<0>(a) != std::get<0>(b)) ? (std::get<0>(a) < std::get<0>(b)) :
+        (std::get<1>(a) != std::get<1>(b)) ? (std::get<1>(a) < std::get<1>(b)) : (std::get<2>(a) < std::get<2>(b));
+    }
+  };
 // We need a wraper that will provide a "type" field
 template <typename> struct Void { typedef void type; };
 
