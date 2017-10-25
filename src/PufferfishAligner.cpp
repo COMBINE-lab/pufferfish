@@ -86,7 +86,9 @@ inline void joinReverseOrientationMems(size_t tid,
       // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
       size_t fragmentLen = right->mems.back().tpos + right->mems.back().memlen - left->mems[0].tpos;
       if ( fragmentLen < maxFragmentLength) {
+        std::cout << "jointMemsList start\n";
         jointMemsList.emplace_back(tid, isLeftFw, *left, *right, fragmentLen);
+        std::cout << "jointMemsList end.\n";
         auto& last = jointMemsList.back();
         if (verbose) {
           std::cout << isLeftFw << "\n";
