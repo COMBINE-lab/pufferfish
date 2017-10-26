@@ -376,7 +376,6 @@ bool spawnProcessReadsthreads(
                               AlignmentOpts* mopts){
 
   std::vector<std::thread> threads ;
-  std::cerr << "\n In spawn threads\n" ;
 
   for(size_t i = 0; i < nthread ; ++i){
 
