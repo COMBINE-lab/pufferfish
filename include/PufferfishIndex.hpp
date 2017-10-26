@@ -94,6 +94,9 @@ public:
 
   uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
 
+  CanonicalKmer getStartKmer(uint64_t cid) ;
+  CanonicalKmer getEndKmer(uint64_t cid) ;
+
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_

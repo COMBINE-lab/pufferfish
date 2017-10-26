@@ -109,6 +109,9 @@ public:
 
   uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
 
+  CanonicalKmer getStartKmer(uint64_t cid) ;
+  CanonicalKmer getEndKmer(uint64_t cid) ;
+
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk = false) -> util::ProjectedHits;

@@ -19,6 +19,7 @@
 #include <tuple>
 #include <memory>
 #include <cstring>
+#include <queue>
 
 //we already have timers
 
@@ -146,22 +147,40 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
 }
 
 template <typename PufferfishIndexT>
-void populatePaths(util::MemInfo& s, util::MemInfo& e, std::vector<std::pair<uint32_t,std::vector<uint32_t>>>& paths, PufferfishIndexT& pfi, uint32_t tid){
-  auto sCid = s.memInfo->cid ;
-  auto cCid = e.memInfo->cid ;
+void populatePaths(std::vector<util::UniMemInfo>::iterator s, std::vector<util::UniMemInfo>::iterator e, std::vector<std::pair<uint32_t,std::vector<uint32_t> > >& paths, PufferfishIndexT& pfi, uint32_t tid){
+  auto sCid = s->cid ;
+  auto cCid = e->cid ;
 
   auto& edges = pfi.getEdge() ;
+  auto& seq = pfi.getSeq() ;
 
   std::map<uint32_t,bool> visited ;
 
-  auto dist = std::abs(s.rpos - e.rpos) ;
+  auto dist = std::abs(s->rpos - e->rpos) ;
   int numOfNodesVisited{0} ;
+
+
+  std::queue<uint32_t> queue ;
+  bool first{false} ;
   visited[sCid] = true ;
-  while(numOfNodesVisited < dist){
-    uint8_t edgeVec = edge[edgeVec] ;
+  queue.push(sCid) ;
+
+  while(numOfNodesVisited < dist and !queue.empty()){
+    auto cid = queue.front() ;
+    queue.pop() ;
+    uint8_t edgeVec = edges[cid] ;
     std::vector<util::extension> ext = util::getExts(edgeVec) ;
-    for(auto& e : ext){
-      
+
+    if(first){
+      if (ext.empty()){
+        return ;
+      }
+      else{
+        //go over the ext
+        for(auto& ed : ext){
+
+        }
+      }
     }
 
     break ;
@@ -176,7 +195,6 @@ void traverseGraph(util::JointMems& hit, PufferfishIndexT& pfi){
   //for all memes in left memcluster ;
   auto tid = hit.tid ;
 
-  bool leftFw = hit.leftClust->isFW ;
   
   for(size_t i = 0; i < hit.leftClust->mems.size() - 1; i++){
     auto startMem = hit.leftClust->mems[i] ;

@@ -540,6 +540,25 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern)
 
 uint32_t PufferfishSparseIndex::k() { return k_; }
 
+CanonicalKmer PufferfishSparseIndex::getStartKmer(uint64_t rank){
+  CanonicalKmer::k(k_) ;
+  CanonicalKmer kb ;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t fk = seq_.get_int(2*sp, 2*k_) ;
+  kb.fromNum(fk) ;
+  return kb ;
+
+}
+CanonicalKmer PufferfishSparseIndex::getEndKmer(uint64_t rank){
+  CanonicalKmer::k(k_) ;
+  CanonicalKmer kb ;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank + 1);
+
+  uint64_t fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
+  kb.fromNum(fk) ;
+  return kb ;
+}
 /**
  * Return the position list (ref_id, pos) corresponding to a contig.
  */
