@@ -106,7 +106,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
 
         // FILTER 1
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-        size_t fragmentLen = right->mems.back().tpos + right->mems.back().memInfo->memlen - left->mems.front().tpos;
+        size_t fragmentLen = right->lastRefPos() - left->firstRefPos();
         if ( fragmentLen < maxFragmentLength) {
           if (verbose) {
             std::cout << "jointMemsList start\n";
