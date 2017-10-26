@@ -111,13 +111,6 @@ struct cmpByPair {
   }
 };
 
-  struct cmpByTuple_uint32 {
-    bool operator()(std::tuple<bool, uint32_t, uint32_t> a,
-                    std::tuple<bool, uint32_t, uint32_t> b) const {
-      return (std::get<0>(a) != std::get<0>(b)) ? (std::get<0>(a) < std::get<0>(b)) :
-        (std::get<1>(a) != std::get<1>(b)) ? (std::get<1>(a) < std::get<1>(b)) : (std::get<2>(a) < std::get<2>(b));
-    }
-  };
 // We need a wraper that will provide a "type" field
 template <typename> struct Void { typedef void type; };
 
@@ -248,80 +241,73 @@ enum class MateStatus : uint8_t {
     Direction dir ;
   };
 
-
-  struct MemInfo {
+  struct UniMemInfo {
     uint32_t cid;
-    size_t tpos;
+    bool cIsFw;
     uint32_t rpos;
     uint32_t memlen;
 
-    MemInfo(uint32_t cidIn, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) :
-      cid(cidIn), tpos(tposIn), rpos(rposIn), memlen(memlenIn){}
+    UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn) :
+      cid(cidIn), cIsFw(cIsFwIn), rpos(rposIn), memlen(memlenIn){}
+  };
+
+  struct MemInfo {
+    std::vector<UniMemInfo>::iterator memInfo;
+    size_t tpos;
+
+    MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn):memInfo(uniMemInfoIn), tpos(tposIn) {}
   };
 
   struct MemCluster {
+    // second element is the transcript position
     std::vector<MemInfo> mems;
-
-    MemCluster(uint32_t cidIn, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
-      mems.emplace_back(cidIn, tposIn, rposIn, memlenIn);
-    }
+    bool isFw;
+    bool isVisited = false;
+    std::vector<std::string> alignableStrings;
+    MemCluster(bool isFwIn): isFw(isFwIn) {}
+    /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
+      mems.push_back(memIn);
+      }*/
+    /*MemCluster() {
+      mems.push_back(std::make_pair(memInfoPtr, tposIn));
+      }*/
     MemCluster(const MemCluster& other) = default;
     MemCluster& operator=(const MemCluster& other) = default;
     MemCluster() {}
 
-
-    size_t getReadLastHitPos() {return mems.empty()?0:mems.back().rpos;}
+    size_t getReadLastHitPos() {return mems.empty()?0:mems.back().memInfo->rpos;}
     size_t getTrLastHitPos() {return mems.empty()?0:mems.back().tpos;}
     size_t getTrFirstHitPos() {return mems.empty()?0:mems[0].tpos;}
   };
 
-  // Just for the sake of OO!
-  struct TrClusters {
-    std::vector<MemCluster> fwClusters;
-    std::vector<MemCluster> rcClusters;
-    /*void addCluster(bool isFw, size_t tposIn, uint32_t rposIn, uint32_t memlenIn) {
-      if (isFw)
-        fwClusters.emplace_back(tposIn, rposIn, memlenIn);
-      else
-        rcClusters.emplace_back(tposIn, rposIn, memlenIn);
-        }*/
-    void addBatchCluster(bool isFw, std::vector<MemCluster>& currMemClusters) {
-      if (isFw)
-        fwClusters.insert(fwClusters.end(), currMemClusters.begin(), currMemClusters.end());
-      else
-        rcClusters.insert(rcClusters.end(), currMemClusters.begin(), currMemClusters.end());
-    }
-  };
 
   struct JointMems {
     uint32_t tid;
-    bool isLeftFw;
-    MemCluster leftMems;
-    MemCluster rightMems;
+    std::vector<util::MemCluster>::iterator leftClust;
+    std::vector<util::MemCluster>::iterator rightClust;
     size_t fragmentLen;
     uint32_t coverage{0};
     JointMems(uint32_t tidIn,
-              bool isLeftFwIn,
-              const MemCluster& leftMemsIn,
-              const MemCluster& rightMemsIn,
-              size_t fragmentLenIn) : tid(tidIn), isLeftFw(isLeftFwIn), leftMems(leftMemsIn), rightMems(rightMemsIn), fragmentLen(fragmentLenIn) {
+              std::vector<util::MemCluster>::iterator leftClustIn,
+              std::vector<util::MemCluster>::iterator rightClustIn,
+              size_t fragmentLenIn) : tid(tidIn), leftClust(leftClustIn), rightClust(rightClustIn), fragmentLen(fragmentLenIn) {
       // we keep prev to take care of overlaps while calculating the coverage
-      auto lstart = leftMems.mems.begin();
-      auto rstart = rightMems.mems.begin();
+      auto lstart = leftClust->mems.begin();
+      auto rstart = rightClust->mems.begin();
       size_t offset = 0;
       auto prev = lstart;
-      coverage = leftMems.mems[0].memlen;
-      for (auto&& mem : leftMems.mems) {
+      coverage = leftClust->mems[0].memInfo->memlen;
+      for (auto&& mem : leftClust->mems) {
         ++offset;
-        coverage += std::max((int)(mem.tpos+mem.memlen) - (int)(prev->tpos+prev->memlen), 0);
+        coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
         prev = lstart + offset;
       }
       offset = 0;
       prev = rstart;
-      coverage += rightMems.mems[0].memlen;
-      for (auto&& mem : rightMems.mems) {
+      coverage += rightClust->mems[0].memInfo->memlen;
+      for (auto&& mem : rightClust->mems) {
         ++offset;
-        coverage += std::max((int)(mem.tpos+mem.memlen) - (int)(prev->tpos+prev->memlen), 0);
+        coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
         prev = rstart + offset;
       }
       /*if (coverage > 100) {

@@ -65,75 +65,61 @@ using MateStatus = util::MateStatus ;
 using SpinLockT = std::mutex ;
 
 
-inline void joinReverseOrientationMems(size_t tid,
-                                       std::vector<util::MemCluster>& fwClusters,
-                                       std::vector<util::MemCluster>& rcClusters,
-                                       std::vector<util::JointMems>& jointMemsList,
-                                       uint32_t maxFragmentLength,
-                                       uint32_t& maxCoverage, // pass it by reference since it should be updated by both pairs <fw, rc> and <rc, fw>
-                                       bool verbose) {
-  bool isLeftFw = true;
-  for (auto lclust =  fwClusters.begin(); lclust != fwClusters.end(); lclust++) {
-    for (auto rclust =  rcClusters.begin(); rclust != rcClusters.end(); rclust++) {
-      decltype(fwClusters.begin()) left = lclust;
-      decltype(rcClusters.begin()) right = rclust;
-      isLeftFw = true;
-      if (lclust->mems[0].tpos > rclust->mems[0].tpos) {
-        std::cerr<<"isLeftFw?: " << isLeftFw << " , and this happened\n";
-        //std::swap(lclust, rclust);
-        left = rclust;
-        right = lclust;
-        isLeftFw = !isLeftFw;
-      }
-      // FILTER 1
-      // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-      size_t fragmentLen = right->mems.back().tpos + right->mems.back().memlen - left->mems.front().tpos;
-      if ( fragmentLen < maxFragmentLength) {
-        if (verbose) {
-        std::cout << "jointMemsList start\n";
-        }
-        jointMemsList.emplace_back(tid, isLeftFw, *left, *right, fragmentLen);
-        if (verbose) {
-        std::cout << "jointMemsList end.\n";
-        }
-        if (verbose) {
-          const auto& last = jointMemsList.back();
-          std::cout << isLeftFw << "\n";
-          std::cout <<"left\n";
-          std::cout <<"leftsize = " << left->mems.size() << ", last leftMems size = " << last.leftMems.mems.size() << "\n";
-          for (size_t i = 0; i < left->mems.size(); i++){
-            std::cout << " t" << left->mems[i].tpos << " t2:" << last.leftMems.mems[i].tpos << " l" << left->mems[i].memlen << "\n";
-          }
-          std::cout << "right\n";
-          for (auto& mem : last.rightMems.mems) {
-            std::cout <<  " t" << mem.tpos << " r" << mem.rpos << " l" << mem.memlen << "\n";
-          }
-        }
-        uint32_t currCoverage =  jointMemsList.back().coverage;
-        if (maxCoverage < currCoverage) {
-          maxCoverage = currCoverage;
-        }
-      }
-      else {
-        break;
-      }
-    }
-  }
-}
-
 void joinReadsAndFilter(spp::sparse_hash_map<size_t,
-                        util::TrClusters>& leftMemClusters,
-                        spp::sparse_hash_map<size_t, util::TrClusters>& rightMemClusters,
+                        std::vector<util::MemCluster>>& leftMemClusters,
+                        spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& rightMemClusters,
                         std::vector<util::JointMems>& jointMemsList,
-                        uint32_t maxFragmentLength) {
+                        uint32_t maxFragmentLength,
+                        bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   uint32_t maxCoverage{0};
   for (auto& leftClustItr : leftMemClusters) {
     size_t tid = leftClustItr.first;
     auto& lClusts = leftClustItr.second;
     auto& rClusts = rightMemClusters[tid];
-    joinReverseOrientationMems(tid, lClusts.fwClusters, rClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tid == 6);
-    joinReverseOrientationMems(tid, rClusts.fwClusters, lClusts.rcClusters, jointMemsList, maxFragmentLength, maxCoverage, tid == 6);
+    for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
+      for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
+        if (lclust->isFw == rclust->isFw)
+          continue;
+        decltype(lClusts.begin()) left = lclust;
+        decltype(rClusts.begin()) right = rclust;
+        if (lclust->mems[0].tpos > rclust->mems[0].tpos) {
+          left = rclust;
+          right = lclust;
+        }
+        // FILTER 1
+        // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
+        size_t fragmentLen = right->mems.back().tpos + right->mems.back().memInfo->memlen - left->mems.front().tpos;
+        if ( fragmentLen < maxFragmentLength) {
+          if (verbose) {
+            std::cout << "jointMemsList start\n";
+          }
+          jointMemsList.emplace_back(tid, left, right, fragmentLen);
+          if (verbose) {
+            std::cout << "jointMemsList end.\n";
+          }
+          if (verbose) {
+            const auto& last = jointMemsList.back();
+            std::cout <<"left\n";
+            std::cout <<"leftsize = " << left->mems.size() << ", last leftMems size = " << last.leftClust->mems.size() << "\n";
+            for (size_t i = 0; i < left->mems.size(); i++){
+              std::cout << " t" << left->mems[i].tpos << " t2:" << last.leftClust->mems[i].tpos << " l" << left->mems[i].memInfo->memlen << "\n";
+            }
+            std::cout << "right\n";
+            for (auto& mem : last.rightClust->mems) {
+              std::cout <<  " t" << mem.tpos << " r" << mem.memInfo->rpos << " l" << mem.memInfo->memlen << "\n";
+            }
+          }
+          uint32_t currCoverage =  jointMemsList.back().coverage;
+          if (maxCoverage < currCoverage) {
+            maxCoverage = currCoverage;
+          }
+        }
+        else {
+          break;
+        }
+      }
+    }
   }
   //std::cerr << "mc:" << maxCoverage << "\n";
   // FILTER 2
@@ -143,43 +129,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                                        return pairedReadMems.coverage < 0.5*maxCoverage ;
                                      }),
                       jointMemsList.end());
-}
-
-
-void extractSuitableAligningPairs(std::vector<util::JointMems>& jointMemsList) {
-  // The idea is to separate Mems based on the contig pairs that encapsulates them
-  // start contig has id -1 and end contig has id -2
-  std::map<std::tuple<bool, uint32_t, uint32_t>, std::vector<std::pair<util::MemInfo, util::MemInfo>>,
-           util::cmpByTuple_uint32>
-    contigMap;
-
-  // TODO we can do better than saving pairs of MemInfo in a vector for each tuple key (The only things we need are tr and pair of positions for that.
-  // which we are not even keeping!! isn't it better to have another!!! struct with tid, and start and end positions?
-
-  // TODO next step: fetch unique transcript strings for each key/value pair and compare those to the key.
-  // here we can decide on the best approach. edge calling or transcript string fetching and matching???
-
-  // TODO after calculating the alignment score for the strings between contig pairs, we need to map them back to the transcripts
-  // for CIGAR string
-  for (auto & jointMem : jointMemsList) {
-    // fill up all the unique contig pairs for the left (first) read
-    util::MemInfo startMem{START_CONTIG_ID, 0, 0, 0};
-    util::MemInfo* prev = &startMem;
-    for (auto mem = jointMem.leftMems.mems.begin(); mem != jointMem.leftMems.mems.end(); mem++) {
-      contigMap[std::make_tuple(jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, *mem));
-      prev = &(*mem);
-    }
-    util::MemInfo endMem{END_CONTIG_ID, 0, 0, 0};
-    contigMap[std::make_tuple(jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, endMem));
-
-    // fill up all the unique contig pairs for the right (second) read
-    prev = &startMem;
-    for (auto mem = jointMem.rightMems.mems.begin(); mem != jointMem.rightMems.mems.end(); mem++) {
-      contigMap[std::make_tuple(!jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, *mem));
-      prev = &(*mem);
-    }
-    contigMap[std::make_tuple(!jointMem.isLeftFw, prev->cid, prev->rpos)].push_back(std::make_pair(*prev, endMem));
-  }
 }
 
 
@@ -204,8 +153,8 @@ void processReadsPair(paired_parser* parser,
   size_t readLen{0} ;
 
 
-  spp::sparse_hash_map<size_t, util::TrClusters> leftHits ;
-  spp::sparse_hash_map<size_t, util::TrClusters> rightHits ;
+  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits ;
+  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits ;
   std::vector<util::JointMems> jointHits ;
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
 
@@ -265,20 +214,20 @@ void processReadsPair(paired_parser* parser,
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
         if (jointHit.tid == 6) {
-          std::cout << "ltpos:" << jointHit.leftMems.getTrFirstHitPos() << " isFw: " <<  jointHit.isLeftFw <<
-            " fragmentLen:" << jointHit.fragmentLen << " rtpos:" << jointHit.rightMems.getTrFirstHitPos() << "\n";
+          std::cout << "ltpos:" << jointHit.leftClust->getTrFirstHitPos() <<
+            " fragmentLen:" << jointHit.fragmentLen << " rtpos:" << jointHit.rightClust->getTrFirstHitPos() << "\n";
         }
         jointAlignments.emplace_back(jointHit.tid,           // reference id
-                                     jointHit.leftMems.getTrFirstHitPos(),     // reference pos
-                                     jointHit.isLeftFw ,     // fwd direction
+                                     jointHit.leftClust->getTrFirstHitPos(),     // reference pos
+                                     jointHit.leftClust->isFw ,     // fwd direction
                                      readLen, // read length
                                      jointHit.fragmentLen,       // fragment length
                                      true);         // properly paired
          // Fill in the mate info		         // Fill in the mate info
         auto& qaln = jointAlignments.back();
          qaln.mateLen = readLen;
-         qaln.matePos = jointHit.rightMems.getTrFirstHitPos();
-         qaln.mateIsFwd = !jointHit.isLeftFw;
+         qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
+         qaln.mateIsFwd = jointHit.rightClust->isFw;
          qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
       }
 

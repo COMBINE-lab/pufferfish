@@ -22,7 +22,7 @@ public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
-                   spp::sparse_hash_map<size_t, util::TrClusters>& memClusters,
+                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, bool verbose = false) {
     //(void)verbose;
 
@@ -37,13 +37,16 @@ public:
     std::map<std::pair<size_t, bool>, std::vector<util::MemInfo>,
              util::cmpByPair>
         trMemMap;
+    memCollection.reserve(hits.size());
     for (auto hIter = hits.begin(); hIter != hits.end(); ++hIter) {
       auto& readPos = hIter->first;
       auto& projHits = hIter->second;
+      memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_);
+      auto memItr = memCollection.end()-1;
       for (auto& posIt : projHits.refRange) {
         auto refPosOri = projHits.decodeHit(posIt);
         trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
-          .emplace_back(projHits.contigIdx_, refPosOri.pos, readPos, projHits.k_);
+          .emplace_back(memItr, refPosOri.pos);
       }
     }
 
@@ -55,8 +58,8 @@ public:
       auto& memList = trMemIt->second;
       // sort memList according to mem reference positions
       std::sort(memList.begin(), memList.end(),
-                  [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
-                      return q1.tpos < q2.tpos;
+                [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
+                  return q1.tpos < q2.tpos; // sort based on tpos
                   });
       std::vector<util::MemCluster> currMemClusters;
       // cluster MEMs so that all the MEMs in one cluster are concordant.
@@ -67,24 +70,24 @@ public:
              prevClus != currMemClusters.rend(); prevClus++) {
           if (hitIt->tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
             gapIsSmall = true;
-            if ( (isFw && hitIt->rpos >= prevClus->getReadLastHitPos()) ||
-                 (!isFw && hitIt->rpos <= prevClus->getReadLastHitPos())) {
+            if ( (isFw && hitIt->memInfo->rpos >= prevClus->getReadLastHitPos()) ||
+                 (!isFw && hitIt->memInfo->rpos <= prevClus->getReadLastHitPos())) {
               foundAtLeastOneCluster = true;
-              prevClus->mems.emplace_back(hitIt->cid, hitIt->tpos, hitIt->rpos, hitIt->memlen);
+              prevClus->mems.emplace_back(hitIt->memInfo, hitIt->tpos);
             }
           }
           else break;
         }
         if (!foundAtLeastOneCluster) {
           auto& lastClus = currMemClusters.back();
-          util::MemCluster newClus;
+          util::MemCluster newClus(isFw);
           if (!currMemClusters.empty() && gapIsSmall) {
           // add all previous compatable mems before this last one that was crossed
-            for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->rpos < hitIt->rpos; mem++) {
-              newClus.mems.emplace_back(mem->cid, mem->tpos, mem->rpos, mem->memlen);
+            for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->memInfo->rpos < hitIt->memInfo->rpos; mem++) {
+              newClus.mems.emplace_back(mem->memInfo, mem->tpos);
             }
           }
-          newClus.mems.emplace_back(hitIt->cid, hitIt->tpos, hitIt->rpos, hitIt->memlen); // add new mem
+          newClus.mems.emplace_back(hitIt->memInfo, hitIt->tpos);
           currMemClusters.push_back(newClus);
         }
       }
@@ -92,12 +95,13 @@ public:
         std::cout << "t" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
         for (auto& clus : currMemClusters) {
           for (auto& mem : clus.mems) {
-            std::cout << "\t t" << mem.tpos << " r" << mem.rpos << " len" << mem.memlen << "\n";
+            std::cout << "\t t" << mem.tpos << " r" << mem.memInfo->rpos << " len" << mem.memInfo->memlen << "\n";
           }
           std::cout << "\n";
         }
       }
-      memClusters[tid].addBatchCluster(isFw, currMemClusters);
+      // This is kind of inefficient (copying the currMemClusters while probably we can build it on the fly
+      memClusters[tid].insert(memClusters[tid].end(), currMemClusters.begin(), currMemClusters.end());
     }
     return true;
   }
@@ -165,7 +169,7 @@ public:
   }
 
   bool operator()(std::string& read,
-                  spp::sparse_hash_map<size_t, util::TrClusters>& memClusters,
+                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap
                   /*,
                   util::MateStatus mateStatus,
@@ -211,5 +215,6 @@ private:
   PufferfishIndexT* pfi_;
   size_t k;
   AlignerEngine ae_;
+  std::vector<util::UniMemInfo> memCollection;
 };
 #endif
