@@ -146,17 +146,49 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
 }
 
 template <typename PufferfishIndexT>
-void traverseGraph(util::JointMems& hit, PufferfishIndexT& pfi){
+void populatePaths(util::MemInfo& s, util::MemInfo& e, std::vector<std::pair<uint32_t,std::vector<uint32_t>>>& paths, PufferfishIndexT& pfi, uint32_t tid){
+  auto sCid = s.memInfo->cid ;
+  auto cCid = e.memInfo->cid ;
 
-  //for all memes in left memcluster ;
-  for(size_t i = 0; i < hit.leftClust->mems.size() - 1; i++){
-    auto unimem = hit.leftClust->mems[i] ;
-    
+  auto& edges = pfi.getEdge() ;
+
+  std::map<uint32_t,bool> visited ;
+
+  auto dist = std::abs(s.rpos - e.rpos) ;
+  int numOfNodesVisited{0} ;
+  visited[sCid] = true ;
+  while(numOfNodesVisited < dist){
+    uint8_t edgeVec = edge[edgeVec] ;
+    std::vector<util::extension> ext = util::getExts(edgeVec) ;
+    for(auto& e : ext){
+      
+    }
+
+    break ;
   }
-
 
 }
 
+
+template <typename PufferfishIndexT>
+void traverseGraph(util::JointMems& hit, PufferfishIndexT& pfi){
+
+  //for all memes in left memcluster ;
+  auto tid = hit.tid ;
+
+  bool leftFw = hit.leftClust->isFW ;
+  
+  for(size_t i = 0; i < hit.leftClust->mems.size() - 1; i++){
+    auto startMem = hit.leftClust->mems[i] ;
+    auto endMem = hit.leftClust->mems[i+1] ;
+
+    auto startUniMem = startMem.memInfo ;
+    auto endUniMem = endMem.memInfo ;
+
+    std::vector<std::pair<uint32_t, std::vector<uint32_t> > > paths ;
+    populatePaths(startUniMem, endUniMem, paths, pfi, tid) ;
+  }
+}
 
 template <typename PufferfishIndexT>
 void processReadsPair(paired_parser* parser,
