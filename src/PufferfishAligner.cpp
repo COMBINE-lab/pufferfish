@@ -99,7 +99,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         // left = read 2
         // right = read 1
         // otherwise, vice versa.
-        if (lclust->mems[0].tpos > rclust->mems[0].tpos) {
+        if (lclust->firstRefPos() > rclust->firstRefPos()) {
           left = rclust;
           right = lclust;
         }
