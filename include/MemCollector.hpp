@@ -1,6 +1,7 @@
 #ifndef HIT_COLLECTOR_HPP
 #define HIT_COLLECTOR_HPP
 
+#include "CommonTypes.hpp"
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "PufferfishIndex.hpp"
@@ -22,7 +23,7 @@ public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
-                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                   spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
     //(void)verbose;
 
@@ -35,7 +36,7 @@ public:
 
     // Map from (reference id, orientation) pair to a cluster of
     // MEMs.
-    std::map<std::pair<size_t, bool>, std::vector<util::MemInfo>,
+    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>,
              util::cmpByPair>
         trMemMap;
     memCollection.reserve(hits.size());
