@@ -213,10 +213,6 @@ void processReadsPair(paired_parser* parser,
       //fill the QuasiAlignment list
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
-        if (jointHit.tid == 6) {
-          std::cout << "ltpos:" << jointHit.leftClust->getTrFirstHitPos() <<
-            " fragmentLen:" << jointHit.fragmentLen << " rtpos:" << jointHit.rightClust->getTrFirstHitPos() << "\n";
-        }
         jointAlignments.emplace_back(jointHit.tid,           // reference id
                                      jointHit.leftClust->getTrFirstHitPos(),     // reference pos
                                      jointHit.leftClust->isFw ,     // fwd direction
