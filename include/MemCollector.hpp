@@ -36,8 +36,7 @@ public:
 
     // Map from (reference id, orientation) pair to a cluster of
     // MEMs.
-    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>,
-             util::cmpByPair>
+    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>>
         trMemMap;
     memCollection.reserve(hits.size());
     for (auto hIter = hits.begin(); hIter != hits.end(); ++hIter) {
