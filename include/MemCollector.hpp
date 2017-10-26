@@ -66,17 +66,17 @@ public:
                   });
       std::vector<util::MemCluster> currMemClusters;
       // cluster MEMs so that all the MEMs in one cluster are concordant.
-      for (auto hitIt = memList.begin(); hitIt != memList.end(); hitIt++) {
+      for (auto& hit : core::range<decltype(memList.begin())>(memList.begin(), memList.end())) {
         bool foundAtLeastOneCluster = false;
         bool gapIsSmall = false;
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
-          if (hitIt->tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
+          if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
             gapIsSmall = true;
-            if ( (isFw && hitIt->memInfo->rpos >= prevClus->getReadLastHitPos()) ||
-                 (!isFw && hitIt->memInfo->rpos <= prevClus->getReadLastHitPos())) {
+            if ( (isFw && hit.memInfo->rpos >= prevClus->getReadLastHitPos()) ||
+                 (!isFw && hit.memInfo->rpos <= prevClus->getReadLastHitPos())) {
               foundAtLeastOneCluster = true;
-              prevClus->mems.emplace_back(hitIt->memInfo, hitIt->tpos);
+              prevClus->mems.emplace_back(hit.memInfo, hit.tpos);
             }
           }
           else break;
@@ -86,11 +86,11 @@ public:
           util::MemCluster newClus(isFw);
           if (!currMemClusters.empty() && gapIsSmall) {
           // add all previous compatable mems before this last one that was crossed
-            for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->memInfo->rpos < hitIt->memInfo->rpos; mem++) {
+            for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->memInfo->rpos < hit.memInfo->rpos; mem++) {
               newClus.mems.emplace_back(mem->memInfo, mem->tpos);
             }
           }
-          newClus.mems.emplace_back(hitIt->memInfo, hitIt->tpos);
+          newClus.mems.emplace_back(hit.memInfo, hit.tpos);
           currMemClusters.push_back(newClus);
         }
       }
