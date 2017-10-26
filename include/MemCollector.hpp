@@ -25,6 +25,7 @@ public:
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
                    spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
+    using namespace pufferfish::common_types;
     //(void)verbose;
 
     if (hits.empty()) {
@@ -36,14 +37,16 @@ public:
 
     // Map from (reference id, orientation) pair to a cluster of
     // MEMs.
-    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>>
+    std::map<std::pair<ReferenceID, bool>, std::vector<util::MemInfo>>
         trMemMap;
     memCollection.reserve(hits.size());
     for (auto hIter = hits.begin(); hIter != hits.end(); ++hIter) {
       auto& readPos = hIter->first;
       auto& projHits = hIter->second;
+      // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
+      // Maybe we want to change the interface (make these members public or provide accessors)?
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_);
-      auto memItr = memCollection.end()-1;
+      auto memItr = std::prev(memCollection.end());
       for (auto& posIt : projHits.refRange) {
         auto refPosOri = projHits.decodeHit(posIt);
         trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
@@ -51,12 +54,11 @@ public:
       }
     }
 
-    for (auto trMemIt = trMemMap.begin(); trMemIt != trMemMap.end();
-         ++trMemIt) {
-      auto& trOri = trMemIt->first;
+    for (auto& trMem : IterRange<decltype(trMemMap)>(trMemMap.begin(), trMemMap.end())) {
+      auto& trOri = trMem.first;
       auto& tid = trOri.first;
       auto& isFw = trOri.second;
-      auto& memList = trMemIt->second;
+      auto& memList = trMem.second;
       // sort memList according to mem reference positions
       std::sort(memList.begin(), memList.end(),
                 [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
