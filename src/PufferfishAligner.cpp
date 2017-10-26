@@ -74,19 +74,34 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   //orphan reads should be taken care of maybe with a flag!
   uint32_t maxCoverage{0};
   for (auto& leftClustItr : leftMemClusters) {
+    // reference id
     size_t tid = leftClustItr.first;
+    // left mem clusters
     auto& lClusts = leftClustItr.second;
+    // right mem clusters for the same reference id
     auto& rClusts = rightMemClusters[tid];
+
+    // Compare the left clusters to the right clusters to filter by positional constraints
     for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
       for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
+        // if both the left and right clusters are oriented in the same direction, skip this pair
+        // NOTE: This should be optional as some libraries could allow this.
         if (lclust->isFw == rclust->isFw)
           continue;
+
+        // We will use the left and right iterators to point to the clusters that are
+        // "actually" the leftmost and rightmost (rather than those that come from read 1 and read 2).
         decltype(lClusts.begin()) left = lclust;
         decltype(rClusts.begin()) right = rclust;
+        // If read 1 comes after read 2, then:
+        // left = read 2
+        // right = read 1
+        // otherwise, vice versa.
         if (lclust->mems[0].tpos > rclust->mems[0].tpos) {
           left = rclust;
           right = lclust;
         }
+
         // FILTER 1
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
         size_t fragmentLen = right->mems.back().tpos + right->mems.back().memInfo->memlen - left->mems.front().tpos;
@@ -94,6 +109,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
           if (verbose) {
             std::cout << "jointMemsList start\n";
           }
+          // NOTE: This will add a new potential mapping *and* compute it's coverage.
           jointMemsList.emplace_back(tid, left, right, fragmentLen);
           if (verbose) {
             std::cout << "jointMemsList end.\n";
@@ -114,16 +130,14 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
           if (maxCoverage < currCoverage) {
             maxCoverage = currCoverage;
           }
-        }
-        else {
+        } else {
           break;
         }
       }
     }
   }
-  //std::cerr << "mc:" << maxCoverage << "\n";
   // FILTER 2
-  // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for that transcript)
+  // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
                                        return pairedReadMems.coverage < 0.5*maxCoverage ;

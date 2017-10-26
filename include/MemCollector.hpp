@@ -26,8 +26,9 @@ public:
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
     //(void)verbose;
 
-    if (hits.empty())
+    if (hits.empty()) {
       return false;
+    }
 
     // spp::sparse_hash_map<std::pair<size_t, bool>, std::vector<util::MemInfo>>
     // trMemMap;
