@@ -145,6 +145,18 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                       jointMemsList.end());
 }
 
+template <typename PufferfishIndexT>
+void traverseGraph(util::JointMems& hit, PufferfishIndexT& pfi){
+
+  //for all memes in left memcluster ;
+  for(size_t i = 0; i < hit.leftClust->mems.size() - 1; i++){
+    auto unimem = hit.leftClust->mems[i] ;
+    
+  }
+
+
+}
+
 
 template <typename PufferfishIndexT>
 void processReadsPair(paired_parser* parser,
@@ -217,6 +229,16 @@ void processReadsPair(paired_parser* parser,
       else{
         //ignore orphans for now
       }
+      //jointHits is a vector
+      //this can be used for BFS
+
+
+      //TODO QueryCache
+      for(auto hit : jointHits){
+        traverseGraph(hit, pfi) ;
+      }
+
+
 
       //extractSuitableAligningPairs(joinHits);
       //TODO Write them to a sam file
