@@ -40,9 +40,9 @@ public:
     std::map<std::pair<ReferenceID, bool>, std::vector<util::MemInfo>>
         trMemMap;
     memCollection.reserve(hits.size());
-    for (auto hIter = hits.begin(); hIter != hits.end(); ++hIter) {
-      auto& readPos = hIter->first;
-      auto& projHits = hIter->second;
+    for (auto& hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
+      auto& readPos = hit.first;
+      auto& projHits = hit.second;
       // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
       // Maybe we want to change the interface (make these members public or provide accessors)?
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_);
@@ -54,7 +54,7 @@ public:
       }
     }
 
-    for (auto& trMem : IterRange<decltype(trMemMap)>(trMemMap.begin(), trMemMap.end())) {
+    for (auto& trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
       auto& trOri = trMem.first;
       auto& tid = trOri.first;
       auto& isFw = trOri.second;
