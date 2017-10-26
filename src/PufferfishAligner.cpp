@@ -139,9 +139,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
+  double coverageRatio = 0.5;
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                     [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
-                                       return pairedReadMems.coverage < 0.5*maxCoverage ;
+                                     [&maxCoverage, coverageRatio](util::JointMems& pairedReadMems) -> bool {
+                                       return pairedReadMems.coverage < coverageRatio*maxCoverage ;
                                      }),
                       jointMemsList.end());
 }
