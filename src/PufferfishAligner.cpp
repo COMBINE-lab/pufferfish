@@ -460,7 +460,7 @@ bool alignReads(
     spawnProcessReadsthreads(nthread, pairParserPtr.get(), pfi, iomutex,
                              outLog, hctrs, mopts) ;
 
-
+    pairParserPtr->stop();
   consoleLog->info("Done mapping reads.");
   consoleLog->info("In total saw {} reads.", hctrs.numReads);
   consoleLog->info("Final # hits per read = {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
