@@ -169,7 +169,7 @@ void processReadsPair(paired_parser* parser,
       jointHits.clear() ;
       leftHits.clear() ;
       rightHits.clear() ;
-
+      memCollector.clear();
 
       //help me to debug, will deprecate later
       //std::cerr << "\n first seq in pair " << rpair.first.seq << "\n" ;

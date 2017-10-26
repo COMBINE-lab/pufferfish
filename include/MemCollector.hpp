@@ -211,6 +211,10 @@ public:
     return false;
   }
 
+  void clear() {
+    memCollection.clear();
+  }
+
 private:
   PufferfishIndexT* pfi_;
   size_t k;
