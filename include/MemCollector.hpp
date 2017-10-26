@@ -23,7 +23,7 @@ public:
 
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
                    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
-                   uint32_t maxSpliceGap, bool verbose = false) {
+                   uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
     //(void)verbose;
 
     if (hits.empty())
@@ -170,7 +170,8 @@ public:
 
   bool operator()(std::string& read,
                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
-                  uint32_t maxSpliceGap
+                  uint32_t maxSpliceGap,
+                  util::MateStatus mateStatus
                   /*,
                   util::MateStatus mateStatus,
                   bool consistentHits,
@@ -204,21 +205,27 @@ public:
         ++kit1;
     }
 
+    // if this is the right end of a paired-end read, use memCollectionRight,
+    // otherwise (left end or single end) use memCollectionLeft.
+    auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
+      &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
-      clusterMems(rawHits, memClusters, maxSpliceGap);
+      clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection);
       return true;
     }
     return false;
   }
 
   void clear() {
-    memCollection.clear();
+    memCollectionLeft.clear();
+    memCollectionRight.clear();
   }
 
 private:
   PufferfishIndexT* pfi_;
   size_t k;
   AlignerEngine ae_;
-  std::vector<util::UniMemInfo> memCollection;
+  std::vector<util::UniMemInfo> memCollectionLeft;
+  std::vector<util::UniMemInfo> memCollectionRight;
 };
 #endif
