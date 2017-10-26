@@ -294,7 +294,8 @@ void processReadsPair(paired_parser* parser,
 
       //extractSuitableAligningPairs(joinHits);
       //TODO Write them to a sam file
-      hctr.totHits += jointHits.size() ;
+      hctr.totHits += jointHits.size();
+      hctr.peHits += jointHits.size();
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
       //TODO When you get to this, you should be done aligning!!

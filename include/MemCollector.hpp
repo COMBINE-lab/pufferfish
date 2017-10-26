@@ -126,41 +126,69 @@ public:
     size_t readStart = kit->second;
     pufferfish::CanonicalKmerIterator kit_end;
     bool stillMatch = true;
-    CanonicalKmer cmer;
+
+    auto readSeqView = kit.seq();
+    auto readSeqLen = readSeqView.size();
+    auto readSeqStart = readStart;
+    auto readSeqOffset = readStart + k - 1;
+    int fastNextReadCode{0};
+    //CanonicalKmer cmer;
     while (stillMatch && cCurrPos < cEndPos && cCurrPos > cStartPos &&
-           kit != kit_end) {        // over kmers in contig
+           readSeqOffset < readSeqLen) {
+      //kit != kit_end) {        // over kmers in contig
+
       if (hit.contigOrientation_) { // if fw match, compare read last base with
                                     // contig first base and move fw in the
                                     // contig
         auto baseCnt = k < cEndPos - cCurrPos ? k : cEndPos - cCurrPos;
         uint64_t fk = allContigs.get_int(2 * (cCurrPos), 2 * baseCnt);
-        cmer.fromNum(fk);
+        //cmer.fromNum(fk);
         cCurrPos += baseCnt;
-        for (size_t i = 0; i < baseCnt && kit != kit_end; i++) {
-          auto readCode = (kit->first.fwWord()) >> (2 * (k - 1)) & 0x3;
+        //for (size_t i = 0; i < baseCnt && kit != kit_end; i++) {
+        for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
+          //auto readCode = (kit->first.fwWord()) >> (2 * (k - 1)) & 0x3;
+          // be dirty and peek into the underlying read
+          fastNextReadCode = my_mer::code(readSeqView[readSeqOffset]);
+          /*
+          if (fastNextReadCode != readCode) {
+            std::cerr << "fw :: fastNextReadCode = " << fastNextReadCode << ", readCode = " << readCode << "\n";
+          }
+          */
           auto contigCode = (fk >> (2 * i)) & 0x3;
-          if (readCode != contigCode) {
+          if (fastNextReadCode != contigCode) {
             stillMatch = false;
             break;
           }
           hit.k_++;
-          kit++;
+          //kit++;
+          readSeqOffset++;
+          readSeqStart++;
         }
       } else { // if rc match, compare read last base with contig last base and
                // move backward in the contig
         auto baseCnt = k < cCurrPos - cStartPos ? k : cCurrPos - cStartPos;
         uint64_t fk = allContigs.get_int(2 * (cCurrPos - baseCnt), 2 * baseCnt);
-        cmer.fromNum(fk);
+        //cmer.fromNum(fk);
         cCurrPos -= baseCnt;
-        for (size_t i = baseCnt - 1; i >= 0 && kit != kit_end; i--) {
-          auto readCode = kit->first.rcWord() & 0x3;
+        //for (size_t i = baseCnt - 1; i >= 0 && kit != kit_end; i--) {
+        for (size_t i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
+          //auto readCode = kit->first.rcWord() & 0x3;
+          // be dirty and peek into the underlying read
+          fastNextReadCode = my_mer::code(my_mer::complement(readSeqView[readSeqOffset]));
+          /*
+          if (fastNextReadCode != readCode) {
+            std::cerr << "rc :: fastNextReadCode = " << fastNextReadCode << ", readCode = " << readCode << "\n";
+          }
+          */
           auto contigCode = (fk >> (2 * i)) & 0x3;
-          if (readCode != contigCode) {
+          if (fastNextReadCode != contigCode) {
             stillMatch = false;
             break;
           }
           hit.k_++;
-          kit++;
+          //kit++;
+          readSeqOffset++;
+          readSeqStart++;
         }
       }
     }
@@ -168,6 +196,7 @@ public:
       hit.contigPos_ -= (hit.k_ - k);
       hit.globalPos_ -= (hit.k_ - k);
     }
+    kit.jumpTo(readSeqStart);
     return readStart;
   }
 
