@@ -180,17 +180,17 @@ void processReadsPair(paired_parser* parser,
 
       bool lh = memCollector(rpair.first.seq,
                              leftHits,
-                             mopts->maxSpliceGap
-                             /*,
-                             MateStatus::PAIRED_END_LEFT,
+                             mopts->maxSpliceGap,
+                             MateStatus::PAIRED_END_LEFT
+                             /*
                              mopts->consistentHits,
                              refBlocks*/) ;
 
       bool rh = memCollector(rpair.second.seq,
                              rightHits,
-                             mopts->maxSpliceGap
+                             mopts->maxSpliceGap,
+                             MateStatus::PAIRED_END_RIGHT
                              /*,
-                             MateStatus::PAIRED_END_RIGHT,
                              mopts->consistentHits,
                              refBlocks*/) ;
       //do intersection on the basis of
