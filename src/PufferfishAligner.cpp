@@ -87,8 +87,9 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
       for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
         // if both the left and right clusters are oriented in the same direction, skip this pair
         // NOTE: This should be optional as some libraries could allow this.
-        if (lclust->isFw == rclust->isFw)
+        if (lclust->isFw == rclust->isFw) {
           continue;
+        }
 
         // We will use the left and right iterators to point to the clusters that are
         // "actually" the leftmost and rightmost (rather than those that come from read 1 and read 2).
