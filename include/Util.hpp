@@ -277,11 +277,15 @@ enum class MateStatus : uint8_t {
 
     size_t getReadLastHitPos() const { return mems.empty()?0:mems.back().memInfo->rpos;}
     size_t getTrLastHitPos() const {
-      return mems.empty()?0:mems.back().tpos + mems.back().memInfo->memlen;
+      return mems.empty()?0:mems.back().tpos;
+    }
+    size_t getTrLastMemLen() const {
+      return mems.empty()?0:mems.back().memInfo->memlen;
     }
     size_t getTrFirstHitPos() const { return mems.empty()?0:mems[0].tpos;}
     inline size_t firstRefPos() const { return getTrFirstHitPos(); }
     inline size_t lastRefPos() const { return getTrLastHitPos(); }
+    inline size_t lastMemLen() const { return getTrLastMemLen(); }
   };
 
 
