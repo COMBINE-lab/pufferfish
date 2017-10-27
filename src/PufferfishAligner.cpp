@@ -327,15 +327,31 @@ void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::Jo
     if(readGapDist >= 0){
       //clip the appropriate read sequence 
       //readgap = leftReadSeq.substr((hit.leftClust->isFw?())) ;
-      if(hit.leftClust->isFw){
-        readgap = leftReadSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
+      if(readGapDist > 0){
+        if(hit.leftClust->isFw){
+          readgap = leftReadSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
+        }
+        else{
+          std::string tmp(leftReadSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
+          readgap = util::reverseComplement(tmp) ;
+        }
       }
-      else{
-        std::string tmp(leftReadSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
-        readgap = util::reverseComplement(tmp) ;
+      if(startMem.memInfo->cid  != endMem.memInfo->cid){
+        //not on the same contig explore paths between unimems from graphs 
+        populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
+      }else if(readGapDist >= 0 and startMem.memInfo->cid == endMem.memInfo->cid){
+        //it's on the same contig just insert the sequence from the contig 
+        std::string tmp ;
+        if(contigSeqCache.find(startMem.memInfo->cid) == contigSeqCache.end()){
+          contigSeqCache[startMem.memInfo->cid] = clipContigRawSeq(startMem.memInfo->cid) ;
+        }
+        tmp = contigSeqCache[startMem.memInfo->cid].substr(startMem.memInfo->cpos, readGapDist+ THRESHOLD) ;
+
+        path = tmp ;
       }
-      populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
+
     }
+    
     paths.push_back({readgap, path}) ;
 
     //unimem at the end
@@ -358,7 +374,7 @@ void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::Jo
 
   }
 
-  //same for right reads
+  //TODO same for right reads
 }
 
 template <typename PufferfishIndexT>
