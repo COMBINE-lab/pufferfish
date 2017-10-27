@@ -78,22 +78,27 @@ public:
               foundAtLeastOneCluster = true;
               prevClus->mems.emplace_back(hit.memInfo, hit.tpos);
             }
+          } else {
+            break;
           }
-          else break;
         }
+
         if (!foundAtLeastOneCluster) {
-          auto& lastClus = currMemClusters.back();
-          util::MemCluster newClus(isFw);
-          if (!currMemClusters.empty() && gapIsSmall) {
-          // add all previous compatable mems before this last one that was crossed
+          auto prevLastIndex = static_cast<int32_t>(currMemClusters.size()) - 1;
+          // Create the new clusters on the end of the currMemClusters vector
+          currMemClusters.emplace_back(isFw);
+          auto& newClus = currMemClusters.back();
+          if ((prevLastIndex > 0) and gapIsSmall) {
+            auto& lastClus = currMemClusters[prevLastIndex];
+            // add all previous compatable mems before this last one that was crossed
             for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->memInfo->rpos < hit.memInfo->rpos; mem++) {
               newClus.mems.emplace_back(mem->memInfo, mem->tpos);
             }
           }
           newClus.mems.emplace_back(hit.memInfo, hit.tpos);
-          currMemClusters.push_back(newClus);
         }
       }
+      /*
       if (verbose) {
         std::cout << "t" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
         for (auto& clus : currMemClusters) {
@@ -103,8 +108,10 @@ public:
           std::cout << "\n";
         }
       }
+      */
       // This is kind of inefficient (copying the currMemClusters while probably we can build it on the fly
-      memClusters[tid].insert(memClusters[tid].end(), currMemClusters.begin(), currMemClusters.end());
+      memClusters[tid].insert(memClusters[tid].end(), std::make_move_iterator(currMemClusters.begin()),
+                              std::make_move_iterator(currMemClusters.end()));
     }
     return true;
   }
