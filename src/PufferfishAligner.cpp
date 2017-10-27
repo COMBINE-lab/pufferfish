@@ -57,6 +57,8 @@
 #define START_CONTIG_ID ((uint32_t)-1) 
 #define END_CONTIG_ID ((uint32_t)-2)
 
+#define THRESHOLD 10
+
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
 using AlignmentOpts = util::AlignmentOpts ;
 using HitCounters = util::HitCounters ;
@@ -146,15 +148,50 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                       jointMemsList.end());
 }
 
-template <typename PufferfishIndexT>
-void populatePaths(std::vector<util::UniMemInfo>::iterator s, std::vector<util::UniMemInfo>::iterator e, std::vector<std::pair<uint32_t,std::vector<uint32_t> > >& paths, PufferfishIndexT& pfi, uint32_t tid){
-  auto sCid = s->cid ;
-  auto cCid = e->cid ;
 
-  auto& edges = pfi.getEdge() ;
+std::string decodeSeq(sdsl::int_vector<2>& rawSeq, size_t globalPos, size_t length){
+  std::string contigSeq('A',length);
+  for(size_t i = globalPos; i < globalPos+length ;++i){
+    switch(rawSeq[i] & 0x03){
+    case 0:
+      contigSeq[i] = 'A';
+        break ;
+    case 1:
+      contigSeq[i] = 'T';
+      break ;
+    case 2:
+      contigSeq[i] = 'G';
+      break ;
+    case 3:
+      contigSeq[i] = 'C';
+      break ;
+    }
+  }
+  return contigSeq ;
+
+}
+
+template <typename PufferfishIndexT>
+void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, PufferfishIndexT& pfi, uint32_t tid, std::map<uint32_t, std::string>& contigSeqCache, size_t readGapDist){
+  
+  CanonicalKmer::k(pfi.k()) ;
+
+  auto s = smem.memInfo ;
+  auto e = emem.memInfo ;
+
+  auto stpos = smem.tpos ;
+  auto etpos = emem.tpos ;
+
+  auto sCid = s->cid ;
+  auto eCid = e->cid ;
+
+  bool sCFwd = s->cIsFw ;
+
   auto& seq = pfi.getSeq() ;
+  auto& edges = pfi.getEdge() ;
 
   std::map<uint32_t,bool> visited ;
+
 
   auto dist = std::abs(s->rpos - e->rpos) ;
   int numOfNodesVisited{0} ;
@@ -162,50 +199,122 @@ void populatePaths(std::vector<util::UniMemInfo>::iterator s, std::vector<util::
 
   std::queue<uint32_t> queue ;
   bool first{false} ;
-  visited[sCid] = true ;
   queue.push(sCid) ;
+
+  auto remainingLen = readGapDist ;
 
   while(numOfNodesVisited < dist and !queue.empty()){
     auto cid = queue.front() ;
+    numOfNodesVisited += 1 ;
+    visited[cid] = true ;
     queue.pop() ;
     uint8_t edgeVec = edges[cid] ;
     std::vector<util::extension> ext = util::getExts(edgeVec) ;
 
-    if(first){
-      if (ext.empty()){
-        return ;
-      }
-      else{
-        //go over the ext
-        for(auto& ed : ext){
+    if(!ext.empty()){
+      //go over the ext
+      CanonicalKmer kb = pfi.getStartKmer(cid) ;
+      CanonicalKmer ke = pfi.getEndKmer(cid) ;
+      for(auto& ed : ext){
+        auto kbtmp = kb ;
+        auto ketmp = ke ;
+        char c = ed.c ;
+        CanonicalKmer kt ;
 
+        if(ed.dir == util::Direction::FORWARD){
+          ke.shiftFw(c) ;
+          kt.fromNum(ke.getCanonicalWord()) ;
+        }else{
+          kb.shiftBw(c) ;
+          kt.fromNum(kb.getCanonicalWord()) ;
         }
-      }
+
+
+        auto nextHit = pfi.getRefPos(kt) ;
+        auto nextCid = nextHit.contigID() ;
+        //break if this contig is very big ;
+        //go over the list
+        if(visited.find(nextCid) == visited.end()){
+          for(auto& posIt : nextHit.refRange){
+            //check for transcript consistensy
+            auto refPosOri = nextHit.decodeHit(posIt) ;
+            if(posIt.transcript_id() == tid){
+              //check for position consistensy on transcript
+              if((posIt.pos() > stpos and posIt.orientation()) or (posIt.pos() < stpos and !posIt.orientation())){
+                if(eCid != nextCid){
+                  queue.push(nextCid) ;
+                  if(contigSeqCache.find(nextCid) == contigSeqCache.end()){
+                    //sdsl::int_vector<2> rawSeq(seq.begin()+nextHit.globalPos_, seq.begin()+nextHit.globalPos_+nextHit.contigLen_);
+                    contigSeqCache[nextCid] = decodeSeq(seq, nextHit.globalPos_, nextHit.contigLen_) ;
+                  }
+                  if(nextHit.contigLen_  < remainingLen){
+                    path += contigSeqCache[nextCid] ;
+                    remainingLen -= nextHit.contigLen_ ;
+                  }else{
+                    path += contigSeqCache[nextCid].substr(0,remainingLen) ;
+                    return ;
+                  }
+                  stpos = posIt.pos() ;
+                  goto StopEdge ;
+                }
+                break ;
+
+              }
+            }
+          }
+        
+        }
+        kb = kbtmp ;
+        ke = ketmp ;
+      }// end of edge list
+    StopEdge: ;
     }
 
-    break ;
   }
 
 }
 
 
 template <typename PufferfishIndexT>
-void traverseGraph(util::JointMems& hit, PufferfishIndexT& pfi){
+void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
 
   //for all memes in left memcluster ;
   auto tid = hit.tid ;
 
-  
+  std::vector<std::pair<std::string,std::string>> paths ;
+
+
+  size_t readLen = leftReadSeq.length() ;
+
+  //for left reads 
   for(size_t i = 0; i < hit.leftClust->mems.size() - 1; i++){
     auto startMem = hit.leftClust->mems[i] ;
     auto endMem = hit.leftClust->mems[i+1] ;
+    
+    std::string readgap = "" ;
+    std::string path = "";
 
-    auto startUniMem = startMem.memInfo ;
-    auto endUniMem = endMem.memInfo ;
+    auto readGapDist = (hit.leftClust->isFw)?(endMem.memInfo->rpos - (startMem.memInfo->rpos + startMem.memInfo->memlen)):(startMem.memInfo->rpos - (endMem.memInfo->rpos + endMem.memInfo->memlen)) ;
 
-    std::vector<std::pair<uint32_t, std::vector<uint32_t> > > paths ;
-    populatePaths(startUniMem, endUniMem, paths, pfi, tid) ;
+    if(readGapDist >= 0){
+      //clip the appropriate read sequence 
+      //readgap = leftReadSeq.substr((hit.leftClust->isFw?())) ;
+      if(hit.leftClust->isFw){
+        readgap = leftReadSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
+      }
+      else{
+        std::string tmp(leftReadSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
+        readgap = util::reverseComplement(tmp) ;
+      }
+      populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
+
+    }
+
+    paths.push_back({readgap, path}) ;
+
   }
+
+  //same for right reads
 }
 
 template <typename PufferfishIndexT>
@@ -228,13 +337,12 @@ void processReadsPair(paired_parser* parser,
   //size_t batchSize{2500} ;
   size_t readLen{0} ;
 
-
   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits ;
   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits ;
   std::vector<util::JointMems> jointHits ;
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
 
-
+  
   auto rg = parser->getReadGroup() ;
 
   while(parser->refill(rg)){
@@ -283,9 +391,11 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
 
 
-      //TODO QueryCache
+      //TODO Have to make it per thread 
+      //have to make write access thread safe
+      std::map<uint32_t, std::string> contigSeqCache ;
       for(auto hit : jointHits){
-        traverseGraph(hit, pfi) ;
+        traverseGraph(rpair.first.seq,rpair.second.seq,hit, pfi, contigSeqCache) ;
       }
 
 
