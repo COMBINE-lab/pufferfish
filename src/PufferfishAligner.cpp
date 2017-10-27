@@ -76,6 +76,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   uint32_t maxCoverage{0};
+  //std::cout << "txp count:" << leftMemClusters.size() << "\n";
   for (auto& leftClustItr : leftMemClusters) {
     // reference id
     size_t tid = leftClustItr.first;
@@ -83,7 +84,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
     auto& lClusts = leftClustItr.second;
     // right mem clusters for the same reference id
     auto& rClusts = rightMemClusters[tid];
-
+    if ((lClusts.size() > 5 || rClusts.size() > 5) && (lClusts.size()>0 && rClusts.size()>0))
+    std::cout << "\t" << tid << ": lClusts.size:" << lClusts.size() << " , rClusts.size:" << rClusts.size() << "\n";
     // Compare the left clusters to the right clusters to filter by positional constraints
     for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
       for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
@@ -110,24 +112,19 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
         size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
         if ( fragmentLen < maxFragmentLength) {
-          if (verbose) {
-            std::cout << "jointMemsList start\n";
-          }
           // NOTE: This will add a new potential mapping *and* compute it's coverage.
           jointMemsList.emplace_back(tid, left, right, fragmentLen);
           if (verbose) {
-            std::cout << "jointMemsList end.\n";
-          }
-          if (verbose) {
-            const auto& last = jointMemsList.back();
+            std::cout <<"tid:"<<tid<<"\n";
             std::cout <<"left\n";
-            std::cout <<"leftsize = " << left->mems.size() << ", last leftMems size = " << last.leftClust->mems.size() << "\n";
+            std::cout <<"leftsize = " << left->mems.size() << "\n";
             for (size_t i = 0; i < left->mems.size(); i++){
-              std::cout << " t" << left->mems[i].tpos << " t2:" << last.leftClust->mems[i].tpos << " l" << left->mems[i].memInfo->memlen << "\n";
+              std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " ori:" << left->isFw;
             }
-            std::cout << "right\n";
-            for (auto& mem : last.rightClust->mems) {
-              std::cout <<  " t" << mem.tpos << " r" << mem.memInfo->rpos << " l" << mem.memInfo->memlen << "\n";
+            std::cout << "\nright\n";
+            std::cout <<"rightsize = " << left->mems.size() << "\n";
+            for (size_t i = 0; i < right->mems.size(); i++){
+              std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " ori:" << right->isFw;
             }
           }
           uint32_t currCoverage =  jointMemsList.back().coverage;
@@ -181,13 +178,10 @@ template <typename PufferfishIndexT>
 void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, PufferfishIndexT& pfi, uint32_t tid, std::map<uint32_t, std::string>& contigSeqCache, size_t readGapDist){
   
   CanonicalKmer::k(pfi.k()) ;
-
   auto s = smem.memInfo ;
   auto e = emem.memInfo ;
-
   auto stpos = smem.tpos ;
   auto etpos = emem.tpos ;
-
   auto sCid = s->cid ;
   auto eCid = e->cid ;
 
@@ -214,6 +208,21 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
     numOfNodesVisited += 1 ;
     visited[cid] = true ;
     queue.pop() ;
+
+    //check if we stop here
+    //criterion
+    //if an edge is added the validity
+    //is already checked, we should nevertheless
+    //check if this contig is a stopping contig
+    if(pfi.getContigLen(cid) > remainingLen + THRESHOLD){
+      //this means we have very long insert break paths ans return
+      if(contigSeqCache.find(cid) == contigSeqCache.end()){
+        contigSeqCache[cid] = pfi.getSeqStr(pfi.getGlobalPos(cid), (size_t)(remainingLen + THRESHOLD)) ;
+        path += contigSeqCache[cid] ;
+      }
+    }
+
+
     uint8_t edgeVec = edges[cid] ;
     std::vector<util::extension> ext = util::getExts(edgeVec) ;
 
@@ -231,12 +240,13 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
           ke.shiftFw(c) ;
           kt.fromNum(ke.getCanonicalWord()) ;
         }else{
+
           kb.shiftBw(c) ;
           kt.fromNum(kb.getCanonicalWord()) ;
         }
 
 
-        auto nextHit = pfi.getRefPos(kt) ;
+        auto nextHit = pfi.getRefPos(kt) ; 
         auto nextCid = nextHit.contigID() ;
         //break if this contig is very big ;
         //go over the list
@@ -282,31 +292,25 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
 
 
 template <typename PufferfishIndexT>
-void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
+void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator clust, std::vector<std::pair<std::string,std::string>>& paths, std::string& readSeq, std::map<uint32_t, std::string>& contigSeqCache, uint32_t tid){
 
-  //for all memes in left memcluster ;
-  auto tid = hit.tid ;
+  size_t readLen = readSeq.length() ;
 
-  std::vector<std::pair<std::string,std::string>> paths ;
-
-
-  size_t readLen = leftReadSeq.length() ;
-
-  //for left reads 
-  //TODO take care of the
-  //first and last unimem
-  
-
-  for(size_t i = 0; i < hit.leftClust->mems.size() - 1; i++){
+  for(size_t i = 0; i < clust->mems.size() - 1; i++){
 
     //taking care of first unimem
     if(i == 0){
-      //TODO not sure about this b/c read is always traversed left to right
+      //We might have to stop here and we
+      //in the middle of a contig 
       std::string tmp ;
-      auto& firstMem = hit.leftClust->mems[i] ;
-      auto offset = (hit.leftClust->isFw) ? firstMem.memInfo->rpos : (readLen-firstMem.memInfo->rpos) ;
-      tmp = (hit.leftClust->isFw)?(leftReadSeq.substr(0,firstMem.memInfo->rpos)):(leftReadSeq.substr(firstMem.memInfo->rpos,readLen-firstMem.memInfo->rpos)) ;
-      std::string readOffsetBegin = (hit.leftClust->isFw)?(tmp):(util::reverseComplement(tmp)) ;
+      auto& firstMem = clust->mems[i] ;
+      auto offset = (clust->isFw) ? firstMem.memInfo->rpos : (readLen-firstMem.memInfo->rpos) ;
+      
+      auto remainingReadLen = readLen - (offset + firstMem.memInfo->memlen ) ;
+      auto remainingContigLen = pfi.getContigLen(firstMem.memInfo->cid) - firstMem.memInfo->cpos ;
+
+      tmp = (clust->isFw)?(readSeq.substr(0,firstMem.memInfo->rpos)):(readSeq.substr(firstMem.memInfo->rpos,readLen-firstMem.memInfo->rpos)) ;
+      std::string readOffsetBegin = (clust->isFw)?(tmp):(util::reverseComplement(tmp)) ;
       if(contigSeqCache.find(firstMem.memInfo->cid) != contigSeqCache.end()){
         tmp = contigSeqCache[firstMem.memInfo->cid].substr(firstMem.memInfo->cpos - THRESHOLD - offset, THRESHOLD + offset) ;
       }else{
@@ -314,39 +318,62 @@ void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::Jo
         tmp = contigSeqCache[firstMem.memInfo->cid].substr(firstMem.memInfo->cpos - THRESHOLD - offset, THRESHOLD + offset) ;
       }
       paths.push_back({readOffsetBegin, tmp}) ;
+
+      if(remainingContigLen > remainingReadLen){
+        //bad case, large insert size
+        continue ;
+      }
     }
 
     //unimems in the middle
-    auto startMem = hit.leftClust->mems[i] ;
-    auto endMem = hit.leftClust->mems[i+1] ;
+    //we are sure that this will not happen with an
+    //unimem where read maps in the middle ;
+    auto startMem = clust->mems[i] ;
+    auto endMem = clust->mems[i+1] ;
     std::string readgap = "" ;
     std::string path = "";
 
-    auto readGapDist = (hit.leftClust->isFw)?(endMem.memInfo->rpos - (startMem.memInfo->rpos + startMem.memInfo->memlen)):(startMem.memInfo->rpos - (endMem.memInfo->rpos + endMem.memInfo->memlen)) ;
+    auto readGapDist = (clust->isFw)?(endMem.memInfo->rpos - (startMem.memInfo->rpos + startMem.memInfo->memlen)):(startMem.memInfo->rpos - (endMem.memInfo->rpos + endMem.memInfo->memlen)) ;
 
     if(readGapDist >= 0){
       //clip the appropriate read sequence 
-      //readgap = leftReadSeq.substr((hit.leftClust->isFw?())) ;
-      if(hit.leftClust->isFw){
-        readgap = leftReadSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
+      //readgap = readSeq.substr((hit.clust->isFw?())) ;
+      if(readGapDist > 0){
+        if(clust->isFw){
+          readgap = readSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
+        }
+        else{
+          std::string tmp(readSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
+          readgap = util::reverseComplement(tmp) ;
+        }
       }
-      else{
-        std::string tmp(leftReadSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
-        readgap = util::reverseComplement(tmp) ;
+      if(startMem.memInfo->cid  != endMem.memInfo->cid){
+        //not on the same contig explore paths between unimems from graphs 
+        populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
+      }else if(readGapDist >= 0 and startMem.memInfo->cid == endMem.memInfo->cid){
+        //it's on the same contig just insert the sequence from the contig 
+        std::string tmp ;
+        if(contigSeqCache.find(startMem.memInfo->cid) == contigSeqCache.end()){
+          contigSeqCache[startMem.memInfo->cid] = clipContigRawSeq(startMem.memInfo->cid) ;
+        }
+        tmp = contigSeqCache[startMem.memInfo->cid].substr(startMem.memInfo->cpos, readGapDist+ THRESHOLD) ;
+
+        path = tmp ;
       }
-      populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
+
     }
+    
     paths.push_back({readgap, path}) ;
 
     //unimem at the end
     /*
-    if(hit.leftClust->mems.size() > 1 and i + 1 == hit.leftClust->mems.size()-1){
+    if(hit.clust->mems.size() > 1 and i + 1 == hit.clust->mems.size()-1){
       //TODO not sure about this b/c read is always traversed left to right
       std::string tmp ;
-      auto& lastMem = hit.leftClust->mems[i] ;
-      auto offset = (hit.leftClust->isFw) ? firstMem.memInfo->rpos : (readLen-firstMem.memInfo->rpos) ;
-      tmp = (hit.leftClust->isFw)?(leftReadSeq.substr(0,firstMem.memInfo->rpos)):(leftReadSeq.substr(firstMem.memInfo->rpos,readLen-firstMem.memInfo->rpos)) ;
-      std::string readOffsetBegin = (hit.leftClust->isFw)?(tmp):(util::reverseComplement(tmp)) ;
+      auto& lastMem = hit.clust->mems[i] ;
+      auto offset = (hit.clust->isFw) ? firstMem.memInfo->rpos : (readLen-firstMem.memInfo->rpos) ;
+      tmp = (hit.clust->isFw)?(readSeq.substr(0,firstMem.memInfo->rpos)):(readSeq.substr(firstMem.memInfo->rpos,readLen-firstMem.memInfo->rpos)) ;
+      std::string readOffsetBegin = (hit.clust->isFw)?(tmp):(util::reverseComplement(tmp)) ;
       if(contigSeqCache.find(firstMem.memInfo->cid) != contigSeqCache.end()){
         tmp = contigSeqCache[firstMem.memInfo->cid].substr(firstMem.memInfo->cpos - THRESHOLD - offset, THRESHOLD + offset) ;
       }else{
@@ -357,8 +384,26 @@ void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::Jo
       }*/
 
   }
+}
 
-  //same for right reads
+template <typename PufferfishIndexT>
+void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
+
+  //for all memes in left memcluster ;
+  auto tid = hit.tid ;
+
+  std::vector<std::pair<std::string,std::string>> leftClustPaths ;
+  std::vector<std::pair<std::string,std::string>> rightClustPaths ;
+
+  goOverClust(pfi, hit.leftClust, leftClustPaths, leftReadSeq, contigSeqCache, tid) ;
+  goOverClust(pfi, hit.rightClust, rightClustPaths, rightReadSeq, contigSeqCache, tid) ;
+  
+  //for left reads 
+  //TODO take care of the
+  //first and last unimem
+  
+
+  //TODO same for right reads
 }
 
 template <typename PufferfishIndexT>
@@ -392,6 +437,8 @@ void processReadsPair(paired_parser* parser,
   while(parser->refill(rg)){
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
+      //std::cout << rpair.first.name << "\n";
+      bool verbose = false;// rpair.first.name == "read17739350/ENST00000421512;mate1:506-605;mate2:614-712";
       ++hctr.numReads ;
 
       jointHits.clear() ;
@@ -409,7 +456,8 @@ void processReadsPair(paired_parser* parser,
       bool lh = memCollector(rpair.first.seq,
                              leftHits,
                              mopts->maxSpliceGap,
-                             MateStatus::PAIRED_END_LEFT
+                             MateStatus::PAIRED_END_LEFT,
+                             verbose
                              /*
                              mopts->consistentHits,
                              refBlocks*/) ;
@@ -417,7 +465,8 @@ void processReadsPair(paired_parser* parser,
       bool rh = memCollector(rpair.second.seq,
                              rightHits,
                              mopts->maxSpliceGap,
-                             MateStatus::PAIRED_END_RIGHT
+                             MateStatus::PAIRED_END_RIGHT,
+                             verbose
                              /*,
                              mopts->consistentHits,
                              refBlocks*/) ;
@@ -426,7 +475,7 @@ void processReadsPair(paired_parser* parser,
       //otherwise orphan
 
       if(lh && rh){
-        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength) ;
+        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, verbose) ;
       }
       else{
         //ignore orphans for now
@@ -439,7 +488,7 @@ void processReadsPair(paired_parser* parser,
         //TODO Have to make it per thread 
         //have to make write access thread safe
         std::map<uint32_t, std::string> contigSeqCache ;
-        for(auto hit : jointHits){
+        for(auto& hit : jointHits){
           traverseGraph(rpair.first.seq,rpair.second.seq,hit, pfi, contigSeqCache) ;
         }
       }

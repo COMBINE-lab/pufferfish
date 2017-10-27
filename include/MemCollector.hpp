@@ -25,7 +25,7 @@ public:
                    spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
     using namespace pufferfish::common_types;
-    (void)verbose;
+    //(void)verbose;
 
     if (hits.empty()) {
       return false;
@@ -55,55 +55,74 @@ public:
       auto& isFw = trOri.second;
       auto& memList = trMem.second;
       // sort memList according to mem reference positions
-      std::sort(memList.begin(), memList.end(),
+      if (isFw)
+        std::sort(memList.begin(), memList.end(),
                 [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
-                  return q1.tpos < q2.tpos; // sort based on tpos
+                  return q1.tpos == q2.tpos? q1.memInfo->rpos < q2.memInfo->rpos:q1.tpos < q2.tpos; // sort based on tpos
                   });
+      else
+        std::sort(memList.begin(), memList.end(),
+                  [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
+                    return q1.tpos == q2.tpos? q1.memInfo->rpos > q2.memInfo->rpos:q1.tpos < q2.tpos; // sort based on tpos
+                  });
+
       std::vector<util::MemCluster> currMemClusters;
       // cluster MEMs so that all the MEMs in one cluster are concordant.
       for (auto& hit : core::range<decltype(memList.begin())>(memList.begin(), memList.end())) {
         bool foundAtLeastOneCluster = false;
         bool gapIsSmall = false;
+        bool addNewCluster = currMemClusters.size() == 0;
+        if (verbose)
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
           if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
-            gapIsSmall = true;
-            if ( (isFw && hit.memInfo->rpos >= prevClus->getReadLastHitPos()) ||
-                 (!isFw && hit.memInfo->rpos <= prevClus->getReadLastHitPos())) {
-              foundAtLeastOneCluster = true;
+            //gapIsSmall = true;
+            if ( hit.tpos > prevClus->getTrLastHitPos() && ((isFw && hit.memInfo->rpos > prevClus->getReadLastHitPos()) ||
+                                                            (!isFw && hit.memInfo->rpos < prevClus->getReadLastHitPos()))) {
+              //foundAtLeastOneCluster = true;
               prevClus->mems.emplace_back(hit.memInfo, hit.tpos);
             }
           } else {
+            addNewCluster = true;
             break;
           }
         }
 
-        if (!foundAtLeastOneCluster) {
-          auto prevLastIndex = static_cast<int32_t>(currMemClusters.size()) - 1;
+        if (addNewCluster) {
+          //auto prevLastIndex = static_cast<int32_t>(currMemClusters.size()) - 1;
           // Create the new clusters on the end of the currMemClusters vector
           currMemClusters.emplace_back(isFw);
           auto& newClus = currMemClusters.back();
-          if ((prevLastIndex > 0) and gapIsSmall) {
+          /*if ((prevLastIndex > 0) and gapIsSmall) {
             auto& lastClus = currMemClusters[prevLastIndex];
             // add all previous compatable mems before this last one that was crossed
             for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->memInfo->rpos < hit.memInfo->rpos; mem++) {
               newClus.mems.emplace_back(mem->memInfo, mem->tpos);
             }
-          }
+            }*/
           newClus.mems.emplace_back(hit.memInfo, hit.tpos);
         }
       }
-      /*
-      if (verbose) {
-        std::cout << "t" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
-        for (auto& clus : currMemClusters) {
+      for (auto& clus : currMemClusters) {
+        if (clus.mems.size() > 69) {
+          std::cout << "mem size: " << clus.mems.size() << "\n";
           for (auto& mem : clus.mems) {
-            std::cout << "\t t" << mem.tpos << " r" << mem.memInfo->rpos << " len" << mem.memInfo->memlen << "\n";
+            std::cout << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
           }
           std::cout << "\n";
         }
       }
-      */
+      if (verbose) {
+        std::cout << "\ntid" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
+        for (auto& clus : currMemClusters) {
+          std::cout << "mem size: " << clus.mems.size() << "\n";
+          for (auto& mem : clus.mems) {
+            std::cout << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
+          }
+          std::cout << "\n";
+        }
+      }
+      
       // This is kind of inefficient (copying the currMemClusters while probably we can build it on the fly
       memClusters[tid].insert(memClusters[tid].end(), std::make_move_iterator(currMemClusters.begin()),
                               std::make_move_iterator(currMemClusters.end()));
@@ -186,10 +205,12 @@ public:
   bool operator()(std::string& read,
                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
-                  util::MateStatus mateStatus) {
+                  util::MateStatus mateStatus,
+                  bool verbose=false) {
     // currently unused:
     // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-
+    if (verbose)
+      std::cout << (mateStatus == util::MateStatus::PAIRED_END_RIGHT) << "\n";
     util::ProjectedHits phits;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
@@ -213,7 +234,7 @@ public:
     auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
-      clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection);
+      clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
       return true;
     }
     return false;

@@ -340,6 +340,56 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
           core::range<IterT>{}};
 }
 
+std::string PufferfishSparseIndex::getSeqStr(size_t globalPos, size_t length, bool isFw) {
+	std::string outstr = "";
+	uint64_t validLength = 0;
+	uint64_t word = 0;
+	uint8_t base = 0;
+	while (length > 0) {
+	validLength = std::min(length, (size_t)32);
+	length -= validLength;
+ 	word = seq_.get_int(2*globalPos, 2*validLength);
+	globalPos += validLength;
+	if (isFw)
+	  for(uint64_t i = 0; i < 2*validLength ;i+=2){
+		base = (word >> i) & 0x03;
+	    switch(base){
+    	case 0:
+        outstr += 'A';
+        break ;
+	    case 1:
+        outstr += 'C';
+	      break ;
+    	case 2:
+        outstr += 'G';
+    	  break ;
+	    case 3:
+        outstr += 'T';
+	      break ;
+    	}
+    }
+	else
+    for(uint64_t i = 0; i < 2*validLength ;i+=2){
+      base = (word >> i) & 0x03;
+      switch(base){
+      case 0:
+        outstr = 'T' + outstr;
+        break ;
+      case 1:
+        outstr = 'G' + outstr;
+        break ;
+      case 2:
+        outstr = 'C' + outstr;
+        break ;
+      case 3:
+        outstr = 'A' + outstr;
+        break ;
+      }
+    }
+	}
+  return outstr;
+}
+
 auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
     -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
@@ -559,6 +609,18 @@ CanonicalKmer PufferfishSparseIndex::getEndKmer(uint64_t rank){
   kb.fromNum(fk) ;
   return kb ;
 }
+
+uint32_t PufferfishSparseIndex::getContigLen(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank + 1);
+  return (static_cast<uint32_t>(contigEnd - sp + 1)) ;
+}
+
+uint64_t PufferfishSparseIndex::getGlobalPos(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  return sp ;
+}
+
 /**
  * Return the position list (ref_id, pos) corresponding to a contig.
  */

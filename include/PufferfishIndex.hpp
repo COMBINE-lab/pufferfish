@@ -79,6 +79,9 @@ public:
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
 
+  // Returns the string value of contig sequence vector starting from position `globalPos` with `length` bases
+  // and reverse-complements the string if `isFw` is false
+  std::string getSeqStr(size_t globalPos, size_t length, bool isFw=true);
   //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
 
   // Returns a ProjectedHits object that contains all of the
@@ -96,6 +99,8 @@ public:
 
   CanonicalKmer getStartKmer(uint64_t cid) ;
   CanonicalKmer getEndKmer(uint64_t cid) ;
+  uint32_t getContigLen(uint64_t cid) ;
+  uint64_t getGlobalPos(uint64_t cid) ;
 
 };
 
