@@ -134,7 +134,7 @@ uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
 }
 
 
-std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isFw=true) {
+std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isFw) {
 	std::string outstr = "";
 	uint64_t validLength = 0;
 	uint64_t word = 0;
@@ -335,6 +335,17 @@ CanonicalKmer PufferfishIndex::getEndKmer(uint64_t rank){
   uint64_t fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
   kb.fromNum(fk) ;
   return kb ;
+}
+
+uint32_t PufferfishIndex::getContigLen(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank + 1);
+  return (static_cast<uint32_t>(contigEnd - sp + 1)) ;
+}
+
+uint64_t PufferfishIndex::getGlobalPos(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  return sp ;
 }
 
 /**
