@@ -133,79 +133,57 @@ uint32_t PufferfishIndex::contigID(CanonicalKmer& mer) {
   return std::numeric_limits<uint32_t>::max();
 }
 
-// this function would store the part of the
-// contig that is required
-// if hitFW is true then we will clip
-// the part towards the end of the contig
-/*
-void PufferfishIndex::getContigSeq(bool hitFW, uint64_t globalPos, int clipLen
-,std::string& contigStr){ auto queryPos = kit->second ;
 
-  uint64_t globalPos = phits.globalPos_ ;
-  uint64_t twoGlobalPos = globalPos << 1 ;
-
-
-}*/
-
-/*
-//TODO does the orientation of the contig matter while chopping sequence ?
-//not needed
-void PufferfishIndex::getRawSeq(util::ProjectedHits& phits,
-CanonicalKmerIterator& kit,  std::string& contigStr, int readLen){
-  //auto queryPos = kit->second ;
-
-  //auto remainingContigLen = phits.contigLen_ - (phits.contigPos_ + k_) ;
-  //auto remainingReadLen = readLen - (kit->second + k_ ) ;
-
-    uint64_t globalPos = phits.globalPos_ ;
-    //uint64_t twoGlobalPos = globalPos << 1 ;
-
-    //index of the contig
-    auto rank = contigRank_(globalPos) ;
-    //start position of this contig
-    uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) +
-1;
-
-    //clip from both side for now
-    //go to right by read length
-    //if contigLen < 2*readLen then
-    //get back the entire contig
-    uint64_t clipLen = 2*readLen ;
-    uint64_t clipStart = sp ;
-    if(phits.contigLen_ < clipLen){
-      clipLen = phits.contigLen_ ;
-    }else{
-      clipStart = std::max(sp, globalPos - readLen) ;
-      clipLen = std::min(readLen,static_cast<int>(globalPos - clipStart)) +
-std::min(phits.contigPos_ + 101, phits.contigLen_ - phits.contigPos_) ;
+std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isFw=true) {
+	std::string outstr = "";
+	uint64_t validLength = 0;
+	uint64_t word = 0;
+	uint8_t base = 0;
+	while (length > 0) {
+	validLength = std::min(length, (size_t)32);
+	length -= validLength;
+ 	word = seq_.get_int(2*globalPos, 2*validLength);
+	globalPos += validLength;
+	if (isFw)
+	  for(int i = 0; i < 2*validLength ;i+=2){
+      base = (word >> i) & 0x03;
+	    switch(base){
+    	case 0:
+        outstr += 'A';
+        break ;
+	    case 1:
+        outstr += 'C';
+	      break ;
+    	case 2:
+        outstr += 'G';
+    	  break ;
+	    case 3:
+        outstr += 'T';
+	      break ;
+    	}
     }
-    uint64_t twoSp = clipStart << 1 ;
-    auto numOfKmers = clipLen / k_ ;
-    auto resLen  = clipLen % k_ ;
-    uint64_t i{0} ;
-    while(i < numOfKmers){
-      uint64_t fk = seq_.get_int(twoSp + i*twok_ , twok_) ;
-      CanonicalKmer mer ;
-      mer.fromNum(fk) ;
-      contigStr += mer.to_str() ;
-      i++ ;
+	else
+    for(int i = 0; i < 2*validLength ;i+=2){
+      base = (word >> i) & 0x03;
+      switch(base){
+      case 0:
+        outstr = 'T' + outstr;
+        break ;
+      case 1:
+        outstr = 'G' + outstr;
+        break ;
+      case 2:
+        outstr = 'C' + outstr;
+        break ;
+      case 3:
+        outstr = 'A' + outstr;
+        break ;
+      }
     }
-
-    //TODO check boundary
-    //residual kmer we might clip the wrong end
-    if(resLen > 0){
-      uint64_t fk = seq_.get_int(twoSp + i*twok_ , twok_) ;
-      CanonicalKmer mer ;
-      mer.fromNum(fk) ;
-      contigStr += mer.to_str().substr(0,resLen) ;
-      contigStr += "\0" ;
-    }
-
-
-    //return contigStr ;
-
+	}
+  return outstr;
 }
-*/
+
 
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
     -> util::ProjectedHits {
