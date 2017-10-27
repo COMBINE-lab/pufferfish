@@ -450,6 +450,7 @@ void processReadsPair(paired_parser* parser,
       //TODO Write them to a sam file
       hctr.totHits += jointHits.size();
       hctr.peHits += jointHits.size();
+      hctr.numMapped++;
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
       //TODO When you get to this, you should be done aligning!!
@@ -548,6 +549,16 @@ bool spawnProcessReadsthreads(
 }
 
 
+void printAlignmentSummary(HitCounters& hctrs, std::shared_ptr<spdlog::logger> consoleLog) {
+  consoleLog->info("Done mapping reads.");
+  consoleLog->info("\n\n");
+  consoleLog->info("=====");
+  consoleLog->info("Observed {} reads", hctrs.numReads);
+  consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
+  consoleLog->info("Average # hits per read : {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
+  consoleLog->info("=====");
+}
+
 template <typename PufferfishIndexT>
 bool alignReads(
               PufferfishIndexT& pfi,
@@ -616,10 +627,8 @@ bool alignReads(
                              outLog, hctrs, mopts) ;
 
     pairParserPtr->stop();
-  consoleLog->info("Done mapping reads.");
-  consoleLog->info("In total saw {} reads.", hctrs.numReads);
-  consoleLog->info("Final # hits per read = {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
 	consoleLog->info("flushing output queue.");
+  printAlignmentSummary(hctrs, consoleLog);
 	outLog->flush();
   }
 

@@ -510,13 +510,14 @@ struct RefPos {
 };
 
 struct HitCounters {
-        std::atomic<uint64_t> peHits{0};
-        std::atomic<uint64_t> seHits{0};
-        std::atomic<uint64_t> trueHits{0};
-        std::atomic<uint64_t> totHits{0};
-        std::atomic<uint64_t> numReads{0};
-        std::atomic<uint64_t> tooManyHits{0};
-        std::atomic<uint64_t> lastPrint{0};
+  std::atomic<uint64_t> numMapped{0};
+  std::atomic<uint64_t> peHits{0};
+  std::atomic<uint64_t> seHits{0};
+  std::atomic<uint64_t> trueHits{0};
+  std::atomic<uint64_t> totHits{0};
+  std::atomic<uint64_t> numReads{0};
+  std::atomic<uint64_t> tooManyHits{0};
+  std::atomic<uint64_t> lastPrint{0};
 };
 
 
