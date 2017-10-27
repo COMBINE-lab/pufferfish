@@ -552,7 +552,7 @@ CanonicalKmer PufferfishSparseIndex::getStartKmer(uint64_t rank){
 CanonicalKmer PufferfishSparseIndex::getEndKmer(uint64_t rank){
   CanonicalKmer::k(k_) ;
   CanonicalKmer kb ;
-  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  //uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
   uint64_t contigEnd = contigSelect_(rank + 1);
 
   uint64_t fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;

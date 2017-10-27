@@ -1,6 +1,7 @@
 #ifndef HIT_COLLECTOR_HPP
 #define HIT_COLLECTOR_HPP
 
+#include "CommonTypes.hpp"
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "PufferfishIndex.hpp"
@@ -22,8 +23,9 @@ public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
-                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                   spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
+    using namespace pufferfish::common_types;
     //(void)verbose;
 
     if (hits.empty()) {
@@ -35,15 +37,16 @@ public:
 
     // Map from (reference id, orientation) pair to a cluster of
     // MEMs.
-    std::map<std::pair<size_t, bool>, std::vector<util::MemInfo>,
-             util::cmpByPair>
+    std::map<std::pair<ReferenceID, bool>, std::vector<util::MemInfo>>
         trMemMap;
     memCollection.reserve(hits.size());
-    for (auto hIter = hits.begin(); hIter != hits.end(); ++hIter) {
-      auto& readPos = hIter->first;
-      auto& projHits = hIter->second;
+    for (auto& hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
+      auto& readPos = hit.first;
+      auto& projHits = hit.second;
+      // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
+      // Maybe we want to change the interface (make these members public or provide accessors)?
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_);
-      auto memItr = memCollection.end()-1;
+      auto memItr = std::prev(memCollection.end());
       for (auto& posIt : projHits.refRange) {
         auto refPosOri = projHits.decodeHit(posIt);
         trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
@@ -51,12 +54,11 @@ public:
       }
     }
 
-    for (auto trMemIt = trMemMap.begin(); trMemIt != trMemMap.end();
-         ++trMemIt) {
-      auto& trOri = trMemIt->first;
+    for (auto& trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
+      auto& trOri = trMem.first;
       auto& tid = trOri.first;
       auto& isFw = trOri.second;
-      auto& memList = trMemIt->second;
+      auto& memList = trMem.second;
       // sort memList according to mem reference positions
       std::sort(memList.begin(), memList.end(),
                 [](util::MemInfo& q1, util::MemInfo& q2) -> bool {
@@ -64,34 +66,39 @@ public:
                   });
       std::vector<util::MemCluster> currMemClusters;
       // cluster MEMs so that all the MEMs in one cluster are concordant.
-      for (auto hitIt = memList.begin(); hitIt != memList.end(); hitIt++) {
+      for (auto& hit : core::range<decltype(memList.begin())>(memList.begin(), memList.end())) {
         bool foundAtLeastOneCluster = false;
         bool gapIsSmall = false;
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
-          if (hitIt->tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
+          if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
             gapIsSmall = true;
-            if ( (isFw && hitIt->memInfo->rpos >= prevClus->getReadLastHitPos()) ||
-                 (!isFw && hitIt->memInfo->rpos <= prevClus->getReadLastHitPos())) {
+            if ( (isFw && hit.memInfo->rpos >= prevClus->getReadLastHitPos()) ||
+                 (!isFw && hit.memInfo->rpos <= prevClus->getReadLastHitPos())) {
               foundAtLeastOneCluster = true;
-              prevClus->mems.emplace_back(hitIt->memInfo, hitIt->tpos);
+              prevClus->mems.emplace_back(hit.memInfo, hit.tpos);
             }
+          } else {
+            break;
           }
-          else break;
         }
+
         if (!foundAtLeastOneCluster) {
-          auto& lastClus = currMemClusters.back();
-          util::MemCluster newClus(isFw);
-          if (!currMemClusters.empty() && gapIsSmall) {
-          // add all previous compatable mems before this last one that was crossed
-            for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->memInfo->rpos < hitIt->memInfo->rpos; mem++) {
+          auto prevLastIndex = static_cast<int32_t>(currMemClusters.size()) - 1;
+          // Create the new clusters on the end of the currMemClusters vector
+          currMemClusters.emplace_back(isFw);
+          auto& newClus = currMemClusters.back();
+          if ((prevLastIndex > 0) and gapIsSmall) {
+            auto& lastClus = currMemClusters[prevLastIndex];
+            // add all previous compatable mems before this last one that was crossed
+            for (auto mem = lastClus.mems.begin(); mem != lastClus.mems.end() && mem->memInfo->rpos < hit.memInfo->rpos; mem++) {
               newClus.mems.emplace_back(mem->memInfo, mem->tpos);
             }
           }
-          newClus.mems.emplace_back(hitIt->memInfo, hitIt->tpos);
-          currMemClusters.push_back(newClus);
+          newClus.mems.emplace_back(hit.memInfo, hit.tpos);
         }
       }
+      /*
       if (verbose) {
         std::cout << "t" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
         for (auto& clus : currMemClusters) {
@@ -101,8 +108,10 @@ public:
           std::cout << "\n";
         }
       }
+      */
       // This is kind of inefficient (copying the currMemClusters while probably we can build it on the fly
-      memClusters[tid].insert(memClusters[tid].end(), currMemClusters.begin(), currMemClusters.end());
+      memClusters[tid].insert(memClusters[tid].end(), std::make_move_iterator(currMemClusters.begin()),
+                              std::make_move_iterator(currMemClusters.end()));
     }
     return true;
   }
@@ -120,45 +129,54 @@ public:
                                   // contig
       cCurrPos += k;
     }
-    kit++; // go to the next kmer in the read (In read we always move fw.)
-    size_t readStart = kit->second;
-    pufferfish::CanonicalKmerIterator kit_end;
+
+    int currReadStart = kit->second + 1;
+    auto readSeqView = kit.seq();
+    auto readSeqLen = readSeqView.size();
+    auto readSeqStart = currReadStart;
+    auto readSeqOffset = currReadStart + k - 1;
+    int fastNextReadCode{0};
     bool stillMatch = true;
-    CanonicalKmer cmer;
-    while (stillMatch && cCurrPos < cEndPos && cCurrPos > cStartPos &&
-           kit != kit_end) {        // over kmers in contig
+
+    while (stillMatch and
+           (cCurrPos < cEndPos) and
+           (cCurrPos > cStartPos) and
+           readSeqOffset < readSeqLen) { // over kmers in contig
+
       if (hit.contigOrientation_) { // if fw match, compare read last base with
                                     // contig first base and move fw in the
                                     // contig
         auto baseCnt = k < cEndPos - cCurrPos ? k : cEndPos - cCurrPos;
         uint64_t fk = allContigs.get_int(2 * (cCurrPos), 2 * baseCnt);
-        cmer.fromNum(fk);
         cCurrPos += baseCnt;
-        for (size_t i = 0; i < baseCnt && kit != kit_end; i++) {
-          auto readCode = (kit->first.fwWord()) >> (2 * (k - 1)) & 0x3;
+        for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
+          // be dirty and peek into the underlying read
+          fastNextReadCode = my_mer::code(readSeqView[readSeqOffset]);
           auto contigCode = (fk >> (2 * i)) & 0x3;
-          if (readCode != contigCode) {
+          if (fastNextReadCode != contigCode) {
             stillMatch = false;
             break;
           }
           hit.k_++;
-          kit++;
+          readSeqOffset++;
+          readSeqStart++;
         }
       } else { // if rc match, compare read last base with contig last base and
                // move backward in the contig
         auto baseCnt = k < cCurrPos - cStartPos ? k : cCurrPos - cStartPos;
         uint64_t fk = allContigs.get_int(2 * (cCurrPos - baseCnt), 2 * baseCnt);
-        cmer.fromNum(fk);
         cCurrPos -= baseCnt;
-        for (size_t i = baseCnt - 1; i >= 0 && kit != kit_end; i--) {
-          auto readCode = kit->first.rcWord() & 0x3;
+        for (size_t i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
+          // be dirty and peek into the underlying read
+          fastNextReadCode = my_mer::code(my_mer::complement(readSeqView[readSeqOffset]));
           auto contigCode = (fk >> (2 * i)) & 0x3;
-          if (readCode != contigCode) {
+          if (fastNextReadCode != contigCode) {
             stillMatch = false;
             break;
           }
           hit.k_++;
-          kit++;
+          readSeqOffset++;
+          readSeqStart++;
         }
       }
     }
@@ -166,7 +184,8 @@ public:
       hit.contigPos_ -= (hit.k_ - k);
       hit.globalPos_ -= (hit.k_ - k);
     }
-    return readStart;
+    kit.jumpTo(readSeqStart);
+    return currReadStart;
   }
 
   bool operator()(std::string& read,

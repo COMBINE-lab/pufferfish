@@ -66,6 +66,7 @@ private:
   }
 
 public:
+  inline stx::string_view seq() { return s_; }
   // use:  ++iter;
   // pre:
   // post: *iter is now exhausted

@@ -89,8 +89,9 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
       for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
         // if both the left and right clusters are oriented in the same direction, skip this pair
         // NOTE: This should be optional as some libraries could allow this.
-        if (lclust->isFw == rclust->isFw)
+        if (lclust->isFw == rclust->isFw) {
           continue;
+        }
 
         // We will use the left and right iterators to point to the clusters that are
         // "actually" the leftmost and rightmost (rather than those that come from read 1 and read 2).
@@ -100,14 +101,14 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         // left = read 2
         // right = read 1
         // otherwise, vice versa.
-        if (lclust->mems[0].tpos > rclust->mems[0].tpos) {
+        if (lclust->firstRefPos() > rclust->firstRefPos()) {
           left = rclust;
           right = lclust;
         }
 
         // FILTER 1
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-        size_t fragmentLen = right->mems.back().tpos + right->mems.back().memInfo->memlen - left->mems.front().tpos;
+        size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
         if ( fragmentLen < maxFragmentLength) {
           if (verbose) {
             std::cout << "jointMemsList start\n";
@@ -141,9 +142,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
+  double coverageRatio = 0.5;
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                     [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
-                                       return pairedReadMems.coverage < 0.5*maxCoverage ;
+                                     [&maxCoverage, coverageRatio](util::JointMems& pairedReadMems) -> bool {
+                                       return pairedReadMems.coverage < coverageRatio*maxCoverage ;
                                      }),
                       jointMemsList.end());
 }
@@ -402,7 +404,8 @@ void processReadsPair(paired_parser* parser,
 
       //extractSuitableAligningPairs(joinHits);
       //TODO Write them to a sam file
-      hctr.totHits += jointHits.size() ;
+      hctr.totHits += jointHits.size();
+      hctr.peHits += jointHits.size();
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
       //TODO When you get to this, you should be done aligning!!
@@ -484,7 +487,6 @@ bool spawnProcessReadsthreads(
                               AlignmentOpts* mopts){
 
   std::vector<std::thread> threads ;
-  std::cerr << "\n In spawn threads\n" ;
 
   for(size_t i = 0; i < nthread ; ++i){
 
@@ -569,7 +571,7 @@ bool alignReads(
     spawnProcessReadsthreads(nthread, pairParserPtr.get(), pfi, iomutex,
                              outLog, hctrs, mopts) ;
 
-
+    pairParserPtr->stop();
   consoleLog->info("Done mapping reads.");
   consoleLog->info("In total saw {} reads.", hctrs.numReads);
   consoleLog->info("Final # hits per read = {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
