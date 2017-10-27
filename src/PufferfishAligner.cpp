@@ -173,6 +173,10 @@ std::string decodeSeq(sdsl::int_vector<2>& rawSeq, size_t globalPos, size_t leng
 
 }
 
+std::string clipContigRawSeq(uint32_t& cid){
+  return "" ;
+}
+
 template <typename PufferfishIndexT>
 void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, PufferfishIndexT& pfi, uint32_t tid, std::map<uint32_t, std::string>& contigSeqCache, size_t readGapDist){
   
@@ -289,10 +293,30 @@ void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::Jo
   size_t readLen = leftReadSeq.length() ;
 
   //for left reads 
+  //TODO take care of the
+  //first and last unimem
+  
+
   for(size_t i = 0; i < hit.leftClust->mems.size() - 1; i++){
+
+    if(i == 0){
+      //TODO not sure about this b/c read is always traversed left to right
+      std::string tmp ;
+      auto& firstMem = hit.leftClust->mems[i] ;
+      auto offset = (hit.leftClust->isFw) ? firstMem.memInfo->rpos : (readLen-firstMem.memInfo->rpos) ;
+      tmp = (hit.leftClust->isFw)?(leftReadSeq.substr(0,firstMem.memInfo->rpos)):(leftReadSeq.substr(firstMem.memInfo->rpos,readLen-firstMem.memInfo->rpos)) ;
+      std::string readOffsetBegin = (hit.leftClust->isFw)?(tmp):(util::reverseComplement(tmp)) ;
+      if(contigSeqCache.find(firstMem.memInfo->cid) != contigSeqCache.end()){
+        tmp = contigSeqCache[firstMem.memInfo->cid].substr(firstMem.memInfo->cpos - THRESHOLD - offset, THRESHOLD + offset) ;
+      }else{
+        contigSeqCache[firstMem.memInfo->cid] = clipContigRawSeq(firstMem.memInfo->cid) ;
+        tmp = contigSeqCache[firstMem.memInfo->cid].substr(firstMem.memInfo->cpos - THRESHOLD - offset, THRESHOLD + offset) ;
+      }
+      paths.push_back({readOffsetBegin, tmp}) ;
+    }
+
     auto startMem = hit.leftClust->mems[i] ;
     auto endMem = hit.leftClust->mems[i+1] ;
-    
     std::string readgap = "" ;
     std::string path = "";
 
@@ -311,6 +335,7 @@ void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::Jo
       populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
 
     }
+
 
     paths.push_back({readgap, path}) ;
 
