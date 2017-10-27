@@ -145,7 +145,7 @@ std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isF
  	word = seq_.get_int(2*globalPos, 2*validLength);
 	globalPos += validLength;
 	if (isFw)
-	  for(int i = 0; i < 2*validLength ;i+=2){
+	  for(uint64_t i = 0; i < 2*validLength ;i+=2){
       base = (word >> i) & 0x03;
 	    switch(base){
     	case 0:
@@ -163,7 +163,7 @@ std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isF
     	}
     }
 	else
-    for(int i = 0; i < 2*validLength ;i+=2){
+    for(uint64_t i = 0; i < 2*validLength ;i+=2){
       base = (word >> i) & 0x03;
       switch(base){
       case 0:
