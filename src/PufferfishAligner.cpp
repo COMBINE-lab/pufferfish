@@ -76,6 +76,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   uint32_t maxCoverage{0};
+  //std::cout << "txp count:" << leftMemClusters.size() << "\n";
   for (auto& leftClustItr : leftMemClusters) {
     // reference id
     size_t tid = leftClustItr.first;
@@ -83,7 +84,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
     auto& lClusts = leftClustItr.second;
     // right mem clusters for the same reference id
     auto& rClusts = rightMemClusters[tid];
-
+    if ((lClusts.size() > 5 || rClusts.size() > 5) && (lClusts.size()>0 && rClusts.size()>0))
+    std::cout << "\t" << tid << ": lClusts.size:" << lClusts.size() << " , rClusts.size:" << rClusts.size() << "\n";
     // Compare the left clusters to the right clusters to filter by positional constraints
     for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
       for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
@@ -110,24 +112,19 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
         size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
         if ( fragmentLen < maxFragmentLength) {
-          if (verbose) {
-            std::cout << "jointMemsList start\n";
-          }
           // NOTE: This will add a new potential mapping *and* compute it's coverage.
           jointMemsList.emplace_back(tid, left, right, fragmentLen);
           if (verbose) {
-            std::cout << "jointMemsList end.\n";
-          }
-          if (verbose) {
-            const auto& last = jointMemsList.back();
+            std::cout <<"tid:"<<tid<<"\n";
             std::cout <<"left\n";
-            std::cout <<"leftsize = " << left->mems.size() << ", last leftMems size = " << last.leftClust->mems.size() << "\n";
+            std::cout <<"leftsize = " << left->mems.size() << "\n";
             for (size_t i = 0; i < left->mems.size(); i++){
-              std::cout << " t" << left->mems[i].tpos << " t2:" << last.leftClust->mems[i].tpos << " l" << left->mems[i].memInfo->memlen << "\n";
+              std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " ori:" << left->isFw;
             }
-            std::cout << "right\n";
-            for (auto& mem : last.rightClust->mems) {
-              std::cout <<  " t" << mem.tpos << " r" << mem.memInfo->rpos << " l" << mem.memInfo->memlen << "\n";
+            std::cout << "\nright\n";
+            std::cout <<"rightsize = " << left->mems.size() << "\n";
+            for (size_t i = 0; i < right->mems.size(); i++){
+              std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " ori:" << right->isFw;
             }
           }
           uint32_t currCoverage =  jointMemsList.back().coverage;
@@ -408,6 +405,8 @@ void processReadsPair(paired_parser* parser,
   while(parser->refill(rg)){
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
+      //std::cout << rpair.first.name << "\n";
+      bool verbose = false;// rpair.first.name == "read17739350/ENST00000421512;mate1:506-605;mate2:614-712";
       ++hctr.numReads ;
 
       jointHits.clear() ;
@@ -425,7 +424,8 @@ void processReadsPair(paired_parser* parser,
       bool lh = memCollector(rpair.first.seq,
                              leftHits,
                              mopts->maxSpliceGap,
-                             MateStatus::PAIRED_END_LEFT
+                             MateStatus::PAIRED_END_LEFT,
+                             verbose
                              /*
                              mopts->consistentHits,
                              refBlocks*/) ;
@@ -433,7 +433,8 @@ void processReadsPair(paired_parser* parser,
       bool rh = memCollector(rpair.second.seq,
                              rightHits,
                              mopts->maxSpliceGap,
-                             MateStatus::PAIRED_END_RIGHT
+                             MateStatus::PAIRED_END_RIGHT,
+                             verbose
                              /*,
                              mopts->consistentHits,
                              refBlocks*/) ;
@@ -442,7 +443,7 @@ void processReadsPair(paired_parser* parser,
       //otherwise orphan
 
       if(lh && rh){
-        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength) ;
+        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, verbose) ;
       }
       else{
         //ignore orphans for now
