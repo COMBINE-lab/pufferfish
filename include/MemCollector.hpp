@@ -16,7 +16,6 @@
 #include <sparsepp/spp.h>
 // using spp:sparse_hash_map;
 
-#define JUMPSIZE 10
 template <typename PufferfishIndexT> class MemCollector {
 
 public:
