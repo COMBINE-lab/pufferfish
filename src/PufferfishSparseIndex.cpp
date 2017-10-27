@@ -340,7 +340,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
           core::range<IterT>{}};
 }
 
-std::string PufferfishSparseIndex::getSeqStr(size_t globalPos, size_t length, bool isFw=true) {
+std::string PufferfishSparseIndex::getSeqStr(size_t globalPos, size_t length, bool isFw) {
 	std::string outstr = "";
 	uint64_t validLength = 0;
 	uint64_t word = 0;
@@ -609,6 +609,18 @@ CanonicalKmer PufferfishSparseIndex::getEndKmer(uint64_t rank){
   kb.fromNum(fk) ;
   return kb ;
 }
+
+uint32_t PufferfishSparseIndex::getContigLen(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank + 1);
+  return (static_cast<uint32_t>(contigEnd - sp + 1)) ;
+}
+
+uint64_t PufferfishSparseIndex::getGlobalPos(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  return sp ;
+}
+
 /**
  * Return the position list (ref_id, pos) corresponding to a contig.
  */

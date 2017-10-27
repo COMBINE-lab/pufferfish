@@ -103,7 +103,7 @@ public:
 
   // Returns the string value of contig sequence vector starting from position `globalPos` with `length` bases
   // and reverse-complements the string if `isFw` is false
-  std::string getSeqStr(size_t globalPos, size_t length, bool isFw);
+  std::string getSeqStr(size_t globalPos, size_t length, bool isFw=true);
 
   //
   //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
@@ -115,6 +115,9 @@ public:
 
   CanonicalKmer getStartKmer(uint64_t cid) ;
   CanonicalKmer getEndKmer(uint64_t cid) ;
+
+  uint32_t getContigLen(uint64_t cid) ;
+  uint64_t getGlobalPos(uint64_t cid) ;
 
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
