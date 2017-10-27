@@ -16,7 +16,6 @@
 #include <sparsepp/spp.h>
 // using spp:sparse_hash_map;
 
-#define JUMPSIZE 10
 template <typename PufferfishIndexT> class MemCollector {
 
 public:
@@ -26,17 +25,13 @@ public:
                    spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
     using namespace pufferfish::common_types;
-    //(void)verbose;
+    (void)verbose;
 
     if (hits.empty()) {
       return false;
     }
 
-    // spp::sparse_hash_map<std::pair<size_t, bool>, std::vector<util::MemInfo>>
-    // trMemMap;
-
-    // Map from (reference id, orientation) pair to a cluster of
-    // MEMs.
+    // Map from (reference id, orientation) pair to a cluster of MEMs.
     std::map<std::pair<ReferenceID, bool>, std::vector<util::MemInfo>>
         trMemMap;
     memCollection.reserve(hits.size());
@@ -191,17 +186,10 @@ public:
   bool operator()(std::string& read,
                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
-                  util::MateStatus mateStatus
-                  /*,
-                  util::MateStatus mateStatus,
-                  bool consistentHits,
-                  std::vector<std::string>& refBlocks*/) {
+                  util::MateStatus mateStatus) {
     // currently unused:
     // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
 
-    /*if(refBlocks.size() != readLen)
-        refBlocks.resize(readLen) ;
-    */
     util::ProjectedHits phits;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
@@ -210,16 +198,11 @@ public:
     pufferfish::CanonicalKmerIterator kit1(read);
     util::QueryCache qc;
 
-    // string block iterator
-    // decltype(refBlocks.begin()) bl ;
-    // initialize
-    // bl = refBlocks.begin() ;
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         size_t readPos = expandHitEfficient(phits, kit1);
-        // std::cerr<<"Final match length: " << phits.k_ << "\n";
         rawHits.push_back(std::make_pair(readPos, phits));
       } else
         ++kit1;
