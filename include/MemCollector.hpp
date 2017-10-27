@@ -152,7 +152,7 @@ public:
         for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
           // be dirty and peek into the underlying read
           fastNextReadCode = my_mer::code(readSeqView[readSeqOffset]);
-          auto contigCode = (fk >> (2 * i)) & 0x3;
+          int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
             break;
@@ -169,7 +169,7 @@ public:
         for (size_t i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
           // be dirty and peek into the underlying read
           fastNextReadCode = my_mer::code(my_mer::complement(readSeqView[readSeqOffset]));
-          auto contigCode = (fk >> (2 * i)) & 0x3;
+          int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
             break;

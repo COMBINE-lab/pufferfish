@@ -392,12 +392,14 @@ void processReadsPair(paired_parser* parser,
       //jointHits is a vector
       //this can be used for BFS
 
-
-      //TODO Have to make it per thread 
-      //have to make write access thread safe
-      std::map<uint32_t, std::string> contigSeqCache ;
-      for(auto hit : jointHits){
-        traverseGraph(rpair.first.seq,rpair.second.seq,hit, pfi, contigSeqCache) ;
+      bool doTraverse = false;
+      if (doTraverse) {
+        //TODO Have to make it per thread 
+        //have to make write access thread safe
+        std::map<uint32_t, std::string> contigSeqCache ;
+        for(auto hit : jointHits){
+          traverseGraph(rpair.first.seq,rpair.second.seq,hit, pfi, contigSeqCache) ;
+        }
       }
 
 
