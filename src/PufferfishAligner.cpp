@@ -77,7 +77,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   uint32_t maxCoverage{0};
-  bool hitMaxCoverage = false;
   //std::cout << "txp count:" << leftMemClusters.size() << "\n";
   for (auto& leftClustItr : leftMemClusters) {
     // reference id
@@ -116,7 +115,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         if ( fragmentLen < maxFragmentLength) {
           // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
           // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
-          if (!hitMaxCoverage || (hitMaxCoverage && left->coverage + right->coverage == maxCoverage)) {
+          if (maxCoverage < 2 * readLen || (left->coverage + right->coverage) == maxCoverage) {
             jointMemsList.emplace_back(tid, left, right, fragmentLen);
             if (verbose) {
               std::cout <<"tid:"<<tid<<"\n";
@@ -134,9 +133,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
             uint32_t currCoverage =  jointMemsList.back().coverage();
             if (maxCoverage < currCoverage) {
               maxCoverage = currCoverage;
-              if (maxCoverage == 2 * readLen) { // set to true if we hit maximum possible coverage
-                hitMaxCoverage = true;
-              }
             }
           }
         } else {
@@ -148,7 +144,15 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
   double coverageRatio = 0.5;
-  jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+  // if we've found a perfect match, we will erase any match that is not perfect
+  if (maxCoverage == 2*readLen)
+    jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                        [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
+                                          return pairedReadMems.coverage() != maxCoverage;
+                                        }),
+                         jointMemsList.end());
+  else // ow, we will go with the heuristic that just keep those mappings that have at least half of the maximum coverage
+    jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&maxCoverage, coverageRatio](util::JointMems& pairedReadMems) -> bool {
                                        return pairedReadMems.coverage() < coverageRatio*maxCoverage ;
                                      }),
