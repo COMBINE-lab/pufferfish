@@ -73,6 +73,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                         spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& rightMemClusters,
                         std::vector<util::JointMems>& jointMemsList,
                         uint32_t maxFragmentLength,
+                        uint32_t readLen,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   uint32_t maxCoverage{0};
@@ -84,8 +85,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
     auto& lClusts = leftClustItr.second;
     // right mem clusters for the same reference id
     auto& rClusts = rightMemClusters[tid];
-    if ((lClusts.size() > 5 || rClusts.size() > 5) && (lClusts.size()>0 && rClusts.size()>0))
-    std::cout << "\t" << tid << ": lClusts.size:" << lClusts.size() << " , rClusts.size:" << rClusts.size() << "\n";
+    //if ((lClusts.size() > 5 || rClusts.size() > 5) && (lClusts.size()>0 && rClusts.size()>0))
+    //std::cout << "\t" << tid << ": lClusts.size:" << lClusts.size() << " , rClusts.size:" << rClusts.size() << "\n";
     // Compare the left clusters to the right clusters to filter by positional constraints
     for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
       for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
@@ -112,24 +113,27 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
         size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
         if ( fragmentLen < maxFragmentLength) {
-          // NOTE: This will add a new potential mapping *and* compute it's coverage.
-          jointMemsList.emplace_back(tid, left, right, fragmentLen);
-          if (verbose) {
-            std::cout <<"tid:"<<tid<<"\n";
-            std::cout <<"left\n";
-            std::cout <<"leftsize = " << left->mems.size() << "\n";
-            for (size_t i = 0; i < left->mems.size(); i++){
-              std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " ori:" << left->isFw;
+          // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
+          // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
+          if (maxCoverage < 2 * readLen || (left->coverage + right->coverage) == maxCoverage) {
+            jointMemsList.emplace_back(tid, left, right, fragmentLen);
+            if (verbose) {
+              std::cout <<"tid:"<<tid<<"\n";
+              std::cout <<"left\n";
+              std::cout <<"leftsize = " << left->mems.size() << "\n";
+              for (size_t i = 0; i < left->mems.size(); i++){
+                std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " ori:" << left->isFw;
+              }
+              std::cout << "\nright\n";
+              std::cout <<"rightsize = " << left->mems.size() << "\n";
+              for (size_t i = 0; i < right->mems.size(); i++){
+                std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " ori:" << right->isFw;
+              }
             }
-            std::cout << "\nright\n";
-            std::cout <<"rightsize = " << left->mems.size() << "\n";
-            for (size_t i = 0; i < right->mems.size(); i++){
-              std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " ori:" << right->isFw;
+            uint32_t currCoverage =  jointMemsList.back().coverage();
+            if (maxCoverage < currCoverage) {
+              maxCoverage = currCoverage;
             }
-          }
-          uint32_t currCoverage =  jointMemsList.back().coverage;
-          if (maxCoverage < currCoverage) {
-            maxCoverage = currCoverage;
           }
         } else {
           break;
@@ -140,9 +144,17 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
   double coverageRatio = 0.5;
-  jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+  // if we've found a perfect match, we will erase any match that is not perfect
+  if (maxCoverage == 2*readLen)
+    jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                        [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
+                                          return pairedReadMems.coverage() != maxCoverage;
+                                        }),
+                         jointMemsList.end());
+  else // ow, we will go with the heuristic that just keep those mappings that have at least half of the maximum coverage
+    jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&maxCoverage, coverageRatio](util::JointMems& pairedReadMems) -> bool {
-                                       return pairedReadMems.coverage < coverageRatio*maxCoverage ;
+                                       return pairedReadMems.coverage() < coverageRatio*maxCoverage ;
                                      }),
                       jointMemsList.end());
 }
@@ -206,6 +218,7 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
 
   auto s = smem.memInfo ;
   auto e = emem.memInfo ;
+
   auto stpos = smem.tpos ;
   //auto etpos = emem.tpos ;
   auto sCid = s->cid ;
@@ -329,41 +342,26 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
       return ;
   }
 
-  //search if contig sequence is in the cacheBlock and to clip
-  auto startcid = clust->mems[0].memInfo->cid ;
-  //auto endcid = clust->mems[clustSize-1].memInfo->cid ;
-  //auto scpos = clust->mems[0].memInfo->cid ;
-  //auto ecpos = clust->mems[clustSize-1].memInfo->cid ;
-  if(overhangLeft > 0){
-    paths.push_back({readSeq.substr(0,overhangLeft), pfi.getSeqStr(pfi.getGlobalPos(startcid),overhangLeft+THRESHOLD)}) ;
-  }
-
-  //explore paths
   for(size_t i = 0; i < clust->mems.size() - 1; i++){
 
-    //unimems in the middle
-    //we are sure that this will not happen with an
-    //unimem where read maps in the middle ;
+      //search if contig sequence is in the cacheBlock and to clipon the same contig explore paths between unimems from graphs 
     auto startMem = clust->mems[i] ;
     auto endMem = clust->mems[i+1] ;
     std::string readgap = "" ;
     std::string path = "";
-
+    
     auto readGapDist = (clust->isFw)?(endMem.memInfo->rpos - (startMem.memInfo->rpos + startMem.memInfo->memlen)):(startMem.memInfo->rpos - (endMem.memInfo->rpos + endMem.memInfo->memlen)) ;
 
     if(readGapDist >= 0){
-      //clip the appropriate read sequence 
-      if(readGapDist > 0){
-        if(clust->isFw){
-          readgap = readSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
-        }
-        else{
-          std::string tmp(readSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
-          readgap = util::reverseComplement(tmp) ;
-        }
+      //clip the appropriate read sequence
+      if(clust->isFw){
+        readgap = readSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
+      }
+      else{
+        std::string tmp(readSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
+        readgap = util::reverseComplement(tmp) ;
       }
 
-      //not on the same contig explore paths between unimems from graphs 
       if(startMem.memInfo->cid  != endMem.memInfo->cid){
         populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
       }else if(readGapDist > 0){
@@ -375,8 +373,6 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
 
     }
     paths.push_back({readgap, path}) ;
-
-
   }
 
   //TODO overhangRight include in path 
@@ -472,7 +468,7 @@ void processReadsPair(paired_parser* parser,
       //otherwise orphan
 
       if(lh && rh){
-        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, verbose) ;
+        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, readLen, verbose) ;
       }
       else{
         //ignore orphans for now
@@ -503,6 +499,7 @@ void processReadsPair(paired_parser* parser,
       //TODO Write them to a sam file
       hctr.totHits += jointHits.size();
       hctr.peHits += jointHits.size();
+      hctr.numMapped += !jointHits.empty() ? 1 : 0;
 
       //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
       //TODO When you get to this, you should be done aligning!!
@@ -601,6 +598,16 @@ bool spawnProcessReadsthreads(
 }
 
 
+void printAlignmentSummary(HitCounters& hctrs, std::shared_ptr<spdlog::logger> consoleLog) {
+  consoleLog->info("Done mapping reads.");
+  consoleLog->info("\n\n");
+  consoleLog->info("=====");
+  consoleLog->info("Observed {} reads", hctrs.numReads);
+  consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
+  consoleLog->info("Average # hits per read : {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
+  consoleLog->info("=====");
+}
+
 template <typename PufferfishIndexT>
 bool alignReads(
               PufferfishIndexT& pfi,
@@ -669,10 +676,8 @@ bool alignReads(
                              outLog, hctrs, mopts) ;
 
     pairParserPtr->stop();
-  consoleLog->info("Done mapping reads.");
-  consoleLog->info("In total saw {} reads.", hctrs.numReads);
-  consoleLog->info("Final # hits per read = {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
 	consoleLog->info("flushing output queue.");
+  printAlignmentSummary(hctrs, consoleLog);
 	outLog->flush();
   }
 

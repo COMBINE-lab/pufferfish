@@ -85,15 +85,14 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getRefNames();
-  // auto& txpLens = rmi.txpLens;
+  auto& txpLens = pfi.getRefLengths();
 
   auto numRef = txpNames.size();
   // for now go with constant length
   // TODO read reference information
   // while reading the index
-  int txpLen = 1000;
   for (size_t i = 0; i < numRef; ++i) {
-    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLen);
+    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
   }
   // Eventually output a @PG line
   // some other version nnumber for now,
@@ -214,6 +213,7 @@ inline uint32_t writeAlignmentsToStream(
   for (auto& qa : jointHits) {
     ++i;
     auto& refName = formatter.index->refName(qa.tid);
+    uint32_t txpLen = formatter.index->refLength(qa.tid);
     // === SAM
     if (qa.isPaired) {
       getSamFlags(qa, true, flags1, flags2);
@@ -223,9 +223,7 @@ inline uint32_t writeAlignmentsToStream(
       }
 
       /** NOTE : WHY IS txpLen 100 here --- we should store and read this from the index. **/
-      // uint32_t txpLen = 100;
-      // rapmap::utils::adjustOverhang(qa, txpLens[qa.tid], cigarStr1,
-      // cigarStr2);
+      adjustOverhang(qa, txpLen, cigarStr1, cigarStr2);
       // Reverse complement the read and reverse
       // the quality string if we need to
       std::string* readSeq1 = &(r.first.seq);
@@ -256,8 +254,8 @@ inline uint32_t writeAlignmentsToStream(
       const bool read1First{read1Pos < read2Pos};
 
       // TODO : We don't have access to the txp len yet
-      // const int32_t minPos = read1First ? read1Pos : read2Pos;
-      // if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
+      const int32_t minPos = read1First ? read1Pos : read2Pos;
+      if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
 
       // get the fragment length as a signed int
       const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
@@ -299,9 +297,7 @@ inline uint32_t writeAlignmentsToStream(
       }
 
       /** NOTE : WHY IS txpLen 100 here --- we should store and read this from the index. **/
-      // uint32_t txpLen = 100;
-      // rapmap::utils::adjustOverhang(qa, txpLens[qa.tid], cigarStr1,
-      // cigarStr2);
+      adjustOverhang(qa, txpLen, cigarStr1, cigarStr2);
       // Reverse complement the read and reverse
       // the quality string if we need to
 
@@ -363,8 +359,8 @@ inline uint32_t writeAlignmentsToStream(
       const bool read1First{read1Pos < read2Pos};
 
       // TODO : We don't have access to the txp len yet
-      // const int32_t minPos = read1First ? read1Pos : read2Pos;
-      // if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
+      const int32_t minPos = read1First ? read1Pos : read2Pos;
+      if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
 
       // get the fragment length as a signed int
       const int32_t fragLen = static_cast<int32_t>(qa.fragLen);

@@ -212,6 +212,16 @@ void PosFinder::parseFile() {
       // parse value and add all conitgs to contigVec
 
       path[ref_cnt] = contigVec;
+
+      uint32_t refLength{0};
+      bool firstContig{true};
+      for (auto& ctig : contigVec) {
+        int32_t l = contigid2seq[ctig.first].length - (firstContig ? 0 : (k-1));
+        refLength += l;
+        firstContig = false;
+      }
+
+      refLengths.push_back(refLength);
       refMap.push_back(id);
       ref_cnt++;
       // refMap[ref_cnt] = id;
@@ -393,6 +403,7 @@ void PosFinder::mapContig2Pos() {
 
 void PosFinder::clearContigTable() {
   refMap.clear();
+  refLengths.clear();
   contig2pos.clear();
 }
 
@@ -400,11 +411,17 @@ void PosFinder::clearContigTable() {
 void PosFinder::serializeContigTable(const std::string& odir) {
   std::string ofile = odir + "/ctable.bin";
   std::string eqfile = odir + "/eqtable.bin";
+  std::string rlfile = odir + "/reflengths.bin";
   std::ofstream ct(ofile);
   std::ofstream et(eqfile);
+  std::ofstream rl(rlfile);
   cereal::BinaryOutputArchive ar(ct);
   cereal::BinaryOutputArchive eqAr(et);
+  cereal::BinaryOutputArchive rlAr(rl);
   {
+    // Write out the reference lengths
+    rlAr(refLengths);
+
     // We want to iterate over the contigs in precisely the
     // order they appear in the contig array (i.e., the iterator
     // order of contigid2seq).

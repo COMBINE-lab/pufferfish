@@ -39,6 +39,7 @@ private:
 
   // spp::sparse_hash_map<uint64_t, std::string> refMap;
   std::vector<std::string> refMap;
+  std::vector<uint32_t> refLengths;
   // maps each contig to a list of positions in different transcripts
   std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str,
                                                  const char& ch);
