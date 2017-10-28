@@ -264,6 +264,7 @@ enum class MateStatus : uint8_t {
     std::vector<MemInfo> mems;
     bool isFw;
     bool isVisited = false;
+    uint32_t coverage{0};
     std::vector<std::string> alignableStrings;
     MemCluster(bool isFwIn): isFw(isFwIn) {}
     /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
@@ -276,6 +277,14 @@ enum class MateStatus : uint8_t {
     MemCluster& operator=(const MemCluster& other) = default;
     MemCluster() {}
 
+    // Add the new mem to the list and update the coverage
+    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos) {
+      int endOfLastMem = 0;
+      if (!mems.empty())
+        endOfLastMem = (int)(mems.back().tpos + mems.back().memInfo->memlen);
+      coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen - endOfLastMem), 0);
+      mems.emplace_back(uniMemInfo, tpos);
+    }
     size_t getReadLastHitPos() const { return mems.empty()?0:mems.back().memInfo->rpos;}
     size_t getTrLastHitPos() const {
       return mems.empty()?0:mems.back().tpos;
@@ -287,6 +296,22 @@ enum class MateStatus : uint8_t {
     inline size_t firstRefPos() const { return getTrFirstHitPos(); }
     inline size_t lastRefPos() const { return getTrLastHitPos(); }
     inline size_t lastMemLen() const { return getTrLastMemLen(); }
+    void calcCoverage() {
+      if (mems.size() == 0) {
+        std::cerr << "Shouldn't happen! Cluster is empty.\n";
+        return;
+      }
+      // we keep prev to take care of overlaps while calculating the coverage
+      auto lstart = mems.begin();
+      size_t offset = 0;
+      auto prev = lstart;
+      coverage = mems[0].memInfo->memlen;
+      for (auto&& mem : mems) {
+        ++offset;
+        coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
+        prev = lstart + offset;
+      }
+    }
   };
 
 
@@ -295,40 +320,12 @@ enum class MateStatus : uint8_t {
     std::vector<util::MemCluster>::iterator leftClust;
     std::vector<util::MemCluster>::iterator rightClust;
     size_t fragmentLen;
-    uint32_t coverage{0};
     JointMems(uint32_t tidIn,
               std::vector<util::MemCluster>::iterator leftClustIn,
               std::vector<util::MemCluster>::iterator rightClustIn,
               size_t fragmentLenIn) : tid(tidIn), leftClust(leftClustIn), rightClust(rightClustIn), fragmentLen(fragmentLenIn) {
-      // we keep prev to take care of overlaps while calculating the coverage
-      auto lstart = leftClust->mems.begin();
-      auto rstart = rightClust->mems.begin();
-      size_t offset = 0;
-      auto prev = lstart;
-      coverage = leftClust->mems[0].memInfo->memlen;
-      for (auto&& mem : leftClust->mems) {
-        ++offset;
-        coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
-        prev = lstart + offset;
-      }
-      offset = 0;
-      prev = rstart;
-      coverage += rightClust->mems[0].memInfo->memlen;
-      for (auto&& mem : rightClust->mems) {
-        ++offset;
-        coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
-        prev = rstart + offset;
-      }
-      /*if (coverage > 100) {
-        std::cerr << "coverage:"<<coverage<<"\n";
-        for (auto& mem : leftMems.mems) {
-          std::cerr << "left:" << mem.tpos << " , " << mem.rpos << " , " << mem.memlen << "\n";
-        }
-        for (auto& mem : rightMems.mems) {
-          std::cerr << "right:" << mem.tpos << " , " << mem.rpos << " , " << mem.memlen << "\n";
-        }
-        }*/
     }
+    uint32_t coverage() {return leftClust->coverage+rightClust->coverage;}
   };
  
 struct QuasiAlignment {

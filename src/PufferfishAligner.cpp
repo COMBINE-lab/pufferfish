@@ -73,9 +73,11 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                         spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& rightMemClusters,
                         std::vector<util::JointMems>& jointMemsList,
                         uint32_t maxFragmentLength,
+                        uint32_t readLen,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   uint32_t maxCoverage{0};
+  bool hitMaxCoverage = false;
   //std::cout << "txp count:" << leftMemClusters.size() << "\n";
   for (auto& leftClustItr : leftMemClusters) {
     // reference id
@@ -112,24 +114,30 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
         size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
         if ( fragmentLen < maxFragmentLength) {
-          // NOTE: This will add a new potential mapping *and* compute it's coverage.
-          jointMemsList.emplace_back(tid, left, right, fragmentLen);
-          if (verbose) {
-            std::cout <<"tid:"<<tid<<"\n";
-            std::cout <<"left\n";
-            std::cout <<"leftsize = " << left->mems.size() << "\n";
-            for (size_t i = 0; i < left->mems.size(); i++){
-              std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " ori:" << left->isFw;
+          // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
+          // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
+          if (!hitMaxCoverage || (hitMaxCoverage && left->coverage + right->coverage == maxCoverage)) {
+            jointMemsList.emplace_back(tid, left, right, fragmentLen);
+            if (verbose) {
+              std::cout <<"tid:"<<tid<<"\n";
+              std::cout <<"left\n";
+              std::cout <<"leftsize = " << left->mems.size() << "\n";
+              for (size_t i = 0; i < left->mems.size(); i++){
+                std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " ori:" << left->isFw;
+              }
+              std::cout << "\nright\n";
+              std::cout <<"rightsize = " << left->mems.size() << "\n";
+              for (size_t i = 0; i < right->mems.size(); i++){
+                std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " ori:" << right->isFw;
+              }
             }
-            std::cout << "\nright\n";
-            std::cout <<"rightsize = " << left->mems.size() << "\n";
-            for (size_t i = 0; i < right->mems.size(); i++){
-              std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " ori:" << right->isFw;
+            uint32_t currCoverage =  jointMemsList.back().coverage();
+            if (maxCoverage < currCoverage) {
+              maxCoverage = currCoverage;
+              if (maxCoverage == 2 * readLen) { // set to true if we hit maximum possible coverage
+                hitMaxCoverage = true;
+              }
             }
-          }
-          uint32_t currCoverage =  jointMemsList.back().coverage;
-          if (maxCoverage < currCoverage) {
-            maxCoverage = currCoverage;
           }
         } else {
           break;
@@ -142,7 +150,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   double coverageRatio = 0.5;
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&maxCoverage, coverageRatio](util::JointMems& pairedReadMems) -> bool {
-                                       return pairedReadMems.coverage < coverageRatio*maxCoverage ;
+                                       return pairedReadMems.coverage() < coverageRatio*maxCoverage ;
                                      }),
                       jointMemsList.end());
 }
@@ -443,7 +451,7 @@ void processReadsPair(paired_parser* parser,
       //otherwise orphan
 
       if(lh && rh){
-        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, verbose) ;
+        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, readLen, verbose) ;
       }
       else{
         //ignore orphans for now

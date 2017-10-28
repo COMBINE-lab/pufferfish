@@ -69,8 +69,8 @@ public:
       std::vector<util::MemCluster> currMemClusters;
       // cluster MEMs so that all the MEMs in one cluster are concordant.
       for (auto& hit : core::range<decltype(memList.begin())>(memList.begin(), memList.end())) {
-        bool foundAtLeastOneCluster = false;
-        bool gapIsSmall = false;
+        //bool foundAtLeastOneCluster = false;
+        //bool gapIsSmall = false;
         bool addNewCluster = currMemClusters.size() == 0;
         if (verbose)
         for (auto prevClus = currMemClusters.rbegin();
@@ -80,7 +80,8 @@ public:
             if ( hit.tpos > prevClus->getTrLastHitPos() && ((isFw && hit.memInfo->rpos > prevClus->getReadLastHitPos()) ||
                                                             (!isFw && hit.memInfo->rpos < prevClus->getReadLastHitPos()))) {
               //foundAtLeastOneCluster = true;
-              prevClus->mems.emplace_back(hit.memInfo, hit.tpos);
+              // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
+              prevClus->addMem(hit.memInfo, hit.tpos);
             }
           } else {
             addNewCluster = true;
@@ -100,10 +101,11 @@ public:
               newClus.mems.emplace_back(mem->memInfo, mem->tpos);
             }
             }*/
-          newClus.mems.emplace_back(hit.memInfo, hit.tpos);
+          // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
+          newClus.addMem(hit.memInfo, hit.tpos);
         }
       }
-      for (auto& clus : currMemClusters) {
+      /*for (auto& clus : currMemClusters) {
         if (clus.mems.size() > 69) {
           std::cout << "mem size: " << clus.mems.size() << "\n";
           for (auto& mem : clus.mems) {
@@ -111,7 +113,7 @@ public:
           }
           std::cout << "\n";
         }
-      }
+        }*/
       if (verbose) {
         std::cout << "\ntid" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
         for (auto& clus : currMemClusters) {
@@ -122,8 +124,7 @@ public:
           std::cout << "\n";
         }
       }
-      
-      // This is kind of inefficient (copying the currMemClusters while probably we can build it on the fly
+      // This is kind of inefficient (copying the currMemClusters while probably we can build it on the fly)
       memClusters[tid].insert(memClusters[tid].end(), std::make_move_iterator(currMemClusters.begin()),
                               std::make_move_iterator(currMemClusters.end()));
     }
