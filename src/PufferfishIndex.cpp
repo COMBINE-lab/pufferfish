@@ -27,7 +27,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     std::cerr << "num kmers = " << numKmers_ << '\n';
     infoStream.close();
     twok_ = 2 * k_;
-  }
+  } 
 
   {
     CLI::AutoTimer timer{"Loading contig table", CLI::Timer::Big};
@@ -39,6 +39,18 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     contigTableStream.close();
   }
   numContigs_ = contigTable_.size();
+
+  {
+    std::string rlPath = indexDir + "/reflengths.bin";
+    if (puffer::fs::FileExists(rlPath.c_str())) {
+      CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
+      std::ifstream refLengthStream(rlPath);
+      cereal::BinaryInputArchive refLengthArchive(refLengthStream);
+      refLengthArchive(refLengths_);
+    } else {
+      refLengths_ = std::vector<uint32_t>(refNames_.size(), 1000);
+    }
+  }
 
   {
     CLI::AutoTimer timer{"Loading eq table", CLI::Timer::Big};
@@ -360,6 +372,15 @@ const std::string& PufferfishIndex::refName(uint64_t refRank) {
   return refNames_[refRank];
 }
 
+uint32_t PufferfishIndex::refLength(uint64_t refRank) const {
+  return refLengths_[refRank];
+}
+
 const std::vector<std::string>& PufferfishIndex::getRefNames() {
   return refNames_;
 }
+
+const std::vector<uint32_t>& PufferfishIndex::getRefLengths() const {
+  return refLengths_;
+}
+

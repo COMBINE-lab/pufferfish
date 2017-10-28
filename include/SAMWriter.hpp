@@ -85,15 +85,14 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getRefNames();
-  // auto& txpLens = rmi.txpLens;
+  auto& txpLens = pfi.getRefLengths();
 
   auto numRef = txpNames.size();
   // for now go with constant length
   // TODO read reference information
   // while reading the index
-  int txpLen = 1000;
   for (size_t i = 0; i < numRef; ++i) {
-    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLen);
+    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
   }
   // Eventually output a @PG line
   // some other version nnumber for now,

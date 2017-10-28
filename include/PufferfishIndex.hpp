@@ -28,6 +28,7 @@ private:
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
+  std::vector<uint32_t> refLengths_;
   // std::vector<util::ContigPosInfo> cPosInfo_;
   std::vector<std::vector<util::Position>> contigTable_;
   uint64_t numContigs_{0};
@@ -60,9 +61,11 @@ public:
   const std::vector<util::Position>& refList(uint64_t contigRank);
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
+  uint32_t refLength(uint64_t refRank) const;
 
   // Get the list of reference names
   const std::vector<std::string>& getRefNames() ;
+  const std::vector<uint32_t>& getRefLengths() const;
 
   // Returns true if the given k-mer appears in the dBG, false otherwise
   bool contains(CanonicalKmer& mer);
