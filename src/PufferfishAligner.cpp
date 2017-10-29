@@ -145,18 +145,21 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
   double coverageRatio = 0.5;
   // if we've found a perfect match, we will erase any match that is not perfect
-  if (maxCoverage == 2*readLen)
+  if (maxCoverage == 2*readLen) {
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                         [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
                                           return pairedReadMems.coverage() != maxCoverage;
                                         }),
                          jointMemsList.end());
-  else // ow, we will go with the heuristic that just keep those mappings that have at least half of the maximum coverage
+  }
+  else {// ow, we will go with the heuristic that just keep those mappings that have at least half of the maximum coverage
+    //std::cout << "no!\n";
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&maxCoverage, coverageRatio](util::JointMems& pairedReadMems) -> bool {
                                        return pairedReadMems.coverage() < coverageRatio*maxCoverage ;
                                      }),
                       jointMemsList.end());
+  }
 }
 
 
@@ -417,6 +420,7 @@ void processReadsPair(paired_parser* parser,
   while(parser->refill(rg)){
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
+      //std::cout << readLen << "\n";
       //std::cout << rpair.first.name << "\n";
       bool verbose = false;// rpair.first.name == "read17739350/ENST00000421512;mate1:506-605;mate2:614-712";
       ++hctr.numReads ;

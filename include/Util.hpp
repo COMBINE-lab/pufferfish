@@ -279,11 +279,15 @@ enum class MateStatus : uint8_t {
 
     // Add the new mem to the list and update the coverage
     void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos) {
-      int endOfLastMem = 0;
-      if (!mems.empty())
-        endOfLastMem = (int)(mems.back().tpos + mems.back().memInfo->memlen);
-      coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen - endOfLastMem), 0);
+      if (mems.empty())
+        coverage = uniMemInfo->memlen;
+      else {
+          coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen)-(int)(mems.back().tpos + mems.back().memInfo->memlen), 0);
+      }
       mems.emplace_back(uniMemInfo, tpos);
+      /*if (coverage > 100) {
+        std::cout << "fuck: " << mems.size() << " " << coverage <<"\n";
+        }*/
     }
     size_t getReadLastHitPos() const { return mems.empty()?0:mems.back().memInfo->rpos;}
     size_t getTrLastHitPos() const {
