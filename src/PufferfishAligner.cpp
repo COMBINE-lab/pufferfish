@@ -331,8 +331,19 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
   //size_t overhangRight ;
   size_t clustSize = clust->mems.size() ;
 
-
-  overhangLeft = (clust->isFw)?(clust->mems[0].memInfo->rpos):(clust->mems[clustSize-1].memInfo->rpos) ;
+  size_t startIndex = 0;
+  size_t endIndex = clustSize -1 ;
+  if(!clust->isFw) std::swap(startIndex,endIndex) ;
+ 
+  overhangLeft = clust->mems[startIndex].memInfo->rpos ;
+  if(overhangLeft > 0){
+    std::string tmp(readSeq.substr(0,overhangLeft));
+    std::string rdtmp = (clust->isFw)?tmp:util::reverseComplement(tmp)  ;
+    auto cstart = std::max(static_cast<uint64_t>(0), pfi.getGlobalPos(clust->mems[startIndex].memInfo->cpos) - overhangLeft) ;
+    size_t toClip = std::min(static_cast<uint32_t>(overhangLeft), pfi.getContigLen(clust->mems[startIndex].memInfo->cid)) ;
+    std::string contigtmp = pfi.getSeqStr(pfi.getGlobalPos(clust->mems[startIndex].memInfo->cid) + cstart, toClip, clust->mems[startIndex].memInfo->cIsFw) ;
+    paths.push_back({rdtmp, contigtmp}) ;
+  }
   //overhangRight = (clust->isFw)?(readLen - (clust->mems[clustSize-1].memInfo->rpos + clust->mems[clustSize-1].memInfo->memlen)):(readLen - (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen)) ;
 
   //if start and end has overlap then return
@@ -347,18 +358,21 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
       //search if contig sequence is in the cacheBlock and to clipon the same contig explore paths between unimems from graphs 
     auto startMem = clust->mems[i] ;
     auto endMem = clust->mems[i+1] ;
+    auto sInfo = *startMem.memInfo ;
+    auto eInfo = *endMem.memInfo ;
+
     std::string readgap = "" ;
     std::string path = "";
     
-    auto readGapDist = (clust->isFw)?(endMem.memInfo->rpos - (startMem.memInfo->rpos + startMem.memInfo->memlen)):(startMem.memInfo->rpos - (endMem.memInfo->rpos + endMem.memInfo->memlen)) ;
+    auto readGapDist = (clust->isFw)?(eInfo.rpos - (sInfo.rpos + sInfo.memlen)):(sInfo.rpos - (eInfo.rpos + eInfo.memlen)) ;
 
     if(readGapDist >= 0){
       //clip the appropriate read sequence
       if(clust->isFw){
-        readgap = readSeq.substr(startMem.memInfo->rpos + startMem.memInfo->memlen, readGapDist) ;
+        readgap = readSeq.substr(sInfo.rpos + sInfo.memlen, readGapDist) ;
       }
       else{
-        std::string tmp(readSeq.substr(endMem.memInfo->rpos + endMem.memInfo->memlen, readGapDist)) ;
+        std::string tmp(readSeq.substr(eInfo.rpos + eInfo.memlen, readGapDist)) ;
         readgap = util::reverseComplement(tmp) ;
       }
 
@@ -366,9 +380,12 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
         populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
       }else if(readGapDist > 0){
         //it's on the same contig just insert the sequence from the contig
-        auto clipStart = (clust->isFw)?(startMem.memInfo->cpos + startMem.memInfo->memlen):(endMem.memInfo->cpos + endMem.memInfo->memlen) ;
-        std::string tmp = pfi.getSeqStr(pfi.getGlobalPos(startMem.memInfo->cid)+clipStart, readGapDist+THRESHOLD) ;
-        path = tmp ;
+        auto clipStart = (clust->isFw)?(sInfo.cpos + sInfo.memlen):(eInfo.cpos + eInfo.memlen) ;
+        auto clipCid = (clust->isFw)?(sInfo.cid):(eInfo.cid) ;
+        auto sContigLen = pfi.getContigLen(clipCid) ;
+        auto toClip = sContigLen - clipStart ;
+        if(toClip > 0)
+          path = pfi.getSeqStr(pfi.getGlobalPos(clipCid)+clipStart, toClip) ;
       }
 
     }
@@ -376,6 +393,10 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
   }
 
   //TODO overhangRight include in path 
+  if(paths.empty()){
+    std::cerr << "No paths\n" ;
+    std::cerr << "num of mems: " << clustSize << "\n";
+  }
 
 }
 
@@ -393,6 +414,9 @@ void traverseGraph(std::string& leftReadSeq,
 
 
   //void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator clust, std::vector<std::pair<std::string,std::string>>& paths, std::string& readSeq, std::map<uint32_t, std::string>& contigSeqCache, uint32_t tid){
+  std::cerr << "Going over left and right cluster \n" ;
+  std::cerr << "left: " << leftReadSeq << "\n";
+  std::cerr << "right: " << rightReadSeq << "\n";
 
   goOverClust(pfi, hit.leftClust, leftClustPaths, leftReadSeq, contigSeqCache, tid) ;
   goOverClust(pfi, hit.rightClust, rightClustPaths, rightReadSeq, contigSeqCache, tid) ;
@@ -477,19 +501,24 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
 
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
-      bool doTraverse = false;
+      bool doTraverse = true;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
         //std::cout << "traversing graph \n" ;
         std::map<uint32_t, util::ContigCecheBlock> contigSeqCache ;
+        
         using PathType = std::vector<std::pair<std::string,std::string>>  ;
+
         std::map<uint32_t, std::pair<PathType,PathType>> alnPaths ;
+        int hitNum{0} ;
         for(auto& hit : jointHits){
+          std::cerr << "For searching "<<hitNum<<"\n" ;
           PathType lpath ;
           PathType rpath ;
           traverseGraph(rpair.first.seq, rpair.second.seq, hit, pfi, lpath, rpath, contigSeqCache) ;
           alnPaths[hit.tid] = {lpath,rpath} ;
+          hitNum++ ;
         }
       }
 
