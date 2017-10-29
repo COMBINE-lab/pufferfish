@@ -330,6 +330,13 @@ template <typename PufferfishIndexT>
 void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator clust, std::vector<std::pair<std::string,std::string>>& paths, std::string& readSeq, std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache, uint32_t tid){
 
   //size_t readLen = readSeq.length() ;
+  //Debug
+  std::cerr << "Going over read sequence: "<<readSeq<<"\n" ;
+  std::cerr << "Number of mems "<<clust->mems.size()<<"\n" ;
+  for(auto& m: clust->mems){
+    std::cerr <<"c"<<m.memInfo->cid<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<"\n" ;
+  }
+
   size_t overhangLeft ;
   //size_t overhangRight ;
   size_t clustSize = clust->mems.size() ;
@@ -342,8 +349,10 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
   if(overhangLeft > 0){
     std::string tmp(readSeq.substr(0,overhangLeft));
     std::string rdtmp = (clust->isFw)?tmp:util::reverseComplement(tmp)  ;
-    auto cstart = std::max(static_cast<uint64_t>(0), pfi.getGlobalPos(clust->mems[startIndex].memInfo->cpos) - overhangLeft) ;
+    auto cstart = (static_cast<int>(clust->mems[startIndex].memInfo->cpos - overhangLeft) > 0)?(clust->mems[startIndex].memInfo->cpos - overhangLeft):0 ;
     size_t toClip = std::min(static_cast<uint32_t>(overhangLeft), pfi.getContigLen(clust->mems[startIndex].memInfo->cid)) ;
+    //Debug message
+    std::cerr << "Trying to fetch "<<toClip<<" bp from "<<cstart<<" "<<pfi.getContigLen(clust->mems[startIndex].memInfo->cid)-cstart<<"\n" ;
     std::string contigtmp = pfi.getSeqStr(pfi.getGlobalPos(clust->mems[startIndex].memInfo->cid) + cstart, toClip, clust->mems[startIndex].memInfo->cIsFw) ;
     paths.push_back({rdtmp, contigtmp}) ;
   }
@@ -418,8 +427,8 @@ void traverseGraph(std::string& leftReadSeq,
 
   //void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator clust, std::vector<std::pair<std::string,std::string>>& paths, std::string& readSeq, std::map<uint32_t, std::string>& contigSeqCache, uint32_t tid){
   std::cerr << "Going over left and right cluster \n" ;
-  std::cerr << "left: " << leftReadSeq << "\n";
-  std::cerr << "right: " << rightReadSeq << "\n";
+  //std::cerr << "left: " << leftReadSeq << "\n";
+  //std::cerr << "right: " << rightReadSeq << "\n";
 
   goOverClust(pfi, hit.leftClust, leftClustPaths, leftReadSeq, contigSeqCache, tid) ;
   goOverClust(pfi, hit.rightClust, rightClustPaths, rightReadSeq, contigSeqCache, tid) ;
