@@ -72,7 +72,6 @@ public:
         //bool foundAtLeastOneCluster = false;
         //bool gapIsSmall = false;
         bool addNewCluster = currMemClusters.size() == 0;
-        if (verbose)
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
           if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
