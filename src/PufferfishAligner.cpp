@@ -143,7 +143,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
   }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
-  double coverageRatio = 0.5;
+  double coverageRatio = 0.25;
   // if we've found a perfect match, we will erase any match that is not perfect
   if (maxCoverage == 2*readLen) {
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
@@ -522,7 +522,7 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
 
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
-      bool doTraverse = true;
+      bool doTraverse = false;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
