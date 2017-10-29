@@ -241,6 +241,16 @@ enum class MateStatus : uint8_t {
     Direction dir ;
   };
 
+  struct ContigCecheBlock{
+    uint32_t cpos ;
+    uint32_t blockLen ;
+    std::string cseq ;
+
+    ContigCecheBlock(uint32_t cposIn, uint32_t lenIn, std::string cseqIn) :
+      cpos(cposIn), blockLen(lenIn), cseq(cseqIn){}
+
+  };
+
   struct UniMemInfo {
     uint32_t cid;
     bool cIsFw;
