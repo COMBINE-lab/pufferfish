@@ -476,7 +476,7 @@ void processReadsPair(paired_parser* parser,
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
       //std::cout << rpair.first.name << "\n";
-      bool verbose = false;// rpair.first.name == "read17739350/ENST00000421512;mate1:506-605;mate2:614-712";
+      bool verbose = rpair.first.name == "read32368511/ENST00000524087;mate1:2491-2590;mate2:2616-2714";
       ++hctr.numReads ;
 
       jointHits.clear() ;
