@@ -217,6 +217,9 @@ void updateCacheBlock(util::ContigCecheBlock& cacheBlock, uint32_t startClip, ui
 template <typename PufferfishIndexT>
 void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, PufferfishIndexT& pfi, uint32_t tid, std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache, size_t readGapDist){
 
+  //In graph searching
+  std::cerr << "Graph searching: go time\n" ;
+
   CanonicalKmer::k(pfi.k()) ;
 
   auto s = smem.memInfo ;
@@ -330,12 +333,6 @@ template <typename PufferfishIndexT>
 void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator clust, std::vector<std::pair<std::string,std::string>>& paths, std::string& readSeq, std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache, uint32_t tid){
 
   //size_t readLen = readSeq.length() ;
-  //Debug
-  std::cerr << "Going over read sequence: "<<readSeq<<"\n" ;
-  std::cerr << "Number of mems "<<clust->mems.size()<<"\n" ;
-  for(auto& m: clust->mems){
-    std::cerr <<"c"<<m.memInfo->cid<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<"\n" ;
-  }
 
   size_t overhangLeft ;
   //size_t overhangRight ;
@@ -346,13 +343,23 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
   if(!clust->isFw) std::swap(startIndex,endIndex) ;
  
   overhangLeft = clust->mems[startIndex].memInfo->rpos ;
+  //Debug
+  /*if(clustSize > 1){
+    std::cerr << "Going over read sequence: "<<readSeq<<"\n" ;
+    std::cerr << "Number of mems "<<clust->mems.size()<<"\n" ;
+    for(auto& m: clust->mems){
+      std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<"\n" ;
+    }
+    }*/
+
+
   if(overhangLeft > 0){
     std::string tmp(readSeq.substr(0,overhangLeft));
     std::string rdtmp = (clust->isFw)?tmp:util::reverseComplement(tmp)  ;
     auto cstart = (static_cast<int>(clust->mems[startIndex].memInfo->cpos - overhangLeft) > 0)?(clust->mems[startIndex].memInfo->cpos - overhangLeft):0 ;
     size_t toClip = std::min(static_cast<uint32_t>(overhangLeft), pfi.getContigLen(clust->mems[startIndex].memInfo->cid)) ;
     //Debug message
-    std::cerr << "Trying to fetch "<<toClip<<" bp from "<<cstart<<" "<<pfi.getContigLen(clust->mems[startIndex].memInfo->cid)-cstart<<"\n" ;
+    //std::cerr << "Trying to fetch "<<toClip<<" bp from "<<cstart<<" "<<pfi.getContigLen(clust->mems[startIndex].memInfo->cid)-cstart<<"\n" ;
     std::string contigtmp = pfi.getSeqStr(pfi.getGlobalPos(clust->mems[startIndex].memInfo->cid) + cstart, toClip, clust->mems[startIndex].memInfo->cIsFw) ;
     paths.push_back({rdtmp, contigtmp}) ;
   }
@@ -405,9 +412,10 @@ void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator 
   }
 
   //TODO overhangRight include in path 
-  if(paths.empty()){
+  if(paths.empty() and overhangLeft > 0 and false){
     std::cerr << "No paths\n" ;
-    std::cerr << "num of mems: " << clustSize << "\n";
+    std::cerr << "Overhang size: " << overhangLeft << "\n";
+    
   }
 
 }
@@ -426,7 +434,7 @@ void traverseGraph(std::string& leftReadSeq,
 
 
   //void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator clust, std::vector<std::pair<std::string,std::string>>& paths, std::string& readSeq, std::map<uint32_t, std::string>& contigSeqCache, uint32_t tid){
-  std::cerr << "Going over left and right cluster \n" ;
+  //std::cerr << "Going over left and right cluster \n" ;
   //std::cerr << "left: " << leftReadSeq << "\n";
   //std::cerr << "right: " << rightReadSeq << "\n";
 
@@ -526,7 +534,7 @@ void processReadsPair(paired_parser* parser,
         std::map<uint32_t, std::pair<PathType,PathType>> alnPaths ;
         int hitNum{0} ;
         for(auto& hit : jointHits){
-          std::cerr << "For searching "<<hitNum<<"\n" ;
+          //std::cerr << "For searching "<<hitNum<<"\n" ;
           PathType lpath ;
           PathType rpath ;
           traverseGraph(rpair.first.seq, rpair.second.seq, hit, pfi, lpath, rpath, contigSeqCache) ;
