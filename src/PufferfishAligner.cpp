@@ -118,16 +118,14 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
           if (maxCoverage < 2 * readLen || (left->coverage + right->coverage) == maxCoverage) {
             jointMemsList.emplace_back(tid, left, right, fragmentLen);
             if (verbose) {
-              std::cout <<"tid:"<<tid<<"\n";
-              std::cout <<"left\n";
-              std::cout <<"leftsize = " << left->mems.size() << "\n";
+              std::cout <<"\ntid:"<<tid<<"\n";
+              std::cout <<"left:" << left->isFw << " size:" << left->mems.size() << " cov:" << left->coverage << "\n";
               for (size_t i = 0; i < left->mems.size(); i++){
-                std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " ori:" << left->isFw;
+                std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " len:" << left->mems[i].memInfo->memlen;
               }
-              std::cout << "\nright\n";
-              std::cout <<"rightsize = " << left->mems.size() << "\n";
+              std::cout << "\nright:" << right->isFw << " size:" << right->mems.size() << " cov:" << right->coverage << "\n";
               for (size_t i = 0; i < right->mems.size(); i++){
-                std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " ori:" << right->isFw;
+                std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " len:" << right->mems[i].memInfo->memlen;
               }
             }
             uint32_t currCoverage =  jointMemsList.back().coverage();
@@ -141,9 +139,13 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
       }
     }
   }
+  if (verbose) {
+    std::cout << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
+    std::cerr << "\n" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
+  }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
-  double coverageRatio = 0.25;
+  double coverageRatio = 0.5;
   // if we've found a perfect match, we will erase any match that is not perfect
   if (maxCoverage == 2*readLen) {
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
@@ -159,6 +161,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
                                        return pairedReadMems.coverage() < coverageRatio*maxCoverage ;
                                      }),
                       jointMemsList.end());
+  }
+  if (verbose) {
+    std::cout << "\nFinal stat: " << jointMemsList.size() << "\n";
+    std::cerr << jointMemsList.size() << "\n";
   }
 }
 
@@ -476,7 +482,7 @@ void processReadsPair(paired_parser* parser,
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
       //std::cout << rpair.first.name << "\n";
-      bool verbose = rpair.first.name == "read32368511/ENST00000524087;mate1:2491-2590;mate2:2616-2714";
+      bool verbose = rpair.first.name == "read15514810/ENST00000434618;mate1:2965-3064;mate2:2990-3088";
       ++hctr.numReads ;
 
       jointHits.clear() ;

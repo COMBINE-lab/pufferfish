@@ -40,12 +40,15 @@ public:
       auto& projHits = hit.second;
       // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
       // Maybe we want to change the interface (make these members public or provide accessors)?
-      memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_, projHits.contigPos_);
-      auto memItr = std::prev(memCollection.end());
-      for (auto& posIt : projHits.refRange) {
-        auto refPosOri = projHits.decodeHit(posIt);
-        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
-          .emplace_back(memItr, refPosOri.pos);
+      auto& refs = projHits.refRange;
+      if (refs.size() < 200) {
+        memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_, projHits.contigPos_);
+        auto memItr = std::prev(memCollection.end());
+        for (auto& posIt : refs) {
+          auto refPosOri = projHits.decodeHit(posIt);
+          trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
+            .emplace_back(memItr, refPosOri.pos);
+        }
       }
     }
 
