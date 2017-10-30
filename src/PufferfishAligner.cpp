@@ -393,7 +393,7 @@ void goOverClust(PufferfishIndexT& pfi,
 
     auto cstart = (static_cast<int>(sInfo.cpos - overhangLeft) > 0)?(sInfo.cpos - overhangLeft):0 ;
     size_t toClip = std::min(static_cast<uint32_t>(overhangLeft), pfi.getContigLen(sInfo.cid)) ;
-
+    //std::cerr << "left clipping "<<toClip<<" from "<<cstart<<"\n" ;
     std::string contigtmp = pfi.getSeqStr(pfi.getGlobalPos(sInfo.cid) + cstart, toClip, sInfo.cIsFw) ;
     clust->alignableStrings.push_back({rdtmp, contigtmp}) ;
   }
@@ -410,6 +410,7 @@ void goOverClust(PufferfishIndexT& pfi,
     auto cstart = eInfo.cpos + eInfo.memlen ;
     size_t toClip = std::min(pfi.getContigLen(eInfo.cid) - cstart, static_cast<uint32_t>(overhangRight)) ;
 
+    //std::cerr << "right clipping "<<toClip<<" from "<<cstart<<"\n" ;
     std::string contigtmp = pfi.getSeqStr(pfi.getGlobalPos(eInfo.cid) + cstart, toClip, eInfo.cIsFw) ;
     clust->alignableStrings.push_back({rdtmp, contigtmp}) ;
   }
@@ -441,13 +442,15 @@ void goOverClust(PufferfishIndexT& pfi,
       readgap = readSeq.substr(sInfo.rpos + sInfo.memlen, readGapDist) ;
       if(startMem.memInfo->cid  != endMem.memInfo->cid){
         //going into graph search
-        populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
+        //populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
       } else if(readGapDist > 0){
 
         //it's on the same contig just insert the sequence from the contig
-        auto cstart = sInfo.cpos ;
-        auto toclip = readGapDist ;
-        path = pfi.getSeqStr(pfi.getGlobalPos(sInfo.cid)+cstart, toclip) ;
+        //std::cerr << "c"<<sInfo.cid <<"\t cpos:" << sInfo.cpos <<"\t rpos:" << sInfo.rpos << "\n" ;
+        auto cstart = sInfo.cpos + sInfo.memlen;
+        auto toClip = readGapDist ;
+        //std::cerr << "middle clipping "<<toClip<<" from "<<cstart<<"\n" ;
+        path = pfi.getSeqStr(pfi.getGlobalPos(sInfo.cid)+cstart, toClip) ;
       }
     }
 
