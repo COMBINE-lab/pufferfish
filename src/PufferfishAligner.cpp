@@ -95,37 +95,27 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
           continue;
         }
 
-        // We will use the left and right iterators to point to the clusters that are
-        // "actually" the leftmost and rightmost (rather than those that come from read 1 and read 2).
-        decltype(lClusts.begin()) left = lclust;
-        decltype(rClusts.begin()) right = rclust;
-        // If read 1 comes after read 2, then:
-        // left = read 2
-        // right = read 1
-        // otherwise, vice versa.
         // FILTER 1
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
- 		size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
+        size_t fragmentLen = rclust->lastRefPos() + rclust->lastMemLen() - lclust->firstRefPos();
         if (lclust->firstRefPos() > rclust->firstRefPos()) {
-			fragmentLen = left->lastRefPos() + left->lastMemLen() - right->firstRefPos();
-          //left = rclust;
-          //right = lclust;
+          fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
         }
 
         if ( fragmentLen < maxFragmentLength) {
           // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
           // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
-          if (maxCoverage < 2 * readLen || (left->coverage + right->coverage) == maxCoverage) {
-            jointMemsList.emplace_back(tid, left, right, fragmentLen);
+          if (maxCoverage < 2 * readLen || (lclust->coverage + rclust->coverage) == maxCoverage) {
+            jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
             if (verbose) {
               std::cout <<"\ntid:"<<tid<<"\n";
-              std::cout <<"left:" << left->isFw << " size:" << left->mems.size() << " cov:" << left->coverage << "\n";
-              for (size_t i = 0; i < left->mems.size(); i++){
-                std::cout << "--- t" << left->mems[i].tpos << " r" << left->mems[i].memInfo->rpos << " cid:" << left->mems[i].memInfo->cid << " len:" << left->mems[i].memInfo->memlen;
+              std::cout <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
+              for (size_t i = 0; i < lclust->mems.size(); i++){
+                std::cout << "--- t" << lclust->mems[i].tpos << " r" << lclust->mems[i].memInfo->rpos << " cid:" << lclust->mems[i].memInfo->cid << " len:" << lclust->mems[i].memInfo->memlen;
               }
-              std::cout << "\nright:" << right->isFw << " size:" << right->mems.size() << " cov:" << right->coverage << "\n";
-              for (size_t i = 0; i < right->mems.size(); i++){
-                std::cout << "--- t" << right->mems[i].tpos << " r" << right->mems[i].memInfo->rpos << " cid:" << right->mems[i].memInfo->cid << " len:" << right->mems[i].memInfo->memlen;
+              std::cout << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
+              for (size_t i = 0; i < rclust->mems.size(); i++){
+                std::cout << "--- t" << rclust->mems[i].tpos << " r" << rclust->mems[i].memInfo->rpos << " cid:" << rclust->mems[i].memInfo->cid << " len:" << rclust->mems[i].memInfo->memlen;
               }
             }
             uint32_t currCoverage =  jointMemsList.back().coverage();
