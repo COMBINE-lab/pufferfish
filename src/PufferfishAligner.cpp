@@ -580,7 +580,6 @@ void processReadsPair(paired_parser* parser,
         //std::cout << "traversing graph \n" ;
         std::map<uint32_t, util::ContigCecheBlock> contigSeqCache ;
         
-        using PathType = std::vector<std::pair<std::string,std::string>>  ;
         int hitNum{0} ;
 
         if(jointHits.empty() or jointHits.front().coverage() < 2*readLen){
