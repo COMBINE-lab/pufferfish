@@ -230,7 +230,7 @@ public:
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
         size_t readPosOld = kit1->second ;
-        size_t readPos = expandHitEfficient(phits, kit1);
+        expandHitEfficient(phits, kit1);
         rawHits.push_back(std::make_pair(readPosOld, phits));
       } else
         ++kit1;
