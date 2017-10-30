@@ -232,23 +232,18 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
   auto e = emem.memInfo ;
 
   auto stpos = smem.tpos ;
-  //auto etpos = emem.tpos ;
-  auto sCid = s->cid ;
 
+  auto sCid = s->cid ;
   auto eCid = e->cid ;
 
-  //bool sCFwd = s->cIsFw ;
-
-  //auto& seq = pfi.getSeq() ;
   auto& edges = pfi.getEdge() ;
 
   std::map<uint32_t,bool> visited ;
-  //auto dist = std::abs(s->rpos - e->rpos) ;
   uint32_t numOfNodesVisited{0} ;
 
 
+  //Initialization
   std::queue<uint32_t> queue ;
-  //bool first{false} ;
   queue.push(sCid) ;
   path = "" ;
 
