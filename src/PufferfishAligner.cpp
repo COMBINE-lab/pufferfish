@@ -211,20 +211,26 @@ void updateCacheBlock(util::ContigCecheBlock& cacheBlock, uint32_t startClip, ui
 //this is super heuristic
 //not a complete BFS
 template <typename PufferfishIndexT>
-void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, PufferfishIndexT& pfi, uint32_t tid, std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache, size_t readGapDist){
+void populatePaths(util::MemInfo& smem,
+                   util::MemInfo& emem,
+                   std::string& path,
+                   PufferfishIndexT& pfi,
+                   uint32_t tid,
+                   std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache,
+                   size_t readGapDist){
 
   //In graph searching
   //std::cerr << "Graph searching: go time\n" ;
 
   CanonicalKmer::k(pfi.k()) ;
 
-  auto s = smem.memInfo ;
-  auto e = emem.memInfo ;
+  auto s = *smem.memInfo ;
+  auto e = *emem.memInfo ;
 
   auto stpos = smem.tpos ;
 
-  auto sCid = s->cid ;
-  auto eCid = e->cid ;
+  auto sCid = s.cid ;
+  auto eCid = e.cid ;
 
   auto& edges = pfi.getEdge() ;
 
@@ -237,7 +243,11 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
   queue.push(sCid) ;
   path = "" ;
 
-  auto remainingLen = readGapDist ;
+  //decide direction
+  //util::Direction toGo;
+
+  int remainingLen = readGapDist ;
+  bool start{true} ;
 
   //at worst we would visit readGapDist number of nodes 
   while(numOfNodesVisited < readGapDist and !queue.empty()){
@@ -247,10 +257,23 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
     queue.pop() ;
     auto contigLen = pfi.getContigLen(cid) ;
 
-    //traverse this node 
-    auto toClip = (contigLen <= remainingLen)?(contigLen):(remainingLen) ;
-    remainingLen -= toClip ;
-    path += pfi.getSeqStr(pfi.getGlobalPos(cid),toClip) ;
+    //traverse this node
+    int toClip{0} ;
+    if(!start){
+      toClip = (contigLen < remainingLen)?(contigLen):(remainingLen) ;
+      std::cerr << "middle clipping " << toClip << " from cid "<<cid << "\n" ;
+      path += pfi.getSeqStr(pfi.getGlobalPos(cid),toClip) ;
+    }
+    else{
+      toClip = std::min(static_cast<int>(contigLen - (s.cpos+s.memlen)),remainingLen) ;
+      if(toClip>0){
+        std::cerr << "start clipping " << toClip << " from cid "<<cid << " glob pos start "<< pfi.getGlobalPos(cid)<< " cpos: " << s.cpos << " memlen: " << s.memlen << "\n" ;
+        path += pfi.getSeqStr(pfi.getGlobalPos(cid)+s.cpos+s.memlen,toClip) ;
+      }
+      start = false ;
+    }
+    //read finished 
+    remainingLen -= static_cast<int> (toClip) ;
     if(!remainingLen)
       return ;
 
@@ -278,7 +301,12 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
 
 
         auto nextHit = pfi.getRefPos(kt) ;
-        auto nextCid = nextHit.contigID() ;
+        uint32_t nextCid{0} ;
+        if(!nextHit.empty()){
+           nextCid = nextHit.contigID() ;
+        }else{
+          std::cerr << "should not happen\n" ;
+        }
 
         //1. transcript consistensy
         //2. position consistensy
@@ -318,9 +346,11 @@ void populatePaths(util::MemInfo& smem, util::MemInfo& emem, std::string& path, 
 
 }
 
+//NOTE: not doing mem chains 
 //I did not take the reference since I
 //want to sort them according to finishing time
 //without disrupting the order
+/*
 std::vector<int> dynamicMemChain(std::vector<util::MemInfo> mems){
   std::vector<int> finalChain ;
 
@@ -352,7 +382,7 @@ std::vector<int> greedyMemChain(std::vector<util::MemInfo>& mems, bool fw){
     }
   }
   return finalChain ;
-}
+  }*/
 
 template <typename PufferfishIndexT>
 void goOverClust(PufferfishIndexT& pfi,
@@ -442,7 +472,9 @@ void goOverClust(PufferfishIndexT& pfi,
       readgap = readSeq.substr(sInfo.rpos + sInfo.memlen, readGapDist) ;
       if(startMem.memInfo->cid  != endMem.memInfo->cid){
         //going into graph search
-        //populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
+        std::cerr << "read name  "<< readName<<"\n" ;
+        std::cerr << "start cpos "<<startMem.memInfo->cpos<<"\n" ;
+        populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
       } else if(readGapDist > 0){
 
         //it's on the same contig just insert the sequence from the contig
@@ -515,7 +547,7 @@ void processReadsPair(paired_parser* parser,
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
       //std::cout << rpair.first.name << "\n";
-      bool verbose = rpair.first.name == "read3428368/ENST00000355754;mate1:919-1018;mate2:1033-1131";
+      bool verbose = rpair.first.name == "read10667560/ENST00000009530;mate1:16-115;mate2:93-191";
 
       ++hctr.numReads ;
 

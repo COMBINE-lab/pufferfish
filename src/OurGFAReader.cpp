@@ -134,9 +134,12 @@ size_t PosFinder::fillContigInfoMap_() {
     }
   }
   size_t total_len{0};
+  uint64_t uId{0} ;
   for (auto& kv : contigid2seq) {
+    kv.second.fileOrder = uId ;
     kv.second.offset = total_len;
     total_len += kv.second.length;
+    ++uId ;
   }
   return total_len;
 }
@@ -173,7 +176,6 @@ void PosFinder::parseFile() {
   // start and end kmer-hash over the contigs
   // might get deprecated later
   uint64_t maxnid{0} ;
-
 
   while (std::getline(*file, ln)) {
     char firstC = ln[0];

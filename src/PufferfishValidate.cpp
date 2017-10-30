@@ -82,6 +82,13 @@ int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
       kei = seq.get_int(2*(ctgInfo.offset+ctgInfo.length-k), 2*k) ;
       CanonicalKmer kb,ke ;
       kb.fromNum(kbi) ;
+      //check if rank is same as file order
+      auto chits = pi.getRefPos(kb) ;
+      if(chits.contigIdx_ != ctgInfo.fileOrder){
+        std::cerr << "should not happen : " << "rank: "<< chits.contigIdx_ << " fileOrder: "<< ctgInfo.fileOrder << " offset " << ctgInfo.offset  << "\n" ;
+        //std::exit(1) ;
+      }
+
       ke.fromNum(kei) ;
 
       //std::cerr << "Start kmer " << kb.to_str() << "\n" ;
