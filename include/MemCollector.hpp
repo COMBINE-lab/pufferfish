@@ -72,18 +72,20 @@ public:
         //bool foundAtLeastOneCluster = false;
         //bool gapIsSmall = false;
         bool addNewCluster = currMemClusters.size() == 0;
+        bool foundAtLeastOne = false;
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
           if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
             //gapIsSmall = true;
             if ( hit.tpos > prevClus->getTrLastHitPos() && ((isFw && hit.memInfo->rpos > prevClus->getReadLastHitPos()) ||
                                                             (!isFw && hit.memInfo->rpos < prevClus->getReadLastHitPos()))) {
-              //foundAtLeastOneCluster = true;
               // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
               prevClus->addMem(hit.memInfo, hit.tpos);
+              foundAtLeastOne = true;
             }
           } else {
-            addNewCluster = true;
+            if (!foundAtLeastOne)
+              addNewCluster = true;
             break;
           }
         }
