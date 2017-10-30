@@ -104,14 +104,15 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,
         // left = read 2
         // right = read 1
         // otherwise, vice versa.
-        if (lclust->firstRefPos() > rclust->firstRefPos()) {
-          left = rclust;
-          right = lclust;
-        }
-
         // FILTER 1
         // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-        size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
+ 		size_t fragmentLen = right->lastRefPos() + right->lastMemLen() - left->firstRefPos();
+        if (lclust->firstRefPos() > rclust->firstRefPos()) {
+			fragmentLen = left->lastRefPos() + left->lastMemLen() - right->firstRefPos();
+          //left = rclust;
+          //right = lclust;
+        }
+
         if ( fragmentLen < maxFragmentLength) {
           // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
           // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
@@ -606,7 +607,7 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
 
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
-      bool doTraverse = false;
+      bool doTraverse = true;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
