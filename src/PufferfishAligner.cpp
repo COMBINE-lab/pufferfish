@@ -68,8 +68,7 @@ using MateStatus = util::MateStatus ;
 using SpinLockT = std::mutex ;
 
 
-void joinReadsAndFilter(spp::sparse_hash_map<size_t,
-                        std::vector<util::MemCluster>>& leftMemClusters,
+void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster>>& leftMemClusters,
                         spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& rightMemClusters,
                         std::vector<util::JointMems>& jointMemsList,
                         uint32_t maxFragmentLength,
@@ -560,7 +559,8 @@ void processReadsPair(paired_parser* parser,
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
       //std::cout << rpair.first.name << "\n";
-      bool verbose = rpair.first.name == "read15514810/ENST00000434618;mate1:2965-3064;mate2:2990-3088";
+      bool verbose = rpair.first.name == "read3428368/ENST00000355754;mate1:919-1018;mate2:1033-1131";
+
       ++hctr.numReads ;
 
       jointHits.clear() ;
@@ -595,6 +595,15 @@ void processReadsPair(paired_parser* parser,
       //do intersection on the basis of
       //performance, or going towards selective alignment
       //otherwise orphan
+      if(verbose){
+        for(auto& l : leftHits){
+          auto& lclust = l.second ;
+          for(auto& clust : lclust)
+          for(auto& m : clust.mems){
+            std::cerr << "before join "<<m.memInfo->cid << "\n" ;
+          }
+        }
+      }
 
       if(lh && rh){
         joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, readLen, verbose) ;
@@ -606,7 +615,7 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
 
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
-      bool doTraverse = false;
+      bool doTraverse = true;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
@@ -617,8 +626,37 @@ void processReadsPair(paired_parser* parser,
 
         std::map<uint32_t, std::pair<PathType,PathType>> alnPaths ;
         int hitNum{0} ;
+
         for(auto& hit : jointHits){
-          //std::cerr << "For searching "<<hitNum<<"\n" ;
+          if(rpair.first.seq == "CCCTCTGCACAGCCGCTGGGTTCTCAAGCTGGGCCAGTGCTGTCACTGCATTCTCCAGACAAGGTACTGCTCCACTGTTGATGGCATCTACATAAGTCAC"){
+            std::cerr << "this read maps to god knows where \n" ;
+        
+            //std::cerr << "For searching "<<hitNum<<"\n" ;
+            for(auto& m : hit.leftClust->mems){
+              //  if(hit.leftClust->isFw){
+              //if(!m.memInfo->cIsFw){
+                  std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" tpos: "<<m.tpos<<"\n" ;
+                  /*
+                  CanonicalKmer kr ;
+                  std::string rkmer = rpair.first.seq.substr(0,pfi.k()) ;
+                  kr.fromStr(rkmer) ;
+                  auto phits = pfi.getRefPos(kr) ;
+                  if(!phits.empty())
+                    std::cerr <<"c" <<phits.contigIdx_ <<" cpos:"<<phits.contigPos_ <<"\n" ;
+
+
+                  auto ncSeq = pfi.getSeqStr(pfi.getGlobalPos(phits.contigIdx_), pfi.getContigLen(phits.contigIdx_)) ;
+                  auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid), pfi.getContigLen(m.memInfo->cid)) ;
+                  auto tmp = rpair.first.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
+                  auto rseq = util::reverseComplement(tmp) ;
+                  std::cerr << cSeq << "\n" ;
+                  std::cerr << rpair.first.seq << "\n" ;
+                  std::cerr << ncSeq << "\n" ;*/
+                  std::exit(1) ;
+                  //}
+                  //}
+            }
+          }
           PathType lpath ;
           PathType rpath ;
           traverseGraph(rpair, hit, pfi, lpath, rpath, contigSeqCache) ;
