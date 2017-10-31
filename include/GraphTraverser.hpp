@@ -15,14 +15,23 @@ enum Task {
 template <typename PufferfishIndexT> class GraphTraverser {
 public:
   GraphTraverser(PufferfishIndexT& pfi) : pfi_(pfi) { k = pfi_->k(); }
-  //NOTE: Since we are ALWAYS traversing the mems and hence the unmapped sequences in transcript in forward direction,
+  //NOTE: Since we are ALWAYS traversing the mems --and hence the unmapped sequences-- in the forward direction wrt the transcript,
   //whenever we are moving backward in a contig that means that the contig is in reverse orientation wrt the transcript, so the sequence we fetch from the contig
   //should be reverse-complemented!!!
   //TODO: make sure about the fact above
+  // startp : relative position in curContig that toBeAligned string starts
+  // endp : relative position in endContig that toBeAligned string ends
+  // threshold : number of bases that should be fetched before we stop spreading the path through BFS
+  // seq : will be appended through out the traversal
   Task doBFS(size_t tid, size_t tpos, bool moveFw, util::ContigBlock& curContig, size_t startp, util::ContigBlock& endContig, size_t endp, uint32_t threshold, std::string& seq) {
     if (curContig.contigIdx_ == endContig.contigIdx_) {
         append(seq, curContig, startp, endp, moveFw);
         return Task::SUCCESS;
+    }
+
+    if (curContig.isDummy()) {
+      //TODO should be taken care of (hard hard)
+      return Task::FAILURE;
     }
     if (endContig.isDummy()) { // if the end of the path is open
       auto& dist = distance(startp, endp, moveFw);
