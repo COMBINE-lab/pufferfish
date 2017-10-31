@@ -197,6 +197,7 @@ std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isF
 }
 
 
+
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
     -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
@@ -358,6 +359,25 @@ uint32_t PufferfishIndex::getContigLen(uint64_t rank){
 uint64_t PufferfishIndex::getGlobalPos(uint64_t rank){
   uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
   return sp ;
+}
+
+auto  PufferfishIndex::getContigBlock(uint64_t rank)->util::ContigBlock{
+  CanonicalKmer::k(k_) ;
+  CanonicalKmer kb;
+  CanonicalKmer ke;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank+1) ;
+
+  uint32_t clen = static_cast<uint32_t>(contigEnd - sp + 1) ;
+  uint64_t fk = seq_.get_int(2*sp, 2*k_) ;
+  kb.fromNum(fk) ;
+
+  fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
+  ke.fromNum(fk) ;
+
+  std::string seq = getSeqStr(sp,clen) ;
+
+  util::ContigBlock cblock({rank,sp,clen,kb,ke,seq}) ;
 }
 
 /**

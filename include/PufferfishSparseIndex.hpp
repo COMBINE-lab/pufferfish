@@ -121,6 +121,7 @@ public:
 
   uint32_t getContigLen(uint64_t cid) ;
   uint64_t getGlobalPos(uint64_t cid) ;
+  auto  getContigBlock(uint64_t rank) -> util::ContigBlock ;
 
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;

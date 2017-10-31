@@ -105,6 +105,8 @@ public:
   uint32_t getContigLen(uint64_t cid) ;
   uint64_t getGlobalPos(uint64_t cid) ;
 
+  auto  getContigBlock(uint64_t rank) -> util::ContigBlock ;
+
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_

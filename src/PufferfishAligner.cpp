@@ -406,13 +406,69 @@ void goOverClust(PufferfishIndexT& pfi,
   size_t endIndex = clustSize -1 ;
 
   if(!clust->isFw) std::swap(startIndex,endIndex) ;
-  
+  clust->isVisited = true ;
 
+  if(clustSize > 1){
+    bool overlap = (clust->isFw)?((clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen) > clust->mems[clustSize-1].memInfo->rpos):((clust->mems[clustSize-1].memInfo->rpos + clust->mems[clustSize-1].memInfo->memlen) > clust->mems[0].memInfo->rpos);
+    if(overlap)
+      return ;
+  }
+
+
+  //if(!clust->isFw) std::reverse(clust->mems.begin(),clust->mems.end()) ;
   //NOTE: Taking care of the part between beginning
   //of the read block and 0
+  /*for(size_t it = 0 ; it < clustSize ; ++it){
+    util::MemInfo *smem{nullptr} ;
+    util::MemInfo *emem{nullptr} ;
+    int readGapDist ;
+    int contigGapDist ;
+    util::Direction togo ;
 
-  //Visit this cluster
-  clust->isVisited = true ;
+    
+
+    if(it == 0){
+      emem = &clust->mems[it] ;
+      togo = (emem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
+      readGapDist = emem->memInfo->rpos ;
+    } else if(it > 0 and it < clustSize-1){
+      smem = &clust->mems[it] ;
+      emem = &clust->mems[it+1] ;
+      togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
+    } else{
+      smem = &clust->mems[it] ;
+      togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
+    }
+    //left part of read
+    if(!smem){
+      readGapDist = emem->memInfo->rpos ;
+    }
+
+    if(it == 0){
+      smem = &clust->mems[it] ;
+      auto readGapDist = smem->memInfo->rpos ;
+      uint32_t remainingContigLen{0} ;
+
+      util::Direction togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
+      if(togo == util::Direction::FORWARD){
+        remainingContigLen = pfi.getContigLen(smem->memInfo->cid) - (pfi.getContigLen(smem->memInfo->cid) + smem->memInfo->memlen) ;
+      }else{
+        remainingContigLen = smem->memInfo->cpos ;
+      }
+      if(remainingContigLen < readGapDist){
+        //clip contig 
+        readGapDist -= remainingContigLen ;
+        //call graph 
+      }
+    }
+    if(it > 0 and it < clustSize-1){
+      smem = &clust->mems[it] ;
+      emem = &clust->mems[it+1] ;
+      util::Direction togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
+    }
+
+  }*/
+
 
   overhangLeft = clust->mems[startIndex].memInfo->rpos ;
 
