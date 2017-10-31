@@ -136,7 +136,8 @@ public:
   }
 
   size_t expandHitEfficient(util::ProjectedHits& hit,
-                            pufferfish::CanonicalKmerIterator& kit) {
+                            pufferfish::CanonicalKmerIterator& kit,
+                            bool verbose) {
     auto& allContigs = pfi_->getSeq();
     // startPos points to the next kmer in contig (which can be the left or
     // right based on the orientation of match)
@@ -200,8 +201,13 @@ public:
       }
     }
     if (!hit.contigOrientation_) {
+      if (verbose)
+        std::cerr << hit.k_ << " prev contig pos:" << hit.contigPos_ << "\n";
       hit.contigPos_ -= (hit.k_ - k);
       hit.globalPos_ -= (hit.k_ - k);
+      if (verbose)
+        std::cerr << "after updating: " << hit.contigPos_ << "\n";
+      
     }
     kit.jumpTo(readSeqStart);
     return currReadStart;
@@ -230,7 +236,7 @@ public:
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
         size_t readPosOld = kit1->second ;
-        expandHitEfficient(phits, kit1);
+        expandHitEfficient(phits, kit1, verbose);
         rawHits.push_back(std::make_pair(readPosOld, phits));
       } else
         ++kit1;

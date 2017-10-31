@@ -111,11 +111,11 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
               std::cout <<"\ntid:"<<tid<<"\n";
               std::cout <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
               for (size_t i = 0; i < lclust->mems.size(); i++){
-                std::cout << "--- t" << lclust->mems[i].tpos << " r" << lclust->mems[i].memInfo->rpos << " cid:" << lclust->mems[i].memInfo->cid << " len:" << lclust->mems[i].memInfo->memlen;
+                std::cout << "--- t" << lclust->mems[i].tpos << " r" << lclust->mems[i].memInfo->rpos << " cid:" << lclust->mems[i].memInfo->cid << " cpos: " << lclust->mems[i].memInfo->cpos << " len:" << lclust->mems[i].memInfo->memlen;
               }
               std::cout << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
               for (size_t i = 0; i < rclust->mems.size(); i++){
-                std::cout << "--- t" << rclust->mems[i].tpos << " r" << rclust->mems[i].memInfo->rpos << " cid:" << rclust->mems[i].memInfo->cid << " len:" << rclust->mems[i].memInfo->memlen;
+                std::cout << "--- t" << rclust->mems[i].tpos << " r" << rclust->mems[i].memInfo->rpos << " cid:" << rclust->mems[i].memInfo->cid << " cpos: " << rclust->mems[i].memInfo->cpos << " len:" << rclust->mems[i].memInfo->memlen;
               }
             }
             uint32_t currCoverage =  jointMemsList.back().coverage();
@@ -389,7 +389,8 @@ void goOverClust(PufferfishIndexT& pfi,
                  std::vector<util::MemCluster>::iterator clust,
                  fastx_parser::ReadSeq& read,
                  std::map<uint32_t,util::ContigCecheBlock>& contigSeqCache,
-                 uint32_t tid){
+                 uint32_t tid,
+                 bool  verbose){
 
   //size_t readLen = readSeq.length() ;
 
@@ -445,6 +446,13 @@ void goOverClust(PufferfishIndexT& pfi,
     clust->alignableStrings.push_back({rdtmp, contigtmp}) ;
   }
 
+  if(verbose){
+    std::cerr << readName << "\n" ;
+    for(auto& m: clust->mems){
+      std::cerr << "cpos "<<m.memInfo->cpos << "\n" ;
+    }
+  }
+
   //if start and end has overlap then return NOTE: heuristic
   //probably never would come here 
   if(clustSize > 1){
@@ -496,7 +504,9 @@ template <typename ReadPairT ,typename PufferfishIndexT>
 void traverseGraph(ReadPairT& rpair,
                    util::JointMems& hit,
                    PufferfishIndexT& pfi,
-                   std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache){
+                   std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache,
+                   bool verbose){
+  
 
   //for all memes in left memcluster ;
   auto tid = hit.tid ;
@@ -509,8 +519,8 @@ void traverseGraph(ReadPairT& rpair,
   auto readLen = rpair.first.seq.length() ;
 
 
-  if(!hit.leftClust->isVisited or hit.leftClust->coverage < readLen) goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid) ;
-  if(!hit.rightClust->isVisited or hit.rightClust->coverage < readLen) goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid) ;
+  if(!hit.leftClust->isVisited or hit.leftClust->coverage < readLen) goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
+  if(!hit.rightClust->isVisited or hit.rightClust->coverage < readLen) goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 
 }
 
@@ -588,8 +598,15 @@ void processReadsPair(paired_parser* parser,
           auto& lclust = l.second ;
           for(auto& clust : lclust)
           for(auto& m : clust.mems){
-            std::cerr << "before join "<<m.memInfo->cid << "\n" ;
+            std::cerr << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
           }
+        }
+        for(auto& l : rightHits){
+          auto& lclust = l.second ;
+          for(auto& clust : lclust)
+            for(auto& m : clust.mems){
+              std::cerr << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
+            }
         }
       }
 
@@ -609,12 +626,12 @@ void processReadsPair(paired_parser* parser,
         //have to make write access thread safe
         //std::cout << "traversing graph \n" ;
         std::map<uint32_t, util::ContigCecheBlock> contigSeqCache ;
-        
+
         int hitNum{0} ;
 
         if(jointHits.empty() or jointHits.front().coverage() < 2*readLen){
           for(auto& hit : jointHits){
-            traverseGraph(rpair, hit, pfi, contigSeqCache) ;
+            traverseGraph(rpair, hit, pfi, contigSeqCache, verbose) ;
             hitNum++ ;
 
           }
