@@ -10,6 +10,11 @@ enum Task {
            FAILURE
 };
 
+enum EdgeType{
+  PLUS,
+  MINUS
+};
+
 
 
 
@@ -75,6 +80,32 @@ private:
   PufferfishIndexT* pfi_ ;
   size_t k ;
 
+  struct nextCompatibleStruct{
+    util::ContigBlock cntg ;
+    uint32_t tpos ;
+    uint32_t cpos ;
+    bool moveFw ;
+
+   nextCompatibleStruct(util::ContigBlock cntgIn, uint32_t tposIn, uint32_t cposIn, bool mFw) : cntg(cntgIn), tpos(tposIn), cpos(cposIn), moveFw(mFw) {} 
+  } ;
+
+  EdgeType getEdgeType(util::ContigBlock& ctg1, util::ContigBlock& ctg2, util::Direction dir){
+    EdgeType etype ;
+    CanonicalKmer kt ;
+    if(dir == util::Direction::FORWARD){
+      kt = ctg1.ke ;
+    }else{
+      kt = ctg1.kb ;
+    }
+    if(kt.to_str().substr(1,k-1) == ctg2.kb.to_str().substr(0,k-1)){
+      etype = EdgeType::PLUS ;
+    }else{
+      etype = EdgeType::MINUS ;
+    }
+    //Anything else is impossible
+
+    return etype ;
+  }
 
   size_t distance(size_t startp, size_t endp, bool moveFw) {if(moveFw)return endp-startp; else return startp-endp;}
   size_t remainingLen(util::ContigBlock& contig, size_t startp, bool moveFw) {
@@ -124,11 +155,11 @@ private:
     }
   }
 
-  std::vector<util::ContigBlock> fetchSuccessors(util::ContigBlock& contig,
+  std::vector<nextCompatibleStruct> fetchSuccessors(util::ContigBlock& contig,
                                                  bool moveFw,
                                                  size_t tid,
                                                  size_t tpos) {
-    std::vector<util::ContigBlock> successors ;
+    std::vector<nextCompatibleStruct> successors ;
     CanonicalKmer::k(k) ;
 
     auto& edges = pfi_->getEdge() ;
@@ -148,9 +179,16 @@ private:
           (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
 
           auto& nextHit = pfi_->getRefPos(kt) ;
-          util::ContigBlock ctgBlock = pfi_->getContigBlock(nextHit.contigIdx_) ;
-          if(isCompatible(ctgBlock,tid,tpos,moveFw))
-            successors.push_back(ctgBlock) ;
+          util::ContigBlock nextContig = pfi_->getContigBlock(nextHit.contigIdx_) ;
+          uint32_t newtpos = isCompatible(nextContig,tid,tpos,moveFw) ;
+          if(newtpos != std::numeric_limits<uint32_t>::max()){
+            EdgeType etype = getEdgeType(contig, nextContig, dir) ;
+            if(etype == EdgeType::PLUS)
+              successors.emplace_back({nextContig, newtpos, k-1, true}) ;
+            else
+              successors.emplace_back({nextContig, newtpos, nextContig.contigLen_-k, false}) ;
+
+          }
 
         }
       }
@@ -159,20 +197,22 @@ private:
     return successors;
   }
 
-  bool isCompatible(util::ContigBlock& contig, size_t tid, size_t tpos, bool fw) {
+  uint32_t isCompatible(util::ContigBlock& contig, size_t tid, size_t tpos, bool fw) {
     auto& pvec = pfi_->refList(contig.contigIdx_) ;
     bool comp{false} ;
+    uint32_t newtpos = std::numeric_limits<uint32_t>::max() ;
     
     for(auto& posIt : pvec){
       if(posIt.transcript_id() == tid){
         comp = fw?(posIt.pos() > tpos):(posIt.pos() < tpos) ;
         if(comp){
-          return true ;
+          newtpos = posIt.pos() ;
+          return newtpos ;
         }
       }
     }
 
-    return false;
+    return newtpos;
   }
 
 

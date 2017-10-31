@@ -384,6 +384,39 @@ std::vector<int> greedyMemChain(std::vector<util::MemInfo>& mems, bool fw){
   return finalChain ;
   }*/
 
+
+
+
+/*
+template<typename PufferfishIndexT>
+
+void goOverClust2(PufferfishIndexT& pfi,
+                 std::vector<util::MemCluster>::iterator clust,
+                 fastx_parser::ReadSeq& read,
+                 std::map<uint32_t,util::ContigCecheBlock>& contigSeqCache,
+                 uint32_t tid,
+                 bool  verbose){
+
+  std::string readSeq = read.seq ;
+  std::string readName = read.name ;
+
+  size_t clustSize = clust->mems.size() ;
+  bool rdFwd = clust->isFw ;
+
+  for(int it = 0 ; it < clustSize ; ++it){
+    auto& thismem = clust->mems[it] ;
+    auto& nextmem = (it < clustSize-1)?clust->mems[it+1]:clust->mems[it] ;
+    //check if there is an insert
+    //no read gap in corresponding tpos
+    auto readGapDist = rdFwd?(nextmem.memInfo->rpos - (thismem.memInfo->rpos + thismem.memInfo->memlen)):(thismem.memInfo->rpos - (nextmem.memInfo->rpos+nextmem.memInfo))
+
+  }
+
+
+
+  }*/
+
+
 template <typename PufferfishIndexT>
 void goOverClust(PufferfishIndexT& pfi,
                  std::vector<util::MemCluster>::iterator clust,
