@@ -52,7 +52,7 @@
 #include "SpinLock.hpp"
 #include "MemCollector.hpp"
 #include "SAMWriter.hpp"
-#include "GraphTraverser.hpp"
+#include "RefSeqConstructor.hpp"
 
 #define START_CONTIG_ID ((uint32_t)-1) 
 #define END_CONTIG_ID ((uint32_t)-2)

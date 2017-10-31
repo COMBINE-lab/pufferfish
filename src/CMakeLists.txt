@@ -14,7 +14,8 @@ set(pufferfish_lib_srcs
     GFAConverter.cpp
     PufferfishAligner.cpp
     edlib.cpp
-    )
+	RefSeqConstructor.cpp
+	)
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 
