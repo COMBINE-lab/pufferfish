@@ -41,12 +41,12 @@ public:
         threshold -= dist; // update threshold
         for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
           // act greedily and return with the first successfully constructed sequence.
-          if (doBFS(tid, c.tpos, c.contig, c.startp, endContig, endp, threshold, seq) == Task::SUCCESS)
+          if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)
             return Task::SUCCESS;
         }
         // If couldn't find any successful successors, then this path was a dead end. Revert your append and return with failure
         cutoff(seq, dist);
-        return Task::Failure;
+        return Task::FAILURE;
       }
     }
 
@@ -58,7 +58,7 @@ public:
     // then if the remaining of the contig from this position is less than threshold it should be counted as a failure
     // because we couldn't find the path between start and end that is shorter than some threshold
     if ( remLen < threshold) {
-      return Task::Failure; // I'm in the middle of no where!! lost!!
+      return Task::FAILURE; // I'm in the middle of no where!! lost!!
     }
 
     // last but not least
@@ -67,7 +67,7 @@ public:
     threshold -= remLen; // update threshold
     for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
       // act greedily and return with the first successfully constructed sequence.
-      if (doBFS(tid, c.tpos, c.contig, c.startp, endContig, endp, threshold, seq) == Task::SUCCESS)
+      if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)
         return Task::SUCCESS;
     }
     // If couldn't find any successful successors, then this path was a dead end. Revert your append and return with failure
@@ -110,7 +110,7 @@ private:
   size_t distance(size_t startp, size_t endp, bool moveFw) {if(moveFw)return endp-startp; else return startp-endp;}
   size_t remainingLen(util::ContigBlock& contig, size_t startp, bool moveFw) {
     if (moveFw)
-      return contig.length_ - startp;
+      return contig.contigLen_ - startp;
     else
       //TODO For backward walk, check the inclusion/exclusion of the current base and have a concensus on the assumption
       return startp+1;
