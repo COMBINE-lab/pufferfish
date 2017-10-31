@@ -547,6 +547,10 @@ struct ContigBlock{
   CanonicalKmer ke ;
   std::string seq ;
 
+  std::string substrSeq(size_t s, size_t len){
+    return seq.substr(s,len) ;
+  }
+
 };
 
 
