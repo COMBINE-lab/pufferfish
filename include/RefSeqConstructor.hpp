@@ -2,6 +2,8 @@
 #define REF_SEQ_CONSTRUCTOR_HPP
 
 
+#include <sparsepp/spp.h>
+
 #include "Util.hpp"
 #include "CanonicalKmer.hpp"
 
@@ -24,7 +26,7 @@ template <typename PufferfishIndexT>
 class RefSeqConstructor {
 
 public:
-  RefSeqConstructor(PufferfishIndexT* pfi);
+  RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache);
   Task doBFS(size_t tid,
              size_t tpos,
              bool moveFw,
@@ -37,6 +39,7 @@ public:
 private:
   PufferfishIndexT* pfi_ ;
   size_t k ;
+  spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache_;
 
 
 

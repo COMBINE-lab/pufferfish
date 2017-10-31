@@ -588,28 +588,87 @@ void goOverClust(PufferfishIndexT& pfi,
 
 }
 
+//template <typename ReadPairT ,typename PufferfishIndexT>
+std::string extractReadSeq(const std::string& readSeq, uint32_t& rstart, uint32_t& rend, bool& isFw) {
+  if (isFw)
+    return readSeq.substr(rstart, rend-rstart);
+  return "test"; //reverse-complement the substring
+}
+
+template <typename PufferfishIndexT>
+void createSeqPairs(PufferfishIndexT* pfi,
+                    std::vector<util::MemCluster>::iterator clust,
+                    const std::string& readSeq,
+                    RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
+                    uint32_t tid,
+                    bool verbose) {
+
+  for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
+    // while mems overlap, continue
+    if (clust->mems[it+1].tpos < clust->mems[it].tpos + clust->mems[it].memInfo->memlen)
+      continue;
+
+    uint32_t rstart = (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
+    uint32_t rend = clust->mems[it+1].memInfo->rpos;
+    if (!clust->isFw) {
+      rstart = (clust->mems[it+1].memInfo->rpos + clust->mems[it+1].memInfo->memlen);
+      rend = clust->mems[it].memInfo->rpos;
+    }
+    //Insertion in read
+    if (clust->mems[it+1].tpos == clust->mems[it].tpos + clust->mems[it].memInfo->memlen) {
+        if (rend-rstart > 0) {
+          std::string tmp = extractReadSeq(readSeq, rstart, rend, clust->isFw) ;
+          clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), ""));
+        }
+    }
+    else {// we have a gap on transcript and need to do graph traversal
+      std::string refSeq;
+      bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw && clust->isFw;
+      bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw && clust->isFw;
+      util::ContigBlock scb = {
+                               clust->mems[it].memInfo->cid,
+                               clust->mems[it].memInfo->cGlobalPos,
+                               clust->mems[it].memInfo->clen,
+                               pfi->getSeqStr(clust->mems[it].memInfo->cGlobalPos, clust->mems[it].memInfo->clen)};
+      util::ContigBlock ecb = {
+                               clust->mems[it+1].memInfo->cid,
+                               clust->mems[it+1].memInfo->cGlobalPos,
+                               clust->mems[it+1].memInfo->clen,
+                               pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
+      //TODO -1 needed or not? This is the problem
+      uint32_t rstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos-1); 
+      uint32_t rend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos-1):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen); 
+      refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, rstart, ecb, rend, refSeq);
+      if (rend-rstart>0) {
+        clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
+      }
+    }
+  }
+
+  //TODO take care of
+  //gap before first unimem
+  //gap after last unimem
+
+  clust->isVisited = true;
+}
+
 template <typename ReadPairT ,typename PufferfishIndexT>
 void traverseGraph(ReadPairT& rpair,
                    util::JointMems& hit,
                    PufferfishIndexT& pfi,
-                   std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache,
+                   RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
                    bool verbose){
-  
 
-  //for all memes in left memcluster ;
-  auto tid = hit.tid ;
-
-
-  //void goOverClust(PufferfishIndexT& pfi, std::vector<util::MemCluster>::iterator clust, std::vector<std::pair<std::string,std::string>>& paths, std::string& readSeq, std::map<uint32_t, std::string>& contigSeqCache, uint32_t tid){
-  //std::cerr << "Going over left and right cluster \n" ;
-  //std::cerr << "left: " << leftReadSeq << "\n";
-  //std::cerr << "right: " << rightReadSeq << "\n";
+  size_t tid = hit.tid ;
   auto readLen = rpair.first.seq.length() ;
 
 
-  if(!hit.leftClust->isVisited or hit.leftClust->coverage < readLen) goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
-  if(!hit.rightClust->isVisited or hit.rightClust->coverage < readLen) goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
-
+  if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
+    createSeqPairs(&pfi, hit.leftClust, rpair.first.seq, refSeqConstructor, tid, verbose);
+    //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
+  if(!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
+    createSeqPairs(&pfi, hit.rightClust, rpair.second.seq, refSeqConstructor, tid, verbose);
+    //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 }
 
 template <typename PufferfishIndexT>
@@ -620,6 +679,10 @@ void processReadsPair(paired_parser* parser,
                      HitCounters& hctr,
                      AlignmentOpts* mopts){
   MemCollector<PufferfishIndexT> memCollector(&pfi) ;
+
+
+  spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
+  RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, contigSeqCache);
 
   //std::cerr << "\n In process reads pair\n" ;
     //TODO create a memory layout to store
@@ -685,9 +748,9 @@ void processReadsPair(paired_parser* parser,
         for(auto& l : leftHits){
           auto& lclust = l.second ;
           for(auto& clust : lclust)
-          for(auto& m : clust.mems){
-            std::cerr << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
-          }
+            for(auto& m : clust.mems){
+              std::cerr << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
+            }
         }
         for(auto& l : rightHits){
           auto& lclust = l.second ;
@@ -712,7 +775,6 @@ void processReadsPair(paired_parser* parser,
         for(auto& m : h.leftClust->mems){
           auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
           auto tmp = rpair.first.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
-          
           auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
           if(cSeq != rseq){
             std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.leftClust->isFw<< " tpos: "<<m.tpos<<"\n" ;
@@ -724,7 +786,6 @@ void processReadsPair(paired_parser* parser,
         for(auto& m : h.rightClust->mems){
           auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
           auto tmp = rpair.second.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
-          
           auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
           if(cSeq != rseq){
             std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.rightClust->isFw<<" tpos: "<<m.tpos<<"\n" ;
@@ -741,13 +802,12 @@ void processReadsPair(paired_parser* parser,
         //TODO Have to make it per thread 
         //have to make write access thread safe
         //std::cout << "traversing graph \n" ;
-        std::map<uint32_t, util::ContigCecheBlock> contigSeqCache ;
 
         int hitNum{0} ;
 
         if(jointHits.empty() or jointHits.front().coverage() < 2*readLen){
           for(auto& hit : jointHits){
-            traverseGraph(rpair, hit, pfi, contigSeqCache, verbose) ;
+            traverseGraph(rpair, hit, pfi, refSeqConstructor, verbose) ;
             hitNum++ ;
 
           }

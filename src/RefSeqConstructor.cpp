@@ -2,8 +2,10 @@
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 
+#include <sparsepp/spp.h>
+
 template <typename PufferfishIndexT>
-RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
+RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache) : pfi_(pfi), contigCache_(contigCache) { k = pfi_->k(); }
   //NOTE: Since we are ALWAYS traversing the mems --and hence the unmapped sequences-- in the forward direction wrt the transcript,
   //whenever we are moving backward in a contig that means that the contig is in reverse orientation wrt the transcript, so the sequence we fetch from the contig
   //should be reverse-complemented!!!
