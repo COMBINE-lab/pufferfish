@@ -722,7 +722,6 @@ void processReadsPair(paired_parser* parser,
           }
         }
         for(auto& m : h.rightClust->mems){
-          bool torc = m.memInfo->cIsFw ;
           auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
           auto tmp = rpair.second.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
           
