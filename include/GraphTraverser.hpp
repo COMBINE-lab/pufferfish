@@ -17,20 +17,57 @@ enum Task {
 template <typename PufferfishIndexT> class GraphTraverser {
 public:
   GraphTraverser(PufferfishIndexT& pfi) : pfi_(pfi) { k = pfi_->k(); }
+  //NOTE: Since we are ALWAYS traversing the mems and hence the unmapped sequences in transcript in forward direction,
+  //whenever we are moving backward in a contig that means that the contig is in reverse orientation wrt the transcript, so the sequence we fetch from the contig
+  //should be reverse-complemented!!!
+  //TODO: make sure about the fact above
   Task doBFS(size_t tid, size_t tpos, bool moveFw, util::ContigBlock& curContig, size_t startp, util::ContigBlock& endContig, size_t endp, uint32_t threshold, std::string& seq) {
     if (curContig.contigIdx_ == endContig.contigIdx_) {
-      if (!endContig.isDummy()) {
         append(seq, curContig, startp, endp, moveFw);
         return Task::SUCCESS;
-      }
-      else { // if the end contig is a dummy
-        
+    }
+    if (endContig.isDummy()) { // if the end of the path is open
+      auto& dist = distance(startp, endp, moveFw);
+      if (dist>threshold) {
+        appendByLen(seq, curContig, startp, threshold, moveFw);
+        return Task::SUCCESS;
+      } else {
+        appendByLen(seq, curContig, startp, dist, moveFw); // update seq
+        threshold -= dist; // update threshold
+        for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
+          // act greedily and return with the first successfully constructed sequence.
+          if (doBFS(tid, c.tpos, c.contig, c.startp, endContig, endp, threshold, seq) == Task::SUCCESS)
+            return Task::SUCCESS;
+        }
+        // If couldn't find any successful successors, then this path was a dead end. Revert your append and return with failure
+        cutoff(seq, dist);
+        return Task::Failure;
       }
     }
 
-    if (!isCompatible(curContig, tid, tpos)) return Task::FAILURE;
+    // used for the last two conditions
+    auto& remLen = remainingLen(curContig, startp, moveFw);
+    // DON'T GET STUCK IN INFINITE LOOPS
+    // if we have not reached the last contigId
+    // and also end of the path is NOT open
+    // then if the remaining of the contig from this position is less than threshold it should be counted as a failure
+    // because we couldn't find the path between start and end that is shorter than some threshold
+    if ( remLen < threshold) {
+      return Task::Failure; // I'm in the middle of no where!! lost!!
+    }
 
-    return Task::SUCCESS;
+    // last but not least
+    // fetch al the remaining string from the current contig and do BFS for its successors to either get to the end contig or exhaust the threshold
+    appendByLen(seq, curContig, startp, remLen, moveFw);
+    threshold -= remLen; // update threshold
+    for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
+      // act greedily and return with the first successfully constructed sequence.
+      if (doBFS(tid, c.tpos, c.contig, c.startp, endContig, endp, threshold, seq) == Task::SUCCESS)
+        return Task::SUCCESS;
+    }
+    // If couldn't find any successful successors, then this path was a dead end. Revert your append and return with failure
+    cutoff(seq, remLen);
+    return Task::FAILURE;
  }
 
 
@@ -40,12 +77,26 @@ private:
 
 
   size_t distance(size_t startp, size_t endp, bool moveFw) {if(moveFw)return endp-startp; else return startp-endp;}
+  size_t remainingLen(util::ContigBlock& contig, size_t startp, bool moveFw) {
+    if (moveFw)
+      return contig.length_ - startp;
+    else
+      //TODO For backward walk, check the inclusion/exclusion of the current base and have a concensus on the assumption
+      return startp+1;
+  }
   void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool moveFw) {
     if(moveFw)
       seq += contig.substrSeq(startp, endp-startp);
     else {
-      seq += rc(contig.substrSeq(endp, startp-endp)); // we are always building the seq by moving forward in transcript, so we always append any substring that we construct
+      // we are always building the seq by moving forward in transcript, so we always append any substring that we construct
+      seq += rc(contig.substrSeq(endp, startp-endp)); 
     }
+  }
+  void appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool moveFw) {
+    if(moveFw)
+      seq += contig.substrSeq(startp, len);
+    else
+      seq += rc(contig.substrSeq(startp-len, len));
   }
   void cutoff(std::string& seq, size_t len) {
     seq = seq.substr(0, seq.length()-len);
