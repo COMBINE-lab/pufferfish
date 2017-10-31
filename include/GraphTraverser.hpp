@@ -104,7 +104,7 @@ private:
     }
   }
 
-  std::vector<util::ContigBlock> fetchSuccessors(util::ContigBlock& contig,
+  std::vector<nextCompatibleStruct> fetchSuccessors(util::ContigBlock& contig,
                                                  bool moveFw,
                                                  size_t tid,
                                                  size_t tpos) {
