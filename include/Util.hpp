@@ -17,6 +17,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
+#include "CanonicalKmer.hpp"
 
 
 #ifdef __GNUC__
@@ -533,7 +534,7 @@ struct HitCounters {
 
 struct ContigBlock{
   ContigBlock(uint32_t idIn, uint64_t cposIn, uint32_t len, CanonicalKmer kbIn, CanonicalKmer keIn, std::string seqIn) :
-    contigIdx_(idIn) , globalPos_(cposIn) , len(contigLen_) , kb(knIn) , ke(keIn) , seq(seqIn) {} 
+    contigIdx_(idIn) , globalPos_(cposIn) , contigLen_(len) , kb(kbIn) , ke(keIn) , seq(seqIn) {} 
 
   uint32_t contigIdx_ ;
   uint64_t globalPos_ ;
