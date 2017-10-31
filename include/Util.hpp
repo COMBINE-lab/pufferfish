@@ -537,7 +537,7 @@ struct HitCounters {
 };
 
 struct ContigBlock{
-  ContigBlock(uint32_t idIn, uint64_t cposIn, uint32_t len, CanonicalKmer kbIn, CanonicalKmer keIn, std::string seqIn) :
+  ContigBlock(uint32_t idIn, uint64_t cposIn, uint32_t len, CanonicalKmer kbIn, CanonicalKmer keIn, std::string seqIn, bool isDummyIn=false) :
     contigIdx_(idIn) , globalPos_(cposIn) , contigLen_(len) , kb(kbIn) , ke(keIn) , seq(seqIn) {} 
 
   uint32_t contigIdx_ ;
@@ -546,6 +546,8 @@ struct ContigBlock{
   CanonicalKmer kb ;
   CanonicalKmer ke ;
   std::string seq ;
+  bool isDummy_;
+  bool isDummy() {return isDummy_;}
 
 };
 
