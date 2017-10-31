@@ -10,13 +10,6 @@ enum Task {
            FAILURE
 };
 
-enum EdgeType{
-  PLUS,
-  MINUS
-};
-
-
-
 
 
 template <typename PufferfishIndexT> class GraphTraverser {
@@ -89,23 +82,6 @@ private:
    nextCompatibleStruct(util::ContigBlock cntgIn, uint32_t tposIn, uint32_t cposIn, bool mFw) : cntg(cntgIn), tpos(tposIn), cpos(cposIn), moveFw(mFw) {} 
   } ;
 
-  EdgeType getEdgeType(util::ContigBlock& ctg1, util::ContigBlock& ctg2, util::Direction dir){
-    EdgeType etype ;
-    CanonicalKmer kt ;
-    if(dir == util::Direction::FORWARD){
-      kt = ctg1.ke ;
-    }else{
-      kt = ctg1.kb ;
-    }
-    if(kt.to_str().substr(1,k-1) == ctg2.kb.to_str().substr(0,k-1)){
-      etype = EdgeType::PLUS ;
-    }else{
-      etype = EdgeType::MINUS ;
-    }
-    //Anything else is impossible
-
-    return etype ;
-  }
 
   size_t distance(size_t startp, size_t endp, bool moveFw) {if(moveFw)return endp-startp; else return startp-endp;}
   size_t remainingLen(util::ContigBlock& contig, size_t startp, bool moveFw) {
@@ -169,8 +145,10 @@ private:
     std::vector<util::extension> ext = util::getExts(edgeVec) ;
 
     if(!ext.empty()){
-      CanonicalKmer kb = contig.kb ;
-      CanonicalKmer ke = contig.ke ;
+      CanonicalKmer kb ;
+      kb.fromStr(contig.seq.substr(0,k)) ;
+      CanonicalKmer ke ;
+      ke.fromStr(contig.seq.substr(contig.contigLen_-k-1,k)) ;
       CanonicalKmer kt ;
 
       for(auto& ed : ext){
@@ -179,42 +157,21 @@ private:
           (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
 
           auto& nextHit = pfi_->getRefPos(kt) ;
-          util::ContigBlock nextContig = pfi_->getContigBlock(nextHit.contigIdx_) ;
-          uint32_t newtpos = isCompatible(nextContig,tid,tpos,moveFw) ;
-          if(newtpos != std::numeric_limits<uint32_t>::max()){
-            EdgeType etype = getEdgeType(contig, nextContig, dir) ;
-            if(etype == EdgeType::PLUS)
-              successors.emplace_back({nextContig, newtpos, k-1, true}) ;
-            else
-              successors.emplace_back({nextContig, newtpos, nextContig.contigLen_-k, false}) ;
-
+          auto& refs = nextHit.refRange ;
+          std::string contigseq = pfi_->getSeqStr(nextHit.globalPos_,nextHit.contigLen_);
+          util::ContigBlock cb({nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq}) ;
+          //TODO seq for cb
+          for(auto& posIt: refs){
+            if(posIt.transcript_id() == tid and tpos < posIt.position()){
+              successors.emplace_back({cb, posIt.position(), posIt.orientation()?k-1:cb.contigLen_-k, posIt.orientation()}) ;
+            }
           }
-
         }
       }
     }
 
     return successors;
   }
-
-  uint32_t isCompatible(util::ContigBlock& contig, size_t tid, size_t tpos, bool fw) {
-    auto& pvec = pfi_->refList(contig.contigIdx_) ;
-    bool comp{false} ;
-    uint32_t newtpos = std::numeric_limits<uint32_t>::max() ;
-    
-    for(auto& posIt : pvec){
-      if(posIt.transcript_id() == tid){
-        comp = fw?(posIt.pos() > tpos):(posIt.pos() < tpos) ;
-        if(comp){
-          newtpos = posIt.pos() ;
-          return newtpos ;
-        }
-      }
-    }
-
-    return newtpos;
-  }
-
 
 };
 
