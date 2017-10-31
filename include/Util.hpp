@@ -11,6 +11,7 @@
 #include <vector>
 
 
+#include "CanonicalKmer.hpp"
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
 #include "jellyfish/mer_dna.hpp"
@@ -343,7 +344,20 @@ enum class MateStatus : uint8_t {
     }
     uint32_t coverage() {return leftClust->coverage+rightClust->coverage;}
   };
- 
+
+  struct ContigBlock{
+    ContigBlock(uint32_t idIn, uint64_t cposIn, uint32_t len, CanonicalKmer kbIn, CanonicalKmer keIn, std::string seqIn) :
+      contigIdx_(idIn) , globalPos_(cposIn) , contigLen_(len) , kb(kbIn) , ke(keIn) , seq(seqIn) {} 
+
+    uint32_t contigIdx_ ;
+    uint64_t globalPos_ ;
+    uint32_t contigLen_ ;
+    CanonicalKmer kb ;
+    CanonicalKmer ke ;
+    std::string seq ;
+
+  };
+
 struct QuasiAlignment {
   	QuasiAlignment() :
     tid(std::numeric_limits<uint32_t>::max()),

@@ -29,7 +29,7 @@
 #include <cereal/types/string.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
-
+#include <sparsepp/spp.h>
 
 
 #include "spdlog/spdlog.h"
@@ -52,7 +52,7 @@
 #include "SpinLock.hpp"
 #include "MemCollector.hpp"
 #include "SAMWriter.hpp"
-#include <sparsepp/spp.h>
+#include "GraphTraverser.hpp"
 
 #define START_CONTIG_ID ((uint32_t)-1) 
 #define END_CONTIG_ID ((uint32_t)-2)
