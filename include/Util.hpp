@@ -531,9 +531,24 @@ struct HitCounters {
   std::atomic<uint64_t> lastPrint{0};
 };
 
+struct ContigBlock{
+  ContigBlock(uint32_t idIn, uint64_t cposIn, uint32_t len, CanonicalKmer kbIn, CanonicalKmer keIn, std::string seqIn) :
+    contigIdx_(idIn) , globalPos_(cposIn) , len(contigLen_) , kb(knIn) , ke(keIn) , seq(seqIn) {} 
+
+  uint32_t contigIdx_ ;
+  uint64_t globalPos_ ;
+  uint32_t contigLen_ ;
+  CanonicalKmer kb ;
+  CanonicalKmer ke ;
+  std::string seq ;
+
+};
+
 
 // Structure to hold a list of "projected" (i.e. reference) hits
 // for a k-mer
+
+
 struct ProjectedHits {
   uint32_t contigIdx_;
   // The relative position of the k-mer inducing this hit on the
