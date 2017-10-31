@@ -138,11 +138,16 @@ public:
   size_t expandHitEfficient(util::ProjectedHits& hit,
                             pufferfish::CanonicalKmerIterator& kit,
                             bool verbose) {
+
+    if(verbose){
+      std::cerr <<"\nBefore e cpos " << hit.contigPos_ << "\n" ;
+    }
+
     auto& allContigs = pfi_->getSeq();
     // startPos points to the next kmer in contig (which can be the left or
     // right based on the orientation of match)
     size_t cStartPos =
-        hit.globalPos_ - hit.contigPos_; // next kmer in the read
+        hit.globalPos_ - hit.contigPos_   ; // next kmer in the read
     size_t cEndPos = cStartPos + hit.contigLen_;
     size_t cCurrPos = hit.globalPos_; // start from next character if fw match
     if (hit.contigOrientation_) { // if match is fw, go to the next k-mer in the
@@ -231,12 +236,21 @@ public:
     util::QueryCache qc;
 
     while (kit1 != kit_end) {
-      auto phits = pfi_->getRefPos(kit1->first, qc);
+      auto phits = pfi_->getRefPos(kit1->first);
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
         size_t readPosOld = kit1->second ;
+        if(verbose){
+          std::cerr<< "Index "<< phits.contigID() << " ContigLen "<<phits.contigLen_<< " GlobalPos " << phits.globalPos_ << " ore " << phits.contigOrientation_ << " ref size " << phits.refRange.size() <<"\n\n\n" ;
+          std::cerr<<kit1->first.to_str() << "\n" ;
+          for(auto& posIt : phits.refRange){
+            auto refPosOri = phits.decodeHit(posIt);
+            std::cerr << posIt.transcript_id() << "\t" <<  refPosOri.isFW << "\t" << refPosOri.pos << "\n" ;
+          } 
+        }
         expandHitEfficient(phits, kit1, verbose);
+        
         rawHits.push_back(std::make_pair(readPosOld, phits));
       } else
         ++kit1;

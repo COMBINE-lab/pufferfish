@@ -261,13 +261,13 @@ void populatePaths(util::MemInfo& smem,
     int toClip{0} ;
     if(!start){
       toClip = (contigLen < remainingLen)?(contigLen):(remainingLen) ;
-      std::cerr << "middle clipping " << toClip << " from cid "<<cid << "\n" ;
+      //std::cerr << "middle clipping " << toClip << " from cid "<<cid << "\n" ;
       path += pfi.getSeqStr(pfi.getGlobalPos(cid),toClip) ;
     }
     else{
       toClip = std::min(static_cast<int>(contigLen - (s.cpos+s.memlen)),remainingLen) ;
       if(toClip>0){
-        std::cerr << "start clipping " << toClip << " from cid "<<cid << " glob pos start "<< pfi.getGlobalPos(cid)<< " cpos: " << s.cpos << " memlen: " << s.memlen << "\n" ;
+        //std::cerr << "start clipping " << toClip << " from cid "<<cid << " glob pos start "<< pfi.getGlobalPos(cid)<< " cpos: " << s.cpos << " memlen: " << s.memlen << "\n" ;
         path += pfi.getSeqStr(pfi.getGlobalPos(cid)+s.cpos+s.memlen,toClip) ;
       }
       start = false ;
@@ -418,7 +418,7 @@ void goOverClust(PufferfishIndexT& pfi,
 
   if(overhangLeft > 0){
     auto sInfo = *clust->mems[startIndex].memInfo ;
-    bool torc = (clust->isFw != clust->mems[startIndex].memInfo->cIsFw) ;
+    bool torc = clust->mems[startIndex].memInfo->cIsFw ;
     std::string tmp(readSeq.substr(0,overhangLeft));
     std::string rdtmp = (torc) ? tmp : util::reverseComplement(tmp)  ;
 
@@ -433,7 +433,7 @@ void goOverClust(PufferfishIndexT& pfi,
 
   if(overhangRight > 0){
     auto eInfo = *clust->mems[endIndex].memInfo ;
-    bool torc = (clust->isFw != eInfo.cIsFw) ;
+    bool torc = eInfo.cIsFw ;
 
     std::string tmp(readSeq.substr(overhangRight));
     std::string rdtmp = (torc) ? tmp : util::reverseComplement(tmp)  ;
@@ -454,7 +454,6 @@ void goOverClust(PufferfishIndexT& pfi,
   }
 
   //if start and end has overlap then return NOTE: heuristic
-  //probably never would come here 
   if(clustSize > 1){
     bool overlap = (clust->isFw)?((clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen) > clust->mems[clustSize-1].memInfo->rpos):((clust->mems[clustSize-1].memInfo->rpos + clust->mems[clustSize-1].memInfo->memlen) > clust->mems[0].memInfo->rpos);
     if(overlap)
@@ -480,8 +479,8 @@ void goOverClust(PufferfishIndexT& pfi,
       readgap = readSeq.substr(sInfo.rpos + sInfo.memlen, readGapDist) ;
       if(startMem.memInfo->cid  != endMem.memInfo->cid){
         //going into graph search
-        std::cerr << "read name  "<< readName<<"\n" ;
-        std::cerr << "start cpos "<<startMem.memInfo->cpos<<"\n" ;
+        //std::cerr << "read name  "<< readName<<"\n" ;
+        //std::cerr << "start cpos "<<startMem.memInfo->cpos<<"\n" ;
         populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
       } else if(readGapDist > 0){
 
@@ -557,7 +556,7 @@ void processReadsPair(paired_parser* parser,
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
       //std::cout << rpair.first.name << "\n";
-      bool verbose = rpair.first.name == "read10667560/ENST00000009530;mate1:16-115;mate2:93-191";
+      bool verbose = rpair.first.name == "read25634671/ENST00000396859;mate1:392-491;mate2:535-633";
 
       ++hctr.numReads ;
 
@@ -620,7 +619,36 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
 
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
-      bool doTraverse = true;
+      for(auto& h: jointHits){
+        for(auto& m : h.leftClust->mems){
+          auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
+          auto tmp = rpair.first.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
+          
+          auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
+          if(cSeq != rseq){
+            std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.leftClust->isFw<< " tpos: "<<m.tpos<<"\n" ;
+            std::cerr<<rpair.first.name << "\n" ;
+            std::cerr << cSeq << "\n" << rseq <<"\n" << tmp << "\n";
+            std::exit(1) ;
+          }
+        }
+        for(auto& m : h.rightClust->mems){
+          bool torc = m.memInfo->cIsFw ;
+          auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
+          auto tmp = rpair.second.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
+          
+          auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
+          if(cSeq != rseq){
+            std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.rightClust->isFw<<" tpos: "<<m.tpos<<"\n" ;
+            std::cerr<<rpair.second.name << "\n" ;
+            std::cerr << cSeq << "\n" << rseq <<"\n" << tmp << "\n" ;
+            std::exit(1) ;
+          }
+        }
+
+      }
+
+      bool doTraverse = false;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
