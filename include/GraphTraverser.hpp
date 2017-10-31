@@ -18,6 +18,7 @@ public:
   //NOTE: Since we are ALWAYS traversing the mems --and hence the unmapped sequences-- in the forward direction wrt the transcript,
   //whenever we are moving backward in a contig that means that the contig is in reverse orientation wrt the transcript, so the sequence we fetch from the contig
   //should be reverse-complemented!!!
+  //EXCEPTION ::::: constructing the string before the first unimem :(((
   //TODO: make sure about the fact above
   // startp : relative position in curContig that toBeAligned string starts
   // endp : relative position in endContig that toBeAligned string ends
