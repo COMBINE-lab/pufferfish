@@ -142,7 +142,7 @@ public:
     // startPos points to the next kmer in contig (which can be the left or
     // right based on the orientation of match)
     size_t cStartPos =
-        hit.globalPos_ - hit.contigPos_ - 1; // next kmer in the read
+        hit.globalPos_ - hit.contigPos_; // next kmer in the read
     size_t cEndPos = cStartPos + hit.contigLen_;
     size_t cCurrPos = hit.globalPos_; // start from next character if fw match
     if (hit.contigOrientation_) { // if match is fw, go to the next k-mer in the
@@ -186,7 +186,7 @@ public:
         auto baseCnt = k < cCurrPos - cStartPos ? k : cCurrPos - cStartPos;
         uint64_t fk = allContigs.get_int(2 * (cCurrPos - baseCnt), 2 * baseCnt);
         cCurrPos -= baseCnt;
-        for (size_t i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
+        for (int i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
           // be dirty and peek into the underlying read
           fastNextReadCode = my_mer::code(my_mer::complement(readSeqView[readSeqOffset]));
           int contigCode = (fk >> (2 * i)) & 0x3;
