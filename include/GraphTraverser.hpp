@@ -34,38 +34,26 @@ public:
       //TODO should be taken care of (hard hard)
       return Task::FAILURE;
     }
-    if (endContig.isDummy()) { // if the end of the path is open
-      auto& dist = distance(startp, endp, moveFw);
-      if (dist>threshold) {
+
+    // used in all the following terminal conditions
+    auto& remLen = remainingLen(curContig, startp, moveFw);
+
+    if (remLen > threshold) {
+      if (endContig.isDummy()) {// if the end of the path is open
         appendByLen(seq, curContig, startp, threshold, moveFw);
         return Task::SUCCESS;
-      } else {
-        appendByLen(seq, curContig, startp, dist, moveFw); // update seq
-        threshold -= dist; // update threshold
-        for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
-          // act greedily and return with the first successfully constructed sequence.
-          if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)
-            return Task::SUCCESS;
-        }
-        // If couldn't find any successful successors, then this path was a dead end. Revert your append and return with failure
-        cutoff(seq, dist);
-        return Task::FAILURE;
       }
+      // DON'T GET STUCK IN INFINITE LOOPS
+      // if we have not reached the last contigId
+      // and also end of the path is NOT open
+      // then if the remaining of the contig from this position is less than threshold it should be counted as a failure
+      // because we couldn't find the path between start and end that is shorter than some threshold
+      else
+        return Task::FAILURE; // I'm in the middle of no where!! lost!!
     }
 
-    // used for the last two conditions
-    auto& remLen = remainingLen(curContig, startp, moveFw);
-    // DON'T GET STUCK IN INFINITE LOOPS
-    // if we have not reached the last contigId
-    // and also end of the path is NOT open
-    // then if the remaining of the contig from this position is less than threshold it should be counted as a failure
-    // because we couldn't find the path between start and end that is shorter than some threshold
-    if ( remLen < threshold) {
-      return Task::FAILURE; // I'm in the middle of no where!! lost!!
-    }
-
-    // last but not least
-    // fetch al the remaining string from the current contig and do BFS for its successors to either get to the end contig or exhaust the threshold
+    // If we didn't meet any terminal conditions, we need to dig deeper into the tree through BFS
+    // The approach is the same for both valid and dummy end nodes
     appendByLen(seq, curContig, startp, remLen, moveFw);
     threshold -= remLen; // update threshold
     for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
@@ -73,7 +61,7 @@ public:
       if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)
         return Task::SUCCESS;
     }
-    // If couldn't find any successful successors, then this path was a dead end. Revert your append and return with failure
+    // If couldn't find any valid/compatible successors, then this path was a dead end. Revert your append and return with failure
     cutoff(seq, remLen);
     return Task::FAILURE;
  }
