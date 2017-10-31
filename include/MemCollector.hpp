@@ -42,7 +42,7 @@ public:
       // Maybe we want to change the interface (make these members public or provide accessors)?
       auto& refs = projHits.refRange;
       if (refs.size() < 200) {
-        memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_, projHits.contigPos_);
+        memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_, projHits.contigPos_, projHits.globalPos_, projHits.contigLen_);
         auto memItr = std::prev(memCollection.end());
         for (auto& posIt : refs) {
           auto refPosOri = projHits.decodeHit(posIt);
