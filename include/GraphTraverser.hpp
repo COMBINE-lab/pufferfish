@@ -3,6 +3,7 @@
 
 
 #include "Util.hpp"
+#include "CanonicalKmer.hpp"
 
 enum Task {
            SUCCESS,
@@ -21,7 +22,40 @@ public:
 
 
 private:
-  std::vector<util::ContigBlock> fetchSuccessors(util::ContigBlock& contig, bool moveFw) { return NULL;}
+  std::vector<util::ContigBlock> fetchSuccessors(util::ContigBlock& contig,
+                                                 bool moveFw,
+                                                 size_t tid,
+                                                 size_t tpos) {
+    std::vector<util::ContigBlock> successors ;
+    CanonicalKmer::k(k) ;
+
+    auto& edges = pfi_->getEdge() ;
+    util::Direction dir = moveFw?util::Direction::FORWARD:util::Direction::BACKWORD ;
+
+    uint8_t edgeVec = edges[contig.contigIdx_] ;
+    std::vector<util::extension> ext = util::getExts(edgeVec) ;
+
+    if(!ext.empty()){
+      CanonicalKmer kb = contig.kb ;
+      CanonicalKmer ke = contig.ke ;
+      CanonicalKmer kt ;
+
+      for(auto& ed : ext){
+        if(ed.dir == dir){
+          (dir == util::Direction::FORWARD)?ke.shiftFw(ed.c):kb.shiftBw(ed.c) ;
+          (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
+
+          auto& nextHit = pfi_->getRefPos(kt) ;
+          util::ContigBlock ctgBlock = pfi_->getContigBlock(nextHit.contigIdx_) ;
+          if(isCompatible(ctgBlock,tid,tpos,moveFw))
+            successors.push_back(ctgBlock) ;
+
+        }
+      }
+    }
+
+    return successors;
+  }
 
   bool isCompatible(util::ContigBlock& contig, size_t tid, size_t tpos, bool fw) {
     auto& pvec = pfi_->refList(contig.contigIdx_) ;
