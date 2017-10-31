@@ -258,9 +258,11 @@ enum class MateStatus : uint8_t {
     uint32_t rpos;
     uint32_t memlen;
     uint32_t cpos ;
+    uint64_t cGlobalPos;
+    uint32_t clen;
 
-    UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn, uint32_t cposIn) :
-      cid(cidIn), cIsFw(cIsFwIn), rpos(rposIn), memlen(memlenIn), cpos(cposIn){}
+    UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn, uint32_t cposIn, uint64_t cGlobalPosIn, uint32_t clenIn) :
+      cid(cidIn), cIsFw(cIsFwIn), rpos(rposIn), memlen(memlenIn), cpos(cposIn), cGlobalPos(cGlobalPosIn), clen(clenIn){}
   };
 
   struct MemInfo {
