@@ -704,13 +704,12 @@ void processReadsPair(paired_parser* parser,
 
   
   auto rg = parser->getReadGroup() ;
-
   while(parser->refill(rg)){
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
       //std::cout << rpair.first.name << "\n";
-      bool verbose = rpair.first.name == "read25634671/ENST00000396859;mate1:392-491;mate2:535-633";
+      bool verbose = false;//rpair.first.name == "read25634671/ENST00000396859;mate1:392-491;mate2:535-633";
 
       ++hctr.numReads ;
 
@@ -725,7 +724,6 @@ void processReadsPair(paired_parser* parser,
 
       //std::cerr << "\n going inside hit collector \n" ;
       //readLen = rpair.first.seq.length() ;
-
       bool lh = memCollector(rpair.first.seq,
                              leftHits,
                              mopts->maxSpliceGap,
@@ -734,7 +732,6 @@ void processReadsPair(paired_parser* parser,
                              /*
                              mopts->consistentHits,
                              refBlocks*/) ;
-
       bool rh = memCollector(rpair.second.seq,
                              rightHits,
                              mopts->maxSpliceGap,

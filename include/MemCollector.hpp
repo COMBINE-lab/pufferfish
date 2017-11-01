@@ -236,13 +236,12 @@ public:
     util::QueryCache qc;
 
     while (kit1 != kit_end) {
-      auto phits = pfi_->getRefPos(kit1->first);
+      auto phits = pfi_->getRefPos(kit1->first, qc);
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
         size_t readPosOld = kit1->second ;
         if(verbose){
-          std::cerr << qc.prevRank << "\t" << qc.contigStart << "\t" << qc.contigEnd << "\t" << pfi_->getGlobalPos(qc.prevRank)<< "\t" << pfi_->getGlobalPos(qc.prevRank-1) << "\n" ;
           std::cerr<< "Index "<< phits.contigID() << " ContigLen "<<phits.contigLen_<< " GlobalPos " << phits.globalPos_ << " ore " << phits.contigOrientation_ << " ref size " << phits.refRange.size() <<"\n\n\n" ;
           std::cerr<<kit1->first.to_str() << "\n" ;
           for(auto& posIt : phits.refRange){
