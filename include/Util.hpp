@@ -499,9 +499,9 @@ struct HitQueryPos {
 };
 
 struct QueryCache {
-  uint64_t prevRank;
-  uint64_t contigStart;
-  uint64_t contigEnd;
+  uint64_t prevRank{std::numeric_limits<uint64_t>::max()};
+  uint64_t contigStart{std::numeric_limits<uint64_t>::max()};
+  uint64_t contigEnd{std::numeric_limits<uint64_t>::max()};
 };
 
 struct ContigPosInfo {

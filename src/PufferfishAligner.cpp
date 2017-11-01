@@ -797,7 +797,7 @@ void processReadsPair(paired_parser* parser,
 
       }
 
-      bool doTraverse = true;
+      bool doTraverse = false;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
