@@ -589,7 +589,7 @@ void goOverClust(PufferfishIndexT& pfi,
 }
 
 //template <typename ReadPairT ,typename PufferfishIndexT>
-std::string extractReadSeq(const std::string& readSeq, uint32_t& rstart, uint32_t& rend, bool& isFw) {
+std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
   if (isFw)
     return readSeq.substr(rstart, rend-rstart);
   return "test"; //reverse-complement the substring
@@ -603,6 +603,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
                     uint32_t tid,
                     bool verbose) {
 
+  (void)verbose;
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
     // while mems overlap, continue
     if (clust->mems[it+1].tpos < clust->mems[it].tpos + clust->mems[it].memInfo->memlen)
@@ -637,8 +638,9 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
       //TODO -1 needed or not? This is the problem
       uint32_t rstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos-1); 
-      uint32_t rend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos-1):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen); 
-      refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, rstart, ecb, rend, refSeq);
+      uint32_t rend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos-1):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
+
+      refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, rstart, ecb, rend, rend-rstart+THRESHOLD, refSeq);
       if (rend-rstart>0) {
         clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
       }
