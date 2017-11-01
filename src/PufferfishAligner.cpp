@@ -590,9 +590,10 @@ void goOverClust(PufferfishIndexT& pfi,
 
 //template <typename ReadPairT ,typename PufferfishIndexT>
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
+  std::string subseq = readSeq.substr(rstart, rend-rstart);
   if (isFw)
-    return readSeq.substr(rstart, rend-rstart);
-  return "test"; //reverse-complement the substring
+    return subseq;
+  return util::reverseComplement(subseq); //reverse-complement the substring
 }
 
 template <typename PufferfishIndexT>
@@ -637,10 +638,10 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                clust->mems[it+1].memInfo->clen,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
       //TODO -1 needed or not? This is the problem
-      uint32_t rstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos-1); 
-      uint32_t rend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos-1):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
+      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos-1); 
+      uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos-1):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
 
-      refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, rstart, ecb, rend, rend-rstart+THRESHOLD, refSeq);
+      refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, cstart, ecb, cend, rend-rstart+THRESHOLD, refSeq);
       if (rend-rstart>0) {
         clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
       }
@@ -796,7 +797,7 @@ void processReadsPair(paired_parser* parser,
 
       }
 
-      bool doTraverse = false;
+      bool doTraverse = true;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
