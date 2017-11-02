@@ -4,6 +4,8 @@
 
 #include <sparsepp/spp.h>
 
+#define verbose false
+
 template <typename PufferfishIndexT>
 RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache) : pfi_(pfi), contigCache_(contigCache) { k = pfi_->k(); }
   //NOTE: Since we are ALWAYS traversing the mems --and hence the unmapped sequences-- in the forward direction wrt the transcript,
@@ -25,6 +27,13 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
              size_t endp,
              uint32_t threshold,
              std::string& seq) {
+
+
+
+  if(verbose) std::cerr << "Doing BFS, GO time\n" << "called with curr contig: "
+            << curContig.contigIdx_ << " of length " << curContig.contigLen_
+            << " start " << startp << "\n"
+            << "end contig index "<< endContig.contigIdx_ << " ending at " << endp << "\n" ;
     if (curContig.contigIdx_ == endContig.contigIdx_) {
         append(seq, curContig, startp, endp, moveFw);
         return Task::SUCCESS;
@@ -36,6 +45,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
     }
 
     // used in all the following terminal conditions
+    if(verbose) std::cerr << "remaining length from "<<startp<<" in direction "<<moveFw<<"\n" ;
     auto remLen = remainingLen(curContig, startp, moveFw);
 
     if (remLen > threshold) {
@@ -54,7 +64,12 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
 
     // If we didn't meet any terminal conditions, we need to dig deeper into the tree through BFS
     // The approach is the same for both valid and dummy end nodes
+    if(verbose) std::cerr << " Okay until here \n" ;
+
     appendByLen(seq, curContig, startp, remLen, moveFw);
+    
+    if(verbose) std::cerr << " never got printed in case of seg fault  \n" ;
+
     threshold -= remLen; // update threshold
     for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
       // act greedily and return with the first successfully constructed sequence.
@@ -77,13 +92,18 @@ size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& cont
       return contig.contigLen_ - startp;
     else
       //TODO For backward walk, check the inclusion/exclusion of the current base and have a concensus on the assumption
-      return startp+1;
+      //this is a bad idea we might fall over the edge 
+      //return startp+1;
+      return startp ;
+    
 }
 
 
 template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool moveFw) {
-    if(moveFw)
+
+  if(verbose) std::cerr << "clipping by pos "<<startp<< " to " << endp << " from "<<contig.contigLen_<<"\n" ;
+   if(moveFw)
       seq += contig.substrSeq(startp, endp-startp);
     else {
       // we are always building the seq by moving forward in transcript, so we always append any substring that we construct
@@ -94,6 +114,7 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq, util::ContigB
 
 template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool moveFw) {
+  if(verbose) std::cerr << "clipping by len "<<len<< " from " << startp << " total length: "<<contig.contigLen_<<"\n" ;
     if(moveFw)
       seq += contig.substrSeq(startp, len);
     else
@@ -141,6 +162,8 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
                                                  bool moveFw,
                                                  size_t tid,
                                                  size_t tpos) {
+
+    if(verbose) std::cerr << "Fetch successors \n" ;
     std::vector<nextCompatibleStruct> successors ;
     CanonicalKmer::k(k) ;
 
@@ -154,7 +177,7 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
       CanonicalKmer kb ;
       kb.fromStr(contig.seq.substr(0,k)) ;
       CanonicalKmer ke ;
-      ke.fromStr(contig.seq.substr(contig.contigLen_-k-1,k)) ;
+      ke.fromStr(contig.seq.substr(contig.contigLen_-k,k)) ;
       CanonicalKmer kt ;
 
       for(auto& ed : ext){

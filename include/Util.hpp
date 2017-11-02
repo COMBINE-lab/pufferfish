@@ -550,7 +550,11 @@ struct ContigBlock{
   bool isDummy() {return isDummy_;}
 
   std::string substrSeq(size_t s, size_t len){
-    return seq.substr(s,len) ;
+    //std::cerr << contigLen_ << "\t" << s << "\t" << len << "\n" ;
+    if(s+len <= contigLen_)
+      return seq.substr(s,len) ;
+    else
+      return "" ;
   }
 
 

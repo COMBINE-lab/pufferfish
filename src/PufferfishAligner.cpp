@@ -590,6 +590,8 @@ void goOverClust(PufferfishIndexT& pfi,
 
 //template <typename ReadPairT ,typename PufferfishIndexT>
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
+  //DEBUG: tracking substr error
+  //std::cerr << "checking boundaries " << readSeq.length() << " " << rstart << " " << rend << "\n" ;
   std::string subseq = readSeq.substr(rstart, rend-rstart);
   if (isFw)
     return subseq;
@@ -607,8 +609,10 @@ void createSeqPairs(PufferfishIndexT* pfi,
   (void)verbose;
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
     // while mems overlap, continue
-    if (clust->mems[it+1].tpos < clust->mems[it].tpos + clust->mems[it].memInfo->memlen)
+    if (clust->mems[it+1].tpos < clust->mems[it].tpos + clust->mems[it].memInfo->memlen){
+      //std::cerr<<"Overlapping mems skipping\n" ;
       continue;
+    }
 
     uint32_t rstart = (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
     uint32_t rend = clust->mems[it+1].memInfo->rpos;
@@ -624,9 +628,10 @@ void createSeqPairs(PufferfishIndexT* pfi,
         }
     }
     else {// we have a gap on transcript and need to do graph traversal
+      //std::cerr << "Need to do graph traversal \n" ; 
       std::string refSeq;
-      bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw && clust->isFw;
-      bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw && clust->isFw;
+      bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // I am changing the logic 
+      bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw == clust->isFw;
       util::ContigBlock scb = {
                                clust->mems[it].memInfo->cid,
                                clust->mems[it].memInfo->cGlobalPos,
@@ -638,10 +643,17 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                clust->mems[it+1].memInfo->clen,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
       //TODO -1 needed or not? This is the problem
-      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos-1); 
-      uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos-1):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
+      //We should check if cpos does not beome negative, since we are doing -1
+      
+      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos > 0?clust->mems[it].memInfo->cpos-1:0);
+      //TODO also we have to check if the next does
+      //not start from 0
+      uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos > 0 ? clust->mems[it+1].memInfo->cpos-1:0):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
 
-      refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, cstart, ecb, cend, rend-rstart+THRESHOLD, refSeq);
+      //NOTE: if they the mem cstart and cend are back to back and on same contig
+      //do we need to do graph ? probably not
+      if(scb.contigIdx_ != ecb.contigIdx_ or cstart != cend)
+        refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, cstart, ecb, cend, rend-rstart+THRESHOLD, refSeq);
       if (rend-rstart>0) {
         clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
       }
@@ -797,7 +809,7 @@ void processReadsPair(paired_parser* parser,
 
       }
 
-      bool doTraverse = false;
+      bool doTraverse = true;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
