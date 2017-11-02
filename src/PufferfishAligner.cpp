@@ -601,12 +601,16 @@ std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t 
 template <typename PufferfishIndexT>
 void createSeqPairs(PufferfishIndexT* pfi,
                     std::vector<util::MemCluster>::iterator clust,
-                    const std::string& readSeq,
+                    fastx_parser::ReadSeq& read,
                     RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
                     uint32_t tid,
                     bool verbose) {
 
   (void)verbose;
+
+  std::string& readName = read.name ;
+  std::string& readSeq = read.seq ;
+
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
     // while mems overlap, continue
     if (clust->mems[it+1].tpos < clust->mems[it].tpos + clust->mems[it].memInfo->memlen){
@@ -652,8 +656,16 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
       //NOTE: if they the mem cstart and cend are back to back and on same contig
       //do we need to do graph ? probably not
-      if(scb.contigIdx_ != ecb.contigIdx_ or cstart != cend)
-        refSeqConstructor.doBFS(tid, clust->mems[it].tpos, firstContigDirWRTref, scb, cstart, ecb, cend, rend-rstart+THRESHOLD, refSeq);
+      if(scb.contigIdx_ != ecb.contigIdx_ or cstart != cend){
+
+        //std::cout << readName << "\n" ;
+        refSeqConstructor.doBFS(tid,
+                                clust->mems[it].tpos,
+                                firstContigDirWRTref,
+                                scb, cstart, ecb, cend,
+                                rend-rstart+THRESHOLD,
+                                refSeq);
+      }
       if (rend-rstart>0) {
         clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
       }
@@ -679,10 +691,10 @@ void traverseGraph(ReadPairT& rpair,
 
 
   if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.leftClust, rpair.first.seq, refSeqConstructor, tid, verbose);
+    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, tid, verbose);
     //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
   if(!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.rightClust, rpair.second.seq, refSeqConstructor, tid, verbose);
+    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, tid, verbose);
     //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 }
 
