@@ -34,6 +34,9 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
             << curContig.contigIdx_ << " of length " << curContig.contigLen_
             << " start " << startp << "\n"
             << "end contig index "<< endContig.contigIdx_ << " ending at " << endp << "\n" ;
+
+
+
     if (curContig.contigIdx_ == endContig.contigIdx_) {
         append(seq, curContig, startp, endp, moveFw);
         return Task::SUCCESS;
@@ -45,8 +48,8 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
     }
 
     // used in all the following terminal conditions
-    if(verbose) std::cerr << "remaining length from "<<startp<<" in direction "<<moveFw<<"\n" ;
     auto remLen = remainingLen(curContig, startp, moveFw);
+    if(verbose) std::cerr << "remaining length " << remLen <<" startp " <<startp << " in direction "<<moveFw<<"\n" ;
 
     if (remLen > threshold) {
       if (endContig.isDummy()) {// if the end of the path is open
@@ -70,7 +73,14 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
     
     if(verbose) std::cerr << " never got printed in case of seg fault  \n" ;
 
-    threshold -= remLen; // update threshold
+    //NOTE threshold can become ZERO here
+    //we should check for that
+
+    if(threshold >= remLen) {
+      threshold -= remLen; // update threshold
+      if(threshold == 0)
+        return Task::SUCCESS ;
+    }
     for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
       // act greedily and return with the first successfully constructed sequence.
       if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)

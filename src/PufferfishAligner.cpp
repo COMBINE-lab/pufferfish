@@ -608,7 +608,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
   (void)verbose;
 
-  std::string& readName = read.name ;
+  //std::string& readName = read.name ;
   std::string& readSeq = read.seq ;
 
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
