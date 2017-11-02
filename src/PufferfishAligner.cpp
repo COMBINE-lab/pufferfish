@@ -613,7 +613,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
     // while mems overlap, continue
-    if (clust->mems[it+1].tpos < clust->mems[it].tpos + clust->mems[it].memInfo->memlen){
+    if (clust->mems[it+1].tpos < (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)){
       //std::cerr<<"Overlapping mems skipping\n" ;
       continue;
     }
@@ -630,12 +630,29 @@ void createSeqPairs(PufferfishIndexT* pfi,
           std::string tmp = extractReadSeq(readSeq, rstart, rend, clust->isFw) ;
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), ""));
         }
+        else if (rend < rstart) {
+          //NOTE: @hirak, one log is here
+          //std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
+        }
     }
-    else {// we have a gap on transcript and need to do graph traversal
+    else {
+      if (rend < rstart) {
+        //NOTE: @hirak, the other log is here
+        /*std::cerr << clust->isFw << "\n";
+        for (size_t i = it; i < clust->mems.size(); i++) {
+          std::cerr << clust->mems[i].tpos << " " << clust->mems[i].memInfo->rpos << " memlen:" << clust->mems[i].memInfo->memlen << "\n";
+        }
+        std::cerr << "rstart > rend while tend > tstart\n" << read.name << "\n";
+        std::cerr << rstart << " " << rend << " " << clust->mems[it+1].tpos << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << "\n";
+        */
+        //std::exit(1);
+      }
+      // we have a gap on transcript and need to do graph traversal
       //std::cerr << "Need to do graph traversal \n" ; 
       std::string refSeq;
       bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // I am changing the logic 
       bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw == clust->isFw;
+      //TODO read from contigBlockCache if available
       util::ContigBlock scb = {
                                clust->mems[it].memInfo->cid,
                                clust->mems[it].memInfo->cGlobalPos,
@@ -654,10 +671,6 @@ void createSeqPairs(PufferfishIndexT* pfi,
       //not start from 0
       uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos > 0 ? clust->mems[it+1].memInfo->cpos-1:0):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
 
-      //NOTE: if they the mem cstart and cend are back to back and on same contig
-      //do we need to do graph ? probably not
-      if(scb.contigIdx_ != ecb.contigIdx_ or cstart != cend){
-
         //std::cout << readName << "\n" ;
         refSeqConstructor.doBFS(tid,
                                 clust->mems[it].tpos,
@@ -665,10 +678,9 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 scb, cstart, ecb, cend,
                                 rend-rstart+THRESHOLD,
                                 refSeq);
-      }
-      if (rend-rstart>0) {
+        //      if (rend-rstart>0) {
         clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
-      }
+        //}
     }
   }
 

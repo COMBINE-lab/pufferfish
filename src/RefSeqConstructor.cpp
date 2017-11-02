@@ -51,7 +51,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
     auto remLen = remainingLen(curContig, startp, moveFw);
     if(verbose) std::cerr << "remaining length " << remLen <<" startp " <<startp << " in direction "<<moveFw<<"\n" ;
 
-    if (remLen > threshold) {
+    if (remLen >= threshold) {
       if (endContig.isDummy()) {// if the end of the path is open
         appendByLen(seq, curContig, startp, threshold, moveFw);
         return Task::SUCCESS;
@@ -65,6 +65,8 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
         return Task::FAILURE; // I'm in the middle of no where!! lost!!
     }
 
+    // if we are here, this means threshold > remLen
+    
     // If we didn't meet any terminal conditions, we need to dig deeper into the tree through BFS
     // The approach is the same for both valid and dummy end nodes
     if(verbose) std::cerr << " Okay until here \n" ;
@@ -73,14 +75,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
     
     if(verbose) std::cerr << " never got printed in case of seg fault  \n" ;
 
-    //NOTE threshold can become ZERO here
-    //we should check for that
-
-    if(threshold >= remLen) {
-      threshold -= remLen; // update threshold
-      if(threshold == 0)
-        return Task::SUCCESS ;
-    }
+    threshold -= remLen; // update threshold
     for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
       // act greedily and return with the first successfully constructed sequence.
       if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)
