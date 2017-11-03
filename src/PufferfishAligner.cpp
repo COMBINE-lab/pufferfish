@@ -164,9 +164,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
 
 //this is super heuristic
 //not a complete BFS
-
-
-
+/*
 template <typename PufferfishIndexT>
 void goOverClust(PufferfishIndexT& pfi,
                  std::vector<util::MemCluster>::iterator clust,
@@ -283,7 +281,7 @@ void goOverClust(PufferfishIndexT& pfi,
 
   }
 
-}
+  }*/
 
 //template <typename ReadPairT ,typename PufferfishIndexT>
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
@@ -295,37 +293,124 @@ std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t 
   return util::reverseComplement(subseq); //reverse-complement the substring
 }
 
+std::string cigar2str(ksw_extz_t* ez){
+  std::string cigar ;
+  if(ez->n_cigar > 0){
+    cigar.resize(ez->n_cigar*2) ;
+    for(int i = 0 ; i < ez->n_cigar ; ++i){
+      cigar += (std::to_string(ez->cigar[i]>>4) + "MID"[ez->cigar[i]&0xf]) ;
+    }
+  }
+  return cigar ;
+}
+
+
+std::string calculateCigar (std::pair<std::string,std::string>& apair,
+                            ksw2pp::KSW2Aligner& aligner){
+  std::string cigar = "";
+
+  if(!apair.first.empty() or !apair.second.empty()){
+    ksw_extz_t ez;
+    memset(&ez, 0, sizeof(ksw_extz_t));
+    ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
+    ez.n_cigar = 0;
+    ez.score = aligner(apair.first.c_str(),
+                        apair.first.size(),
+                        apair.second.c_str(),
+                        apair.second.size(),
+                        &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
+    cigar += cigar2str(&ez) ;
+  }else if(!apair.second.empty()){
+    cigar += (std::to_string(apair.second.size())+"I") ;
+  }else if(!apair.first.empty()){
+    cigar += (std::to_string(apair.first.size())+"D") ;
+  }
+    
+  return cigar ; 
+}
+
+std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& alignableStrings,
+                            ksw2pp::KSW2Aligner& aligner){
+  std::string cigar = "";
+  for(auto& apair : alignableStrings){
+
+    if(!apair.first.empty() or !apair.second.empty()){
+      ksw_extz_t ez;
+      memset(&ez, 0, sizeof(ksw_extz_t));
+      ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
+      ez.n_cigar = 0;
+      ez.score = aligner(apair.first.c_str(),
+                          apair.first.size(),
+                         apair.second.c_str(),
+                          apair.second.size(),
+                         &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
+      cigar += cigar2str(&ez) ;
+    }else if(!apair.second.empty()){
+      cigar += (std::to_string(apair.second.size())+"I") ;
+    }else if(!apair.first.empty()){
+      cigar += (std::to_string(apair.first.size())+"D") ;
+    }
+    
+  }
+  return cigar ; 
+}
+
 template <typename PufferfishIndexT>
 void createSeqPairs(PufferfishIndexT* pfi,
                     std::vector<util::MemCluster>::iterator clust,
                     fastx_parser::ReadSeq& read,
                     RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
                     uint32_t tid,
+                    ksw2pp::KSW2Aligner& aligner,
                     bool verbose) {
 
   (void)verbose;
 
   //std::string& readName = read.name ;
   std::string& readSeq = read.seq ;
+  if(clust->mems.size() == 1)
+    clust->cigar = (std::to_string(readSeq.length())+"M") ;
+  else
+    clust->cigar = "" ;
+
+  //try to modify cigar here 
 
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
-    // while mems overlap, continue
-    if (clust->mems[it+1].tpos < (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)){
+
+
+    // while mems overlap on transcript
+    // merge the mems 
+
+    if (clust->mems[it+1].tpos < (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)) {
       //std::cerr<<"Overlapping mems skipping\n" ;
+      //std::cerr<<"Transcript positions " << clust->mems[it].tpos << "\t"
+      //        << clust->mems[it+1].tpos << "\t" << clust->mems[it].memInfo->memlen << "\t"
+      //        <<"read positions \t" << clust->mems[it].memInfo->rpos << "\t"
+      //       <<clust->mems[it+1].memInfo->rpos << "\t" << clust->mems[it+1].memInfo->memlen
+      //       << "\t\t" << clust->isFw << "\n";
+      uint32_t ms = std::min(clust->mems[it].memInfo->rpos, clust->mems[it+1].memInfo->rpos) ;
+      uint32_t me = std::max(clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen,
+                             clust->mems[it+1].memInfo->rpos + clust->mems[it+1].memInfo->memlen) ;
+
+      clust->cigar += (std::to_string(me-ms) + "M") ;
+
       continue;
     }
 
     uint32_t rstart = (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
     uint32_t rend = clust->mems[it+1].memInfo->rpos;
+
     if (!clust->isFw) {
       rstart = (clust->mems[it+1].memInfo->rpos + clust->mems[it+1].memInfo->memlen);
       rend = clust->mems[it].memInfo->rpos;
     }
+
     //Insertion in read
     if (clust->mems[it+1].tpos == clust->mems[it].tpos + clust->mems[it].memInfo->memlen) {
         if (rend-rstart > 0) {
           std::string tmp = extractReadSeq(readSeq, rstart, rend, clust->isFw) ;
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), ""));
+          clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }
         else if (rend < rstart) {
           std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
@@ -365,6 +450,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
       uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos > 0 ? clust->mems[it+1].memInfo->cpos-1:0):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
 
         //std::cout << readName << "\n" ;
+        //want to check out if the fetched sequence
+        //and the read substring make sense or not 
         refSeqConstructor.doBFS(tid,
                                 clust->mems[it].tpos,
                                 firstContigDirWRTref,
@@ -372,7 +459,11 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 rend-rstart+THRESHOLD,
                                 refSeq);
         //      if (rend-rstart>0) {
+        //TODO validate graph
+        //std::cerr << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
+        //          << " part of ref " << refSeq << "\n";
         clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
+        clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         //}
     }
   }
@@ -389,6 +480,7 @@ void traverseGraph(ReadPairT& rpair,
                    util::JointMems& hit,
                    PufferfishIndexT& pfi,
                    RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
+                   ksw2pp::KSW2Aligner& aligner,
                    bool verbose){
 
   size_t tid = hit.tid ;
@@ -396,45 +488,14 @@ void traverseGraph(ReadPairT& rpair,
 
 
   if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, tid, verbose);
+    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, tid, aligner, verbose);
     //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
   if(!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, tid, verbose);
+    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, tid, aligner, verbose);
     //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 }
 
 
-std::string cigar2str(ksw_extz_t* ez){
-  std::string cigar ;
-  if(ez->n_cigar > 0){
-    cigar.resize(ez->n_cigar*2) ;
-    for(int i = 0 ; i < ez->n_cigar ; ++i){
-      cigar += (std::to_string(ez->cigar[i]>>4) + "MID"[ez->cigar[i]&0xf]) ;
-    }
-  }
-  return cigar ;
-}
-
-std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& alignableStrings,
-                            ksw2pp::KSW2Aligner& aligner){
-  std::string cigar = "";
-  for(auto& apair : alignableStrings){
-
-    if(!apair.first.empty() or !apair.second.empty()){
-      ksw_extz_t ez;
-      memset(&ez, 0, sizeof(ksw_extz_t));
-      ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
-      ez.n_cigar = 0;
-      ez.score = aligner(apair.first.c_str(),
-                          apair.first.size(),
-                         apair.second.c_str(),
-                          apair.second.size(),
-                         &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
-      cigar += cigar2str(&ez) ;
-    }
-  }
-  return cigar ; 
-}
 
 template <typename PufferfishIndexT>
 void processReadsPair(paired_parser* parser,
@@ -534,7 +595,7 @@ void processReadsPair(paired_parser* parser,
       }
       //jointHits is a vector
       //this can be used for BFS
-
+      //NOTE sanity check
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
       for(auto& h: jointHits){
         for(auto& m : h.leftClust->mems){
@@ -562,6 +623,17 @@ void processReadsPair(paired_parser* parser,
 
       }
 
+      //Inirialize aligner ksw 
+      ksw2pp::KSW2Config config ;
+      ksw2pp::KSW2Aligner aligner ;
+
+      config.gapo = 4 ;
+      config.gape = 2 ;
+      config.bandwidth = -1 ;
+      config.flag = KSW_EZ_RIGHT ;
+
+      aligner.config() = config ;
+
       bool doTraverse = true;
       if (doTraverse) {
         //TODO Have to make it per thread 
@@ -572,44 +644,31 @@ void processReadsPair(paired_parser* parser,
 
         if(jointHits.empty() or jointHits.front().coverage() < 2*readLen){
           for(auto& hit : jointHits){
-            traverseGraph(rpair, hit, pfi, refSeqConstructor, verbose) ;
+            traverseGraph(rpair, hit, pfi, refSeqConstructor, aligner, verbose) ;
             hitNum++ ;
 
           }
         }
       }
 
-      using ksw2pp::KSW2Aligner;
-      using ksw2pp::KSW2Config;
-      using ksw2pp::EnumToType;
-      using ksw2pp::KSW2AlignmentType;
 
-      KSW2Config config ;
-      KSW2Aligner aligner ;
-
-      config.gapo = 4 ;
-      config.gape = 2 ;
-      config.bandwidth = -1 ;
-      config.flag = KSW_EZ_RIGHT ;
-
-      aligner.config() = config ;
-
+      /*
       if(doTraverse){
         for(auto& hit : jointHits){
           if(!hit.leftClust->alignableStrings.empty()){
             hit.leftClust->cigar = calculateCigar(hit.leftClust->alignableStrings, aligner) ;
             //dehug print
-            if(!hit.leftClust->cigar.empty())
-              std::cerr << hit.leftClust->cigar << "\n" ;
+            //if(!hit.leftClust->cigar.empty())
+            //std::cerr << hit.leftClust->cigar << "\n" ;
           }
           if(!hit.rightClust->alignableStrings.empty()){
             hit.rightClust->cigar = calculateCigar(hit.rightClust->alignableStrings, aligner) ;
             //dehug print
-            if(!hit.rightClust->cigar.empty())
-              std::cerr << hit.rightClust->cigar << "\n" ;
+            //if(!hit.rightClust->cigar.empty())
+            //std::cerr << hit.rightClust->cigar << "\n" ;
           }
         }
-      }
+        }*/
 
 
 
@@ -628,11 +687,13 @@ void processReadsPair(paired_parser* parser,
                                      jointHit.leftClust->getTrFirstHitPos(),     // reference pos
                                      jointHit.leftClust->isFw ,     // fwd direction
                                      readLen, // read length
+                                     jointHit.leftClust->cigar, // cigar string 
                                      jointHit.fragmentLen,       // fragment length
                                      true);         // properly paired
          // Fill in the mate info		         // Fill in the mate info
         auto& qaln = jointAlignments.back();
          qaln.mateLen = readLen;
+         qaln.mateCigar = jointHit.rightClust->cigar ;
          qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
          qaln.mateIsFwd = jointHit.rightClust->isFw;
          qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;

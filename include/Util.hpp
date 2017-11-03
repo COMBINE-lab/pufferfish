@@ -279,7 +279,7 @@ enum class MateStatus : uint8_t {
     bool isFw;
     bool isVisited = false;
     uint32_t coverage{0};
-    std::vector<std::pair<std::string,std::string>> alignableStrings;
+    std::vector<std::pair<std::string,std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
     std::string cigar ;
     MemCluster(bool isFwIn): isFw(isFwIn) {}
     /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
@@ -358,12 +358,12 @@ struct QuasiAlignment {
 		isPaired(false){}
 
         QuasiAlignment(uint32_t tidIn, int32_t posIn,
-                bool fwdIn, uint32_t readLenIn,
+                       bool fwdIn, uint32_t readLenIn, std::string cigarIn, //NOTE can we make it uint32?
                 uint32_t fragLenIn = 0,
                 bool isPairedIn = false) :
             tid(tidIn), pos(posIn), fwd(fwdIn),
             fragLen(fragLenIn), readLen(readLenIn),
-            isPaired(isPairedIn){}
+            isPaired(isPairedIn), cigar(cigarIn) {}
 
         QuasiAlignment(QuasiAlignment&& other) = default;
         QuasiAlignment& operator=(QuasiAlignment&) = default;
@@ -420,6 +420,11 @@ struct QuasiAlignment {
         uint32_t mateLen;
         // Is this a paired *alignment* or not
         bool isPaired;
+
+
+  std::string cigar;
+  std::string mateCigar;
+
         MateStatus mateStatus;
   bool active = true;
   uint32_t numHits = 0;

@@ -265,7 +265,8 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << cigarStr1.c_str() << '\t'                   // CIGAR
+        //<< cigarStr1.c_str() << '\t'                   // CIGAR
+              << qa.cigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.matePos + 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
@@ -278,7 +279,8 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.matePos + 1 << '\t'                      // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << cigarStr2.c_str() << '\t'                   // CIGAR
+        //<< cigarStr2.c_str() << '\t'                   // CIGAR
+              << qa.mateCigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.pos + 1 << '\t'                          // PNEXT
               << ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
