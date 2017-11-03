@@ -108,6 +108,12 @@ public:
     }
   }
 
+  void freeCIGAR() {
+    if (result_.cigar and kalloc_allocator_) {
+      kfree(kalloc_allocator_.get(), result_.cigar);
+    }
+  }
+
 private:
   std::vector<uint8_t> query_;
   std::vector<uint8_t> target_;

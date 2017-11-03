@@ -345,6 +345,7 @@ std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& ali
                           apair.second.size(),
                          ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
       cigar += cigar2str(&aligner.result()) ;
+      aligner.freeCIGAR();
     }else if(!apair.second.empty()){
       cigar += (std::to_string(apair.second.size())+"I") ;
     }else if(!apair.first.empty()){
@@ -353,6 +354,48 @@ std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& ali
     
   }
   return cigar ; 
+}
+
+
+void scoreClusters(std::vector<util::MemCluster>::iterator clust,
+                   fastx_parser::ReadSeq& read,
+                    bool verbose) {
+
+  std::string& readSeq = read.seq ;
+  auto clustSize = clust->mems.size()  ;
+  clust->score = 0 ;
+  auto readLen = readSeq.length() ;
+  if(clust->isFw){
+    clust->score += clust->mems[0].memInfo->rpos ;
+    clust->score += (readLen - (clust->mems[clustSize-1].memInfo->rpos + clust->mems[clustSize-1].memInfo->memlen)) ;
+  }
+  else{
+    clust->score += clust->mems[clustSize-1].memInfo->rpos ;
+    clust->score += (readLen - (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen)) ;
+  }
+
+  for(size_t it=0 ; it < clust->mems.size()-1; ++it) {
+    if (clust->mems[it+1].tpos < (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)) {
+      continue;
+    }
+
+    uint32_t rstart = (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
+    uint32_t rend = clust->mems[it+1].memInfo->rpos;
+
+    if (!clust->isFw) {
+      rstart = (clust->mems[it+1].memInfo->rpos + clust->mems[it+1].memInfo->memlen);
+      rend = clust->mems[it].memInfo->rpos;
+    }
+
+    int readGap = static_cast<int>(rend - rstart) ;
+    int transcriptGap = static_cast<int>(clust->mems[it+1].tpos - (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)) ;
+
+    int gap = std::max(readGap, transcriptGap) ;
+    clust->score += gap ;
+
+  }
+
+
 }
 
 template <typename PufferfishIndexT>
