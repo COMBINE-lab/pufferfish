@@ -631,21 +631,17 @@ void createSeqPairs(PufferfishIndexT* pfi,
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), ""));
         }
         else if (rend < rstart) {
-          //NOTE: @hirak, one log is here
-          //std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
+          std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
         }
     }
     else {
       if (rend < rstart) {
-        //NOTE: @hirak, the other log is here
-        /*std::cerr << clust->isFw << "\n";
+        std::cerr << clust->isFw << "\n";
         for (size_t i = it; i < clust->mems.size(); i++) {
           std::cerr << clust->mems[i].tpos << " " << clust->mems[i].memInfo->rpos << " memlen:" << clust->mems[i].memInfo->memlen << "\n";
         }
         std::cerr << "rstart > rend while tend > tstart\n" << read.name << "\n";
         std::cerr << rstart << " " << rend << " " << clust->mems[it+1].tpos << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << "\n";
-        */
-        //std::exit(1);
       }
       // we have a gap on transcript and need to do graph traversal
       //std::cerr << "Need to do graph traversal \n" ; 
