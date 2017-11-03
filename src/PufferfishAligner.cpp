@@ -421,9 +421,8 @@ std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& ali
   for(auto& apair : alignableStrings){
 
     if(!apair.first.empty() or !apair.second.empty()){
-      std::cerr << apair.first << "\t" << apair.first.length() 
-                <<  "\t" <<  apair.second << "\t" << apair.second.length() << "\n" ;
       ksw_extz_t ez;
+      memset(&ez, 0, sizeof(ksw_extz_t));
       ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
       ez.n_cigar = 0;
       ez.score = aligner(apair.first.c_str(),
