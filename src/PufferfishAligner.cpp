@@ -293,7 +293,7 @@ std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t 
   return util::reverseComplement(subseq); //reverse-complement the substring
 }
 
-std::string cigar2str(ksw_extz_t* ez){
+std::string cigar2str(const ksw_extz_t* ez){
   std::string cigar ;
   if(ez->n_cigar > 0){
     cigar.resize(ez->n_cigar*2) ;
@@ -310,16 +310,16 @@ std::string calculateCigar (std::pair<std::string,std::string>& apair,
   std::string cigar = "";
 
   if(!apair.first.empty() or !apair.second.empty()){
-    ksw_extz_t ez;
-    memset(&ez, 0, sizeof(ksw_extz_t));
-    ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
-    ez.n_cigar = 0;
-    ez.score = aligner(apair.first.c_str(),
+    //ksw_extz_t ez;
+    //memset(&ez, 0, sizeof(ksw_extz_t));
+    //ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
+    //ez.n_cigar = 0;
+    auto score = aligner(apair.first.c_str(),
                         apair.first.size(),
                         apair.second.c_str(),
                         apair.second.size(),
-                        &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
-    cigar += cigar2str(&ez) ;
+                        ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
+    cigar += cigar2str(&aligner.result()) ;
   }else if(!apair.second.empty()){
     cigar += (std::to_string(apair.second.size())+"I") ;
   }else if(!apair.first.empty()){
@@ -335,16 +335,16 @@ std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& ali
   for(auto& apair : alignableStrings){
 
     if(!apair.first.empty() or !apair.second.empty()){
-      ksw_extz_t ez;
-      memset(&ez, 0, sizeof(ksw_extz_t));
-      ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
-      ez.n_cigar = 0;
-      ez.score = aligner(apair.first.c_str(),
+      //ksw_extz_t ez;
+      //memset(&ez, 0, sizeof(ksw_extz_t));
+      //ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
+      //ez.n_cigar = 0;
+      auto score = aligner(apair.first.c_str(),
                           apair.first.size(),
                          apair.second.c_str(),
                           apair.second.size(),
-                         &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
-      cigar += cigar2str(&ez) ;
+                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
+      cigar += cigar2str(&aligner.result()) ;
     }else if(!apair.second.empty()){
       cigar += (std::to_string(apair.second.size())+"I") ;
     }else if(!apair.first.empty()){
