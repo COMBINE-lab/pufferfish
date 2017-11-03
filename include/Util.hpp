@@ -280,6 +280,7 @@ enum class MateStatus : uint8_t {
     bool isVisited = false;
     uint32_t coverage{0};
     std::vector<std::pair<std::string,std::string>> alignableStrings;
+    std::string cigar ;
     MemCluster(bool isFwIn): isFw(isFwIn) {}
     /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
       mems.push_back(memIn);

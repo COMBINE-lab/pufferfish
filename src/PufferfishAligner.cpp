@@ -53,6 +53,7 @@
 #include "MemCollector.hpp"
 #include "SAMWriter.hpp"
 #include "RefSeqConstructor.hpp"
+#include "KSW2Aligner.hpp"
 
 #define START_CONTIG_ID ((uint32_t)-1) 
 #define END_CONTIG_ID ((uint32_t)-2)
@@ -159,262 +160,11 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
 }
 
 
-/*
-template<typename PufferfishIndexT>
-void updateCacheBlock(util::ContigCecheBlock& cacheBlock, uint32_t startClip, uint32_t endClip, PufferfishIndexT& pfi, uint32_t cid){
-
-  uint32_t globalPos = std::numeric_limits<uint64_t>max() ;
-
-  if(startClip >= cacheBlock.cpos and endClip < cacheBlock.cpos + cacheBlock.blockLen){
-    tmp = cacheBlock.cseq.substr(startClip-cacheBlock.cpos, THRESHOLD + offset) ;
-  }
-  else{
-    uint32_t newCpos, newLen ;
-    //if doisjoint
-    globalPos = pfi.getGlobalPos(firstMem.memInfo->cid) ;
-    if(startClip < cacheBlock.cpos and endClip < cacheBlock.cpos){
-      //prepend
-      int gap = cacheBlock.cpos - endClip ;
-      if(gap < THRESHOLD){
-        tmp = pfi.getSeqStr(globalPos+startClip, cacheBlock.cpos - startClip) ;
-        cacheBlock.blockLen += (cacheBlock.cpos - startClip + 1);
-        cacheBlock.cseq = tmp + cacheBlock.cseq ;
-      }else{
-        //get new
-        tmp = pfi.getSeqStr(globalPos+startClip, endClip - startClip +1) ;
-        cacheBlock.cpos = startClip ;
-        cacheBlock.cseq = tmp ;
-        cacheBlock.blockLen = endClip - startClip + 1 ;
-
-      }
-    }else if((startClip >= cacheBlock.cpos + cacheBlock.blockLen) and (endClip > cacheBlock.cpos + cacheBlock.blockLen)){
-      //append 
-      int gap = startClip - cacheBlock.cpos ;
-      if(gap < THRESHOLD){
-        tmp = pfi.getSeqStr(globalPos+cacheBlock.cpos+cacheBlock.blockLen , cacheBlock.cpos - startClip) ;
-        cacheBlock.cseq = tmp + cacheBlock.cseq ;
-      }else{
-        //get new
-        tmp = pfi.getSeqStr(globalPos+startClip, endClip - startClip +1) ;
-        cacheBlock.cpos = startClip ;
-        cacheBlock.cseq = tmp ;
-        cacheBlock.blockLen = endClip - startClip + 1 ;
-
-      }
-
-    }
-  }
-
-}*/
 
 
 //this is super heuristic
 //not a complete BFS
-template <typename PufferfishIndexT>
-void populatePaths(util::MemInfo& smem,
-                   util::MemInfo& emem,
-                   std::string& path,
-                   PufferfishIndexT& pfi,
-                   uint32_t tid,
-                   std::map<uint32_t, util::ContigCecheBlock>& contigSeqCache,
-                   size_t readGapDist){
 
-  //In graph searching
-  //std::cerr << "Graph searching: go time\n" ;
-
-  CanonicalKmer::k(pfi.k()) ;
-
-  auto s = *smem.memInfo ;
-  auto e = *emem.memInfo ;
-
-  auto stpos = smem.tpos ;
-
-  auto sCid = s.cid ;
-  auto eCid = e.cid ;
-
-  auto& edges = pfi.getEdge() ;
-
-  std::map<uint32_t,bool> visited ;
-  uint32_t numOfNodesVisited{0} ;
-
-
-  //Initialization
-  std::queue<uint32_t> queue ;
-  queue.push(sCid) ;
-  path = "" ;
-
-  //decide direction
-  //util::Direction toGo;
-
-  int remainingLen = readGapDist ;
-  bool start{true} ;
-
-  //at worst we would visit readGapDist number of nodes 
-  while(numOfNodesVisited < readGapDist and !queue.empty()){
-    auto cid = queue.front() ;
-    numOfNodesVisited += 1 ;
-    visited[cid] = true ;
-    queue.pop() ;
-    auto contigLen = pfi.getContigLen(cid) ;
-
-    //traverse this node
-    int toClip{0} ;
-    if(!start){
-      toClip = (contigLen < remainingLen)?(contigLen):(remainingLen) ;
-      //std::cerr << "middle clipping " << toClip << " from cid "<<cid << "\n" ;
-      path += pfi.getSeqStr(pfi.getGlobalPos(cid),toClip) ;
-    }
-    else{
-      toClip = std::min(static_cast<int>(contigLen - (s.cpos+s.memlen)),remainingLen) ;
-      if(toClip>0){
-        //std::cerr << "start clipping " << toClip << " from cid "<<cid << " glob pos start "<< pfi.getGlobalPos(cid)<< " cpos: " << s.cpos << " memlen: " << s.memlen << "\n" ;
-        path += pfi.getSeqStr(pfi.getGlobalPos(cid)+s.cpos+s.memlen,toClip) ;
-      }
-      start = false ;
-    }
-    //read finished 
-    remainingLen -= static_cast<int> (toClip) ;
-    if(!remainingLen)
-      return ;
-
-    //explore edges, only one edge will be chosen, the extension is greedy
-    uint8_t edgeVec = edges[cid] ;
-    std::vector<util::extension> ext = util::getExts(edgeVec) ;
-
-    if(!ext.empty()){
-      //go over the ext
-      CanonicalKmer kb = pfi.getStartKmer(cid) ;
-      CanonicalKmer ke = pfi.getEndKmer(cid) ;
-      for(auto& ed : ext){
-        auto kbtmp = kb ;
-        auto ketmp = ke ;
-        char c = ed.c ;
-        CanonicalKmer kt ;
-
-        if(ed.dir == util::Direction::FORWARD){
-          ke.shiftFw(c) ;
-          kt.fromNum(ke.getCanonicalWord()) ;
-        }else{
-          kb.shiftBw(c) ;
-          kt.fromNum(kb.getCanonicalWord()) ;
-        }
-
-
-        auto nextHit = pfi.getRefPos(kt) ;
-        uint32_t nextCid{0} ;
-        if(!nextHit.empty()){
-           nextCid = nextHit.contigID() ;
-        }else{
-          std::cerr << "should not happen\n" ;
-        }
-
-        //1. transcript consistensy
-        //2. position consistensy
-
-        if(visited.find(nextCid) == visited.end()){
-          for(auto& posIt : nextHit.refRange){
-            //check for transcript consistensy
-            //auto refPosOri = nextHit.decodeHit(posIt) ;
-            if(posIt.transcript_id() == tid){
-              //check for position consistensy
-              if((posIt.pos() > stpos and posIt.orientation()) or (posIt.pos() < stpos and !posIt.orientation())){
-                if(eCid != nextCid){
-                  queue.push(nextCid) ;
-                  stpos = posIt.pos() ;
-                  goto StopEdge ;
-                }
-                //found an edge 
-                break ;
-
-              }
-            }
-          }
-        
-        }
-        kb = kbtmp ;
-        ke = ketmp ;
-      }// end of edge list
-
-    }else{
-      //the previous node is the end node
-      return ;
-    }
-   
-   StopEdge: ;
-
-  }
-
-}
-
-//NOTE: not doing mem chains 
-//I did not take the reference since I
-//want to sort them according to finishing time
-//without disrupting the order
-/*
-std::vector<int> dynamicMemChain(std::vector<util::MemInfo> mems){
-  std::vector<int> finalChain ;
-
-  return finalChain ;
-}
-
-
-
-std::vector<int> greedyMemChain(std::vector<util::MemInfo>& mems, bool fw){
-  //start with the starting chain and go forward or
-  //backward to get any overlappping chain
-  //can be shitty
-  std::vector<int> finalChain ;
-  finalChain.push_back(0) ;
-  //little heuristic
-  if(mems.size() == 1){
-    return finalChain ;
-  }
-
-  auto prevBlock = *mems[0].memInfo ;
-  for(size_t i = 1; i < mems.size(); ++i){
-    auto thisBlock = *mems[i].memInfo ;
-    auto prevEnd = (fw)?(prevBlock.rpos + prevBlock.memlen):(prevBlock.rpos) ;
-    auto thisBegin = (fw)?(thisBlock.rpos):(thisBlock.rpos + thisBlock.memlen) ;
-    bool overlap = (fw)?(thisBegin < prevEnd):(thisBegin > prevEnd) ;
-    if(!overlap){
-      prevBlock = *mems[i].memInfo ;
-      finalChain.push_back(i) ; 
-    }
-  }
-  return finalChain ;
-  }*/
-
-
-
-
-/*
-template<typename PufferfishIndexT>
-
-void goOverClust2(PufferfishIndexT& pfi,
-                 std::vector<util::MemCluster>::iterator clust,
-                 fastx_parser::ReadSeq& read,
-                 std::map<uint32_t,util::ContigCecheBlock>& contigSeqCache,
-                 uint32_t tid,
-                 bool  verbose){
-
-  std::string readSeq = read.seq ;
-  std::string readName = read.name ;
-
-  size_t clustSize = clust->mems.size() ;
-  bool rdFwd = clust->isFw ;
-
-  for(int it = 0 ; it < clustSize ; ++it){
-    auto& thismem = clust->mems[it] ;
-    auto& nextmem = (it < clustSize-1)?clust->mems[it+1]:clust->mems[it] ;
-    //check if there is an insert
-    //no read gap in corresponding tpos
-    auto readGapDist = rdFwd?(nextmem.memInfo->rpos - (thismem.memInfo->rpos + thismem.memInfo->memlen)):(thismem.memInfo->rpos - (nextmem.memInfo->rpos+nextmem.memInfo))
-
-  }
-
-
-
-  }*/
 
 
 template <typename PufferfishIndexT>
@@ -448,59 +198,6 @@ void goOverClust(PufferfishIndexT& pfi,
   }
 
 
-  //if(!clust->isFw) std::reverse(clust->mems.begin(),clust->mems.end()) ;
-  //NOTE: Taking care of the part between beginning
-  //of the read block and 0
-  /*for(size_t it = 0 ; it < clustSize ; ++it){
-    util::MemInfo *smem{nullptr} ;
-    util::MemInfo *emem{nullptr} ;
-    int readGapDist ;
-    int contigGapDist ;
-    util::Direction togo ;
-
-    
-
-    if(it == 0){
-      emem = &clust->mems[it] ;
-      togo = (emem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
-      readGapDist = emem->memInfo->rpos ;
-    } else if(it > 0 and it < clustSize-1){
-      smem = &clust->mems[it] ;
-      emem = &clust->mems[it+1] ;
-      togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
-    } else{
-      smem = &clust->mems[it] ;
-      togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
-    }
-    //left part of read
-    if(!smem){
-      readGapDist = emem->memInfo->rpos ;
-    }
-
-    if(it == 0){
-      smem = &clust->mems[it] ;
-      auto readGapDist = smem->memInfo->rpos ;
-      uint32_t remainingContigLen{0} ;
-
-      util::Direction togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
-      if(togo == util::Direction::FORWARD){
-        remainingContigLen = pfi.getContigLen(smem->memInfo->cid) - (pfi.getContigLen(smem->memInfo->cid) + smem->memInfo->memlen) ;
-      }else{
-        remainingContigLen = smem->memInfo->cpos ;
-      }
-      if(remainingContigLen < readGapDist){
-        //clip contig 
-        readGapDist -= remainingContigLen ;
-        //call graph 
-      }
-    }
-    if(it > 0 and it < clustSize-1){
-      smem = &clust->mems[it] ;
-      emem = &clust->mems[it+1] ;
-      util::Direction togo = (smem->memInfo->cIsFw)?util::Direction::FORWARD:util::Direction::BACKWORD ;
-    }
-
-  }*/
 
 
   overhangLeft = clust->mems[startIndex].memInfo->rpos ;
@@ -706,6 +403,40 @@ void traverseGraph(ReadPairT& rpair,
     //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 }
 
+
+std::string cigar2str(ksw_extz_t* ez){
+  std::string cigar ;
+  if(ez->n_cigar > 0){
+    cigar.resize(ez->n_cigar*2) ;
+    for(int i = 0 ; i < ez->n_cigar ; ++i){
+      cigar += (std::to_string(ez->cigar[i]>>4) + "MID"[ez->cigar[i]&0xf]) ;
+    }
+  }
+  return cigar ;
+}
+
+std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& alignableStrings,
+                            ksw2pp::KSW2Aligner& aligner){
+  std::string cigar = "";
+  for(auto& apair : alignableStrings){
+
+    if(!apair.first.empty() or !apair.second.empty()){
+      std::cerr << apair.first << "\t" << apair.first.length() 
+                <<  "\t" <<  apair.second << "\t" << apair.second.length() << "\n" ;
+      ksw_extz_t ez;
+      ez.max = 0, ez.mqe = ez.mte = KSW_NEG_INF;
+      ez.n_cigar = 0;
+      ez.score = aligner(apair.first.c_str(),
+                          apair.first.size(),
+                         apair.second.c_str(),
+                          apair.second.size(),
+                         &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
+      cigar += cigar2str(&ez) ;
+    }
+  }
+  return cigar ; 
+}
+
 template <typename PufferfishIndexT>
 void processReadsPair(paired_parser* parser,
                      PufferfishIndexT& pfi,
@@ -714,6 +445,9 @@ void processReadsPair(paired_parser* parser,
                      HitCounters& hctr,
                      AlignmentOpts* mopts){
   MemCollector<PufferfishIndexT> memCollector(&pfi) ;
+
+  //create aligner
+ 
 
 
   spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
@@ -842,6 +576,38 @@ void processReadsPair(paired_parser* parser,
             traverseGraph(rpair, hit, pfi, refSeqConstructor, verbose) ;
             hitNum++ ;
 
+          }
+        }
+      }
+
+      using ksw2pp::KSW2Aligner;
+      using ksw2pp::KSW2Config;
+      using ksw2pp::EnumToType;
+      using ksw2pp::KSW2AlignmentType;
+
+      KSW2Config config ;
+      KSW2Aligner aligner ;
+
+      config.gapo = 4 ;
+      config.gape = 2 ;
+      config.bandwidth = -1 ;
+      config.flag = KSW_EZ_RIGHT ;
+
+      aligner.config() = config ;
+
+      if(doTraverse){
+        for(auto& hit : jointHits){
+          if(!hit.leftClust->alignableStrings.empty()){
+            hit.leftClust->cigar = calculateCigar(hit.leftClust->alignableStrings, aligner) ;
+            //dehug print
+            if(!hit.leftClust->cigar.empty())
+              std::cerr << hit.leftClust->cigar << "\n" ;
+          }
+          if(!hit.rightClust->alignableStrings.empty()){
+            hit.rightClust->cigar = calculateCigar(hit.rightClust->alignableStrings, aligner) ;
+            //dehug print
+            if(!hit.rightClust->cigar.empty())
+              std::cerr << hit.rightClust->cigar << "\n" ;
           }
         }
       }
