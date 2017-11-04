@@ -298,7 +298,7 @@ enum class MateStatus : uint8_t {
       if (mems.empty())
         coverage = uniMemInfo->memlen;
 	  else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
-	  	coverage += (tpos + uniMemInfo->memlen);
+	  	coverage += (uniMemInfo->memlen);
 	  }
       else { // they overlap
           coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen)-(int)(mems.back().tpos + mems.back().memInfo->memlen), 0);
