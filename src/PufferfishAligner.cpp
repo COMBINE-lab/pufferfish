@@ -375,7 +375,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
   auto readLen = readSeq.length() ;
 
   if(clust->mems.size() == 1)
-    clust->cigar = (std::to_string(readSeq.length())+"M") ;
+    clust->cigar = (std::to_string(clust->mems[0].memInfo->memlen)+"M") ;
   else
     clust->cigar = "" ;
 
