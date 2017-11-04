@@ -161,7 +161,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
 
 
 
-
+/****************** will cleanup ***************************************************/
 //this is super heuristic
 //not a complete BFS
 /*
@@ -281,7 +281,10 @@ void goOverClust(PufferfishIndexT& pfi,
 
   }
 
-  }*/
+  }
+*/
+
+//**********************************************DEL*******************************************
 
 //template <typename ReadPairT ,typename PufferfishIndexT>
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
@@ -364,7 +367,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
                     RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
                     uint32_t tid,
                     ksw2pp::KSW2Aligner& aligner,
-                    bool verbose) {
+                    bool verbose,
+                    bool naive=true){
 
   (void)verbose;
 
@@ -379,8 +383,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
   else
     clust->cigar = "" ;
 
-  //hangover part 
-
+  //hangover part, need to be handled separately when we 
+  //don't do graph search 
   if(clust->isFw){
     clust->score += clust->mems[0].memInfo->rpos ;
     clust->score += (readLen - (clust->mems[clustSize-1].memInfo->rpos + clust->mems[clustSize-1].memInfo->memlen)) ;
@@ -394,9 +398,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
 
 
-    // while mems overlap on transcript
-    // merge the mems 
-
+    // NOTE: Assume that consistemncy condition is met, merging the mems 
     if (clust->mems[it+1].tpos < (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)) {
       //std::cerr<<"Overlapping mems skipping\n" ;
       //std::cerr<<"Transcript positions " << clust->mems[it].tpos << "\t"
@@ -407,9 +409,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
       uint32_t ms = std::min(clust->mems[it].memInfo->rpos, clust->mems[it+1].memInfo->rpos) ;
       uint32_t me = std::max(clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen,
                              clust->mems[it+1].memInfo->rpos + clust->mems[it+1].memInfo->memlen) ;
-
       clust->cigar += (std::to_string(me-ms) + "M") ;
-
       continue;
     }
 
@@ -431,28 +431,32 @@ void createSeqPairs(PufferfishIndexT* pfi,
         if (rend-rstart > 0) {
           std::string tmp = extractReadSeq(readSeq, rstart, rend, clust->isFw) ;
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), ""));
-          //clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
-          //fake cigar
-          clust->cigar += (std::to_string(gap)+"I") ;
+          if(!naive)
+            clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
+          else
+            clust->cigar += (std::to_string(gap)+"I") ;
         }
         else if (rend < rstart) {
           std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
         }
     }
     else {
+      //disaste when the mem overlaps are not consistent 
       if (rend < rstart) {
-        //disaster 
         std::cerr << clust->isFw << "\n";
         for (size_t i = it; i < clust->mems.size(); i++) {
-          std::cerr << clust->mems[i].tpos << " " << clust->mems[i].memInfo->rpos << " memlen:" << clust->mems[i].memInfo->memlen << "\n";
+          std::cerr << clust->mems[i].tpos
+                    << " " << clust->mems[i].memInfo->rpos
+                    << " memlen:" << clust->mems[i].memInfo->memlen << "\n";
         }
         std::cerr << "rstart > rend while tend > tstart\n" << read.name << "\n";
-        std::cerr << rstart << " " << rend << " " << clust->mems[it+1].tpos << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << "\n";
+        std::cerr << rstart << " " << rend
+                  << " " << clust->mems[it+1].tpos
+                  << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << "\n";
       }
-      // we have a gap on transcript and need to do graph traversal
-      //std::cerr << "Need to do graph traversal \n" ; 
+      //Doing graph traversal 
       std::string refSeq;
-      bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // I am changing the logic 
+      bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // true ~ (ref == contig)
       bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw == clust->isFw;
       //TODO read from contigBlockCache if available
       util::ContigBlock scb = {
@@ -467,30 +471,31 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
       //TODO -1 needed or not? This is the problem
       //We should check if cpos does not beome negative, since we are doing -1
-      
-      //uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos > 0?clust->mems[it].memInfo->cpos-1:0);
+      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos > 0?clust->mems[it].memInfo->cpos-1:0);
       //TODO also we have to check if the next does
       //not start from 0
-      //uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos > 0 ? clust->mems[it+1].memInfo->cpos-1:0):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
+      uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos > 0 ? clust->mems[it+1].memInfo->cpos-1:0):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
 
         //std::cout << readName << "\n" ;
-        //want to check out if the fetched sequence
-        //and the read substring make sense or not 
-        //refSeqConstructor.doBFS(tid,
-        //                        clust->mems[it].tpos,
-        //                        firstContigDirWRTref,
-        //                        scb, cstart, ecb, cend,
-        //                        rend-rstart+THRESHOLD,
-        //                        refSeq);
-        //      if (rend-rstart>0) {
+        //TODO want to check out if the fetched sequence
+        //and the read substring make sense or not;
+      Task res{Task::FAILURE} ;
+      if(!naive){
+        Task res = refSeqConstructor.doBFS(tid,
+                                clust->mems[it].tpos,
+                                firstContigDirWRTref,
+                                scb, cstart, ecb, cend,
+                                rend-rstart+THRESHOLD,
+                                refSeq);
         //TODO validate graph
-        //std::cerr << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-        //          << " part of ref " << refSeq << "\n";
-        //clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
-        //clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
+        std::cerr << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
+                  << " part of ref " << refSeq << "\n";
+        clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
+        clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
+      }else{
         //Fake cigar
         clust->cigar += (std::to_string(gap)+"D") ;
-        //}
+      }
     }
   }
 
@@ -507,7 +512,8 @@ void traverseGraph(ReadPairT& rpair,
                    PufferfishIndexT& pfi,
                    RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
                    ksw2pp::KSW2Aligner& aligner,
-                   bool verbose){
+                   bool verbose,
+                   bool naive=false){
 
   size_t tid = hit.tid ;
   auto readLen = rpair.first.seq.length() ;
@@ -682,6 +688,7 @@ void processReadsPair(paired_parser* parser,
           }
         }
       }
+
 
       //extractSuitableAligningPairs(joinHits);
       //TODO Write them to a sam file

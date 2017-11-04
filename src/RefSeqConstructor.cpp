@@ -4,7 +4,7 @@
 
 #include <sparsepp/spp.h>
 
-#define verbose false
+#define verbose true
 
 template <typename PufferfishIndexT>
 RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache) : pfi_(pfi), contigCache_(contigCache) { k = pfi_->k(); }
