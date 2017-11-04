@@ -149,7 +149,7 @@ public:
                             bool verbose) {
 
     if(verbose){
-      std::cerr <<"\nBefore e cpos " << hit.contigPos_ << "\n" ;
+      std::cout <<"\nBefore e cpos " << hit.contigPos_ << "\n" ;
     }
 
     auto& allContigs = pfi_->getSeq();
@@ -216,11 +216,11 @@ public:
     }
     if (!hit.contigOrientation_) {
       if (verbose)
-        std::cerr << hit.k_ << " prev contig pos:" << hit.contigPos_ << "\n";
+        std::cout << hit.k_ << " prev contig pos:" << hit.contigPos_ << "\n";
       hit.contigPos_ -= (hit.k_ - k);
       hit.globalPos_ -= (hit.k_ - k);
       if (verbose)
-        std::cerr << "after updating: " << hit.contigPos_ << "\n";
+        std::cout << "after updating: " << hit.contigPos_ << "\n";
       
     }
     kit.jumpTo(readSeqStart);
@@ -251,11 +251,11 @@ public:
         // stamping the reasPos
         size_t readPosOld = kit1->second ;
         if(verbose){
-          std::cerr<< "Index "<< phits.contigID() << " ContigLen "<<phits.contigLen_<< " GlobalPos " << phits.globalPos_ << " ore " << phits.contigOrientation_ << " ref size " << phits.refRange.size() <<"\n\n\n" ;
-          std::cerr<<kit1->first.to_str() << "\n" ;
+          std::cout<< "Index "<< phits.contigID() << " ContigLen "<<phits.contigLen_<< " GlobalPos " << phits.globalPos_ << " ore " << phits.contigOrientation_ << " ref size " << phits.refRange.size() <<"\n\n\n" ;
+          std::cout<<kit1->first.to_str() << "\n" ;
           for(auto& posIt : phits.refRange){
             auto refPosOri = phits.decodeHit(posIt);
-            std::cerr << posIt.transcript_id() << "\t" <<  refPosOri.isFW << "\t" << refPosOri.pos << "\n" ;
+            std::cout << posIt.transcript_id() << "\t" <<  refPosOri.isFW << "\t" << refPosOri.pos << "\n" ;
           } 
         }
         expandHitEfficient(phits, kit1, verbose);

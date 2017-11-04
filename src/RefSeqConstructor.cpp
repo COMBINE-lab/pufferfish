@@ -37,7 +37,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
 
 
 
-  if(verbose) std::cerr << "Doing BFS, GO time\n" << "called with curr contig: "
+  if(verbose) std::cout << "Doing BFS, GO time\n" << "called with curr contig: "
             << curContig.contigIdx_ << " of length " << curContig.contigLen_
             << " start " << startp << "\n"
             << "end contig index "<< endContig.contigIdx_ << " ending at " << endp << "\n" ;
@@ -56,7 +56,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
 
     // used in all the following terminal conditions
     auto remLen = remainingLen(curContig, startp, moveFw);
-    if(verbose) std::cerr << "remaining length " << remLen <<" startp " <<startp << " in direction "<<moveFw<<"\n" ;
+    if(verbose) std::cout << "remaining length " << remLen <<" startp " <<startp << " in direction "<<moveFw<<"\n" ;
 
     if (remLen >= threshold) {
       if (endContig.isDummy()) {// if the end of the path is open
@@ -76,11 +76,11 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
     
     // If we didn't meet any terminal conditions, we need to dig deeper into the tree through BFS
     // The approach is the same for both valid and dummy end nodes
-    if(verbose) std::cerr << " Okay until here \n" ;
+    if(verbose) std::cout << " Okay until here \n" ;
 
     appendByLen(seq, curContig, startp, remLen, moveFw);
     
-    if(verbose) std::cerr << " never got printed in case of seg fault  \n" ;
+    if(verbose) std::cout << " never got printed in case of seg fault  \n" ;
 
     threshold -= remLen; // update threshold
     for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
@@ -120,7 +120,7 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
                                                  size_t startp, size_t endp,
                                                  bool moveFw) {
 
-  if(verbose) std::cerr << "clipping by pos "<<startp<< " to " << endp << " from "<<contig.contigLen_<<"\n" ;
+  if(verbose) std::cout << "clipping by pos "<<startp<< " to " << endp << " from "<<contig.contigLen_<<"\n" ;
    if(moveFw)
       seq += contig.substrSeq(startp, endp-startp);
     else {
@@ -132,7 +132,7 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
 
 template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool moveFw) {
-  if(verbose) std::cerr << "clipping by len "<<len<< " from " << startp << " total length: "<<contig.contigLen_<<"\n" ;
+  if(verbose) std::cout << "clipping by len "<<len<< " from " << startp << " total length: "<<contig.contigLen_<<"\n" ;
     if(moveFw)
       seq += contig.substrSeq(startp, len);
     else
@@ -181,7 +181,7 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
                                                  size_t tid,
                                                  size_t tpos) {
 
-    if(verbose) std::cerr << "Fetch successors \n" ;
+    if(verbose) std::cout << "Fetch successors \n" ;
     std::vector<nextCompatibleStruct> successors ;
     CanonicalKmer::k(k) ;
 

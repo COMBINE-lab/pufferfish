@@ -132,7 +132,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   }
   if (verbose) {
     std::cout << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
-    std::cerr << "\n" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
+    std::cout << "\n" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
   }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
@@ -155,7 +155,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   }
   if (verbose) {
     std::cout << "\nFinal stat: " << jointMemsList.size() << "\n";
-    std::cerr << jointMemsList.size() << "\n";
+    std::cout << jointMemsList.size() << "\n";
   }
 }
 
@@ -208,7 +208,7 @@ void goOverClust(PufferfishIndexT& pfi,
 
     auto cstart = (static_cast<int>(sInfo.cpos - overhangLeft) > 0)?(sInfo.cpos - overhangLeft):0 ;
     size_t toClip = std::min(static_cast<uint32_t>(overhangLeft), pfi.getContigLen(sInfo.cid)) ;
-    //std::cerr << "left clipping "<<toClip<<" from "<<cstart<<"\n" ;
+    //std::cout << "left clipping "<<toClip<<" from "<<cstart<<"\n" ;
     std::string contigtmp = pfi.getSeqStr(pfi.getGlobalPos(sInfo.cid) + cstart, toClip, sInfo.cIsFw) ;
     clust->alignableStrings.push_back({rdtmp, contigtmp}) ;
   }
@@ -225,15 +225,15 @@ void goOverClust(PufferfishIndexT& pfi,
     auto cstart = eInfo.cpos + eInfo.memlen ;
     size_t toClip = std::min(pfi.getContigLen(eInfo.cid) - cstart, static_cast<uint32_t>(overhangRight)) ;
 
-    //std::cerr << "right clipping "<<toClip<<" from "<<cstart<<"\n" ;
+    //std::cout << "right clipping "<<toClip<<" from "<<cstart<<"\n" ;
     std::string contigtmp = pfi.getSeqStr(pfi.getGlobalPos(eInfo.cid) + cstart, toClip, eInfo.cIsFw) ;
     clust->alignableStrings.push_back({rdtmp, contigtmp}) ;
   }
 
   if(verbose){
-    std::cerr << readName << "\n" ;
+    std::cout << readName << "\n" ;
     for(auto& m: clust->mems){
-      std::cerr << "cpos "<<m.memInfo->cpos << "\n" ;
+      std::cout << "cpos "<<m.memInfo->cpos << "\n" ;
     }
   }
 
@@ -263,16 +263,16 @@ void goOverClust(PufferfishIndexT& pfi,
       readgap = readSeq.substr(sInfo.rpos + sInfo.memlen, readGapDist) ;
       if(startMem.memInfo->cid  != endMem.memInfo->cid){
         //going into graph search
-        //std::cerr << "read name  "<< readName<<"\n" ;
-        //std::cerr << "start cpos "<<startMem.memInfo->cpos<<"\n" ;
+        //std::cout << "read name  "<< readName<<"\n" ;
+        //std::cout << "start cpos "<<startMem.memInfo->cpos<<"\n" ;
         populatePaths(startMem, endMem, path, pfi, tid, contigSeqCache, readGapDist) ;
       } else if(readGapDist > 0){
 
         //it's on the same contig just insert the sequence from the contig
-        //std::cerr << "c"<<sInfo.cid <<"\t cpos:" << sInfo.cpos <<"\t rpos:" << sInfo.rpos << "\n" ;
+        //std::cout << "c"<<sInfo.cid <<"\t cpos:" << sInfo.cpos <<"\t rpos:" << sInfo.rpos << "\n" ;
         auto cstart = sInfo.cpos + sInfo.memlen;
         auto toClip = readGapDist ;
-        //std::cerr << "middle clipping "<<toClip<<" from "<<cstart<<"\n" ;
+        //std::cout << "middle clipping "<<toClip<<" from "<<cstart<<"\n" ;
         path = pfi.getSeqStr(pfi.getGlobalPos(sInfo.cid)+cstart, toClip) ;
       }
     }
@@ -375,6 +375,9 @@ void createSeqPairs(PufferfishIndexT* pfi,
   clust->score = 0 ;
   auto readLen = readSeq.length() ;
 
+  //@debug
+  if(verbose) std::cout << "Clust size "<<clustSize<<"\n" ;
+
   if(clust->mems.size() == 1)
     clust->cigar = (std::to_string(clust->mems[0].memInfo->memlen)+"M") ;
   else
@@ -397,8 +400,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
     // NOTE: Assume that consistemncy condition is met, merging the mems 
     if (clust->mems[it+1].tpos < (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)) {
-      //std::cerr<<"Overlapping mems skipping\n" ;
-      //std::cerr<<"Transcript positions " << clust->mems[it].tpos << "\t"
+      //std::cout<<"Overlapping mems skipping\n" ;
+      //std::cout<<"Transcript positions " << clust->mems[it].tpos << "\t"
       //        << clust->mems[it+1].tpos << "\t" << clust->mems[it].memInfo->memlen << "\t"
       //        <<"read positions \t" << clust->mems[it].memInfo->rpos << "\t"
       //       <<clust->mems[it+1].memInfo->rpos << "\t" << clust->mems[it+1].memInfo->memlen
@@ -434,20 +437,20 @@ void createSeqPairs(PufferfishIndexT* pfi,
             clust->cigar += (std::to_string(gap)+"I") ;
         }
         else if (rend < rstart) {
-          std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
+          std::cout << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
         }
     }
     else {
       //disaste when the mem overlaps are not consistent 
       if (rend < rstart) {
-        std::cerr << clust->isFw << "\n";
+        std::cout << clust->isFw << "\n";
         for (size_t i = it; i < clust->mems.size(); i++) {
-          std::cerr << clust->mems[i].tpos
+          std::cout << clust->mems[i].tpos
                     << " " << clust->mems[i].memInfo->rpos
                     << " memlen:" << clust->mems[i].memInfo->memlen << "\n";
         }
-        std::cerr << "rstart > rend while tend > tstart\n" << read.name << "\n";
-        std::cerr << rstart << " " << rend
+        std::cout << "rstart > rend while tend > tstart\n" << read.name << "\n";
+        std::cout << rstart << " " << rend
                   << " " << clust->mems[it+1].tpos
                   << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << "\n";
       }
@@ -485,12 +488,12 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 refSeq);
         //TODO validate graph
         if(res == Task::SUCCESS){
-          std::cerr << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
+          std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
                     << " part of ref " << refSeq << "\n";
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{
-          std::cerr << "Graph searched FAILED \n" ;
+          std::cout << "Graph searched FAILED \n" ;
         }
       }else{
         //Fake cigar
@@ -517,7 +520,7 @@ void traverseGraph(ReadPairT& rpair,
 
   size_t tid = hit.tid ;
   auto readLen = rpair.first.seq.length() ;
-
+  if(verbose) std::cout << rpair.first.name << "\n" ;
 
   if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
     createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, tid, aligner, verbose, naive);
@@ -545,7 +548,7 @@ void processReadsPair(paired_parser* parser,
   spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
   RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, contigSeqCache);
 
-  //std::cerr << "\n In process reads pair\n" ;
+  //std::cout << "\n In process reads pair\n" ;
     //TODO create a memory layout to store
     //strings then will allocate alignment to them
     //accordingly
@@ -567,8 +570,9 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
-      //std::cout << rpair.first.name << "\n";
-      bool verbose = false;//rpair.first.name == "read25634671/ENST00000396859;mate1:392-491;mate2:535-633";
+      
+      bool verbose = rpair.first.name == "fake";
+      if(verbose) std::cout << rpair.first.name << "\n";
 
       ++hctr.numReads ;
 
@@ -578,10 +582,10 @@ void processReadsPair(paired_parser* parser,
       memCollector.clear();
 
       //help me to debug, will deprecate later
-      //std::cerr << "\n first seq in pair " << rpair.first.seq << "\n" ;
-      //std::cerr << "\n second seq in pair " << rpair.second.seq << "\n" ;
+      //std::cout << "\n first seq in pair " << rpair.first.seq << "\n" ;
+      //std::cout << "\n second seq in pair " << rpair.second.seq << "\n" ;
 
-      //std::cerr << "\n going inside hit collector \n" ;
+      //std::cout << "\n going inside hit collector \n" ;
       //readLen = rpair.first.seq.length() ;
       bool lh = memCollector(rpair.first.seq,
                              leftHits,
@@ -607,14 +611,14 @@ void processReadsPair(paired_parser* parser,
           auto& lclust = l.second ;
           for(auto& clust : lclust)
             for(auto& m : clust.mems){
-              std::cerr << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
+              std::cout << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
             }
         }
         for(auto& l : rightHits){
           auto& lclust = l.second ;
           for(auto& clust : lclust)
             for(auto& m : clust.mems){
-              std::cerr << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
+              std::cout << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
             }
         }
       }
@@ -635,9 +639,9 @@ void processReadsPair(paired_parser* parser,
           auto tmp = rpair.first.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
           auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
           if(cSeq != rseq){
-            std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.leftClust->isFw<< " tpos: "<<m.tpos<<"\n" ;
-            std::cerr<<rpair.first.name << "\n" ;
-            std::cerr << cSeq << "\n" << rseq <<"\n" << tmp << "\n";
+            std::cout <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.leftClust->isFw<< " tpos: "<<m.tpos<<"\n" ;
+            std::cout<<rpair.first.name << "\n" ;
+            std::cout << cSeq << "\n" << rseq <<"\n" << tmp << "\n";
             std::exit(1) ;
           }
         }
@@ -646,9 +650,9 @@ void processReadsPair(paired_parser* parser,
           auto tmp = rpair.second.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
           auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
           if(cSeq != rseq){
-            std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.rightClust->isFw<<" tpos: "<<m.tpos<<"\n" ;
-            std::cerr<<rpair.second.name << "\n" ;
-            std::cerr << cSeq << "\n" << rseq <<"\n" << tmp << "\n" ;
+            std::cout <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.rightClust->isFw<<" tpos: "<<m.tpos<<"\n" ;
+            std::cout<<rpair.second.name << "\n" ;
+            std::cout << cSeq << "\n" << rseq <<"\n" << tmp << "\n" ;
             std::exit(1) ;
           }
         }
@@ -696,7 +700,7 @@ void processReadsPair(paired_parser* parser,
       hctr.peHits += jointHits.size();
       hctr.numMapped += !jointHits.empty() ? 1 : 0;
 
-      //std::cerr << "\n Number of total joint hits" << jointHits.size() << "\n" ;
+      //std::cout << "\n Number of total joint hits" << jointHits.size() << "\n" ;
       //TODO When you get to this, you should be done aligning!!
       //fill the QuasiAlignment list
       std::vector<QuasiAlignment> jointAlignments;
@@ -731,13 +735,13 @@ void processReadsPair(paired_parser* parser,
         hctr.lastPrint.store(hctr.numReads.load());
         if (!mopts->quiet and iomutex->try_lock()) {
           if (hctr.numReads > 0) {
-            std::cerr << "\r\r";
+            std::cout << "\r\r";
           }
-          std::cerr << "saw " << hctr.numReads << " reads : "
+          std::cout << "saw " << hctr.numReads << " reads : "
                     << "pe / read = " << hctr.peHits / static_cast<float>(hctr.numReads)
                     << " : se / read = " << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
 #if defined(__DEBUG__) || defined(__TRACK_CORRECT__)
-          std::cerr << ": true hit \% = "
+          std::cout << ": true hit \% = "
                     << (100.0 * (hctr.trueHits / static_cast<float>(hctr.numReads)));
 #endif // __DEBUG__
           iomutex->unlock();
@@ -751,7 +755,7 @@ void processReadsPair(paired_parser* parser,
     // DUMP OUTPUT
     if (!mopts->noOutput) {
       std::string outStr(sstream.str());
-      //std::cerr << "\n OutStream size "<< outStr.size() << "\n" ;
+      //std::cout << "\n OutStream size "<< outStr.size() << "\n" ;
       // Get rid of last newline
       if (!outStr.empty()) {
         outStr.pop_back();
@@ -906,7 +910,7 @@ int pufferfishAligner(AlignmentOpts& alnargs){
     std::ifstream infoStream(indexDir + "/info.json");
     cereal::JSONInputArchive infoArchive(infoStream);
     infoArchive(cereal::make_nvp("sampling_type", indexType));
-    std::cerr << "Index type = " << indexType << '\n';
+    std::cout << "Index type = " << indexType << '\n';
     infoStream.close();
   }
 
