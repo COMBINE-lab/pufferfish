@@ -297,7 +297,10 @@ enum class MateStatus : uint8_t {
     void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos) {
       if (mems.empty())
         coverage = uniMemInfo->memlen;
-      else {
+	  else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
+	  	coverage += (tpos + uniMemInfo->memlen);
+	  }
+      else { // they overlap
           coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen)-(int)(mems.back().tpos + mems.back().memInfo->memlen), 0);
       }
       mems.emplace_back(uniMemInfo, tpos);
