@@ -649,7 +649,7 @@ void processReadsPair(paired_parser* parser,
 
       }
 
-      //Inirialize aligner ksw 
+      //@fatemeh Initialize aligner ksw 
       ksw2pp::KSW2Config config ;
       ksw2pp::KSW2Aligner aligner ;
 
@@ -673,6 +673,7 @@ void processReadsPair(paired_parser* parser,
         if(jointHits.empty() or jointHits.front().coverage() < 2*readLen){
           for(auto& hit : jointHits){
             traverseGraph(rpair, hit, pfi, refSeqConstructor, aligner, verbose) ;
+
             if(hit.leftClust->score + hit.rightClust->score < minScore){
               minScore = hit.leftClust->score + hit.rightClust->score;
             }
@@ -681,27 +682,6 @@ void processReadsPair(paired_parser* parser,
           }
         }
       }
-
-
-      /*
-      if(doTraverse){
-        for(auto& hit : jointHits){
-          if(!hit.leftClust->alignableStrings.empty()){
-            hit.leftClust->cigar = calculateCigar(hit.leftClust->alignableStrings, aligner) ;
-            //dehug print
-            //if(!hit.leftClust->cigar.empty())
-            //std::cerr << hit.leftClust->cigar << "\n" ;
-          }
-          if(!hit.rightClust->alignableStrings.empty()){
-            hit.rightClust->cigar = calculateCigar(hit.rightClust->alignableStrings, aligner) ;
-            //dehug print
-            //if(!hit.rightClust->cigar.empty())
-            //std::cerr << hit.rightClust->cigar << "\n" ;
-          }
-        }
-        }*/
-
-
 
       //extractSuitableAligningPairs(joinHits);
       //TODO Write them to a sam file
@@ -714,7 +694,7 @@ void processReadsPair(paired_parser* parser,
       //fill the QuasiAlignment list
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
-        if(jointHit.leftClust->score + jointHit.rightClust->score == minScore){
+        if(jointHit.coverage() == 2*readLen or jointHit.leftClust->score + jointHit.rightClust->score == minScore){
           jointAlignments.emplace_back(jointHit.tid,           // reference id
                                       jointHit.leftClust->getTrFirstHitPos(),     // reference pos
                                       jointHit.leftClust->isFw ,     // fwd direction
