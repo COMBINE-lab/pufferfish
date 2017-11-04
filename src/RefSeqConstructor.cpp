@@ -6,17 +6,24 @@
 
 #define verbose true
 
+/* story 
+NOTE: Since we are ALWAYS traversing the mems --and hence
+the unmapped sequences-- in the forward direction wrt the transcript,
+whenever we are moving backward in a contig that means that the contig
+is in reverse orientation wrt the transcript, so the sequence we fetch from the contig
+should be reverse-complemented!!!
+EXCEPTION ::::: constructing the string before the first unimem :(((
+TODO: make sure about the fact above startp : relative position in curContig
+that toBeAligned string starts endp : relative position in endContig that toBeAligned string ends
+threshold : number of bases that should be fetched before we stop spreading the path through BFS
+seq : will be appended through out the traversal
+*/
+
 template <typename PufferfishIndexT>
-RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache) : pfi_(pfi), contigCache_(contigCache) { k = pfi_->k(); }
-  //NOTE: Since we are ALWAYS traversing the mems --and hence the unmapped sequences-- in the forward direction wrt the transcript,
-  //whenever we are moving backward in a contig that means that the contig is in reverse orientation wrt the transcript, so the sequence we fetch from the contig
-  //should be reverse-complemented!!!
-  //EXCEPTION ::::: constructing the string before the first unimem :(((
-  //TODO: make sure about the fact above
-  // startp : relative position in curContig that toBeAligned string starts
-  // endp : relative position in endContig that toBeAligned string ends
-  // threshold : number of bases that should be fetched before we stop spreading the path through BFS
-  // seq : will be appended through out the traversal
+RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi,
+                                                       spp::sparse_hash_map<uint32_t,
+                                                       util::ContigBlock>& contigCache)
+                                                       : pfi_(pfi), contigCache_(contigCache) { k = pfi_->k(); }
 template <typename PufferfishIndexT>
 Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
              size_t tpos,
@@ -81,14 +88,18 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
       if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)
         return Task::SUCCESS;
     }
-    // If couldn't find any valid/compatible successors, then this path was a dead end. Revert your append and return with failure
+
+    // If couldn't find any valid/compatible successors,
+    //then this path was a dead end. Revert your append and return with failure
     cutoff(seq, remLen);
     return Task::FAILURE;
 }
 
 
 template <typename PufferfishIndexT>
-size_t RefSeqConstructor<PufferfishIndexT>::distance(size_t startp, size_t endp, bool moveFw) {if(moveFw)return endp-startp; else return startp-endp;}
+size_t RefSeqConstructor<PufferfishIndexT>::distance(size_t startp,
+                                                     size_t endp, bool moveFw)
+{if(moveFw)return endp-startp; else return startp-endp;}
 
 
 template <typename PufferfishIndexT>
@@ -100,12 +111,14 @@ size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& cont
       //this is a bad idea we might fall over the edge 
       //return startp+1;
       return startp ;
-    
 }
 
 
 template <typename PufferfishIndexT>
-void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool moveFw) {
+void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
+                                                 util::ContigBlock& contig,
+                                                 size_t startp, size_t endp,
+                                                 bool moveFw) {
 
   if(verbose) std::cerr << "clipping by pos "<<startp<< " to " << endp << " from "<<contig.contigLen_<<"\n" ;
    if(moveFw)

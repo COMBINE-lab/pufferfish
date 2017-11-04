@@ -286,10 +286,7 @@ void goOverClust(PufferfishIndexT& pfi,
 
 //**********************************************DEL*******************************************
 
-//template <typename ReadPairT ,typename PufferfishIndexT>
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
-  //DEBUG: tracking substr error
-  //std::cerr << "checking boundaries " << readSeq.length() << " " << rstart << " " << rend << "\n" ;
   std::string subseq = readSeq.substr(rstart, rend-rstart);
   if (isFw)
     return subseq;
@@ -479,7 +476,6 @@ void createSeqPairs(PufferfishIndexT* pfi,
         //std::cout << readName << "\n" ;
         //TODO want to check out if the fetched sequence
         //and the read substring make sense or not;
-      Task res{Task::FAILURE} ;
       if(!naive){
         Task res = refSeqConstructor.doBFS(tid,
                                 clust->mems[it].tpos,
@@ -488,10 +484,14 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 rend-rstart+THRESHOLD,
                                 refSeq);
         //TODO validate graph
-        std::cerr << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-                  << " part of ref " << refSeq << "\n";
-        clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
-        clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
+        if(res == Task::SUCCESS){
+          std::cerr << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
+                    << " part of ref " << refSeq << "\n";
+          clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
+          clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
+        }else{
+          std::cerr << "Graph searched FAILED \n" ;
+        }
       }else{
         //Fake cigar
         clust->cigar += (std::to_string(gap)+"D") ;
@@ -520,10 +520,10 @@ void traverseGraph(ReadPairT& rpair,
 
 
   if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, tid, aligner, verbose);
+    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, tid, aligner, verbose, naive);
     //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
   if(!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, tid, aligner, verbose);
+    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, tid, aligner, verbose, naive);
     //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 }
 
