@@ -345,7 +345,6 @@ void createSeqPairs(PufferfishIndexT* pfi,
       uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen-1);
 
       //TODO read from contigBlockCache if available
-      //FIXME globalPos must not need -1!! WTH is going on???
       util::ContigBlock scb = {
                                clust->mems[it].memInfo->cid,
                                clust->mems[it].memInfo->cGlobalPos,
@@ -378,13 +377,15 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 refSeq);
         //TODO validate graph
         if(res == Task::SUCCESS){
-          std::cout << "SUCCESS\n";
+          /*std::cout << "SUCCESS\n";
           std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
                     << " part of ref  " << refSeq << "\n";
+          */
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{
-          std::cout << "Graph searched FAILED \n" ;
+          //FIXME discard whole hit!!!
+          //std::cout << "Graph searched FAILED \n" ;
         }
       } else{
         //Fake cigar
