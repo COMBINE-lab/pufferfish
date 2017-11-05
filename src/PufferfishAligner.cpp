@@ -561,10 +561,10 @@ void processReadsPair(paired_parser* parser,
 
         int hitNum{0} ;
 
-        if(jointHits.empty() or jointHits.front().coverage() < 2*readLen){
+        if(!jointHits.empty() && jointHits.front().coverage() < 2*readLen) {
           for(auto& hit : jointHits){
             traverseGraph(rpair, hit, pfi, refSeqConstructor, aligner, verbose) ;
-
+            // update minScore across all hits
             if(hit.leftClust->score + hit.rightClust->score < minScore){
               minScore = hit.leftClust->score + hit.rightClust->score;
             }
@@ -586,18 +586,25 @@ void processReadsPair(paired_parser* parser,
       //fill the QuasiAlignment list
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
-        if(jointHit.coverage() == 2*readLen or jointHit.leftClust->score + jointHit.rightClust->score == minScore){
+        if(jointHit.coverage() == 2*readLen or jointHit.leftClust->score + jointHit.rightClust->score == minScore) {
+          std::string leftCigar = std::to_string(readLen) + "M";
+          std::string rightCigar =  std::to_string(readLen) + "M";
+          if (jointHit.coverage() != 2*readLen) {
+            leftCigar = jointHit.leftClust->cigar;
+            rightCigar = jointHit.rightClust->cigar;
+          }
+
           jointAlignments.emplace_back(jointHit.tid,           // reference id
                                       jointHit.leftClust->getTrFirstHitPos(),     // reference pos
                                       jointHit.leftClust->isFw ,     // fwd direction
                                       readLen, // read length
-                                      jointHit.leftClust->cigar, // cigar string 
+                                      leftCigar, // cigar string 
                                       jointHit.fragmentLen,       // fragment length
                                       true);         // properly paired
           // Fill in the mate info		         // Fill in the mate info
           auto& qaln = jointAlignments.back();
           qaln.mateLen = readLen;
-          qaln.mateCigar = jointHit.rightClust->cigar ;
+          qaln.mateCigar = rightCigar ;
           qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
           qaln.mateIsFwd = jointHit.rightClust->isFw;
           qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
