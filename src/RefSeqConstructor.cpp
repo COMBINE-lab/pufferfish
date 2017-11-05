@@ -6,6 +6,9 @@
 
 #define verbose true
 
+#define suffixIfFw true
+#define prefixIfFw false
+
 /* story 
 NOTE: Since we are ALWAYS traversing the mems --and hence
 the unmapped sequences-- in the forward direction wrt the transcript,
@@ -15,7 +18,7 @@ should be reverse-complemented!!!
 EXCEPTION ::::: constructing the string before the first unimem :(((
 TODO: make sure about the fact above startp : relative position in curContig
 that toBeAligned string starts endp : relative position in endContig that toBeAligned string ends
-threshold : number of bases that should be fetched before we stop spreading the path through BFS
+txpDist : number of bases that should be fetched before we stop spreading the path through BFS
 seq : will be appended through out the traversal
 */
 
@@ -27,12 +30,13 @@ RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi,
 template <typename PufferfishIndexT>
 Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
              size_t tpos,
-             bool moveFw,
+             bool isCurContigFw,
              util::ContigBlock& curContig,
              size_t startp,
              util::ContigBlock& endContig,
              size_t endp,
-             uint32_t threshold,
+                                                bool isEndContigFw,
+             uint32_t txpDist,
              std::string& seq) {
 
 
@@ -45,7 +49,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
 
 
     if (curContig.contigIdx_ == endContig.contigIdx_) {
-        append(seq, curContig, startp, endp, moveFw);
+        append(seq, curContig, startp, endp, isCurContigFw);
         return Task::SUCCESS;
     }
 
@@ -54,38 +58,65 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
       return Task::FAILURE;
     }
 
+    if (!endContig.isDummy()) {
+      auto endRemLen = remainingLen(endContig, endp, isEndContigFw, prefixIfFw);
+      if(verbose) std::cout << "END remaining length " << endRemLen << " txpDist:" << txpDist << " endp " <<endp << " in direction "<<isEndContigFw<<"\n" ;
+      if (endRemLen >= txpDist) {
+        appendByLen(seq, endContig, endp, txpDist, isEndContigFw, prefixIfFw);
+        return Task::SUCCESS;
+      } else if (endRemLen > 0) {
+        appendByLen(seq, endContig, endp, endRemLen, isEndContigFw, prefixIfFw);
+        txpDist -= endRemLen;
+        endp = 0;
+      }
+    }
+    
     // used in all the following terminal conditions
-    auto remLen = remainingLen(curContig, startp, moveFw);
-    if(verbose) std::cout << "remaining length " << remLen <<" startp " <<startp << " in direction "<<moveFw<<"\n" ;
+    auto remLen = remainingLen(curContig, startp, isCurContigFw, suffixIfFw);
+    if(verbose) std::cout << "remaining length " << remLen <<" startp " <<startp << " in direction "<<isCurContigFw<<"\n" ;
 
-    if (remLen >= threshold) {
-      if (endContig.isDummy()) {// if the end of the path is open
-        appendByLen(seq, curContig, startp, threshold, moveFw);
+    if (remLen >= txpDist) {
+      if (endContig.isDummy()){// || curContig.getRemSeq(startp, remLen, false) == endContig.getRemSeq(endp, remLen, true)) {// if the end of the path is open
+        appendByLen(seq, curContig, startp, txpDist, isCurContigFw, suffixIfFw);
         return Task::SUCCESS;
       }
       // DON'T GET STUCK IN INFINITE LOOPS
       // if we have not reached the last contigId
       // and also end of the path is NOT open
-      // then if the remaining of the contig from this position is less than threshold it should be counted as a failure
-      // because we couldn't find the path between start and end that is shorter than some threshold
-      else
+      // then if the remaining of the contig from this position is less than txpDist it should be counted as a failure
+      // because we couldn't find the path between start and end that is shorter than some txpDist
+      else {
+        if (remLen > txpDist) {
+          if (getSubstr(curContig, curContig.contigLen_ - remLen, remLen, isCurContigFw, suffixIfFw) == getSubstr(endContig, 0, remLen, isEndContigFw, prefixIfFw)) {
+            appendByLen(seq, curContig, startp, txpDist, isCurContigFw, suffixIfFw);
+            return Task::SUCCESS;
+          }
+          else
+            return Task::FAILURE;
+        }
+        // remLen == txpDist
+        for (auto& c : fetchSuccessors(curContig, isCurContigFw, tid, tpos)) {
+          if (getSubstr(c.cntg, c.cntg.contigLen_ - remLen, remLen, c.isCurContigFw, suffixIfFw) == getSubstr(endContig, 0, remLen, isEndContigFw, prefixIfFw))
+            return Task::SUCCESS;
+        }
         return Task::FAILURE; // I'm in the middle of no where!! lost!!
+      }
     }
 
-    // if we are here, this means threshold > remLen
+    // if we are here, this means remLen < txpDist
     
     // If we didn't meet any terminal conditions, we need to dig deeper into the tree through BFS
     // The approach is the same for both valid and dummy end nodes
     if(verbose) std::cout << " Okay until here \n" ;
 
-    appendByLen(seq, curContig, startp, remLen, moveFw);
+    appendByLen(seq, curContig, startp, remLen, isCurContigFw, suffixIfFw);
     
     if(verbose) std::cout << " never got printed in case of seg fault  \n" ;
 
-    threshold -= remLen; // update threshold
-    for (auto& c : fetchSuccessors(curContig, moveFw, tid, tpos)) {
+    txpDist -= remLen; // update txpDist
+    for (auto& c : fetchSuccessors(curContig, isCurContigFw, tid, tpos)) {
       // act greedily and return with the first successfully constructed sequence.
-      if (doBFS(tid, c.tpos, c.moveFw, c.cntg, c.cpos, endContig, endp, threshold, seq) == Task::SUCCESS)
+      if (doBFS(tid, c.tpos, c.isCurContigFw, c.cntg, c.cpos, endContig, endp, isEndContigFw, txpDist, seq) == Task::SUCCESS)
         return Task::SUCCESS;
     }
 
@@ -97,8 +128,8 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
 
 
 template <typename PufferfishIndexT>
-size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& contig, size_t startp, bool moveFw) {
-    if (moveFw)
+      size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd) {
+      if ( isCurContigFw == fromTheEnd)
       return contig.contigLen_ - startp - 1;
     else
       return startp ;
@@ -109,10 +140,10 @@ template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
                                                  util::ContigBlock& contig,
                                                  size_t startp, size_t endp,
-                                                 bool moveFw) {
+                                                 bool isCurContigFw) {
 
   if(verbose) std::cout << "clipping by pos "<<startp<< " to " << endp << " from "<<contig.contigLen_<<"\n" ;
-   if(moveFw)
+   if(isCurContigFw)
       seq += contig.substrSeq(startp+1, endp-startp-1);
     else {
       // we are always building the seq by moving forward in transcript, so we always append (& never prepend) any substring that we construct
@@ -122,16 +153,35 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
 
 
 template <typename PufferfishIndexT>
-void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool moveFw) {
+void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix) {
   if(verbose) std::cout << "clipping by len "<<len<< " from " << startp << " total length: "<<contig.contigLen_<<"\n" ;
   if (len == 0)
     return;
-  if(moveFw)
+  if (isCurContigFw && appendSuffix) // append suffix
     seq += contig.substrSeq(startp+1, len);
-  else
+  else if (isCurContigFw && !appendSuffix) // append prefix
+    seq = contig.substrSeq(startp-len, len) + seq;
+  else if (!isCurContigFw && appendSuffix) // append rc of the seq from the other end as a suffix
     seq += rc(contig.substrSeq(startp-len, len));
+  else if (!isCurContigFw && !appendSuffix) // append rc of the seq as prefix
+    seq = rc(contig.substrSeq(startp+1, len)) + seq;
 }
 
+template <typename PufferfishIndexT>
+std::string RefSeqConstructor<PufferfishIndexT>::getSubstr(util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix) {
+  std::string seq;
+  if(verbose) std::cout << "clipping by len "<<len<< " from " << startp << " total length: "<<contig.contigLen_<<"\n" ;
+  if (len == 0)
+    return "";
+  if (isCurContigFw && appendSuffix) // append suffix
+    seq += contig.substrSeq(startp+1, len);
+  else if (isCurContigFw && !appendSuffix) // append prefix
+    seq = contig.substrSeq(startp-len, len) + seq;
+  else if (!isCurContigFw && appendSuffix) // append rc of the seq from the other end as a suffix
+    seq += rc(contig.substrSeq(startp-len, len));
+  else if (!isCurContigFw && !appendSuffix) // append rc of the seq as prefix
+    seq = rc(contig.substrSeq(startp+1, len)) + seq;
+}
 
 template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::cutoff(std::string& seq, size_t len) {
@@ -170,7 +220,7 @@ char RefSeqConstructor<PufferfishIndexT>::rev(const char& c) {
 //TODO the vector should be passed by reference as argument
 template <typename PufferfishIndexT>
 std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSuccessors(util::ContigBlock& contig,
-                                                 bool moveFw,
+                                                 bool isCurContigFw,
                                                  size_t tid,
                                                  size_t tpos) {
 
@@ -179,7 +229,7 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
     CanonicalKmer::k(k) ;
 
     auto& edges = pfi_->getEdge() ;
-    util::Direction dir = moveFw?util::Direction::FORWARD:util::Direction::BACKWORD ;
+    util::Direction dir = isCurContigFw?util::Direction::FORWARD:util::Direction::BACKWORD ;
 
     uint8_t edgeVec = edges[contig.contigIdx_] ;
     std::vector<util::extension> ext = util::getExts(edgeVec) ;

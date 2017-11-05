@@ -92,10 +92,9 @@ public:
                   (isFw && hit.memInfo->rpos >= (prevClus->getReadLastHitPos() + prevClus->getTrLastMemLen())) ||
                   (!isFw && (hit.memInfo->rpos + hit.memInfo->memlen) <= prevClus->getReadLastHitPos())
                   )) ||
-                (hit.tpos < (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen()) &&
+                // then hit.tpos < (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen()
                  (isFw && (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen() - hit.tpos) == (prevClus->getReadLastHitPos() + prevClus->getTrLastMemLen()-hit.memInfo->rpos)) ||
                  (!isFw && (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen() - hit.tpos) == (hit.memInfo->rpos + hit.memInfo->memlen - prevClus->getReadLastHitPos()))
-                 )
                 ) {
               // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
               prevClus->addMem(hit.memInfo, hit.tpos);

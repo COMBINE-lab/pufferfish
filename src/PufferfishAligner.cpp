@@ -202,6 +202,7 @@ std::string calculateCigar (std::pair<std::string,std::string>& apair,
                         apair.second.c_str(),
                         apair.second.size(),
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
+    std::cout << "\nSCORE: " << score << "\n";
     cigar += cigar2str(&aligner.result()) ;
   }else if(!apair.second.empty()){
     cigar += (std::to_string(apair.second.size())+"I") ;
@@ -227,6 +228,7 @@ std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& ali
                          apair.second.c_str(),
                           apair.second.size(),
                          ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
+      std::cout << "\nSCORE: " << score << "\n";
       cigar += cigar2str(&aligner.result()) ;
       aligner.freeCIGAR();
     }else if(!apair.second.empty()){
@@ -339,8 +341,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
       bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // true ~ (ref == contig)
       bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw == clust->isFw;
       auto distOnTxp = clust->mems[it+1].tpos - (clust->mems[it].tpos + clust->mems[it].memInfo->memlen);
-      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):clust->mems[it].memInfo->cpos;
-      uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
+      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
+      uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen-1);
 
       //TODO read from contigBlockCache if available
       //FIXME globalPos must not need -1!! WTH is going on???
@@ -369,7 +371,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 clust->mems[it].tpos,
                                 firstContigDirWRTref,
                                 scb, cstart, ecb, cend,
-                                rend-rstart+THRESHOLD,
+                                           secondContigDirWRTref,
+                                distOnTxp,
                                 refSeq);
         //TODO validate graph
         if(res == Task::SUCCESS){
@@ -388,6 +391,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
     }
   }
   // update cigar and add matches for last unimem(s)
+  // after the loop, "it" is pointing to the last unimem in the change
   clust->cigar += (std::to_string(clust->mems[it].tpos + clust->mems[it].memInfo->memlen-prevTPos) + "M");
   //TODO take care of left and right gaps/mismatches
 
@@ -456,7 +460,6 @@ void processReadsPair(paired_parser* parser,
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
       //bool verbose = false ;
-      bool verbose1 = false ; //= rpair.second.name == "fake1";
       bool verbose = rpair.second.name == "fake2";
       if(verbose) std::cout << rpair.first.name << "\n";
 
