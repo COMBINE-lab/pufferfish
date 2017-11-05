@@ -4,7 +4,7 @@
 
 #include <sparsepp/spp.h>
 
-#define verbose false
+#define verbose true
 
 /* story 
 NOTE: Since we are ALWAYS traversing the mems --and hence
@@ -97,19 +97,10 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
 
 
 template <typename PufferfishIndexT>
-size_t RefSeqConstructor<PufferfishIndexT>::distance(size_t startp,
-                                                     size_t endp, bool moveFw)
-{if(moveFw)return endp-startp; else return startp-endp;}
-
-
-template <typename PufferfishIndexT>
 size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& contig, size_t startp, bool moveFw) {
     if (moveFw)
-      return contig.contigLen_ - startp;
+      return contig.contigLen_ - startp - 1;
     else
-      //TODO For backward walk, check the inclusion/exclusion of the current base and have a concensus on the assumption
-      //this is a bad idea we might fall over the edge 
-      //return startp+1;
       return startp ;
 }
 
@@ -122,10 +113,10 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
 
   if(verbose) std::cout << "clipping by pos "<<startp<< " to " << endp << " from "<<contig.contigLen_<<"\n" ;
    if(moveFw)
-      seq += contig.substrSeq(startp, endp-startp);
+      seq += contig.substrSeq(startp+1, endp-startp-1);
     else {
-      // we are always building the seq by moving forward in transcript, so we always append any substring that we construct
-      seq += rc(contig.substrSeq(endp, startp-endp)); 
+      // we are always building the seq by moving forward in transcript, so we always append (& never prepend) any substring that we construct
+      seq += rc(contig.substrSeq(endp+1, startp-endp-1)); 
     }
 }
 
@@ -133,10 +124,12 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
 template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool moveFw) {
   if(verbose) std::cout << "clipping by len "<<len<< " from " << startp << " total length: "<<contig.contigLen_<<"\n" ;
-    if(moveFw)
-      seq += contig.substrSeq(startp, len);
-    else
-      seq += rc(contig.substrSeq(startp-len, len));
+  if (len == 0)
+    return;
+  if(moveFw)
+    seq += contig.substrSeq(startp+1, len);
+  else
+    seq += rc(contig.substrSeq(startp-len, len));
 }
 
 

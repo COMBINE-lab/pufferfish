@@ -43,7 +43,6 @@ private:
 
 
 
-  size_t distance(size_t startp, size_t endp, bool moveFw); 
   size_t remainingLen(util::ContigBlock& contig, size_t startp, bool moveFw);
   void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool moveFw);
   void appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool moveFw);

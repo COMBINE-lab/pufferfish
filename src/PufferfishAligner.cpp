@@ -337,11 +337,13 @@ void createSeqPairs(PufferfishIndexT* pfi,
                   << " " << clust->mems[it+1].tpos
                   << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << "\n";
       }
+
       //Doing graph traversal 
-      std::string refSeq;
+      std::string refSeq = "";
       bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // true ~ (ref == contig)
       bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw == clust->isFw;
       //TODO read from contigBlockCache if available
+      //FIXME globalPos must not need -1!! WTH is going on???
       util::ContigBlock scb = {
                                clust->mems[it].memInfo->cid,
                                clust->mems[it].memInfo->cGlobalPos,
@@ -352,13 +354,15 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                clust->mems[it+1].memInfo->cGlobalPos,
                                clust->mems[it+1].memInfo->clen,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
-      //TODO -1 needed or not? This is the problem
-      //We should check if cpos does not beome negative, since we are doing -1
-      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):(clust->mems[it].memInfo->cpos > 0?clust->mems[it].memInfo->cpos-1:0);
-      //TODO also we have to check if the next does
-      //not start from 0
-      uint32_t cend = secondContigDirWRTref?(clust->mems[it+1].memInfo->cpos > 0 ? clust->mems[it+1].memInfo->cpos-1:0):(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
+      //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
+      // cstart and cend point to the last matched base in the start contig and first matched base in last contig
+      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):clust->mems[it].memInfo->cpos;
+      uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
 
+      std::cout << " start contig: \ncid" << scb.contigIdx_ << " relpos" << clust->mems[it].memInfo->cpos << " len" << scb.contigLen_ << " ori" << firstContigDirWRTref
+                << " hitlen" << clust->mems[it].memInfo->memlen << " start pos:" << cstart << "\n" << scb.seq << "\n";
+      std::cout << " last contig: \ncid" << ecb.contigIdx_ << " relpos" << clust->mems[it+1].memInfo->cpos << " len" << ecb.contigLen_ << " ori" << secondContigDirWRTref
+                << " hitlen" << clust->mems[it+1].memInfo->memlen << " end pos:" << cend << "\n" << ecb.seq << "\n";
         //std::cout << readName << "\n" ;
         //TODO want to check out if the fetched sequence
         //and the read substring make sense or not;
@@ -371,12 +375,13 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 refSeq);
         //TODO validate graph
         if(res == Task::SUCCESS){
-          //std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-          //         << " part of ref " << refSeq << "\n";
+          std::cout << "SUCCESS\n";
+          std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
+                   << " part of ref " << refSeq << "\n";
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{
-          //std::cout << "Graph searched FAILED \n" ;
+          std::cout << "Graph searched FAILED \n" ;
         }
       }else{
         //Fake cigar
