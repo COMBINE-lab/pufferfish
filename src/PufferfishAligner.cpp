@@ -278,23 +278,18 @@ void createSeqPairs(PufferfishIndexT* pfi,
   }
 
 
+  auto prevTPos = clust->mems[0].tpos;
   for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
+    auto mmTstart = clust->mems[it].tpos + clust->mems[it].memInfo->memlen;
+    auto mmTend = clust->mems[it+1].tpos;
 
-
-    // NOTE: Assume that consistemncy condition is met, merging the mems 
-    if (clust->mems[it+1].tpos < (clust->mems[it].tpos + clust->mems[it].memInfo->memlen)) {
-      //std::cout<<"Overlapping mems skipping\n" ;
-      //std::cout<<"Transcript positions " << clust->mems[it].tpos << "\t"
-      //        << clust->mems[it+1].tpos << "\t" << clust->mems[it].memInfo->memlen << "\t"
-      //        <<"read positions \t" << clust->mems[it].memInfo->rpos << "\t"
-      //       <<clust->mems[it+1].memInfo->rpos << "\t" << clust->mems[it+1].memInfo->memlen
-      //       << "\t\t" << clust->isFw << "\n";
-      uint32_t ms = std::min(clust->mems[it].memInfo->rpos, clust->mems[it+1].memInfo->rpos) ;
-      uint32_t me = std::max(clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen,
-                             clust->mems[it+1].memInfo->rpos + clust->mems[it+1].memInfo->memlen) ;
-      clust->cigar += (std::to_string(me-ms) + "M") ;
+    // NOTE: Assume that consistency condition is met, merging the mems 
+    if (mmTend < mmTstart) { // this means the not matched seq is empty. i.e. we have exact match in transition from txp_i to txp_(i+1)
       continue;
     }
+
+    clust->cigar += (std::to_string(mmTstart-prevTPos) + "M");
+    prevTPos = clust->mems[it+1].tpos;
 
     uint32_t rstart = (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
     uint32_t rend = clust->mems[it+1].memInfo->rpos;
@@ -342,6 +337,10 @@ void createSeqPairs(PufferfishIndexT* pfi,
       std::string refSeq = "";
       bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // true ~ (ref == contig)
       bool secondContigDirWRTref = clust->mems[it+1].memInfo->cIsFw == clust->isFw;
+      auto distOnTxp = clust->mems[it+1].tpos - (clust->mems[it].tpos + clust->mems[it].memInfo->memlen);
+      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):clust->mems[it].memInfo->cpos;
+      uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
+
       //TODO read from contigBlockCache if available
       //FIXME globalPos must not need -1!! WTH is going on???
       util::ContigBlock scb = {
@@ -349,6 +348,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                clust->mems[it].memInfo->cGlobalPos,
                                clust->mems[it].memInfo->clen,
                                pfi->getSeqStr(clust->mems[it].memInfo->cGlobalPos, clust->mems[it].memInfo->clen)};
+      
       util::ContigBlock ecb = {
                                clust->mems[it+1].memInfo->cid,
                                clust->mems[it+1].memInfo->cGlobalPos,
@@ -356,9 +356,6 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
       //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
       // cstart and cend point to the last matched base in the start contig and first matched base in last contig
-      uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen):clust->mems[it].memInfo->cpos;
-      uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen);
-
       std::cout << " start contig: \ncid" << scb.contigIdx_ << " relpos" << clust->mems[it].memInfo->cpos << " len" << scb.contigLen_ << " ori" << firstContigDirWRTref
                 << " hitlen" << clust->mems[it].memInfo->memlen << " start pos:" << cstart << "\n" << scb.seq << "\n";
       std::cout << " last contig: \ncid" << ecb.contigIdx_ << " relpos" << clust->mems[it+1].memInfo->cpos << " len" << ecb.contigLen_ << " ori" << secondContigDirWRTref
@@ -383,12 +380,15 @@ void createSeqPairs(PufferfishIndexT* pfi,
         }else{
           std::cout << "Graph searched FAILED \n" ;
         }
-      }else{
+      } else{
         //Fake cigar
         clust->cigar += (std::to_string(gap)+"D") ;
       }
     }
   }
+  // update cigar and add matches for last unimem(s)
+  clust->cigar += (std::to_string(clust->mems[it].tpos + clust->mems[it].memInfo->memlen-prevTPos) + "M");
+  //TODO take care of left and right gaps/mismatches
 
   clust->isVisited = true;
 }
