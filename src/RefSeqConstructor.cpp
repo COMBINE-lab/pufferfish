@@ -63,7 +63,8 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
     }
   }
 
-  if (verbose) std::cout << "\n\nWOOOOOT!! Got to bfs\n";
+  //if (verbose)
+  std::cout << "\n\nWOOOOOT!! Got to bfs\n";
   return doBFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, seq);
 
 }
@@ -87,7 +88,8 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
       return Task::FAILURE;
     }
 
-    
+    if (startp >= curContig.contigLen_)
+      std::cerr << "ERROR!!! shouldn't happen ---> startp >= curContig.contigLen_ : " << startp << ">" << curContig.contigLen_ << "\n";
     // used in all the following terminal conditions
     auto remLen = remainingLen(curContig, startp, isCurContigFw, suffixIfFw);
     if(verbose) std::cout << "[doBFS] : remaining length " << remLen << " txpDist " << txpDist << " startp " <<startp << " in direction "<<isCurContigFw<<"\n" ;
@@ -104,16 +106,9 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
       // because we couldn't find the path between start and end that is shorter than some txpDist
       else {
         if (remLen > txpDist) {
-          if (verbose) {
-            std::cout << "[doBFS] remLen > txpDist : " << remLen << " > " << txpDist << "\n";
-            std::cout << "[doBFS] duplicate call : \n";
-            std::cout << getRemSeq(curContig, remLen-txpDist, isCurContigFw, suffixIfFw);
-            std::cout << "\n";
-            std::cout << getRemSeq(endContig, remLen-txpDist, isEndContigFw, prefixIfFw);
-            std::cout << "\n";
-          }
 
-          if (getRemSeq(curContig, remLen-txpDist, isCurContigFw, suffixIfFw) == getRemSeq(endContig, remLen-txpDist, isEndContigFw, prefixIfFw)) {
+          if (remLen-txpDist < endContig.contigLen_ &&
+              getRemSeq(curContig, remLen-txpDist, isCurContigFw, suffixIfFw) == getRemSeq(endContig, remLen-txpDist, isEndContigFw, prefixIfFw)) {
             if (verbose) std::cout << "[doBFS] remSequences are equal. safe to append and exit\n"; 
             appendByLen(seq, curContig, startp, txpDist, isCurContigFw, suffixIfFw);
             return Task::SUCCESS;
@@ -127,7 +122,8 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
         // called even when txpDist == 0
         // remLen == txpDist
         for (auto& c : fetchSuccessors(curContig, isCurContigFw, tid, tpos)) {
-          if (getRemSeq(c.cntg, remLen-txpDist, c.isCurContigFw, suffixIfFw) == getRemSeq(endContig, remLen-txpDist, isEndContigFw, prefixIfFw))
+          if (c.cntg.contigLen_-(k-1) <= endContig.contigLen_ &&
+              getRemSeq(c.cntg, c.cntg.contigLen_-(k-1), c.isCurContigFw, suffixIfFw) == getRemSeq(endContig, c.cntg.contigLen_-(k-1), isEndContigFw, prefixIfFw))
             return Task::SUCCESS;
         }
         return Task::FAILURE; // I'm in the middle of no where!! lost!!
