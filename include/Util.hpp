@@ -561,9 +561,7 @@ struct ContigBlock{
 
   std::string substrSeq(size_t s, size_t len){
     //std::cerr << contigLen_ << "\t" << s << "\t" << len << "\n" ;
-    std::cout << "\t[substrSeq] substr from " << s << " to " << s+len << " contig with length " << seq.length() << "\n";
     if(s+len <= contigLen_){
-      std::cout << "\t[substrSeq] returning " << seq.substr(s, len) << "\n";
       return seq.substr(s,len) ;
     }
     else

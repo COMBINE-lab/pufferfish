@@ -4,7 +4,7 @@
 
 #include <sparsepp/spp.h>
 
-#define verbose true
+#define verbose false
 
 #define suffixIfFw true
 #define prefixIfFw false
@@ -104,12 +104,24 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
       // because we couldn't find the path between start and end that is shorter than some txpDist
       else {
         if (remLen > txpDist) {
+          if (verbose) {
+            std::cout << "[doBFS] remLen > txpDist : " << remLen << " > " << txpDist << "\n";
+            std::cout << "[doBFS] duplicate call : \n";
+            std::cout << getRemSeq(curContig, remLen-txpDist, isCurContigFw, suffixIfFw);
+            std::cout << "\n";
+            std::cout << getRemSeq(endContig, remLen-txpDist, isEndContigFw, prefixIfFw);
+            std::cout << "\n";
+          }
+
           if (getRemSeq(curContig, remLen-txpDist, isCurContigFw, suffixIfFw) == getRemSeq(endContig, remLen-txpDist, isEndContigFw, prefixIfFw)) {
+            if (verbose) std::cout << "[doBFS] remSequences are equal. safe to append and exit\n"; 
             appendByLen(seq, curContig, startp, txpDist, isCurContigFw, suffixIfFw);
             return Task::SUCCESS;
           }
-          else
+          else {
+            std::cout << "[doBFS] returning failure\n";
             return Task::FAILURE;
+          }
         }
         // terminal condition
         // called even when txpDist == 0
@@ -197,7 +209,7 @@ void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::Co
 
 template <typename PufferfishIndexT>
 std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix) {
-  std::string seq;
+  std::string seq = "";
   if (len == 0)
     return "";
   if (isCurContigFw && appendSuffix) {// append suffix
@@ -216,6 +228,7 @@ std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& co
     if(verbose) std::cout << "\t[getRemSeq] 4 rc from " << contig.contigLen_-len << " to " << contig.contigLen_ << " total length " << contig.contigLen_ << "\n";
     seq = rc(contig.substrSeq(contig.contigLen_-len, len)) + seq;
   }
+  return seq;
 }
 
 template <typename PufferfishIndexT>
@@ -228,11 +241,13 @@ void RefSeqConstructor<PufferfishIndexT>::cutoff(std::string& seq, size_t len) {
 // now eachtime calling this we are copying a string twice which is not good
 template <typename PufferfishIndexT>
 std::string RefSeqConstructor<PufferfishIndexT>::rc(std::string str) {
+  if(verbose)std::cout << "\t[rc] of " << str << " is ";
     for (uint32_t i = 0; i < str.length()/2; i++) {
       char tmp = str[i];
       str[i] = rev(str[str.length()-1-i]);
       str[str.length()-1-i] = rev(tmp);
     }
+    if (verbose) std::cout << str << "\n";
     return str;
 }
 

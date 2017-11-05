@@ -359,10 +359,12 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
       //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
       // cstart and cend point to the last matched base in the start contig and first matched base in last contig
-      std::cout << " start contig: \ncid" << scb.contigIdx_ << " relpos" << clust->mems[it].memInfo->cpos << " len" << scb.contigLen_ << " ori" << firstContigDirWRTref
+      if (verbose) {
+        std::cout << " start contig: \ncid" << scb.contigIdx_ << " relpos" << clust->mems[it].memInfo->cpos << " len" << scb.contigLen_ << " ori" << firstContigDirWRTref
                 << " hitlen" << clust->mems[it].memInfo->memlen << " start pos:" << cstart << "\n" << scb.seq << "\n";
-      std::cout << " last contig: \ncid" << ecb.contigIdx_ << " relpos" << clust->mems[it+1].memInfo->cpos << " len" << ecb.contigLen_ << " ori" << secondContigDirWRTref
+        std::cout << " last contig: \ncid" << ecb.contigIdx_ << " relpos" << clust->mems[it+1].memInfo->cpos << " len" << ecb.contigLen_ << " ori" << secondContigDirWRTref
                 << " hitlen" << clust->mems[it+1].memInfo->memlen << " end pos:" << cend << "\n" << ecb.seq << "\n";
+      }
         //std::cout << readName << "\n" ;
         //TODO want to check out if the fetched sequence
         //and the read substring make sense or not;
