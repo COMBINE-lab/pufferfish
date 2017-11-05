@@ -42,7 +42,11 @@ public:
       // Maybe we want to change the interface (make these members public or provide accessors)?
       auto& refs = projHits.refRange;
       if (refs.size() < 200) {
-        memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_, readPos, projHits.k_, projHits.contigPos_, projHits.globalPos_, projHits.contigLen_);
+        if(verbose){std::cout << "len before forming meminfo: "<<projHits.k_<<"\n";}
+        memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
+                                   readPos, projHits.k_, projHits.contigPos_,
+                                   projHits.globalPos_, projHits.contigLen_);
+        if(verbose){std::cout << "len after forming meminfo: "<<memCollection.back().memlen<<"\n";}
         auto memItr = std::prev(memCollection.end());
         for (auto& posIt : refs) {
           auto refPosOri = projHits.decodeHit(posIt);
@@ -78,7 +82,8 @@ public:
         bool foundAtLeastOne = false;
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
-          if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) { // if the distance between last mem and the new one is NOT longer than maxSpliceGap
+          if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) {
+            // if the distance between last mem and the new one is NOT longer than maxSpliceGap
             //gapIsSmall = true;
             if (
                 (hit.tpos >= (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen()) &&
@@ -93,6 +98,7 @@ public:
                 ) {
               // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
               prevClus->addMem(hit.memInfo, hit.tpos);
+              if(verbose){std::cout << "len after putting in cluster: "<<hit.memInfo->memlen<<"\n";}
               foundAtLeastOne = true;
             }
           } else {
@@ -116,6 +122,7 @@ public:
             }*/
           // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
           newClus.addMem(hit.memInfo, hit.tpos);
+          if(verbose){std::cout << "len after putting in cluster: "<<hit.memInfo->memlen<<"\n";}
         }
       }
       /*for (auto& clus : currMemClusters) {
@@ -219,10 +226,12 @@ public:
         std::cout << hit.k_ << " prev contig pos:" << hit.contigPos_ << "\n";
       hit.contigPos_ -= (hit.k_ - k);
       hit.globalPos_ -= (hit.k_ - k);
-      if (verbose)
+      if (verbose){
         std::cout << "after updating: " << hit.contigPos_ << "\n";
+      }
       
     }
+    //std::cout << "after updating coverage: " << hit.k_ << "\n";
     kit.jumpTo(readSeqStart);
     return currReadStart;
   }
@@ -259,6 +268,7 @@ public:
           } 
         }
         expandHitEfficient(phits, kit1, verbose);
+        if(verbose) std::cout<<"len after expansion: "<<phits.k_<<"\n" ;
         
         rawHits.push_back(std::make_pair(readPosOld, phits));
       } else

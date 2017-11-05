@@ -4,7 +4,7 @@
 
 #include <sparsepp/spp.h>
 
-#define verbose true
+#define verbose false
 
 /* story 
 NOTE: Since we are ALWAYS traversing the mems --and hence

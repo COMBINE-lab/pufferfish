@@ -112,11 +112,21 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
               std::cout <<"\ntid:"<<tid<<"\n";
               std::cout <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
               for (size_t i = 0; i < lclust->mems.size(); i++){
-                std::cout << "--- t" << lclust->mems[i].tpos << " r" << lclust->mems[i].memInfo->rpos << " cid:" << lclust->mems[i].memInfo->cid << " cpos: " << lclust->mems[i].memInfo->cpos << " len:" << lclust->mems[i].memInfo->memlen;
+                std::cout << "--- t" << lclust->mems[i].tpos << " r"
+                          << lclust->mems[i].memInfo->rpos << " cid:"
+                          << lclust->mems[i].memInfo->cid << " cpos: "
+                          << lclust->mems[i].memInfo->cpos << " len:"
+                          << lclust->mems[i].memInfo->memlen << " fw:"
+                          << lclust->mems[i].memInfo->cIsFw << "\n";
               }
               std::cout << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
               for (size_t i = 0; i < rclust->mems.size(); i++){
-                std::cout << "--- t" << rclust->mems[i].tpos << " r" << rclust->mems[i].memInfo->rpos << " cid:" << rclust->mems[i].memInfo->cid << " cpos: " << rclust->mems[i].memInfo->cpos << " len:" << rclust->mems[i].memInfo->memlen;
+                std::cout << "--- t" << rclust->mems[i].tpos << " r"
+                          << rclust->mems[i].memInfo->rpos << " cid:"
+                          << rclust->mems[i].memInfo->cid << " cpos: "
+                          << rclust->mems[i].memInfo->cpos << " len:"
+                          << rclust->mems[i].memInfo->memlen << " fw:"
+                          << rclust->mems[i].memInfo->cIsFw << "\n";
               }
             }
             uint32_t currCoverage =  jointMemsList.back().coverage();
@@ -361,12 +371,12 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 refSeq);
         //TODO validate graph
         if(res == Task::SUCCESS){
-          std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-                    << " part of ref " << refSeq << "\n";
+          //std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
+          //         << " part of ref " << refSeq << "\n";
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{
-          std::cout << "Graph searched FAILED \n" ;
+          //std::cout << "Graph searched FAILED \n" ;
         }
       }else{
         //Fake cigar
@@ -439,8 +449,9 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
-      
-      bool verbose = rpair.first.name == "fake";
+      //bool verbose = false ;
+      bool verbose1 = false ; //= rpair.second.name == "fake1";
+      bool verbose = rpair.second.name == "fake2";
       if(verbose) std::cout << rpair.first.name << "\n";
 
       ++hctr.numReads ;
@@ -487,7 +498,7 @@ void processReadsPair(paired_parser* parser,
           auto& lclust = l.second ;
           for(auto& clust : lclust)
             for(auto& m : clust.mems){
-              std::cout << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
+              std::cout << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos <<" len:"<<m.memInfo->memlen<< "\n" ;
             }
         }
       }
@@ -513,6 +524,7 @@ void processReadsPair(paired_parser* parser,
             std::cout << cSeq << "\n" << rseq <<"\n" << tmp << "\n";
             std::exit(1) ;
           }
+          
         }
         for(auto& m : h.rightClust->mems){
           auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
