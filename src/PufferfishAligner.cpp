@@ -202,7 +202,8 @@ std::string calculateCigar (std::pair<std::string,std::string>& apair,
                         apair.second.c_str(),
                         apair.second.size(),
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
-    std::cout << "\nSCORE: " << score << "\n";
+    //std::cout << "\nSCORE: " << score << "\n";
+    
     cigar += cigar2str(&aligner.result()) ;
   }else if(!apair.second.empty()){
     cigar += (std::to_string(apair.second.size())+"I") ;
@@ -247,6 +248,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
                     std::vector<util::MemCluster>::iterator clust,
                     fastx_parser::ReadSeq& read,
                     RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
+                    spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigSeqCache,
                     uint32_t tid,
                     ksw2pp::KSW2Aligner& aligner,
                     bool verbose,
@@ -346,6 +348,28 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
       //TODO read from contigBlockCache if available
       //FIXME globalPos must not need -1!! WTH is going on???
+      //
+      if(contigSeqCache.find(clust->mems[it].memInfo->cid) == contigSeqCache.end()){
+        contigSeqCache[clust->mems[it].memInfo->cid] = {
+          clust->mems[it].memInfo->cid,
+          clust->mems[it].memInfo->cGlobalPos,
+          clust->mems[it].memInfo->clen,
+          pfi->getSeqStr(clust->mems[it].memInfo->cGlobalPos, clust->mems[it].memInfo->clen)};
+      }
+
+
+      if(contigSeqCache.find(clust->mems[it+1].memInfo->cid) == contigSeqCache.end()){
+        contigSeqCache[clust->mems[it+1].memInfo->cid] = {
+          clust->mems[it+1].memInfo->cid,
+          clust->mems[it+1].memInfo->cGlobalPos,
+          clust->mems[it+1].memInfo->clen,
+          pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
+      }
+
+      util::ContigBlock scb = contigSeqCache[clust->mems[it].memInfo->cid] ;
+      util::ContigBlock ecb = contigSeqCache[clust->mems[it+1].memInfo->cid] ;
+
+      /*
       util::ContigBlock scb = {
                                clust->mems[it].memInfo->cid,
                                clust->mems[it].memInfo->cGlobalPos,
@@ -357,6 +381,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                clust->mems[it+1].memInfo->cGlobalPos,
                                clust->mems[it+1].memInfo->clen,
                                pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
+      */
       //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
       // cstart and cend point to the last matched base in the start contig and first matched base in last contig
       if (verbose) {
@@ -373,18 +398,18 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                 clust->mems[it].tpos,
                                 firstContigDirWRTref,
                                 scb, cstart, ecb, cend,
-                                           secondContigDirWRTref,
+                                secondContigDirWRTref,
                                 distOnTxp,
                                 refSeq);
         //TODO validate graph
         if(res == Task::SUCCESS){
-          std::cout << "SUCCESS\n";
-          std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-                    << " part of ref  " << refSeq << "\n";
+          //std::cout << "SUCCESS\n";
+          //std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
+          //          << " part of ref  " << refSeq << "\n";
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{
-          std::cout << "Graph searched FAILED \n" ;
+          //std::cout << "Graph searched FAILED \n" ;
         }
       } else{
         //Fake cigar
@@ -405,6 +430,7 @@ void traverseGraph(ReadPairT& rpair,
                    util::JointMems& hit,
                    PufferfishIndexT& pfi,
                    RefSeqConstructor<PufferfishIndexT>& refSeqConstructor,
+                   spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigSeqCache,
                    ksw2pp::KSW2Aligner& aligner,
                    bool verbose,
                    bool naive=false){
@@ -414,10 +440,10 @@ void traverseGraph(ReadPairT& rpair,
   if(verbose) std::cout << rpair.first.name << "\n" ;
 
   if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, tid, aligner, verbose, naive);
+    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, contigSeqCache, tid, aligner, verbose, naive);
     //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
   if(!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, tid, aligner, verbose, naive);
+    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, contigSeqCache, tid, aligner, verbose, naive);
     //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 }
 
@@ -437,7 +463,7 @@ void processReadsPair(paired_parser* parser,
 
 
   spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
-  RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, contigSeqCache);
+  RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
   //std::cout << "\n In process reads pair\n" ;
     //TODO create a memory layout to store
@@ -574,7 +600,7 @@ void processReadsPair(paired_parser* parser,
 
         if(!jointHits.empty() && jointHits.front().coverage() < 2*readLen) {
           for(auto& hit : jointHits){
-            traverseGraph(rpair, hit, pfi, refSeqConstructor, aligner, verbose) ;
+            traverseGraph(rpair, hit, pfi, refSeqConstructor, contigSeqCache, aligner, verbose) ;
             // update minScore across all hits
             if(hit.leftClust->score + hit.rightClust->score < minScore){
               minScore = hit.leftClust->score + hit.rightClust->score;

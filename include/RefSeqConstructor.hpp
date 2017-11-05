@@ -26,7 +26,7 @@ template <typename PufferfishIndexT>
 class RefSeqConstructor {
 
 public:
-  RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache);
+  RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>* contigSeqCache);
   Task fillSeq(size_t tid,
                                                size_t tpos,
                                                bool isCurContigFw,
@@ -49,7 +49,7 @@ public:
 private:
   PufferfishIndexT* pfi_ ;
   size_t k ;
-  spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache_;
+  spp::sparse_hash_map<uint32_t, util::ContigBlock>* contigSeqCache_;
 
 
 
@@ -63,7 +63,7 @@ private:
   std::vector<nextCompatibleStruct> fetchSuccessors(util::ContigBlock& contig,
                                                  bool isCurContigFw,
                                                  size_t tid,
-                                                    size_t tpos);
+                                                 size_t tpos);
 };
 
 #endif

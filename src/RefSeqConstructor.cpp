@@ -26,8 +26,8 @@ seq : will be appended through out the traversal
 template <typename PufferfishIndexT>
 RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi,
                                                        spp::sparse_hash_map<uint32_t,
-                                                       util::ContigBlock>& contigCache)
-                                                       : pfi_(pfi), contigCache_(contigCache) { k = pfi_->k(); }
+                                                       util::ContigBlock>* contigSeqCache)
+                                                       : pfi_(pfi), contigSeqCache_(contigSeqCache) { k = pfi_->k(); }
 template <typename PufferfishIndexT>
 Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
                                              size_t tpos,
@@ -63,8 +63,8 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
     }
   }
 
-  //if (verbose)
-  std::cout << "\n\nWOOOOOT!! Got to bfs\n";
+  if (verbose)
+    std::cout << "\n\nWOOOOOT!! Got to bfs\n";
   return doBFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, seq);
 
 }
@@ -114,7 +114,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
             return Task::SUCCESS;
           }
           else {
-            std::cout << "[doBFS] returning failure\n";
+            if(verbose) std::cout << "[doBFS] returning failure\n";
             return Task::FAILURE;
           }
         }
@@ -293,8 +293,13 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
           (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
 
           auto nextHit = pfi_->getRefPos(kt) ;
-          std::string contigseq = pfi_->getSeqStr(nextHit.globalPos_,nextHit.contigLen_);
-          util::ContigBlock cb({nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq}) ;
+
+          if(contigSeqCache_->find(nextHit.contigIdx_) == contigSeqCache_->end()){
+            std::string contigseq = pfi_->getSeqStr(nextHit.globalPos_,nextHit.contigLen_);
+            (*contigSeqCache_)[nextHit.contigIdx_] = {nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq} ;
+          }
+
+          util::ContigBlock cb = (*contigSeqCache_)[nextHit.contigIdx_] ;
           //TODO seq for cb
           for(auto& posIt: nextHit.refRange){
             if(posIt.transcript_id() == tid and tpos < posIt.pos()){
