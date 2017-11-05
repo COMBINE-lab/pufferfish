@@ -367,7 +367,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
         //TODO want to check out if the fetched sequence
         //and the read substring make sense or not;
       if(!naive){
-        Task res = refSeqConstructor.doBFS(tid,
+        Task res = refSeqConstructor.fillSeq(tid,
                                 clust->mems[it].tpos,
                                 firstContigDirWRTref,
                                 scb, cstart, ecb, cend,
@@ -378,7 +378,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
         if(res == Task::SUCCESS){
           std::cout << "SUCCESS\n";
           std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-                   << " part of ref " << refSeq << "\n";
+                    << " part of ref  " << refSeq << "\n";
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{

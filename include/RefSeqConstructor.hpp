@@ -27,13 +27,22 @@ class RefSeqConstructor {
 
 public:
   RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigCache);
+  Task fillSeq(size_t tid,
+                                               size_t tpos,
+                                               bool isCurContigFw,
+                                               util::ContigBlock& curContig,
+                                               size_t startp,
+                                               util::ContigBlock& endContig,
+                                               size_t endp,
+                                               bool isEndContigFw,
+                                               uint32_t txpDist,
+                                               std::string& seq);
   Task doBFS(size_t tid,
              size_t tpos,
              bool isCurContigFw,
              util::ContigBlock& curContig,
              size_t startp,
              util::ContigBlock& endContig,
-             size_t endp,
              bool isEndContigFw,
              uint32_t threshold,
              std::string& seq);
@@ -47,7 +56,7 @@ private:
   size_t remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd);
   void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool isCurContigFw);
   void appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
-  std::string getSubstr(util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
+  std::string getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix);
   void cutoff(std::string& seq, size_t len);
   std::string rc(std::string str);
   char rev(const char& c);
