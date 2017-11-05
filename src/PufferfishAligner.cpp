@@ -409,6 +409,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{
+          //FIXME discard whole hit!!!
           //std::cout << "Graph searched FAILED \n" ;
         }
       } else{
