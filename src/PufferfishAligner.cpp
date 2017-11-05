@@ -279,7 +279,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
 
   auto prevTPos = clust->mems[0].tpos;
-  for(size_t it=0 ; it < clust->mems.size() -1 ; ++it) {
+  size_t it = 0;
+  for(it=0 ; it < clust->mems.size() -1 ; ++it) {
     auto mmTstart = clust->mems[it].tpos + clust->mems[it].memInfo->memlen;
     auto mmTend = clust->mems[it+1].tpos;
 
