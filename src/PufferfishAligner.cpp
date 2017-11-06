@@ -59,7 +59,7 @@
 #define END_CONTIG_ID ((uint32_t)-2)
 
 #define MATCH_SCORE 2
-#define MISMATCH_SCORE -2
+#define MISMATCH_SCORE -1
 #define GAP_SCORE -2
 
 #define EPS 5
@@ -194,7 +194,8 @@ std::string cigar2str(const ksw_extz_t* ez){
 std::string calculateCigar (std::string& read,
                             std::string& ref,
                             ksw2pp::KSW2Aligner& aligner,
-                            std::vector<util::MemCluster>::iterator clust) {
+                            std::vector<util::MemCluster>::iterator clust,
+                            bool verbose=true) {
   if (read.empty()) {
     clust->cigar += (std::to_string(ref.length())+"D") ;
     clust->score += ref.length() * GAP_SCORE;
@@ -209,8 +210,12 @@ std::string calculateCigar (std::string& read,
                          ref.length(),
                          ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
     clust->score += score;
+    if (verbose) std::cout << "read str " << read << "\nref str " << ref << "\n";
+    if(verbose) std::cout << "cigar before : " << clust->cigar << "\n";
     clust->cigar += cigar2str(&aligner.result()) ;
+    if(verbose) std::cout << "cigar after : " << clust->cigar << "\n";
   }
+  if (verbose) std::cout << clust->cigar << "\n";
   return clust->cigar;
 }
 
@@ -244,7 +249,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
   //std::string& readName = read.name ;
   std::string& readSeq = read.seq ;
   auto clustSize = clust->mems.size()  ;
-  clust->score = 0 ;
+  clust->score = 0;
   auto readLen = readSeq.length() ;
 
   //@debug
@@ -317,7 +322,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
           //std::string tmp = extractReadSeq(readSeq, rstart, rend, clust->isFw) ;
         std::string readSubstr = extractReadSeq(readSeq, rstart, rend, clust->isFw);
         std::string refSeq = "";
-        calculateCigar(readSubstr, refSeq, aligner, clust);
+        calculateCigar(readSubstr, refSeq, aligner, clust, verbose);
       }
       else {
           std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
@@ -367,7 +372,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
           //std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
           //         << " part of ref  " << refSeq << "\n";
           std::string readSubstr = extractReadSeq(readSeq, rstart, rend, clust->isFw);
-          calculateCigar(readSubstr, refSeq, aligner, clust) ;
+          calculateCigar(readSubstr, refSeq, aligner, clust, verbose) ;
         }else{
           //FIXME discard whole hit!!!
           clust->score = std::numeric_limits<int>::min();
@@ -425,7 +430,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
     if(res == Task::SUCCESS) {
       //std::cout << " part of read "<<endReadSeq<<"\n"
       //          << " part of ref  " << refSeq << "\n";
-      calculateCigar(endReadSeq, refSeq, aligner, clust) ;
+      calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
     } else{
       // discard whole hit!!!
       clust->score = std::numeric_limits<int>::min();
@@ -455,7 +460,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
     if(res == Task::SUCCESS) {
       //std::cout << " part of read "<<startReadSeq<<"\n"
       //          << " part of ref  " << refSeq << "\n";
-      calculateCigar(endReadSeq, refSeq, aligner, clust) ;
+      calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
     } else{
       // discard whole hit!!!
       clust->score = std::numeric_limits<int>::min();
@@ -463,7 +468,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
     }
   }
   clust->isVisited = true;
-  std::cout << read.name << " " << clust->isFw << " " << clust->mems.size() << "\n" << read.seq << "\nSCORE: " << clust->score << "\nCIGAR: " << clust->cigar << "\n" ;
+  if (verbose) std::cout << read.name << " " << clust->isFw << " " << clust->mems.size() << "\n" << read.seq << "\nSCORE: " << clust->score << "\nCIGAR: " << clust->cigar << "\n" ;
 }
 
 template <typename ReadPairT ,typename PufferfishIndexT>
@@ -536,7 +541,7 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
-      bool verbose = false;//rpair.second.name == "read5021977/ENST00000366472;mate1:1221-1320;mate2:1330-1428";// "fake2";
+      bool verbose = rpair.second.name == "read21504189/ENST00000526115;mate1:720-819;mate2:812-910";// "fake2";
       if(verbose) std::cout << rpair.first.name << "\n";
 
       ++hctr.numReads ;
@@ -630,8 +635,8 @@ void processReadsPair(paired_parser* parser,
       ksw2pp::KSW2Config config ;
       ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE) ;
 
-      config.gapo = GAP_SCORE ;
-      config.gape = GAP_SCORE ;
+      config.gapo = -1 * GAP_SCORE ;
+      config.gape = -1 * GAP_SCORE ;
       config.bandwidth = -1 ;
       config.flag = KSW_EZ_RIGHT ;
 
