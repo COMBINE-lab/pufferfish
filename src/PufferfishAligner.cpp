@@ -58,7 +58,7 @@
 #define START_CONTIG_ID ((uint32_t)-1) 
 #define END_CONTIG_ID ((uint32_t)-2)
 
-#define THRESHOLD 10
+#define EPS 5
 
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
 using AlignmentOpts = util::AlignmentOpts ;
@@ -398,6 +398,76 @@ void createSeqPairs(PufferfishIndexT* pfi,
   clust->cigar += (std::to_string(clust->mems[it].tpos + clust->mems[it].memInfo->memlen-prevTPos) + "M");
   //TODO take care of left and right gaps/mismatches
 
+  util::ContigBlock dummy = {0,0,0,"",true};
+
+  bool lastContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw;
+  bool firstContigDirWRTref = clust->mems[0].memInfo->cIsFw == clust->isFw;
+
+
+  auto endRem = readLen - (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
+  auto startRem = clust->mems[0].memInfo->rpos;
+
+  std::string startReadSeq = extractReadSeq(readSeq, 0, clust->mems[0].memInfo->rpos, clust->isFw);
+  std::string endReadSeq = extractReadSeq(readSeq, (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen), readLen, clust->isFw);
+
+  if (!clust->isFw) {
+    endRem = clust->mems[it].memInfo->rpos;
+    startRem = readLen - (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen);
+    startReadSeq = extractReadSeq(readSeq, (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen), readLen, clust->isFw);
+    endReadSeq = extractReadSeq(readSeq, 0, clust->mems[it].memInfo->rpos, clust->isFw);
+  }
+  if (endRem > 0) {
+
+    std::string refSeq = "";
+    util::ContigBlock scb = {
+                             clust->mems[it].memInfo->cid,
+                             clust->mems[it].memInfo->cGlobalPos,
+                             clust->mems[it].memInfo->clen,
+                             pfi->getSeqStr(clust->mems[it].memInfo->cGlobalPos, clust->mems[it].memInfo->clen)};
+
+    uint32_t cstart = lastContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
+
+    Task res = refSeqConstructor.fillSeq(tid,
+                                         clust->mems[it].tpos,
+                                         lastContigDirWRTref,
+                                         scb, cstart, dummy, 0,
+                                         lastContigDirWRTref,
+                                         endRem,
+                                         refSeq);
+    if(res == Task::SUCCESS) {
+      clust->alignableStrings.push_back(std::make_pair(endReadSeq, refSeq));
+      clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
+    } else{
+      //FIXME discard whole hit!!!
+      //std::cout << "Graph searched FAILED \n" ;
+    }
+  }
+  if (startRem > 0) {
+
+    std::string refSeq = "";
+    util::ContigBlock ecb = {
+                             clust->mems[0].memInfo->cid,
+                             clust->mems[0].memInfo->cGlobalPos,
+                             clust->mems[0].memInfo->clen,
+                             pfi->getSeqStr(clust->mems[0].memInfo->cGlobalPos, clust->mems[0].memInfo->clen)};
+
+    uint32_t cend = firstContigDirWRTref?clust->mems[0].memInfo->cpos:(clust->mems[0].memInfo->cpos + clust->mems[0].memInfo->memlen-1);
+
+    Task res = refSeqConstructor.fillSeq(tid,
+                                         clust->mems[0].tpos,
+                                         firstContigDirWRTref,
+                                         dummy, 0, ecb, cend,
+                                         firstContigDirWRTref,
+                                         startRem,
+                                         refSeq);
+    if(res == Task::SUCCESS) {
+      clust->alignableStrings.push_back(std::make_pair(startReadSeq, refSeq));
+      clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
+    } else{
+      //FIXME discard whole hit!!!
+      //std::cout << "Graph searched FAILED \n" ;
+    }
+  }
   clust->isVisited = true;
 }
 
