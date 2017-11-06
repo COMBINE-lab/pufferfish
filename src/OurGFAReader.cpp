@@ -154,7 +154,7 @@ void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
 
 sdsl::int_vector<2>& PosFinder::getContigSeqVec() { return seqVec_; }
 sdsl::int_vector<8>& PosFinder::getEdgeVec() { return edgeVec_; }
-
+sdsl::int_vector<8>& PosFinder::getEdgeVec2() { return edgeVec2_; }
 
 
 void PosFinder::parseFile() {
@@ -234,6 +234,8 @@ void PosFinder::parseFile() {
   //Initialize edgeVec_
   //bad way, have to re-think
   edgeVec_ = sdsl::int_vector<8>(contig_cnt, 0) ;
+  edgeVec2_ = sdsl::int_vector<8>(contig_cnt, 0) ;
+  
 
   std::map<char, char> cMap = {{'A','T'}, {'T','A'}, {'C','G'}, {'G','C'}} ;
   
@@ -246,33 +248,42 @@ void PosFinder::parseFile() {
       size_t forder = contigid2seq[cid].fileOrder ;
       auto nextcid = contigs[i+1].first ;
       bool nextore = contigs[i+1].second ;
+
+      bool nextForder = contigid2seq[nextcid].fileOrder ;
       // a+,b+ end kmer of a , start kmer of b
       // a+,b- end kmer of a , rc(end kmer of b)
       // a-,b+ rc(start kmer of a) , start kmer of b
       // a-,b- rc(start kmer of a) , rc(end kmer of b)
 
 
-      //uint64_t kn = (!ore)? (seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k)) ;
+      uint64_t kn = (!ore)? (seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k)) ;
       uint64_t knn = (nextore)? (seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k)) ;
 
 
+      CanonicalKmer sk ;
       CanonicalKmer skk ;
-      //sk.fromNum(kn) ;
+      sk.fromNum(kn) ;
       skk.fromNum(knn) ;
 
       //validation, to be deprecated later
       std::string nkmer;
+      std::string ckmer;
       //kmer = (ore)?sk.to_str():sk.rcMer() ;
       nkmer = skk.to_str();
+      ckmer = sk.to_str();
 
       if(!ore and !nextore){
         edgeVec_[forder] |=  encodeEdge(nkmer[0], Direction::PREPEND);
+        edgeVec2_[nextForder] |= encodeEdge(ckmer[k-1], Direction::APPEND) ;
       }else if(!ore and nextore){
         edgeVec_[forder] |=  encodeEdge(cMap[nkmer[k-1]], Direction::PREPEND);
+        edgeVec2_[nextForder] |=  encodeEdge(cMap[ckmer[k-1]], Direction::PREPEND);
       }else if(ore and nextore){
         edgeVec_[forder] |=  encodeEdge(nkmer[k-1], Direction::APPEND);
+        edgeVec2_[nextForder] |=  encodeEdge(ckmer[0], Direction::PREPEND);
       }else if(ore and !nextore){
         edgeVec_[forder] |=  encodeEdge(cMap[nkmer[0]], Direction::APPEND);
+        edgeVec2_[nextForder] |=  encodeEdge(cMap[ckmer[0]], Direction::APPEND);
       } 
       
       

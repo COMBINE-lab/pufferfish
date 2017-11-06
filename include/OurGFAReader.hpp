@@ -55,6 +55,10 @@ private:
   //edge table
   //ATGC|ATGC = 8 bits
   sdsl::int_vector<8> edgeVec_;
+  //predecessor,stores the same
+  //transcript in reverse order
+  //improve walkability
+  sdsl::int_vector<8> edgeVec2_;
 
   std::vector<std::pair<std::string, std::string>> newSegments;
   pufg::Graph semiCG;
@@ -83,6 +87,7 @@ public:
   std::vector<std::pair<std::string, std::string>>& getNewSegments();
   sdsl::int_vector<2>& getContigSeqVec();
   sdsl::int_vector<8>& getEdgeVec();
+  sdsl::int_vector<8>& getEdgeVec2();
   
   // spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool>
   // > >& getPaths() {return path;}

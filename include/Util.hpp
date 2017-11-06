@@ -248,6 +248,7 @@ enum class MateStatus : uint8_t {
     uint32_t blockLen ;
     std::string cseq ;
 
+
     ContigCecheBlock(uint32_t cposIn, uint32_t lenIn, std::string cseqIn) :
       cpos(cposIn), blockLen(lenIn), cseq(cseqIn){}
 
@@ -547,6 +548,8 @@ struct HitCounters {
 };
 
 struct ContigBlock{
+  ContigBlock() {}
+
   ContigBlock(uint64_t idIn, uint64_t cposIn, uint32_t len, std::string seqIn, bool isDummyIn=false) :
     contigIdx_(idIn) , globalPos_(cposIn) , contigLen_(len), seq(seqIn), isDummy_(isDummyIn) {} 
 

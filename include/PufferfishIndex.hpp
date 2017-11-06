@@ -37,6 +37,7 @@ private:
   sdsl::bit_vector::select_1_type contigSelect_;
   sdsl::int_vector<2> seq_;
   sdsl::int_vector<8> edge_;
+  sdsl::int_vector<8> revedge_;
   sdsl::int_vector<> pos_;
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
@@ -97,8 +98,11 @@ public:
   sdsl::int_vector<2>& getSeq() {return seq_;}
 
   sdsl::int_vector<8>& getEdge() {return edge_;}
+  sdsl::int_vector<8>& getRevEdge() {return revedge_;}
 
   uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
+
+  uint8_t getRevEdgeEntry(uint64_t contigRank) {return revedge_[contigRank];}
 
   CanonicalKmer getStartKmer(uint64_t cid) ;
   CanonicalKmer getEndKmer(uint64_t cid) ;

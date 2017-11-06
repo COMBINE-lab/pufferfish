@@ -97,6 +97,11 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     std::string pfile = indexDir + "/edge.bin";
     sdsl::load_from_file(edge_, pfile);
   }
+  {
+    CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
+    std::string pfile = indexDir + "/revedge.bin";
+    sdsl::load_from_file(revedge_, pfile);
+  }
 }
 
 PufferfishIndex::EqClassID PufferfishIndex::getEqClassID(uint32_t contigID) {

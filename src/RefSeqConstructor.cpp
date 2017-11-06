@@ -9,6 +9,7 @@
 #define suffixIfFw true
 #define prefixIfFw false
 
+
 /* story 
 NOTE: Since we are ALWAYS traversing the mems --and hence
 the unmapped sequences-- in the forward direction wrt the transcript,
@@ -26,8 +27,72 @@ seq : will be appended through out the traversal
 template <typename PufferfishIndexT>
 RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi,
                                                        spp::sparse_hash_map<uint32_t,
-                                                       util::ContigBlock>& contigCache)
-                                                       : pfi_(pfi), contigCache_(contigCache) { k = pfi_->k(); }
+                                                       util::ContigBlock>* contigSeqCache)
+                                                       : pfi_(pfi), contigSeqCache_(contigSeqCache) { k = pfi_->k(); }
+
+
+
+template <typename PufferfishIndexT>
+Task RefSeqConstructor<PufferfishIndexT>::fillSeqLeft(size_t tid,
+                                                      size_t tpos,
+                                                      util::ContigBlock& curContig,
+                                                      bool isCurContigFw,
+                                                      uint32_t cstart,
+                                                      std::string& seq){
+  uint32_t threshold = tpos ;
+  auto remLen = remainingLen(curContig, cstart, isCurContigFw, prefixIfFw) ;
+  if(remLen == tpos){
+    //HACK to prependByLen
+    appendByLen(seq, curContig, cstart, remLen, isCurContigFw, prefixIfFw) ;
+    return Task::SUCCESS ;
+  }else if(remLen < threshold){
+    //TODO prependByLen
+    appendByLen(seq, curContig, cstart, remLen, isCurContigFw, prefixIfFw) ;
+    threshold -= remLen ;
+    tpos -= threshold ;
+    for(auto& c : fetchPredecessors(curContig, isCurContigFw, tid, tpos)){
+      if(doRevBFS(tid, c.tpos, c.cntg, c.isCurContigFw, c.cpos, threshold, seq) == Task::SUCCESS){
+        return Task::SUCCESS ;
+      }
+    }
+
+  }
+  return Task::SUCCESS ;
+
+}
+
+//there is no destination stop in this BFS
+//when read len is finished
+//or edge of the transcript
+template <typename PufferfishIndexT>
+Task RefSeqConstructor<PufferfishIndexT>::doRevBFS(size_t tid,
+                                                      size_t tpos,
+                                                      util::ContigBlock& curContig,
+                                                      bool isCurContigFw,
+                                                      uint32_t cstart,
+                                                   uint32_t threshold,
+                                                      std::string& seq){
+  auto remLen = remainingLen(curContig, cstart, isCurContigFw, prefixIfFw) ;
+
+
+  if(remLen < threshold){
+    //TODO prependByLen
+    appendByLen(seq, curContig, cstart, remLen, isCurContigFw, prefixIfFw) ;
+    threshold -= remLen ;
+    tpos -= threshold ;
+    for(auto& c : fetchPredecessors(curContig, isCurContigFw, tid, tpos)){
+      if(doRevBFS(tid, c.tpos, c.cntg, c.isCurContigFw, c.cpos, threshold, seq) == Task::SUCCESS){
+        return Task::SUCCESS ;
+      }
+    }
+
+  }
+
+  cutoff(seq, remLen) ;
+  return Task::FAILURE ;
+
+}
+
 template <typename PufferfishIndexT>
 Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
                                              size_t tpos,
@@ -63,7 +128,8 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
     }
   }
 
-  //if (verbose) std::cout << "\n\nWOOOOOT!! Got to bfs\n";
+  if (verbose)
+    std::cout << "\n\nWOOOOOT!! Got to bfs\n";
   return doBFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, seq);
 
 }
@@ -113,7 +179,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
             return Task::SUCCESS;
           }
           else {
-            //std::cout << "[doBFS] returning failure\n";
+            if(verbose) std::cout << "[doBFS] returning failure\n";
             return Task::FAILURE;
           }
         }
@@ -201,6 +267,20 @@ void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::Co
     seq = rc(contig.substrSeq(startp+1, len)) + seq;
   }
 }
+
+
+//This will give warning b/c of empty function
+/*
+template <typename PufferfishIndexT>
+void RefSeqConstructor<PufferfishIndexT>::prependByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix){
+
+}*/
+
+
+
+
+
+
 
 template <typename PufferfishIndexT>
 std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix) {
@@ -292,8 +372,13 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
           (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
 
           auto nextHit = pfi_->getRefPos(kt) ;
-          std::string contigseq = pfi_->getSeqStr(nextHit.globalPos_,nextHit.contigLen_);
-          util::ContigBlock cb({nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq}) ;
+
+          if(contigSeqCache_->find(nextHit.contigIdx_) == contigSeqCache_->end()){
+            std::string contigseq = pfi_->getSeqStr(nextHit.globalPos_,nextHit.contigLen_);
+            (*contigSeqCache_)[nextHit.contigIdx_] = {nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq} ;
+          }
+
+          util::ContigBlock cb = (*contigSeqCache_)[nextHit.contigIdx_] ;
           //TODO seq for cb
           for(auto& posIt: nextHit.refRange){
             if(posIt.transcript_id() == tid and tpos < posIt.pos()){
@@ -305,6 +390,56 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
     }
 
     return successors;
+}
+
+//TODO merge these two functions 
+template <typename PufferfishIndexT>
+std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPredecessors(util::ContigBlock& contig,
+                                                 bool isCurContigFw,
+                                                 size_t tid,
+                                                 size_t tpos) {
+
+  //if(verbose) std::cout << "\t[Fetch successors] \n" ;
+    std::vector<nextCompatibleStruct> predecessors ;
+    CanonicalKmer::k(k) ;
+
+    auto& edges = pfi_->getRevEdge() ;
+    util::Direction dir = isCurContigFw?util::Direction::BACKWORD:util::Direction::FORWARD ;
+
+    uint8_t edgeVec = edges[contig.contigIdx_] ;
+    std::vector<util::extension> ext = util::getExts(edgeVec) ;
+
+    if(!ext.empty()){
+      CanonicalKmer kb ;
+      kb.fromStr(contig.seq.substr(0,k)) ;
+      CanonicalKmer ke ;
+      ke.fromStr(contig.seq.substr(contig.contigLen_-k,k)) ;
+      CanonicalKmer kt ;
+
+      for(auto& ed : ext){
+        if(ed.dir == dir){
+          (dir == util::Direction::FORWARD)?ke.shiftFw(ed.c):kb.shiftBw(ed.c) ;
+          (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
+
+          auto nextHit = pfi_->getRefPos(kt) ;
+
+          if(contigSeqCache_->find(nextHit.contigIdx_) == contigSeqCache_->end()){
+            std::string contigseq = pfi_->getSeqStr(nextHit.globalPos_,nextHit.contigLen_);
+            (*contigSeqCache_)[nextHit.contigIdx_] = {nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq} ;
+          }
+
+          util::ContigBlock cb = (*contigSeqCache_)[nextHit.contigIdx_] ;
+          //TODO seq for cb
+          for(auto& posIt: nextHit.refRange){
+            if(posIt.transcript_id() == tid and tpos > posIt.pos()){
+              predecessors.emplace_back(cb, posIt.pos(), posIt.orientation()?cb.contigLen_-k:k-1, posIt.orientation()) ;
+            }
+          }
+        }
+      }
+    }
+
+    return predecessors;
 }
 
 
