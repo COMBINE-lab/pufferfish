@@ -4,7 +4,7 @@
 
 #include <sparsepp/spp.h>
 
-#define verbose true
+#define verbose false
 
 #define suffixIfFw true
 #define prefixIfFw false
@@ -104,11 +104,11 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
                                              bool isEndContigFw,
                                              uint32_t txpDist,
                                              std::string& seq) {
-  /*if(verbose) std::cout << "GO time\n" << "called with curr contig: "
+  if(verbose) std::cout << "GO time\n" << "called with curr contig: "
                         << curContig.contigIdx_ << " of length " << curContig.contigLen_
                         << " start " << startp << "\n"
                         << "end contig index "<< endContig.contigIdx_ << " ending at " << endp << "\n" ;
-  */
+  
 
 
   if (curContig.contigIdx_ == endContig.contigIdx_) {
@@ -128,7 +128,7 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
     }
   }
 
-  //if (verbose) std::cout << "\n\nWOOOOOT!! Got to bfs\n";
+  if (verbose) std::cout << "\n\nWOOOOOT!! Got to bfs\n";
   if (curContig.isDummy()) {
     return Task::FAILURE;
   //std::cout << "left Dummy\n";
@@ -161,7 +161,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
       std::cerr << "ERROR!!! shouldn't happen ---> startp >= curContig.contigLen_ : " << startp << ">" << curContig.contigLen_ << "\n";
     // used in all the following terminal conditions
     auto remLen = remainingLen(curContig, startp, isCurContigFw, suffixIfFw);
-    //if(verbose) std::cout << "[doBFS] : remaining length " << remLen << " txpDist " << txpDist << " startp " <<startp << " in direction "<<isCurContigFw<<"\n" ;
+    if(verbose) std::cout << "[doBFS] : remaining length " << remLen << " txpDist " << txpDist << " startp " <<startp << " in direction "<<isCurContigFw<<"\n" ;
 
     if (remLen >= txpDist) {
       if (endContig.isDummy()){
@@ -178,12 +178,12 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
 
           if (remLen-txpDist < endContig.contigLen_ &&
               getRemSeq(curContig, remLen-txpDist, isCurContigFw, suffixIfFw) == getRemSeq(endContig, remLen-txpDist, isEndContigFw, prefixIfFw)) {
-            //if (verbose) std::cout << "[doBFS] remSequences are equal. safe to append and exit\n"; 
+            if (verbose) std::cout << "[doBFS] remSequences are equal. safe to append and exit\n"; 
             appendByLen(seq, curContig, startp, txpDist, isCurContigFw, suffixIfFw);
             return Task::SUCCESS;
           }
           else {
-            //if(verbose) std::cout << "[doBFS] returning failure\n";
+            if(verbose) std::cout << "[doBFS] returning failure\n";
             return Task::FAILURE;
           }
         }
@@ -239,11 +239,12 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
                                                  bool isCurContigFw) {
 
   if(isCurContigFw) {
-    //if(verbose) std::cout << "\t[append] 1 " << seq << " clipping by pos: from "<<startp+1<< " to " << endp << " in a contig with len "<<contig.contigLen_<<"\n" ;
+    if(verbose) std::cout << "\t[append] 1 " << seq << " clipping by pos: from "<<startp+1<< " to " << endp << " in a contig with len "<<contig.contigLen_
+                          << " str len: " << contig.seq.length() << "\n" ;
       seq += contig.substrSeq(startp+1, endp-startp-1);
   }
     else {
-      //if(verbose) std::cout << "\t[append] 2 rc " << seq << " clipping by pos: from "<<endp+1<< " to " << startp << " in a contig with len "<<contig.contigLen_<<"\n" ;
+      if(verbose) std::cout << "\t[append] 2 rc " << seq << " clipping by pos: from "<<endp+1<< " to " << startp << " in a contig with len "<<contig.contigLen_<<"\n" ;
       // we are always building the seq by moving forward in transcript, so we always append (& never prepend) any substring that we construct
       seq += rc(contig.substrSeq(endp+1, startp-endp-1)); 
     }
@@ -255,19 +256,19 @@ void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::Co
   if (len == 0)
     return;
   if (isCurContigFw && appendSuffix) { // append suffix
-    //if(verbose) std::cout << "\t[appendByLen] 1 from " << startp+1 << " to " << startp+1+len << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[appendByLen] 1 from " << startp+1 << " to " << startp+1+len << " total length " << contig.contigLen_ << "\n";
     seq += contig.substrSeq(startp+1, len);
   }
   else if (isCurContigFw && !appendSuffix) {// append prefix
-    //if(verbose) std::cout << "\t[appendByLen] 2 from " << startp-len << " to " << startp << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[appendByLen] 2 from " << startp-len << " to " << startp << " total length " << contig.contigLen_ << "\n";
     seq = contig.substrSeq(startp-len, len) + seq;
   }
   else if (!isCurContigFw && appendSuffix) {// append rc of the seq from the other end as a suffix
-    //if(verbose) std::cout << "\t[appendByLen] 3 rc from " << startp-len << " to " << startp << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[appendByLen] 3 rc from " << startp-len << " to " << startp << " total length " << contig.contigLen_ << "\n";
     seq += rc(contig.substrSeq(startp-len, len));
   }
   else if (!isCurContigFw && !appendSuffix) {// append rc of the seq as prefix
-    //if(verbose) std::cout << "\t[appendByLen] 4 rc from " << startp+1 << " to " << startp+1+len << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[appendByLen] 4 rc from " << startp+1 << " to " << startp+1+len << " total length " << contig.contigLen_ << "\n";
     seq = rc(contig.substrSeq(startp+1, len)) + seq;
   }
 }
@@ -292,19 +293,19 @@ std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& co
   if (len == 0)
     return "";
   if (isCurContigFw && appendSuffix) {// append suffix
-    //if(verbose) std::cout << "\t[getRemSeq] 1 from " << contig.contigLen_-len << " to " << contig.contigLen_ << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[getRemSeq] 1 from " << contig.contigLen_-len << " to " << contig.contigLen_ << " total length " << contig.contigLen_ << "\n";
     seq += contig.substrSeq(contig.contigLen_-len, len);
   }
   else if (isCurContigFw && !appendSuffix) {// append prefix
-    //if(verbose) std::cout << "\t[getRemSeq] 2 from " << 0 << " to " << len << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[getRemSeq] 2 from " << 0 << " to " << len << " total length " << contig.contigLen_ << "\n";
     seq = contig.substrSeq(0, len) + seq;
   }
   else if (!isCurContigFw && appendSuffix) {// append rc of the seq from the other end as a suffix
-    //if(verbose) std::cout << "\t[getRemSeq] 3 rc from " << 0 << " to " << len << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[getRemSeq] 3 rc from " << 0 << " to " << len << " total length " << contig.contigLen_ << "\n";
     seq += rc(contig.substrSeq(0, len));
   }
   else if (!isCurContigFw && !appendSuffix) {// append rc of the seq as prefix
-    //if(verbose) std::cout << "\t[getRemSeq] 4 rc from " << contig.contigLen_-len << " to " << contig.contigLen_ << " total length " << contig.contigLen_ << "\n";
+    if(verbose) std::cout << "\t[getRemSeq] 4 rc from " << contig.contigLen_-len << " to " << contig.contigLen_ << " total length " << contig.contigLen_ << "\n";
     seq = rc(contig.substrSeq(contig.contigLen_-len, len)) + seq;
   }
   return seq;
