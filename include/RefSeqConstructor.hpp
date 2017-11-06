@@ -12,6 +12,11 @@ enum Task {
            FAILURE
 };
 
+enum SearchType {
+  PREDECESSOR,
+  SUCCESSOR
+};
+
 struct nextCompatibleStruct {
   util::ContigBlock cntg ;
   size_t tpos ;
@@ -46,6 +51,23 @@ public:
              bool isEndContigFw,
              uint32_t threshold,
              std::string& seq);
+
+  //search predecessors
+  Task fillSeqLeft(size_t tid,
+                   size_t tpos,
+                   util::ContigBlock& curContig,
+                   bool isCurContigFw,
+                   uint32_t cstart,
+                   std::string& seq);
+
+  Task doRevBFS(size_t tid,
+                size_t tpos,
+                util::ContigBlock& curContig,
+                bool isCurContigFw,
+                uint32_t cstart,
+                uint32_t threshold,
+                std::string& seq);
+
 private:
   PufferfishIndexT* pfi_ ;
   size_t k ;
@@ -56,6 +78,8 @@ private:
   size_t remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd);
   void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool isCurContigFw);
   void appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
+  //TODO 
+  //void prependByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
   std::string getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix);
   void cutoff(std::string& seq, size_t len);
   std::string rc(std::string str);
@@ -64,6 +88,10 @@ private:
                                                  bool isCurContigFw,
                                                  size_t tid,
                                                  size_t tpos);
+  std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
+                                                    bool isCurContigFw,
+                                                    size_t tid,
+                                                    size_t tpos);
 };
 
 #endif

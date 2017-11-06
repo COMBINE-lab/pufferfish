@@ -281,10 +281,41 @@ void createSeqPairs(PufferfishIndexT* pfi,
     clust->score += (readLen - (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen)) ;
   }
 
+  //take care of left overhang
+  //NOTE please DON'T DELETE
+  //
+  
+  /*{
+    size_t i = 0 ;
+    if(contigSeqCache.find(clust->mems[i].memInfo->cid) == contigSeqCache.end()){
+      contigSeqCache[clust->mems[i].memInfo->cid] = {
+        clust->mems[i].memInfo->cid,
+        clust->mems[i].memInfo->cGlobalPos,
+        clust->mems[i].memInfo->clen,
+        pfi->getSeqStr(clust->mems[i].memInfo->cGlobalPos, clust->mems[i].memInfo->clen)};
+    }
+    auto scb = contigSeqCache[clust->mems[i].memInfo->cid] ;
+    std::string tmp = clust->isFw?extractReadSeq(readSeq, 0, clust->mems[i].memInfo->rpos, clust->isFw):
+      extractReadSeq(readSeq, clust->mems[i].memInfo->rpos + clust->mems[i].memInfo->memlen,
+                      readLen - (clust->mems[i].memInfo->rpos + clust->mems[i].memInfo->memlen), clust->isFw);
+
+    bool contigDirWRTref = clust->mems[i].memInfo->cIsFw == clust->isFw; // true ~ (ref == contig)
+    uint32_t memContigStart = contigDirWRTref?0:
+      (clust->mems[i].memInfo->cpos + clust->mems[i].memInfo->memlen-1);
+    std::string clipContig = "" ;
+      Task res = refSeqConstructor.fillSeqLeft(tid,
+                                    clust->mems[i].tpos,
+                                    scb,
+                                    contigDirWRTref,
+                                    memContigStart,
+                                    clipContig) ;
+                                    }*/
+  
 
   auto prevTPos = clust->mems[0].tpos;
   size_t it = 0;
-  for(it=0 ; it < clust->mems.size() -1 ; ++it) {
+  for(it=0 ; it < clust->mems.size() -1; ++it) {
+    
     auto mmTstart = clust->mems[it].tpos + clust->mems[it].memInfo->memlen;
     auto mmTend = clust->mems[it+1].tpos;
 
@@ -551,6 +582,7 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
       //NOTE sanity check
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
+      /*
       for(auto& h: jointHits){
         for(auto& m : h.leftClust->mems){
           auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
@@ -576,7 +608,7 @@ void processReadsPair(paired_parser* parser,
           }
         }
 
-      }
+        }*/
 
       //@fatemeh Initialize aligner ksw 
       ksw2pp::KSW2Config config ;
