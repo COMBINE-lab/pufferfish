@@ -244,6 +244,20 @@ std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& ali
 
 
 template <typename PufferfishIndexT>
+util::ContigBlock& getContigBlock(std::vector<util::UniMemInfo>::iterator memInfo,
+                        PufferfishIndexT* pfi,
+                        spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigSeqCache) {
+  if(contigSeqCache.find(memInfo->cid) == contigSeqCache.end()){
+    contigSeqCache[memInfo->cid] = {memInfo->cid,
+                                        memInfo->cGlobalPos,
+                                        memInfo->clen,
+                                        pfi->getSeqStr(memInfo->cGlobalPos, memInfo->clen)};
+  }
+  return contigSeqCache[memInfo->cid];
+}
+
+
+template <typename PufferfishIndexT>
 void createSeqPairs(PufferfishIndexT* pfi,
                     std::vector<util::MemCluster>::iterator clust,
                     fastx_parser::ReadSeq& read,
@@ -283,6 +297,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
   //take care of left overhang
   //NOTE please DON'T DELETE
+  //NOTE We have both left and right hangovers in the bottom after the loop
   //
   
   /*{
@@ -377,42 +392,10 @@ void createSeqPairs(PufferfishIndexT* pfi,
       uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
       uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen-1);
 
-      //TODO read from contigBlockCache if available
-      //FIXME globalPos must not need -1!! WTH is going on???
-      //
-      if(contigSeqCache.find(clust->mems[it].memInfo->cid) == contigSeqCache.end()){
-        contigSeqCache[clust->mems[it].memInfo->cid] = {
-          clust->mems[it].memInfo->cid,
-          clust->mems[it].memInfo->cGlobalPos,
-          clust->mems[it].memInfo->clen,
-          pfi->getSeqStr(clust->mems[it].memInfo->cGlobalPos, clust->mems[it].memInfo->clen)};
-      }
+    
+      util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
+      util::ContigBlock& ecb = getContigBlock(clust->mems[it+1].memInfo, pfi, contigSeqCache);
 
-
-      if(contigSeqCache.find(clust->mems[it+1].memInfo->cid) == contigSeqCache.end()){
-        contigSeqCache[clust->mems[it+1].memInfo->cid] = {
-          clust->mems[it+1].memInfo->cid,
-          clust->mems[it+1].memInfo->cGlobalPos,
-          clust->mems[it+1].memInfo->clen,
-          pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
-      }
-
-      util::ContigBlock scb = contigSeqCache[clust->mems[it].memInfo->cid] ;
-      util::ContigBlock ecb = contigSeqCache[clust->mems[it+1].memInfo->cid] ;
-
-      /*
-      util::ContigBlock scb = {
-                               clust->mems[it].memInfo->cid,
-                               clust->mems[it].memInfo->cGlobalPos,
-                               clust->mems[it].memInfo->clen,
-                               pfi->getSeqStr(clust->mems[it].memInfo->cGlobalPos, clust->mems[it].memInfo->clen)};
-      
-      util::ContigBlock ecb = {
-                               clust->mems[it+1].memInfo->cid,
-                               clust->mems[it+1].memInfo->cGlobalPos,
-                               clust->mems[it+1].memInfo->clen,
-                               pfi->getSeqStr(clust->mems[it+1].memInfo->cGlobalPos, clust->mems[it+1].memInfo->clen)};
-      */
       //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
       // cstart and cend point to the last matched base in the start contig and first matched base in last contig
       if (verbose) {
@@ -475,12 +458,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
   if (endRem > 0) {
 
     std::string refSeq = "";
-    util::ContigBlock scb = {
-                             clust->mems[it].memInfo->cid,
-                             clust->mems[it].memInfo->cGlobalPos,
-                             clust->mems[it].memInfo->clen,
-                             pfi->getSeqStr(clust->mems[it].memInfo->cGlobalPos, clust->mems[it].memInfo->clen)};
-
+    util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
     uint32_t cstart = lastContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
 
     Task res = refSeqConstructor.fillSeq(tid,
@@ -501,12 +479,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
   if (startRem > 0) {
 
     std::string refSeq = "";
-    util::ContigBlock ecb = {
-                             clust->mems[0].memInfo->cid,
-                             clust->mems[0].memInfo->cGlobalPos,
-                             clust->mems[0].memInfo->clen,
-                             pfi->getSeqStr(clust->mems[0].memInfo->cGlobalPos, clust->mems[0].memInfo->clen)};
-
+    util::ContigBlock& ecb = getContigBlock(clust->mems[0].memInfo, pfi, contigSeqCache);
     uint32_t cend = firstContigDirWRTref?clust->mems[0].memInfo->cpos:(clust->mems[0].memInfo->cpos + clust->mems[0].memInfo->memlen-1);
 
     Task res = refSeqConstructor.fillSeq(tid,
