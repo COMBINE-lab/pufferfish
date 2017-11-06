@@ -4,7 +4,7 @@
 
 #include <sparsepp/spp.h>
 
-#define verbose false
+#define verbose true
 
 #define suffixIfFw true
 #define prefixIfFw false
@@ -118,7 +118,7 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
 
   if (!endContig.isDummy()) {
     auto endRemLen = remainingLen(endContig, endp, isEndContigFw, prefixIfFw);
-    //if(verbose) std::cout << "END remaining length " << endRemLen << " txpDist:" << txpDist << " endp " <<endp << " in direction "<<isEndContigFw<<"\n" ;
+    //if(curContig.isDummy()) std::cout << "END remaining length " << endRemLen << " txpDist:" << txpDist << " endp " <<endp << " in direction "<<isEndContigFw<<"\n" ;
     if (endRemLen >= txpDist) {
       appendByLen(seq, endContig, endp, txpDist, isEndContigFw, prefixIfFw);
       return Task::SUCCESS;
@@ -128,8 +128,12 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
     }
   }
 
-  if (verbose)
-    std::cout << "\n\nWOOOOOT!! Got to bfs\n";
+  //if (verbose) std::cout << "\n\nWOOOOOT!! Got to bfs\n";
+  if (curContig.isDummy()) {
+    return Task::FAILURE;
+  //std::cout << "left Dummy\n";
+    //return doRevBFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, seq);
+  }
   return doBFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, seq);
 
 }
@@ -179,7 +183,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doBFS(size_t tid,
             return Task::SUCCESS;
           }
           else {
-            if(verbose) std::cout << "[doBFS] returning failure\n";
+            //if(verbose) std::cout << "[doBFS] returning failure\n";
             return Task::FAILURE;
           }
         }

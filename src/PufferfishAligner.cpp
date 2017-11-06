@@ -202,7 +202,7 @@ std::string calculateCigar (std::pair<std::string,std::string>& apair,
                         apair.second.c_str(),
                         apair.second.size(),
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
-    //std::cout << "\nSCORE: " << score << "\n";
+    std::cout << apair.first.c_str() << " , " << apair.second.c_str() << "\nSCORE: " << score << "\n";
     
     cigar += cigar2str(&aligner.result()) ;
   }else if(!apair.second.empty()){
@@ -229,7 +229,7 @@ std::string calculateCigar (std::vector<std::pair<std::string,std::string>>& ali
                          apair.second.c_str(),
                           apair.second.size(),
                          ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
-      std::cout << "\nSCORE: " << score << "\n";
+      //std::cout << apair.first.c_str() << " , " << apair.second.c_str() << "\nSCORE: " << score << "\n";
       cigar += cigar2str(&aligner.result()) ;
       aligner.freeCIGAR();
     }else if(!apair.second.empty()){
@@ -268,7 +268,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
                     bool verbose,
                     bool naive=true){
 
-  (void)verbose;
+  //(void)verbose;
 
   //std::string& readName = read.name ;
   std::string& readSeq = read.seq ;
@@ -419,7 +419,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
         if(res == Task::SUCCESS){
           //std::cout << "SUCCESS\n";
           //std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-          //          << " part of ref  " << refSeq << "\n";
+          //         << " part of ref  " << refSeq << "\n";
           clust->alignableStrings.push_back(std::make_pair(extractReadSeq(readSeq, rstart, rend, clust->isFw), refSeq));
           clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
         }else{
@@ -437,7 +437,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
   clust->cigar += (std::to_string(clust->mems[it].tpos + clust->mems[it].memInfo->memlen-prevTPos) + "M");
   //TODO take care of left and right gaps/mismatches
 
-  util::ContigBlock dummy = {0,0,0,"",true};
+  util::ContigBlock dummy = {std::numeric_limits<uint64_t>::max(),0,0,"",true};
 
   bool lastContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw;
   bool firstContigDirWRTref = clust->mems[0].memInfo->cIsFw == clust->isFw;
@@ -446,8 +446,12 @@ void createSeqPairs(PufferfishIndexT* pfi,
   auto endRem = readLen - (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
   auto startRem = clust->mems[0].memInfo->rpos;
 
-  std::string startReadSeq = extractReadSeq(readSeq, 0, clust->mems[0].memInfo->rpos, clust->isFw);
-  std::string endReadSeq = extractReadSeq(readSeq, (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen), readLen, clust->isFw);
+  std::string startReadSeq = "";
+  std::string endReadSeq = "";
+  if (clust->isFw) {
+    startReadSeq = extractReadSeq(readSeq, 0, clust->mems[0].memInfo->rpos, clust->isFw);
+    endReadSeq = extractReadSeq(readSeq, (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen), readLen, clust->isFw);
+  }
 
   if (!clust->isFw) {
     endRem = clust->mems[it].memInfo->rpos;
@@ -455,8 +459,13 @@ void createSeqPairs(PufferfishIndexT* pfi,
     startReadSeq = extractReadSeq(readSeq, (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen), readLen, clust->isFw);
     endReadSeq = extractReadSeq(readSeq, 0, clust->mems[it].memInfo->rpos, clust->isFw);
   }
-  if (endRem > 0) {
 
+  /*if (verbose) std::cout << firstContigDirWRTref << " " << startRem << " " << startReadSeq
+                         << " last " << lastContigDirWRTref << " " << endRem << " " << endReadSeq
+                       << "\n";
+  */
+  if (endRem > 0) {
+    //std::cout << "RIIIGHT hangover\n";
     std::string refSeq = "";
     util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
     uint32_t cstart = lastContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
@@ -469,6 +478,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                          endRem,
                                          refSeq);
     if(res == Task::SUCCESS) {
+      //std::cout << " part of read "<<endReadSeq<<"\n"
+      //          << " part of ref  " << refSeq << "\n";
       clust->alignableStrings.push_back(std::make_pair(endReadSeq, refSeq));
       clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
     } else{
@@ -477,9 +488,15 @@ void createSeqPairs(PufferfishIndexT* pfi,
     }
   }
   if (startRem > 0) {
-
+    //std::cout << read.name << "\n";
+    //std::cout << "LEEEFT hangover\n";
     std::string refSeq = "";
     util::ContigBlock& ecb = getContigBlock(clust->mems[0].memInfo, pfi, contigSeqCache);
+    if (verbose) {
+      std::cout << firstContigDirWRTref << " " << clust->mems[0].memInfo->cpos
+                           << " " << (clust->mems[0].memInfo->cpos + clust->mems[0].memInfo->memlen-1) << "\n";
+      std::cout << ecb.seq.length() << "   " << ecb.seq << "\n";
+    }
     uint32_t cend = firstContigDirWRTref?clust->mems[0].memInfo->cpos:(clust->mems[0].memInfo->cpos + clust->mems[0].memInfo->memlen-1);
 
     Task res = refSeqConstructor.fillSeq(tid,
@@ -489,7 +506,11 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                          firstContigDirWRTref,
                                          startRem,
                                          refSeq);
+    //if (verbose) std::cout << "got here\n";
     if(res == Task::SUCCESS) {
+      //std::cout << " part of read "<<startReadSeq<<"\n"
+      //          << " part of ref  " << refSeq << "\n";
+
       clust->alignableStrings.push_back(std::make_pair(startReadSeq, refSeq));
       clust->cigar += calculateCigar(clust->alignableStrings.back(),aligner) ;
     } else{
@@ -562,8 +583,7 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
-      //bool verbose = false ;
-      bool verbose = rpair.second.name == "fake2";
+      bool verbose = false;//rpair.second.name == "read5021977/ENST00000366472;mate1:1221-1320;mate2:1330-1428";// "fake2";
       if(verbose) std::cout << rpair.first.name << "\n";
 
       ++hctr.numReads ;
@@ -657,13 +677,13 @@ void processReadsPair(paired_parser* parser,
       ksw2pp::KSW2Config config ;
       ksw2pp::KSW2Aligner aligner ;
 
-      config.gapo = 4 ;
+        config.gapo = 2 ;
       config.gape = 2 ;
       config.bandwidth = -1 ;
       config.flag = KSW_EZ_RIGHT ;
 
       aligner.config() = config ;
-
+      
       int minScore = std::numeric_limits<int>::max();
 
       bool doTraverse = true;
