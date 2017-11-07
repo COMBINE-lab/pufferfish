@@ -6,6 +6,7 @@
 
 #include "Util.hpp"
 #include "CanonicalKmer.hpp"
+#include <stack>
 
 enum Task {
            SUCCESS,
@@ -42,7 +43,7 @@ public:
                                                bool isEndContigFw,
                                                uint32_t txpDist,
                                                std::string& seq);
-  Task doBFS(size_t tid,
+  /* Task doBFS(size_t tid,
              size_t tpos,
              bool isCurContigFw,
              util::ContigBlock& curContig,
@@ -51,8 +52,18 @@ public:
              bool isEndContigFw,
              uint32_t threshold,
              std::string& seq);
+  */
+  std::string doDFS(size_t tid,
+             size_t tpos,
+             bool isCurContigFw,
+             util::ContigBlock& curContig,
+             size_t startp,
+             util::ContigBlock& endContig,
+             bool isEndContigFw,
+             uint32_t threshold);
 
-  //search predecessors
+
+  /*  //search predecessors
   Task fillSeqLeft(size_t tid,
                    size_t tpos,
                    util::ContigBlock& curContig,
@@ -67,7 +78,7 @@ public:
                 uint32_t cstart,
                 uint32_t threshold,
                 std::string& seq);
-
+  */
 private:
   PufferfishIndexT* pfi_ ;
   size_t k ;
@@ -89,10 +100,12 @@ private:
                                                  size_t tid,
                                                     size_t tpos,
                                                     size_t txpDist);
-  std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
+  /*  std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
                                                     bool isCurContigFw,
                                                     size_t tid,
+
                                                     size_t tpos);
+  */
 };
 
 #endif
