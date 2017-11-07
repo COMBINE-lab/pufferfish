@@ -87,7 +87,8 @@ private:
   std::vector<nextCompatibleStruct> fetchSuccessors(util::ContigBlock& contig,
                                                  bool isCurContigFw,
                                                  size_t tid,
-                                                 size_t tpos);
+                                                    size_t tpos,
+                                                    size_t txpDist);
   std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
                                                     bool isCurContigFw,
                                                     size_t tid,
