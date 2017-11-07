@@ -210,8 +210,10 @@ std::string calculateCigar (std::string& read,
                          ref.length(),
                          ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>()) ;
     clust->score += score;
-    if (verbose) std::cout << "read str " << read << "\nref str " << ref << "\n";
-    if(verbose) std::cout << "cigar before : " << clust->cigar << "\n";
+    if (verbose) {
+      std::cout << "read str " << read << "\nref str " << ref << "\n";
+      std::cout << "cigar before : " << clust->cigar << "\n";
+    }
     clust->cigar += cigar2str(&aligner.result()) ;
     if(verbose) std::cout << "cigar after : " << clust->cigar << "\n";
   }
@@ -348,18 +350,25 @@ void createSeqPairs(PufferfishIndexT* pfi,
       uint32_t cstart = firstContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
       uint32_t cend = secondContigDirWRTref?clust->mems[it+1].memInfo->cpos:(clust->mems[it+1].memInfo->cpos + clust->mems[it+1].memInfo->memlen-1);
 
-
-      util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
-      util::ContigBlock& ecb = getContigBlock(clust->mems[it+1].memInfo, pfi, contigSeqCache);
-
-      //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
-      // cstart and cend point to the last matched base in the start contig and first matched base in last contig
-      if (verbose) {
-        std::cout << " start contig: \ncid" << scb.contigIdx_ << " relpos" << clust->mems[it].memInfo->cpos << " len" << scb.contigLen_ << " ori" << firstContigDirWRTref
-                << " hitlen" << clust->mems[it].memInfo->memlen << " start pos:" << cstart << "\n" << scb.seq << "\n";
-        std::cout << " last contig: \ncid" << ecb.contigIdx_ << " relpos" << clust->mems[it+1].memInfo->cpos << " len" << ecb.contigLen_ << " ori" << secondContigDirWRTref
-                << " hitlen" << clust->mems[it+1].memInfo->memlen << " end pos:" << cend << "\n" << ecb.seq << "\n";
+      // heuristic : length of mismatched parts of txp and read are both one??? It's a definite mismatch!!
+      if (distOnTxp == 1 && (rend - rstart) == 1) {
+        clust->cigar += "1M";
+        clust->score += MISMATCH_SCORE;
       }
+
+      else {
+
+        util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
+        util::ContigBlock& ecb = getContigBlock(clust->mems[it+1].memInfo, pfi, contigSeqCache);
+
+        //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
+        // cstart and cend point to the last matched base in the start contig and first matched base in last contig
+        if (verbose) {
+          std::cout << " start contig: \ncid" << scb.contigIdx_ << " relpos" << clust->mems[it].memInfo->cpos << " len" << scb.contigLen_ << " ori" << firstContigDirWRTref
+                << " hitlen" << clust->mems[it].memInfo->memlen << " start pos:" << cstart << "\n" << scb.seq << "\n";
+          std::cout << " last contig: \ncid" << ecb.contigIdx_ << " relpos" << clust->mems[it+1].memInfo->cpos << " len" << ecb.contigLen_ << " ori" << secondContigDirWRTref
+                << " hitlen" << clust->mems[it+1].memInfo->memlen << " end pos:" << cend << "\n" << ecb.seq << "\n";
+        }
         Task res = refSeqConstructor.fillSeq(tid,
                                 clust->mems[it].tpos,
                                 firstContigDirWRTref,
@@ -373,11 +382,12 @@ void createSeqPairs(PufferfishIndexT* pfi,
           //         << " part of ref  " << refSeq << "\n";
           std::string readSubstr = extractReadSeq(readSeq, rstart, rend, clust->isFw);
           calculateCigar(readSubstr, refSeq, aligner, clust, verbose) ;
-        }else{
+        } else{
           //FIXME discard whole hit!!!
           clust->score = std::numeric_limits<int>::min();
           //std::cout << "Graph searched FAILED \n" ;
         }
+      }
     }
   }
   // update cigar and add matches for last unimem(s)
@@ -461,7 +471,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
       //std::cout << " part of read "<<startReadSeq<<"\n"
       //          << " part of ref  " << refSeq << "\n";
       calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
-    } else{
+    } else {
       // discard whole hit!!!
       clust->score = std::numeric_limits<int>::min();
       //std::cout << "Graph searched FAILED \n" ;
@@ -641,7 +651,6 @@ void processReadsPair(paired_parser* parser,
       config.flag = KSW_EZ_RIGHT ;
 
       aligner.config() = config ;
-      
       int maxScore = std::numeric_limits<int>::min();
 
       bool doTraverse = true;
@@ -650,31 +659,22 @@ void processReadsPair(paired_parser* parser,
         //have to make write access thread safe
         //std::cout << "traversing graph \n" ;
 
-        int hitNum{0} ;
-
         if(!jointHits.empty() && jointHits.front().coverage() < 2*readLen) {
           for(auto& hit : jointHits){
             traverseGraph(rpair, hit, pfi, refSeqConstructor, contigSeqCache, aligner, verbose) ;
             // update minScore across all hits
-            if(hit.leftClust->score + hit.rightClust->score > maxScore){
+            if(hit.leftClust->score + hit.rightClust->score > maxScore) {
               maxScore = hit.leftClust->score + hit.rightClust->score;
             }
-            hitNum++ ;
-
           }
         }
       }
 
 
-      //extractSuitableAligningPairs(joinHits);
-      //TODO Write them to a sam file
       hctr.totHits += jointHits.size();
       hctr.peHits += jointHits.size();
       hctr.numMapped += !jointHits.empty() ? 1 : 0;
 
-      //std::cout << "\n Number of total joint hits" << jointHits.size() << "\n" ;
-      //TODO When you get to this, you should be done aligning!!
-      //fill the QuasiAlignment list
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
         // If graph returned failure for one of the ends --> should be investigated more.
@@ -698,14 +698,16 @@ void processReadsPair(paired_parser* parser,
         }
       }
 
-      if(jointHits.size() > 0 and !mopts->noOutput){
+      hctr.totAlignment += jointAlignments.size();
+
+      if(jointAlignments.size() > 0 and !mopts->noOutput){
         writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans) ;
       }
 
 
 
 
-      //TODO write them on cmd
+      // write them on cmd
       if (hctr.numReads > hctr.lastPrint + 1000000) {
         hctr.lastPrint.store(hctr.numReads.load());
         if (!mopts->quiet and iomutex->try_lock()) {
@@ -783,6 +785,7 @@ void printAlignmentSummary(HitCounters& hctrs, std::shared_ptr<spdlog::logger> c
   consoleLog->info("Observed {} reads", hctrs.numReads);
   consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
   consoleLog->info("Average # hits per read : {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
+  consoleLog->info("Total # of alignments : {}", hctrs.totAlignment);
   consoleLog->info("=====");
 }
 

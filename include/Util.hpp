@@ -545,6 +545,8 @@ struct HitCounters {
   std::atomic<uint64_t> numReads{0};
   std::atomic<uint64_t> tooManyHits{0};
   std::atomic<uint64_t> lastPrint{0};
+  std::atomic<uint64_t> totAlignment{0};
+  std::atomic<uint64_t> correctAlignment{0};
 };
 
 struct ContigBlock{

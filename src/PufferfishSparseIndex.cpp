@@ -651,6 +651,7 @@ auto  PufferfishSparseIndex::getContigBlock(uint64_t rank) -> util::ContigBlock{
   std::string seq = getSeqStr(sp,clen) ;
 
   util::ContigBlock cblock({rank,sp,clen,seq}) ;
+  return cblock;
 }
 
 /**
