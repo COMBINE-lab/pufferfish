@@ -49,7 +49,8 @@ public:
                                                uint32_t endp,
                                                bool isEndContigFw,
                uint32_t txpDist,
-               std::string& refSeq);
+               std::string& refSeq,
+               bool verbose=false);
   /* Task doBFS(size_t tid,
              size_t tpos,
              bool isCurContigFw,
@@ -69,7 +70,8 @@ public:
              bool isEndContigFw,
              uint32_t threshold,
              bool walkForward,
-             std::string& refSeq);
+             std::string& refSeq,
+             bool verbose=false);
 
 
   /*  //search predecessors
@@ -95,26 +97,28 @@ private:
 
 
 
-  size_t remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd);
-  void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool isCurContigFw);
-  void appendByLen(std::string& refSeq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
+  size_t remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd, bool verbose=false);
+  void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool isCurContigFw, bool verbose=false);
+  void appendByLen(std::string& refSeq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose=false);
   //TODO 
   //void prependByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
-  std::string getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix);
-  void cutoff(std::string& seq, size_t len);
-  std::string rc(std::string str);
+  std::string getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose=false);
+  void cutoff(std::string& seq, size_t len, bool verbose=false);
+  std::string rc(std::string str, bool verbose=false);
   char rev(const char& c);
   std::vector<nextCompatibleStruct> fetchSuccessors(util::ContigBlock& contig,
                                                  bool isCurContigFw,
                                                  size_t tid,
                                                     size_t tpos,
-                                                    uint32_t txpDist);
+                                                    uint32_t txpDist,
+                                                    bool verbose=false);
 
   std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
                                                     bool isCurContigFw,
                                                     size_t tid,
                                                         size_t tpos,
-                                                        uint32_t txpDist);
+                                                      uint32_t txpDist,
+                                                      bool verbose=false);
 };
 
 #endif

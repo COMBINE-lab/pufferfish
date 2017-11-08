@@ -4,7 +4,7 @@
 
 #include <sparsepp/spp.h>
 
-#define verbose true
+//#define verbose true
 
 #define suffixIfFw true
 #define prefixIfFw false
@@ -39,7 +39,8 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
                                              uint32_t endp,
                                              bool isEndContigFw,
                                              uint32_t txpDist,
-                                             std::string& seq) {
+                                                  std::string& seq,
+                                                  bool verbose) {
   
   //std::cerr << curContig.isDummy()<<endContig.isDummy() << " ";
 
@@ -52,45 +53,39 @@ Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
   
   if (!endContig.isDummy()) {
     auto endRemLen = remainingLen(endContig, endp, isEndContigFw, prefixIfFw);
-    //if(curContig.isDummy()) std::cerr << std::this_thread::get_id() << " "  << "END remaining length " << endRemLen << " txpDist:" << txpDist << " endp " <<endp << " in direction "<<isEndContigFw<<"\n" ;
     if (endRemLen >= txpDist) {
       appendByLen(seq, endContig, endp, txpDist, isEndContigFw, prefixIfFw);
-      //std::cerr << txpDist << "-" << seq.length() <<  " ";
       return Task::SUCCESS;
     } else if (endRemLen > 0) {
       appendByLen(seq, endContig, endp, endRemLen, isEndContigFw, prefixIfFw);
       txpDist-=endRemLen;
-      if (isCurContigFw) endp += endRemLen;
-      else endp -= endRemLen;
+      if (isCurContigFw) endp -= endRemLen; // as it is prefix, in case of forward contig, we update the endp by reducing it
+      else endp += endRemLen;
       tpos += endRemLen;
     }
   }
-  
   if (curContig.isDummy()) {
     std::string tmp;
     doDFS(tid, endTpos, isEndContigFw, endContig, endp, curContig, isCurContigFw, txpDist, false, tmp);
     seq = rc(tmp) + seq;
-    //std::cerr << txpDist << "-" << seq.length() <<  " ";
     return Task::SUCCESS;
-    //return Task::FAILURE;
-  //std::cerr << std::this_thread::get_id() << " "  << "left Dummy\n";
-    //return doRevBFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, seq);
   }
   if (verbose) std::cerr << std::this_thread::get_id() << " "  << "\n\nWOOOOOT!! Got to bfs\n";
-  return doDFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, true, seq);
+  return doDFS(tid, tpos, isCurContigFw, curContig, startp, endContig, isEndContigFw, txpDist, true, seq, verbose);
 }
 
 template <typename PufferfishIndexT>
 Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
-             size_t tpos,
-             bool isCurContigFw,
-             util::ContigBlock& curContig,
-             uint32_t startp,
-             util::ContigBlock& endContig,
-             bool isEndContigFw,
-             uint32_t txpDist,
+                                                size_t tpos,
+                                                bool isCurContigFw,
+                                                util::ContigBlock& curContig,
+                                                uint32_t startp,
+                                                util::ContigBlock& endContig,
+                                                bool isEndContigFw,
+                                                uint32_t txpDist,
                                                 bool walkForward,
-                                                std::string& seq) {
+                                                std::string& seq,
+                                                bool verbose) {
 
 
 
@@ -98,10 +93,17 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
                         << curContig.contigIdx_ << " of length " << curContig.contigLen_ << " ori " << isCurContigFw
                         << " start " << startp << "\n"
                         << "end contig index "<< endContig.contigIdx_ << " is dummy: " << endContig.isDummy() << "\ntxpDist: " << txpDist << "\n";
- 
 
-    if (startp >= curContig.contigLen_)
+  if (startp >= curContig.contigLen_) {
       std::cerr << std::this_thread::get_id() << " "  << "ERROR!!! shouldn't happen ---> startp >= curContig.contigLen_ : " << startp << ">" << curContig.contigLen_ << "\n";
+      std::cerr << std::this_thread::get_id() << " "  << "called for txp " << tid << " with pos " << tpos << " with curr contig: "
+                << curContig.contigIdx_ << " of length " << curContig.contigLen_ << " ori " << isCurContigFw
+                << " start " << startp << "\n"
+                << "end contig index "<< endContig.contigIdx_
+                << "\nis end dummy: " << endContig.isDummy()
+                << " is start dummy: " << curContig.isDummy() << "\ntxpDist: " << txpDist << "\n";
+      std::exit(1);
+  }
     // used in all the following terminal conditions
     auto remLen = remainingLen(curContig, startp, walkForward?isCurContigFw:!isCurContigFw, suffixIfFw);
     if (remLen >= txpDist) {
@@ -152,7 +154,6 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
     // If we didn't meet any terminal conditions, we need to dig deeper into the tree through BFS
     // The approach is the same for both valid and dummy end nodes
     //if(verbose) std::cerr << std::this_thread::get_id() << " "  << "[doBFS] remLen < txpDist : " << remLen << " < " << txpDist << "\n" ;
-    if (verbose) std::cerr << std::this_thread::get_id() << " "  << "\t[Before append3] " << tid << " " << seq << "\n";
     appendByLen(seq, curContig, startp, remLen, walkForward?isCurContigFw:!isCurContigFw, suffixIfFw);
     txpDist-=remLen;
     if (walkForward) {
@@ -175,7 +176,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
     for (auto& c : children) {
       // act greedily and return with the first successfully constructed sequence.
       util::ContigBlock& cb = (*contigSeqCache_)[c.cid];
-      if (doDFS(tid, c.tpos, c.isCurContigFw, cb, c.cpos, endContig, isEndContigFw, txpDist, walkForward, seq) == Task::SUCCESS) {
+      if (doDFS(tid, c.tpos, c.isCurContigFw, cb, c.cpos, endContig, isEndContigFw, txpDist, walkForward, seq, verbose) == Task::SUCCESS) {
         return Task::SUCCESS;
       }
     }
@@ -201,7 +202,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
 
 
 template <typename PufferfishIndexT>
-      size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd) {
+size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd, bool verbose) {
       if ( isCurContigFw == fromTheEnd)
       return contig.contigLen_ - startp - 1;
     else
@@ -213,7 +214,8 @@ template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
                                                  util::ContigBlock& contig,
                                                  size_t startp, size_t endp,
-                                                 bool isCurContigFw) {
+                                                 bool isCurContigFw,
+                                                 bool verbose) {
 
   if(isCurContigFw) {
     if(verbose) std::cerr << std::this_thread::get_id() << " "  << "\t[append] 1 " << seq << " clipping by pos: from "<<startp+1<< " to " << endp << " in a contig with len "<<contig.contigLen_
@@ -229,7 +231,7 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
 
 
 template <typename PufferfishIndexT>
-void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix) {
+void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose) {
   if (len == 0)
     return;
   if (isCurContigFw && appendSuffix) { // append suffix
@@ -252,7 +254,7 @@ void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::Co
 
 
 template <typename PufferfishIndexT>
-std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix) {
+std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose) {
   std::string seq = "";
   if (len == 0)
     return "";
@@ -276,7 +278,7 @@ std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& co
 }
 
 template <typename PufferfishIndexT>
-void RefSeqConstructor<PufferfishIndexT>::cutoff(std::string& seq, size_t len) {
+void RefSeqConstructor<PufferfishIndexT>::cutoff(std::string& seq, size_t len, bool verbose) {
     seq = seq.substr(0, seq.length()-len);
 }
 
@@ -284,14 +286,12 @@ void RefSeqConstructor<PufferfishIndexT>::cutoff(std::string& seq, size_t len) {
 //TODO couldn't make it reference bc of the section seq += rc(str)
 // now eachtime calling this we are copying a string twice which is not good
 template <typename PufferfishIndexT>
-std::string RefSeqConstructor<PufferfishIndexT>::rc(std::string str) {
-  //if(verbose)std::cerr << std::this_thread::get_id() << " "  << "\t[rc] of " << str << " is ";
+std::string RefSeqConstructor<PufferfishIndexT>::rc(std::string str, bool verbose) {
     for (uint32_t i = 0; i < str.length()/2; i++) {
       char tmp = str[i];
       str[i] = rev(str[str.length()-1-i]);
       str[str.length()-1-i] = rev(tmp);
     }
-    //if (verbose) std::cerr << std::this_thread::get_id() << " "  << str << "\n";
     return str;
 }
 
@@ -316,7 +316,8 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
                                                                                        bool isCurContigFw,
                                                                                        size_t tid,
                                                                                        size_t tpos,
-                                                                                      uint32_t txpDist) {
+                                                                                       uint32_t txpDist,
+                                                                                       bool verbose) {
 
   //if(verbose) std::cerr << std::this_thread::get_id() << " "  << "\t[Fetch successors] \n" ;
     std::vector<nextCompatibleStruct> successors ;
@@ -385,7 +386,8 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
                                                                                        bool isCurContigFw,
                                                                                        size_t tid,
                                                                                        size_t tpos,
-                                                                                       uint32_t txpDist) {
+                                                                                         uint32_t txpDist,
+                                                                                         bool verbose) {
 
   //if(verbose) std::cerr << std::this_thread::get_id() << " "  << "\t[Fetch successors] \n" ;
     std::vector<nextCompatibleStruct> predecessors ;
@@ -436,8 +438,10 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
               }
             }
           }
-          if (isBestValid)
-            predecessors.push_back(theBest) ;
+          if (isBestValid) {
+            theBest.tpos = tpos;
+            predecessors.push_back(theBest);
+          }
         }
       }
     }

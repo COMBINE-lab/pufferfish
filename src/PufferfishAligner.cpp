@@ -222,16 +222,19 @@ std::string calculateCigar (std::string& read,
 }
 
 template <typename PufferfishIndexT>
-util::ContigBlock& getContigBlock(std::vector<util::UniMemInfo>::iterator memInfo,
+util::ContigBlock getContigBlock(std::vector<util::UniMemInfo>::iterator memInfo,
                         PufferfishIndexT* pfi,
-                        spp::sparse_hash_map<uint32_t, util::ContigBlock>& contigSeqCache) {
-  if(contigSeqCache.find(memInfo->cid) == contigSeqCache.end()){
-    contigSeqCache[memInfo->cid] = {memInfo->cid,
+                        spp::sparse_hash_map<uint32_t, util::ContigBlock>* contigSeqCache) {
+  if(contigSeqCache->find(memInfo->cid) != contigSeqCache->end()){
+    return (*contigSeqCache)[memInfo->cid];
+  }
+  else
+    (*contigSeqCache)[memInfo->cid] = {memInfo->cid,
                                         memInfo->cGlobalPos,
                                         memInfo->clen,
                                         pfi->getSeqStr(memInfo->cGlobalPos, memInfo->clen)};
-  }
-  return contigSeqCache[memInfo->cid];
+  
+  return (*contigSeqCache)[memInfo->cid];
 }
 
 
@@ -258,44 +261,10 @@ void createSeqPairs(PufferfishIndexT* pfi,
   if(verbose) std::cout << "Clust size "<<clustSize<<"\n" ;
 
   clust->cigar = "" ;
-
-  //take care of left overhang
-  //NOTE please DON'T DELETE
-  //NOTE We have both left and right hangovers in the bottom after the loop
-  //
-  
-  /*{
-    size_t i = 0 ;
-    if(contigSeqCache.find(clust->mems[i].memInfo->cid) == contigSeqCache.end()){
-      contigSeqCache[clust->mems[i].memInfo->cid] = {
-        clust->mems[i].memInfo->cid,
-        clust->mems[i].memInfo->cGlobalPos,
-        clust->mems[i].memInfo->clen,
-        pfi->getSeqStr(clust->mems[i].memInfo->cGlobalPos, clust->mems[i].memInfo->clen)};
-    }
-    auto scb = contigSeqCache[clust->mems[i].memInfo->cid] ;
-    std::string tmp = clust->isFw?extractReadSeq(readSeq, 0, clust->mems[i].memInfo->rpos, clust->isFw):
-      extractReadSeq(readSeq, clust->mems[i].memInfo->rpos + clust->mems[i].memInfo->memlen,
-                      readLen - (clust->mems[i].memInfo->rpos + clust->mems[i].memInfo->memlen), clust->isFw);
-
-    bool contigDirWRTref = clust->mems[i].memInfo->cIsFw == clust->isFw; // true ~ (ref == contig)
-    uint32_t memContigStart = contigDirWRTref?0:
-      (clust->mems[i].memInfo->cpos + clust->mems[i].memInfo->memlen-1);
-    std::string clipContig = "" ;
-      Task res = refSeqConstructor.fillSeqLeft(tid,
-                                    clust->mems[i].tpos,
-                                    scb,
-                                    contigDirWRTref,
-                                    memContigStart,
-                                    clipContig) ;
-                                    }*/
-  
-
   auto prevTPos = clust->mems[0].tpos;
   size_t it = 0;
   //FIXME why we have failures in graph!! if valid, discard the whole hit, otherwise, find the bug
   for(it=0 ; it < clust->mems.size() -1; ++it) {
-    
     auto mmTstart = clust->mems[it].tpos + clust->mems[it].memInfo->memlen;
     auto mmTend = clust->mems[it+1].tpos;
 
@@ -358,8 +327,8 @@ void createSeqPairs(PufferfishIndexT* pfi,
 
       else {
 
-        util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
-        util::ContigBlock& ecb = getContigBlock(clust->mems[it+1].memInfo, pfi, contigSeqCache);
+        util::ContigBlock scb = getContigBlock(clust->mems[it].memInfo, pfi, &contigSeqCache);
+        util::ContigBlock ecb = getContigBlock(clust->mems[it+1].memInfo, pfi, &contigSeqCache);
 
         //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
         // cstart and cend point to the last matched base in the start contig and first matched base in last contig
@@ -427,7 +396,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
   if (endRem > 0) {
     //std::cout << "RIIIGHT hangover\n";
     std::string refSeq = "";
-    util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
+    util::ContigBlock scb = getContigBlock(clust->mems[it].memInfo, pfi, &contigSeqCache);
     uint32_t cstart = lastContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
 
     Task res = refSeqConstructor.fillSeq(tid,
@@ -436,22 +405,30 @@ void createSeqPairs(PufferfishIndexT* pfi,
                                          scb, cstart, dummy, 0,
                                          lastContigDirWRTref,
                                          endRem,
-                                         refSeq);
+                                         refSeq,
+                                         verbose);
     if(res == Task::SUCCESS) {
+      if (verbose)
+        std::cerr << "\n\n\nSUCCESS   end extension::: " << read.name << "\n" << "read: " << endReadSeq << " ref: " << refSeq << "\n"
+                << "tid " << tid << " starting from " << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << " endRem " << endRem << " cid " << scb.contigIdx_ << "\n" ;
+      
       //std::cout << " part of read "<<endReadSeq<<"\n"
       //          << " part of ref  " << refSeq << "\n";
       calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
     } else{
+      if (verbose)
+        std::cerr << "\n\n\nFAILURE   end extension::: " << read.name << "\n" << "read: " << endReadSeq << " ref: " << refSeq << "\n"
+                << "tid " << tid << " starting from " << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << " endRem " << endRem << " cid " << scb.contigIdx_ << "\n" ;
       // discard whole hit!!!
       clust->score = std::numeric_limits<int>::min();
       //std::cout << "Graph searched FAILED \n" ;
     }
   }
   if (startRem > 0) {
-    std::cout << read.name << "\n";
+    //std::cout << read.name << "\n";
     //std::cout << "LEEEFT hangover\n";
     std::string refSeq = "";
-    util::ContigBlock& ecb = getContigBlock(clust->mems[0].memInfo, pfi, contigSeqCache);
+    util::ContigBlock ecb = getContigBlock(clust->mems[0].memInfo, pfi, &contigSeqCache);
     if (verbose) {
       std::cout << firstContigDirWRTref << " " << clust->mems[0].memInfo->cpos
                            << " " << (clust->mems[0].memInfo->cpos + clust->mems[0].memInfo->memlen-1) << "\n";
@@ -472,6 +449,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
       //          << " part of ref  " << refSeq << "\n";
       calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
     } else {
+      std::cerr << "beginning extension::: " << read.name << "\n" << "read: " << endReadSeq << " ref: " << refSeq << "\n";
       // discard whole hit!!!
       clust->score = std::numeric_limits<int>::min();
       //std::cout << "Graph searched FAILED \n" ;
@@ -523,7 +501,6 @@ void processReadsPair(paired_parser* parser,
   MemCollector<PufferfishIndexT> memCollector(&pfi) ;
 
   //create aligner
- 
 
 
   spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
@@ -532,7 +509,7 @@ void processReadsPair(paired_parser* parser,
   //std::cout << "\n In process reads pair\n" ;
     //TODO create a memory layout to store
     //strings then will allocate alignment to them
-    //accordingly
+    //acco/rdingly
   std::vector<std::string> refBlocks ;
 
   auto logger = spdlog::get("stderrLog") ;
@@ -551,7 +528,7 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
-      bool verbose = false;//rpair.second.name == "read21504189/ENST00000526115;mate1:720-819;mate2:812-910";// "fake2";
+      bool verbose = false;// rpair.second.name == "read30055083/ENST00000302182;mate1:504-603;mate2:582-680";// "fake2";
       if(verbose) std::cout << rpair.first.name << "\n";
 
       ++hctr.numReads ;
@@ -668,6 +645,16 @@ void processReadsPair(paired_parser* parser,
             }
           }
         }
+        else if(!jointHits.empty()){
+          maxScore = 2 * readLen * MATCH_SCORE ;
+          for(auto& jointHit : jointHits){
+            jointHit.leftClust->score = jointHit.leftClust->coverage * MATCH_SCORE ;
+            jointHit.rightClust->score = jointHit.rightClust->coverage * MATCH_SCORE;
+            jointHit.leftClust->cigar = std::to_string(readLen)+"M" ;
+            jointHit.rightClust->cigar = std::to_string(readLen)+"M" ;
+          }
+
+        }
       }
 
 
@@ -678,9 +665,12 @@ void processReadsPair(paired_parser* parser,
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
         // If graph returned failure for one of the ends --> should be investigated more.
-        if (jointHit.leftClust->score == std::numeric_limits<int>::min() || jointHit.rightClust->score == std::numeric_limits<int>::min())
+        if (jointHit.leftClust->score == std::numeric_limits<int>::min() || jointHit.rightClust->score == std::numeric_limits<int>::min()){
+          //std::cerr << "Failed: " << rpair.first.name << "\n";
           continue;
+        }
         if(jointHit.leftClust->score + jointHit.rightClust->score == maxScore) {
+          //std::cerr << "Selected: " << rpair.first.name << "\n";
           jointAlignments.emplace_back(jointHit.tid,           // reference id
                                       jointHit.leftClust->getTrFirstHitPos(),     // reference pos
                                       jointHit.leftClust->isFw ,     // fwd direction
