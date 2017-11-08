@@ -8,11 +8,11 @@
 #include "CanonicalKmer.hpp"
 #include <stack>
 
-enum Task {
+/*enum Task {
            SUCCESS,
            FAILURE
 };
-
+*/
 
 enum SearchType {
   PREDECESSOR,
@@ -40,7 +40,7 @@ class RefSeqConstructor {
 
 public:
   RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>* contigSeqCache);
-  Task fillSeq(size_t tid,
+  std::string fillSeq(size_t tid,
                                                size_t tpos,
                                                bool isCurContigFw,
                                                util::ContigBlock& curContig,
@@ -48,8 +48,7 @@ public:
                                                util::ContigBlock& endContig,
                                                uint32_t endp,
                                                bool isEndContigFw,
-               uint32_t txpDist,
-               std::string& refSeq);
+                                               uint32_t txpDist);
   /* Task doBFS(size_t tid,
              size_t tpos,
              bool isCurContigFw,
@@ -60,15 +59,14 @@ public:
              uint32_t threshold,
              std::string& seq);
   */
-  Task doDFS(size_t tid,
+  std::string doDFS(size_t tid,
              size_t tpos,
              bool isCurContigFw,
              util::ContigBlock& curContig,
              uint32_t startp,
              util::ContigBlock& endContig,
              bool isEndContigFw,
-             uint32_t threshold,
-             std::string& refSeq);
+             uint32_t threshold);
 
 
   /*  //search predecessors
@@ -96,7 +94,7 @@ private:
 
   size_t remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd);
   void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool isCurContigFw);
-  void appendByLen(std::string& refSeq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
+  std::pair<std::string, bool> appendByLen(util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
   //TODO 
   //void prependByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
   std::string getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix);

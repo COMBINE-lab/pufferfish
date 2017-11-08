@@ -369,14 +369,13 @@ void createSeqPairs(PufferfishIndexT* pfi,
           std::cout << " last contig: \ncid" << ecb.contigIdx_ << " relpos" << clust->mems[it+1].memInfo->cpos << " len" << ecb.contigLen_ << " ori" << secondContigDirWRTref
                 << " hitlen" << clust->mems[it+1].memInfo->memlen << " end pos:" << cend << "\n" << ecb.seq << "\n";
         }
-        Task res = refSeqConstructor.fillSeq(tid,
+        refSeq = refSeqConstructor.fillSeq(tid,
                                            clust->mems[it].tpos + clust->mems[it].memInfo->memlen-1,
                                 firstContigDirWRTref,
                                 scb, cstart, ecb, cend,
                                 secondContigDirWRTref,
-                                             distOnTxp,
-                                             refSeq);
-        if(res == Task::SUCCESS) {
+                                distOnTxp);
+        if(refSeq != "") {
           //std::cout << "SUCCESS\n";
           //std::cout << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
           //         << " part of ref  " << refSeq << "\n";
@@ -430,14 +429,13 @@ void createSeqPairs(PufferfishIndexT* pfi,
     util::ContigBlock& scb = getContigBlock(clust->mems[it].memInfo, pfi, contigSeqCache);
     uint32_t cstart = lastContigDirWRTref?(clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen-1):clust->mems[it].memInfo->cpos;
 
-    Task res = refSeqConstructor.fillSeq(tid,
+    refSeq = refSeqConstructor.fillSeq(tid,
                                        clust->mems[it].tpos + clust->mems[it].memInfo->memlen-1,
                                          lastContigDirWRTref,
                                          scb, cstart, dummy, 0,
                                          lastContigDirWRTref,
-                                         endRem,
-                                         refSeq);
-    if(res == Task::SUCCESS) {
+                                         endRem);
+    if(refSeq != "") {
       //std::cout << " part of read "<<endReadSeq<<"\n"
       //          << " part of ref  " << refSeq << "\n";
       calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
@@ -459,15 +457,14 @@ void createSeqPairs(PufferfishIndexT* pfi,
     }
     uint32_t cend = firstContigDirWRTref?clust->mems[0].memInfo->cpos:(clust->mems[0].memInfo->cpos + clust->mems[0].memInfo->memlen-1);
 
-    Task res = refSeqConstructor.fillSeq(tid,
+    refSeq = refSeqConstructor.fillSeq(tid,
                                          clust->mems[0].tpos + clust->mems[0].memInfo->memlen-1,
                                          firstContigDirWRTref,
                                          dummy, 0, ecb, cend,
                                          firstContigDirWRTref,
-                                         startRem,
-                                         refSeq);
+                                         startRem);
     //if (verbose) std::cout << "got here\n";
-    if(res == Task::SUCCESS) {
+    if(refSeq != "") {
       //std::cout << " part of read "<<startReadSeq<<"\n"
       //          << " part of ref  " << refSeq << "\n";
       calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
