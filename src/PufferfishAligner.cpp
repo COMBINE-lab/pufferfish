@@ -58,9 +58,9 @@
 #define START_CONTIG_ID ((uint32_t)-1) 
 #define END_CONTIG_ID ((uint32_t)-2)
 
-#define MATCH_SCORE 2
+#define MATCH_SCORE 1
 #define MISMATCH_SCORE -1
-#define GAP_SCORE -2
+#define GAP_SCORE -1
 
 #define EPS 5
 
@@ -448,7 +448,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
     }
   }
   if (startRem > 0) {
-    //std::cout << read.name << "\n";
+    std::cout << read.name << "\n";
     //std::cout << "LEEEFT hangover\n";
     std::string refSeq = "";
     util::ContigBlock& ecb = getContigBlock(clust->mems[0].memInfo, pfi, contigSeqCache);
@@ -551,7 +551,7 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       //std::cout << readLen << "\n";
-      bool verbose = rpair.second.name == "read21504189/ENST00000526115;mate1:720-819;mate2:812-910";// "fake2";
+      bool verbose = false;//rpair.second.name == "read21504189/ENST00000526115;mate1:720-819;mate2:812-910";// "fake2";
       if(verbose) std::cout << rpair.first.name << "\n";
 
       ++hctr.numReads ;

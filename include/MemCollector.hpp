@@ -45,9 +45,6 @@ public:
         memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                    readPos, projHits.k_, projHits.contigPos_,
                                    projHits.globalPos_-projHits.contigPos_, projHits.contigLen_);
-        if(verbose){std::cout <<"HITTTTTT\n" << projHits.contigIdx_ << " " << projHits.contigOrientation_ << " " <<
-            readPos << " " << projHits.k_ << " " << projHits.contigPos_ << " " <<
-            projHits.globalPos_ << " " << projHits.contigLen_ << "\n";}
         auto memItr = std::prev(memCollection.end());
         for (auto& posIt : refs) {
           auto refPosOri = projHits.decodeHit(posIt);

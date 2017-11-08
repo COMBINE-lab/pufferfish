@@ -41,7 +41,7 @@ class RefSeqConstructor {
 public:
   RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>* contigSeqCache);
   Task fillSeq(size_t tid,
-                                               size_t tpos,
+               size_t tpos,
                                                bool isCurContigFw,
                                                util::ContigBlock& curContig,
                                                uint32_t startp,
@@ -68,6 +68,7 @@ public:
              util::ContigBlock& endContig,
              bool isEndContigFw,
              uint32_t threshold,
+             bool walkForward,
              std::string& refSeq);
 
 
@@ -107,13 +108,13 @@ private:
                                                  bool isCurContigFw,
                                                  size_t tid,
                                                     size_t tpos,
-                                                    size_t txpDist);
-  /*  std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
+                                                    uint32_t txpDist);
+
+  std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
                                                     bool isCurContigFw,
                                                     size_t tid,
-
-                                                    size_t tpos);
-  */
+                                                        size_t tpos,
+                                                        uint32_t txpDist);
 };
 
 #endif
