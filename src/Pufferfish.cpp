@@ -26,16 +26,17 @@
 //#include <cereal/archives/json.hpp>
 
 #include "PufferfishConfig.hpp"
+#include "ProgOpts.hpp"
 #include "Util.hpp"
 //#include "IndexHeader.hpp"
 
-int pufferfishIndex(util::IndexOptions& indexOpts); // int argc, char* argv[]);
-int pufferfishTest(util::TestOptions& testOpts);    // int argc, char* argv[]);
+int pufferfishIndex(IndexOptions& indexOpts); // int argc, char* argv[]);
+int pufferfishTest(TestOptions& testOpts);    // int argc, char* argv[]);
 int pufferfishValidate(
-    util::ValidateOptions& validateOpts); // int argc, char* argv[]);
+    ValidateOptions& validateOpts); // int argc, char* argv[]);
 int pufferfishTestLookup(
-    util::ValidateOptions& lookupOpts); // int argc, char* argv[]);
-int pufferfishAligner(util::AlignmentOpts& alignmentOpts) ;
+    ValidateOptions& lookupOpts); // int argc, char* argv[]);
+int pufferfishAligner(AlignmentOpts& alignmentOpts) ;
 // int rapMapMap(int argc, char* argv[]);
 // int rapMapSAMap(int argc, char* argv[]);
 
@@ -65,7 +66,7 @@ int main(int argc, char* argv[]) {
   auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
   auto alignmentApp = app.add_subcommand("align", "align paired end RNA-seq reads") ;
 
-  util::IndexOptions indexOpt;
+  IndexOptions indexOpt;
   indexApp
       ->add_option("-k,--klen", indexOpt.k,
                    "length of the k-mer with which the compacted dBG was built",
@@ -85,9 +86,9 @@ int main(int argc, char* argv[]) {
                  "length of the extension to store in the sparse index",
                  static_cast<uint32_t>(4));
 
-  util::TestOptions testOpt;
+  TestOptions testOpt;
 
-  util::ValidateOptions validateOpt;
+  ValidateOptions validateOpt;
   validateApp
       ->add_option("-i,--index", validateOpt.indexDir,
                    "directory where the pufferfish index is stored")
@@ -100,7 +101,7 @@ int main(int argc, char* argv[]) {
     ->add_option("-g,--gfa", validateOpt.gfaFileName,
                  "GFA file name needed for edge table validation") ;
 
-  util::ValidateOptions lookupOpt;
+  ValidateOptions lookupOpt;
   lookupApp
       ->add_option("-i,--index", lookupOpt.indexDir,
                    "directory where the pufferfish index is stored")
@@ -110,7 +111,7 @@ int main(int argc, char* argv[]) {
                    "fasta file with reference sequences")
       ->required();
 
-  util::AlignmentOpts alignmentOpt ;
+  AlignmentOpts alignmentOpt ;
   alignmentApp
     ->add_option("-i,--index", alignmentOpt.indexDir,
                  "directory where the pufferfish index is stored")
@@ -123,6 +124,9 @@ int main(int argc, char* argv[]) {
     ->add_option(",--mate2", alignmentOpt.read2,
                  "path to right end of the read files")
     ->required() ;
+  alignmentApp
+    ->add_flag("-m,--just-mapping", alignmentOpt.justMap,
+               "don't attempt alignment validation; just do mapping");
   alignmentApp
     ->add_option("-p,--threads", alignmentOpt.numThreads,
                  "specfy number of threads") ;

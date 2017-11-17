@@ -7,6 +7,7 @@
 #include <sstream>
 #include <bitset>
 
+#include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
 #include "OurGFAReader.hpp"
 #include "PufferFS.hpp"
@@ -129,7 +130,7 @@ private:
   uint64_t word_{0};
 };
 
-int pufferfishTest(util::TestOptions& testOpts) {
+int pufferfishTest(TestOptions& testOpts) {
   (void)testOpts;
   std::cerr << "this command is not yet implemented\n";
   return 1;
@@ -187,7 +188,7 @@ uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos,
   return encodedNucs;
 }
 
-int pufferfishIndex(util::IndexOptions& indexOpts) {
+int pufferfishIndex(IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
   std::string gfa_file = indexOpts.gfa_file;
   std::string rfile = indexOpts.rfile;

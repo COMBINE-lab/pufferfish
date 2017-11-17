@@ -45,6 +45,7 @@
 #include "jellyfish/mer_dna.hpp"
 
 //index header
+#include "ProgOpts.hpp"
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "ScopedTimer.hpp"
@@ -65,7 +66,6 @@
 #define EPS 5
 
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
-using AlignmentOpts = util::AlignmentOpts ;
 using HitCounters = util::HitCounters ;
 using QuasiAlignment = util::QuasiAlignment ;
 using MateStatus = util::MateStatus ;
@@ -180,6 +180,7 @@ std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t 
   return util::reverseComplement(subseq); //reverse-complement the substring
 }
 
+// decode CIGAR, just like : https://github.com/lh3/ksw2/blob/master/cli.c#L134
 std::string cigar2str(const ksw_extz_t* ez){
   std::string cigar ;
   if(ez->n_cigar > 0){
@@ -522,7 +523,17 @@ void processReadsPair(paired_parser* parser,
   std::vector<util::JointMems> jointHits ;
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
 
-  
+  //@fatemeh Initialize aligner ksw 
+  ksw2pp::KSW2Config config ;
+  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE) ;
+
+  config.gapo = -1 * GAP_SCORE ;
+  config.gape = -1 * GAP_SCORE ;
+  config.bandwidth = -1 ;
+  config.flag = KSW_EZ_RIGHT ;
+
+  aligner.config() = config ;
+
   auto rg = parser->getReadGroup() ;
   while(parser->refill(rg)){
     for(auto& rpair : rg){
@@ -586,6 +597,7 @@ void processReadsPair(paired_parser* parser,
       else{
         //ignore orphans for now
       }
+
       //jointHits is a vector
       //this can be used for BFS
       //NOTE sanity check
@@ -602,7 +614,6 @@ void processReadsPair(paired_parser* parser,
             std::cout << cSeq << "\n" << rseq <<"\n" << tmp << "\n";
             std::exit(1) ;
           }
-          
         }
         for(auto& m : h.rightClust->mems){
           auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
@@ -618,19 +629,9 @@ void processReadsPair(paired_parser* parser,
 
         }*/
 
-      //@fatemeh Initialize aligner ksw 
-      ksw2pp::KSW2Config config ;
-      ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE) ;
-
-      config.gapo = -1 * GAP_SCORE ;
-      config.gape = -1 * GAP_SCORE ;
-      config.bandwidth = -1 ;
-      config.flag = KSW_EZ_RIGHT ;
-
-      aligner.config() = config ;
       int maxScore = std::numeric_limits<int>::min();
 
-      bool doTraverse = true;
+      bool doTraverse = !mopts->justMap;
       if (doTraverse) {
         //TODO Have to make it per thread 
         //have to make write access thread safe
@@ -665,11 +666,11 @@ void processReadsPair(paired_parser* parser,
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
         // If graph returned failure for one of the ends --> should be investigated more.
-        if (jointHit.leftClust->score == std::numeric_limits<int>::min() || jointHit.rightClust->score == std::numeric_limits<int>::min()){
+        if (!mopts->justMap and (jointHit.leftClust->score == std::numeric_limits<int>::min() or jointHit.rightClust->score == std::numeric_limits<int>::min())){
           //std::cerr << "Failed: " << rpair.first.name << "\n";
           continue;
         }
-        if(jointHit.leftClust->score + jointHit.rightClust->score == maxScore) {
+        if(mopts->justMap or (jointHit.leftClust->score + jointHit.rightClust->score == maxScore)) {
           //std::cerr << "Selected: " << rpair.first.name << "\n";
           jointAlignments.emplace_back(jointHit.tid,           // reference id
                                       jointHit.leftClust->getTrFirstHitPos(),     // reference pos
@@ -691,7 +692,7 @@ void processReadsPair(paired_parser* parser,
       hctr.totAlignment += jointAlignments.size();
 
       if(jointAlignments.size() > 0 and !mopts->noOutput){
-        writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans) ;
+        writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
       }
 
 

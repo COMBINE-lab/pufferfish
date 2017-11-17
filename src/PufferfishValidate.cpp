@@ -6,6 +6,7 @@
 #include <vector>
 #include <bitset>
 
+#include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "PufferFS.hpp"
@@ -52,7 +53,7 @@ std::vector<extension> getEdges(uint8_t edgeVec){
 */
 
 template <typename IndexT>
-int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
+int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
   //size_t k = pi.k();
   CanonicalKmer::k(pi.k());
   size_t found = 0;
@@ -313,7 +314,7 @@ int doPufferfishValidate(IndexT& pi, util::ValidateOptions& validateOpts) {
 }
 
 
-int pufferfishValidate(util::ValidateOptions& validateOpts) {
+int pufferfishValidate(ValidateOptions& validateOpts) {
 
   auto indexDir = validateOpts.indexDir;
   std::string indexType;

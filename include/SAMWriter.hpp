@@ -156,7 +156,7 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans) {
+    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
@@ -265,8 +265,8 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-        //<< cigarStr1.c_str() << '\t'                   // CIGAR
-              << qa.cigar << '\t'                   // CIGAR
+              << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
+              //<< qa.cigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.matePos + 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
@@ -279,8 +279,8 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.matePos + 1 << '\t'                      // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-        //<< cigarStr2.c_str() << '\t'                   // CIGAR
-              << qa.mateCigar << '\t'                   // CIGAR
+              << (justMappings ? cigarStr2.c_str() : qa.mateCigar) << '\t'                   // CIGAR
+        //<< qa.mateCigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.pos + 1 << '\t'                          // PNEXT
               << ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
