@@ -77,9 +77,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                         spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& rightMemClusters,
                         std::vector<util::JointMems>& jointMemsList,
                         uint32_t maxFragmentLength,
-                        uint32_t readLen,
+                        uint32_t perfectCoverage,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
+  //uint32_t perfectCoverage{2*readLen};
   uint32_t maxCoverage{0};
   //std::cout << "txp count:" << leftMemClusters.size() << "\n";
   for (auto& leftClustItr : leftMemClusters) {
@@ -110,7 +111,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
         if ( fragmentLen < maxFragmentLength) {
           // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
           // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
-          if (maxCoverage < 2 * readLen || (lclust->coverage + rclust->coverage) == maxCoverage) {
+          auto totalCoverage = lclust->coverage + rclust->coverage;
+          if (totalCoverage >= 0.5 * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
             if (verbose) {
               std::cout <<"\ntid:"<<tid<<"\n";
@@ -152,7 +154,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
   double coverageRatio = 0.5;
   // if we've found a perfect match, we will erase any match that is not perfect
-  if (maxCoverage == 2*readLen) {
+  if (maxCoverage == perfectCoverage) {
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                         [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
                                           return pairedReadMems.coverage() != maxCoverage;
@@ -516,7 +518,8 @@ void processReadsPair(paired_parser* parser,
   auto logger = spdlog::get("stderrLog") ;
   fmt::MemoryWriter sstream ;
   //size_t batchSize{2500} ;
-  size_t readLen{0} ;
+  size_t readLen{0};
+  size_t totLen{0};
 
   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits ;
   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits ;
@@ -533,11 +536,12 @@ void processReadsPair(paired_parser* parser,
   config.flag = KSW_EZ_RIGHT ;
 
   aligner.config() = config ;
-
+  
   auto rg = parser->getReadGroup() ;
   while(parser->refill(rg)){
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
+      totLen = readLen + rpair.second.seq.length();
       //std::cout << readLen << "\n";
       bool verbose = false;// rpair.second.name == "read30055083/ENST00000302182;mate1:504-603;mate2:582-680";// "fake2";
       if(verbose) std::cout << rpair.first.name << "\n";
@@ -592,7 +596,7 @@ void processReadsPair(paired_parser* parser,
       }
 
       if(lh && rh){
-        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, readLen, verbose) ;
+        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, totLen, verbose) ;
       }
       else{
         //ignore orphans for now
@@ -662,7 +666,9 @@ void processReadsPair(paired_parser* parser,
       hctr.totHits += jointHits.size();
       hctr.peHits += jointHits.size();
       hctr.numMapped += !jointHits.empty() ? 1 : 0;
-
+      if (jointHits.size() > hctr.maxMultimapping) {
+        hctr.maxMultimapping = jointHits.size();
+      }
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
         // If graph returned failure for one of the ends --> should be investigated more.
@@ -703,13 +709,13 @@ void processReadsPair(paired_parser* parser,
         hctr.lastPrint.store(hctr.numReads.load());
         if (!mopts->quiet and iomutex->try_lock()) {
           if (hctr.numReads > 0) {
-            std::cout << "\r\r";
+            std::cerr << "\r\r";
           }
-          std::cout << "saw " << hctr.numReads << " reads : "
+          std::cerr << "saw " << hctr.numReads << " reads : "
                     << "pe / read = " << hctr.peHits / static_cast<float>(hctr.numReads)
                     << " : se / read = " << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
 #if defined(__DEBUG__) || defined(__TRACK_CORRECT__)
-          std::cout << ": true hit \% = "
+          std::cerr << ": true hit \% = "
                     << (100.0 * (hctr.trueHits / static_cast<float>(hctr.numReads)));
 #endif // __DEBUG__
           iomutex->unlock();
@@ -777,6 +783,7 @@ void printAlignmentSummary(HitCounters& hctrs, std::shared_ptr<spdlog::logger> c
   consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
   consoleLog->info("Average # hits per read : {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
   consoleLog->info("Total # of alignments : {}", hctrs.totAlignment);
+  consoleLog->info("Max multimapping group : {}", hctrs.maxMultimapping);
   consoleLog->info("=====");
 }
 

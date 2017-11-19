@@ -78,6 +78,7 @@ public:
         //bool gapIsSmall = false;
         bool addNewCluster = currMemClusters.size() == 0;
         bool foundAtLeastOne = false;
+        bool foundPrev = false;
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
           if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) {
@@ -89,7 +90,8 @@ public:
                   (isFw && hit.memInfo->rpos >= (prevClus->getReadLastHitPos() + prevClus->getTrLastMemLen())) ||
                   (!isFw && (hit.memInfo->rpos + hit.memInfo->memlen) <= prevClus->getReadLastHitPos())
                   )) ||
-                // then hit.tpos < (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen()
+                // then hit.tpos < (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen() and
+                //(hit.tpos < (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen())) and
                  (isFw && (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen() - hit.tpos) == (prevClus->getReadLastHitPos() + prevClus->getTrLastMemLen()-hit.memInfo->rpos)) ||
                  (!isFw && (prevClus->getTrLastHitPos() + prevClus->getTrLastMemLen() - hit.tpos) == (hit.memInfo->rpos + hit.memInfo->memlen - prevClus->getReadLastHitPos()))
                 ) {
@@ -97,6 +99,9 @@ public:
               prevClus->addMem(hit.memInfo, hit.tpos);
               if(verbose){std::cout << "len after putting in cluster: "<<hit.memInfo->memlen<<"\n";}
               foundAtLeastOne = true;
+              //foundPrev = true;
+              //addNewCluster = false;
+              //break;
             }
           } else {
             if (!foundAtLeastOne)

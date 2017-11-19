@@ -500,6 +500,7 @@ struct HitCounters {
   std::atomic<uint64_t> lastPrint{0};
   std::atomic<uint64_t> totAlignment{0};
   std::atomic<uint64_t> correctAlignment{0};
+  std::atomic<uint64_t> maxMultimapping{0};
 };
 
 struct ContigBlock{

@@ -44,7 +44,7 @@ add_executable(pufferize Pufferizer.cpp)
 add_executable(edgedensity EdgeDensity.cpp)
 
 #target_link_libraries(pufferfish-index-old z sdsl)
-target_link_libraries(pufferfish z puffer sdsl ksw2)
+target_link_libraries(pufferfish z puffer sdsl ksw2 ${JEMALLOC_LIBRARIES})
 target_link_libraries(fixFasta z)
 target_link_libraries(myGFAtester z sdsl puffer)
 target_link_libraries(pufferize z puffer)
