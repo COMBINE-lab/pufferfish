@@ -78,6 +78,14 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
     contigSelect_ = decltype(contigBoundary_)::select_1_type(&contigBoundary_);
   }
+  /*
+  selectPrecomp_.reserve(numContigs_+1);
+  selectPrecomp_.push_back(0);
+  for (size_t i = 1; i < numContigs_; ++i) {
+    selectPrecomp_.push_back(contigSelect_(i));
+  }
+  selectPrecomp_.push_back(contigSelect_(numContigs_));
+  */
 
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
@@ -203,6 +211,11 @@ std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isF
 
 
 
+/**
+ * Returns a ProjectedHits object containing all of the reference loci matching this
+ * provided Canonical kmer (including the oritentation of the match).  The provided
+ * QueryCache argument will be used to avoid redundant rank / select operations if feasible.
+ */
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
     -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;

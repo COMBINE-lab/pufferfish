@@ -42,6 +42,8 @@ private:
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
   size_t lastSeqPos_{std::numeric_limits<size_t>::max()};
+  //std::vector<uint64_t> selectPrecomp_;
+  //std::vector<uint32_t> unpackedPos_;
 
 public:
   PufferfishIndex();
