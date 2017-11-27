@@ -7,12 +7,14 @@
 #include <sstream>
 #include <bitset>
 
+#include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
 #include "OurGFAReader.hpp"
 #include "PufferFS.hpp"
 #include "PufferfishIndex.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
+#include "PufferfishConfig.hpp"
 #include "cereal/archives/json.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "sdsl/int_vector.hpp"
@@ -129,7 +131,7 @@ private:
   uint64_t word_{0};
 };
 
-int pufferfishTest(util::TestOptions& testOpts) {
+int pufferfishTest(TestOptions& testOpts) {
   (void)testOpts;
   std::cerr << "this command is not yet implemented\n";
   return 1;
@@ -163,7 +165,7 @@ std::string packedToString(sdsl::int_vector<2>& seqVec, uint64_t offset, uint32_
 enum class NextSampleDirection : uint8_t { FORWARD = 0, REVERSE=1 };
 
 uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos, uint64_t distToSamplePos,
-                             uint32_t maxExt, NextSampleDirection dir, bool print=false) {
+                             uint32_t maxExt, NextSampleDirection dir) {
   uint32_t encodedNucs{0};
   uint32_t bitsPerCode{2};
   std::vector<uint32_t> charsToExtend;
@@ -187,7 +189,7 @@ uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos,
   return encodedNucs;
 }
 
-int pufferfishIndex(util::IndexOptions& indexOpts) {
+int pufferfishIndex(IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
   std::string gfa_file = indexOpts.gfa_file;
   std::string rfile = indexOpts.rfile;
@@ -233,6 +235,9 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   console->info("positional integer width = {}", w);
   // sdsl::int_vector<> seqVec(tlen, 0, 2);
   auto& seqVec = pf.getContigSeqVec();
+  auto& edgeVec = pf.getEdgeVec() ;
+  //auto& edgeVec2 = pf.getEdgeVec2() ;
+
   sdsl::bit_vector rankVec(tlen);
   auto& cnmap = pf.getContigNameMap();
   for (auto& kv : cnmap) {
@@ -243,6 +248,8 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
   std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
   std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
+  std::cerr << "edgeVecSize = "<<sdsl::size_in_mega_bytes(edgeVec) << "\n";
+  //std::cerr << "edgeVec2Size = "<<sdsl::size_in_mega_bytes(edgeVec2) << "\n";
   // std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
   std::cerr << "num keys = " << nkeys << "\n";
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
@@ -266,8 +273,11 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
 
+
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
+  sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
+  //sdsl::store_to_file(edgeVec2, outdir + "/revedge.bin");
 
   // size_t slen = seqVec.size();
   //#ifndef PUFFER_DEBUG
@@ -309,6 +319,9 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     {
       cereal::JSONOutputArchive indexDesc(descStream);
       std::string sampStr = "dense";
+      std::vector<std::string> refFiles{gfa_file};
+      indexDesc(cereal::make_nvp("IndexVersion", pufferfish::indexVersion));
+      indexDesc(cereal::make_nvp("ReferenceFiles", refFiles));
       indexDesc(cereal::make_nvp("sampling_type", sampStr));
       indexDesc(cereal::make_nvp("k", k));
       indexDesc(cereal::make_nvp("num_kmers", nkeys));
@@ -366,11 +379,10 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
     ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
     size_t contigId{0};
-    int sampleCounter = 0 ;
 
     //debug flags
     int loopCounter = 0;
-    size_t ourKeys = 0 ;
+    //size_t ourKeys = 0 ;
     while(kb1 != ke1){
         sampledInds.clear();
         auto clen = contigLengths[contigId];
@@ -380,26 +392,26 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
         my_mer r;
         auto zeroPos = kb1.pos();
-        auto nextSampIter = sampledInds.begin();
-        auto prevSamp = *nextSampIter;
         auto skipLen = kb1.pos() - zeroPos;
-        bool didSample = false;
+        auto nextSampIter = sampledInds.begin();
+        //auto prevSamp = *nextSampIter;
+        //bool didSample = false;
         bool done = false;
 
         for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
           skipLen = kb1.pos() - zeroPos;
-          if (!done and skipLen == *nextSampIter) {
+          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
             auto idx = bphf->lookup(*kb1);
             presenceVec[idx] = 1 ;
             i++ ;
-            didSample = true;
-            prevSamp = *nextSampIter;
+            //didSample = true;
+            //prevSamp = *nextSampIter;
             ++nextSampIter;
             if (nextSampIter == sampledInds.end()) {
               done = true;
             }
           }
-          didSample = false;
+          //didSample = false;
         }
         if (nextSampIter != sampledInds.end()) {
           std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
@@ -426,7 +438,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
     ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
 
     size_t contigId{0} ;
-    size_t coveredKeys{0} ;
+    //size_t coveredKeys{0} ;
     size_t totalKmersIshouldSee{0} ;
 
     // For every valid k-mer (i.e. every contig)
@@ -439,7 +451,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
 
       contigId++ ;
 
-      size_t skip = 0 ;
+      //size_t skip = 0 ;
 
       my_mer r;
 
@@ -464,7 +476,7 @@ int pufferfishIndex(util::IndexOptions& indexOpts) {
           sampDir = (distToNext < distToPrev) ? NextSampleDirection::FORWARD : NextSampleDirection::REVERSE;
           skipLen = kb1.pos() - zeroPos;
           // If this is a sampled position
-          if (!done and skipLen == *nextSampIter) {
+          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
             prevSampIter = nextSampIter;
             ++nextSampIter;
             if (nextSampIter == sampledInds.end()) {

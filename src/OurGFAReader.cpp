@@ -4,6 +4,23 @@
 #include "xxhash.h"
 #include <algorithm>
 #include <string>
+#include <bitset>
+
+
+
+enum class Direction : bool { PREPEND, APPEND } ;
+
+
+uint8_t encodeEdge(char c, Direction dir){
+  std::map<char,uint8_t> shift_table = {{'A',3}, {'T',2}, {'G',1}, {'C',0}};
+  uint8_t val{1} ;
+  if(dir == Direction::APPEND)
+    return (val << shift_table[c]) ;
+  else
+    return (val << (shift_table[c]+4));
+}
+
+
 
 std::vector<std::pair<uint64_t, bool>>
 PosFinder::explode(const stx::string_view str, const char& ch) {
@@ -117,9 +134,12 @@ size_t PosFinder::fillContigInfoMap_() {
     }
   }
   size_t total_len{0};
+  uint64_t uId{0} ;
   for (auto& kv : contigid2seq) {
+    kv.second.fileOrder = uId ;
     kv.second.offset = total_len;
     total_len += kv.second.length;
+    ++uId ;
   }
   return total_len;
 }
@@ -133,6 +153,9 @@ void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
 }
 
 sdsl::int_vector<2>& PosFinder::getContigSeqVec() { return seqVec_; }
+sdsl::int_vector<8>& PosFinder::getEdgeVec() { return edgeVec_; }
+//sdsl::int_vector<8>& PosFinder::getEdgeVec2() { return edgeVec2_; }
+
 
 void PosFinder::parseFile() {
   size_t total_len = fillContigInfoMap_();
@@ -145,6 +168,15 @@ void PosFinder::parseFile() {
   std::string tag, id, value;
   size_t contig_cnt{0};
   size_t ref_cnt{0};
+
+  k = k + 1 ;
+  CanonicalKmer::k(k) ;
+
+
+  // start and end kmer-hash over the contigs
+  // might get deprecated later
+  uint64_t maxnid{0} ;
+
   while (std::getline(*file, ln)) {
     char firstC = ln[0];
     if (firstC != 'S' and firstC != 'P')
@@ -158,26 +190,180 @@ void PosFinder::parseFile() {
     if (tag == "S") {
       try {
         uint64_t nid = std::stoll(id);
+        if(nid > maxnid)
+          maxnid = nid ;
         encodeSeq(seqVec_, contigid2seq[nid].offset, splited[2]);
+
         // contigid2seq[nid] = value;
       } catch (std::exception& e) {
         // not a numeric contig id
       }
       contig_cnt++;
     }
+
+
     // A path line
     if (tag == "P") {
+
       auto pvalue = splited[2];
       std::vector<std::pair<uint64_t, bool>> contigVec = explode(pvalue, ',');
+      //go over the contigVec
+      //uint64_t kn{0} ;
+      //uint64_t knn{0} ;
+
       // parse value and add all conitgs to contigVec
 
       path[ref_cnt] = contigVec;
+
+      uint32_t refLength{0};
+      bool firstContig{true};
+      for (auto& ctig : contigVec) {
+        int32_t l = contigid2seq[ctig.first].length - (firstContig ? 0 : (k-1));
+        refLength += l;
+        firstContig = false;
+      }
+
+      refLengths.push_back(refLength);
       refMap.push_back(id);
       ref_cnt++;
       // refMap[ref_cnt] = id;
       // refIDs[id] = ref_cnt++;
     }
   }
+
+  //Initialize edgeVec_
+  //bad way, have to re-think
+  edgeVec_ = sdsl::int_vector<8>(contig_cnt, 0) ;
+  //edgeVec2_ = sdsl::int_vector<8>(contig_cnt, 0) ;
+  
+
+  std::map<char, char> cMap = {{'A','T'}, {'T','A'}, {'C','G'}, {'G','C'}} ;
+  
+  for(auto const& ent: path){
+    const std::vector<std::pair<uint64_t, bool>>& contigs = ent.second;
+
+    for(size_t i = 0 ; i < contigs.size() - 1 ; i++){
+      auto cid = contigs[i].first ;
+      bool ore = contigs[i].second ;
+      size_t forder = contigid2seq[cid].fileOrder ;
+      auto nextcid = contigs[i+1].first ;
+      bool nextore = contigs[i+1].second ;
+
+      bool nextForder = contigid2seq[nextcid].fileOrder ;
+      // a+,b+ end kmer of a , start kmer of b
+      // a+,b- end kmer of a , rc(end kmer of b)
+      // a-,b+ rc(start kmer of a) , start kmer of b
+      // a-,b- rc(start kmer of a) , rc(end kmer of b)
+
+      CanonicalKmer lastKmerInContig;
+      CanonicalKmer firstKmerInNextContig;
+      Direction contigDirection;
+      Direction nextContigDirection;
+      // If a is in the forward orientation, the last k-mer comes from the end, otherwise it is the reverse complement of the first k-mer
+      if (ore) {
+        lastKmerInContig.fromNum(seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k));
+        contigDirection = Direction::APPEND;
+      } else {
+        lastKmerInContig.fromNum(seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k));
+        lastKmerInContig.swap();
+        contigDirection = Direction::PREPEND;
+      }
+
+      // If a is in the forward orientation, the first k-mer comes from the beginning, otherwise it is the reverse complement of the last k-mer
+      if (nextore) {
+        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k));
+        nextContigDirection = Direction::PREPEND;
+      } else {
+        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k));
+        firstKmerInNextContig.swap();
+        nextContigDirection = Direction::APPEND;
+      }
+
+      // The character to append / prepend to contig to get to next contig
+      const char contigChar = firstKmerInNextContig.to_str()[k-1];
+      // The character to prepend / append to next contig to get to contig
+      const char nextContigChar = lastKmerInContig.to_str()[0];
+
+      edgeVec_[forder] |= encodeEdge(contigChar, contigDirection);
+      edgeVec_[nextForder] |= encodeEdge(nextContigChar, nextContigDirection);
+
+      //////////// ========== Old implementation
+      /*
+      uint64_t kn = (!ore)? (seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k)) ;
+      uint64_t knn = (nextore)? (seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k)) ;
+
+
+      CanonicalKmer sk ;
+      CanonicalKmer skk ;
+      sk.fromNum(kn) ;
+      skk.fromNum(knn) ;
+
+      //validation, to be deprecated later
+      std::string nkmer;
+      std::string ckmer;
+      //kmer = (ore)?sk.to_str():sk.rcMer() ;
+      nkmer = skk.to_str();
+      ckmer = sk.to_str();
+
+      if(!ore and !nextore){
+        edgeVec_[forder] |=  encodeEdge(nkmer[0], Direction::PREPEND);
+        edgeVec2_[nextForder] |= encodeEdge(ckmer[k-1], Direction::APPEND) ;
+      }else if(!ore and nextore){
+        edgeVec_[forder] |=  encodeEdge(cMap[nkmer[k-1]], Direction::PREPEND);
+        edgeVec2_[nextForder] |=  encodeEdge(cMap[ckmer[k-1]], Direction::PREPEND);
+      }else if(ore and nextore){
+        edgeVec_[forder] |=  encodeEdge(nkmer[k-1], Direction::APPEND);
+        edgeVec2_[nextForder] |=  encodeEdge(ckmer[0], Direction::PREPEND);
+      }else if(ore and !nextore){
+        edgeVec_[forder] |=  encodeEdge(cMap[nkmer[0]], Direction::APPEND);
+        edgeVec2_[nextForder] |=  encodeEdge(cMap[ckmer[0]], Direction::APPEND);
+      } 
+      */
+      // ====================== End of Old Implementation ///////////////
+      
+
+      /*
+      if(ore){
+        kmer = sk.to_str() ;
+      }else{
+        kmer = sk.rcMer().to_str() ;
+      }
+
+      if(nextore){
+        nkmer = skk.to_str() ;
+      }else{
+        nkmer = skk.rcMer().to_str() ;
+      }
+
+      if( ore != nextore){
+        if(!ore)
+          std::reverse(kmer.begin(),kmer.end());
+        else if(!nextore)
+          std::reverse(nkmer.begin(),nkmer.end());
+      }
+
+      k_1mer = kmer.substr(1,k-1) ;
+      nk_1mer = nkmer.substr(0,k-1) ;
+
+      if(ore == nextore and !ore){
+        k_1mer = kmer.substr(0,k-1) ;
+        nk_1mer = nkmer.substr(1,k-1) ;
+      }
+      */
+
+      //std::bitset<8> b1 = edgeVec_[forder] ;
+      //std::cerr << ore << "\t" << kmer << "\t" << nextore << "\t" << nkmer << "\t" << b1 << "\n" ;
+      //{ std::cerr << "bingo\n" ;}
+      //end validation
+
+    }
+
+   
+
+  }
+
+  k = k - 1;
+
   std::cerr << " Total # of Contigs : " << contig_cnt
             << " Total # of numerical Contigs : " << contigid2seq.size()
             << "\n\n";
@@ -264,6 +450,7 @@ void PosFinder::mapContig2Pos() {
 
 void PosFinder::clearContigTable() {
   refMap.clear();
+  refLengths.clear();
   contig2pos.clear();
 }
 
@@ -271,11 +458,17 @@ void PosFinder::clearContigTable() {
 void PosFinder::serializeContigTable(const std::string& odir) {
   std::string ofile = odir + "/ctable.bin";
   std::string eqfile = odir + "/eqtable.bin";
+  std::string rlfile = odir + "/reflengths.bin";
   std::ofstream ct(ofile);
   std::ofstream et(eqfile);
+  std::ofstream rl(rlfile);
   cereal::BinaryOutputArchive ar(ct);
   cereal::BinaryOutputArchive eqAr(et);
+  cereal::BinaryOutputArchive rlAr(rl);
   {
+    // Write out the reference lengths
+    rlAr(refLengths);
+
     // We want to iterate over the contigs in precisely the
     // order they appear in the contig array (i.e., the iterator
     // order of contigid2seq).

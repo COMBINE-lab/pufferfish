@@ -14,12 +14,13 @@
 #include "jellyfish/mer_dna.hpp"
 #include "spdlog/spdlog.h"
 
+#include "ProgOpts.hpp"
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 
 template <typename IndexT>
-int doPufferfishTestLookup(IndexT& pi, util::ValidateOptions& validateOpts) {
+int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
   CanonicalKmer::k(pi.k());
   int k = pi.k();
   (void)k;
@@ -97,7 +98,7 @@ int doPufferfishTestLookup(IndexT& pi, util::ValidateOptions& validateOpts) {
   return 0;
 }
 
-int pufferfishTestLookup(util::ValidateOptions& validateOpts) {
+int pufferfishTestLookup(ValidateOptions& validateOpts) {
   auto indexDir = validateOpts.indexDir;
   std::string indexType;
   {

@@ -10,6 +10,7 @@
 #include "cereal/archives/json.hpp"
 
 #include "CanonicalKmer.hpp"
+#include "CanonicalKmerIterator.hpp"
 #include "BooPHF.h"
 #include "Util.hpp"
 
@@ -18,6 +19,8 @@ class PufferfishSparseIndex {
   using boophf_t = boomphf::mphf<uint64_t, hasher_t>;
   using EqClassID = uint32_t;
   using EqClassLabel = std::vector<uint32_t>;
+  using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
+
 private:
   uint32_t k_{0};
   uint32_t twok_{0};
@@ -28,12 +31,15 @@ private:
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
+  std::vector<uint32_t> refLengths_;
   std::vector<std::vector<util::Position>> contigTable_;
   uint64_t numContigs_{0};
   sdsl::bit_vector contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;
   sdsl::int_vector<2> seq_;
+  sdsl::int_vector<8> edge_;
+  //sdsl::int_vector<8> revedge_;
   sdsl::int_vector<> pos_;
   //for sparse representation
   sdsl::bit_vector presenceVec_;
@@ -73,7 +79,10 @@ public:
   const std::vector<util::Position>& refList(uint64_t contigRank);
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
+  uint32_t refLength (uint64_t refRank) const;
 
+  const std::vector<std::string>& getRefNames() ;
+  const std::vector<uint32_t>& getRefLengths() const;
   // Returns true if the given k-mer appears in the dBG, false otherwise
   bool contains(CanonicalKmer& mer);
 
@@ -96,10 +105,30 @@ public:
   auto getRefPos(CanonicalKmer mer) -> util::ProjectedHits;
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
 
+  // Returns the string value of contig sequence vector starting from position `globalPos` with `length` bases
+  // and reverse-complements the string if `isFw` is false
+  std::string getSeqStr(size_t globalPos, size_t length, bool isFw=true);
+
+  //
+  //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
+
+	sdsl::int_vector<2>& getSeq() {return seq_;}
+	sdsl::int_vector<8>& getEdge() {return edge_;}
+	//sdsl::int_vector<8>& getRevEdge() {return revedge_;}
+
+  uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
+  //uint8_t getRevEdgeEntry(uint64_t contigRank) {return revedge_[contigRank];}
+
+  CanonicalKmer getStartKmer(uint64_t cid) ;
+  CanonicalKmer getEndKmer(uint64_t cid) ;
+
+  uint32_t getContigLen(uint64_t cid) ;
+  uint64_t getGlobalPos(uint64_t cid) ;
+  auto  getContigBlock(uint64_t rank) -> util::ContigBlock ;
+
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk = false) -> util::ProjectedHits;
-  
 
 };
 

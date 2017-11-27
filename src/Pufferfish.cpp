@@ -26,15 +26,17 @@
 //#include <cereal/archives/json.hpp>
 
 #include "PufferfishConfig.hpp"
+#include "ProgOpts.hpp"
 #include "Util.hpp"
 //#include "IndexHeader.hpp"
 
-int pufferfishIndex(util::IndexOptions& indexOpts); // int argc, char* argv[]);
-int pufferfishTest(util::TestOptions& testOpts);    // int argc, char* argv[]);
+int pufferfishIndex(IndexOptions& indexOpts); // int argc, char* argv[]);
+int pufferfishTest(TestOptions& testOpts);    // int argc, char* argv[]);
 int pufferfishValidate(
-    util::ValidateOptions& validateOpts); // int argc, char* argv[]);
+    ValidateOptions& validateOpts); // int argc, char* argv[]);
 int pufferfishTestLookup(
-    util::ValidateOptions& lookupOpts); // int argc, char* argv[]);
+    ValidateOptions& lookupOpts); // int argc, char* argv[]);
+int pufferfishAligner(AlignmentOpts& alignmentOpts) ;
 // int rapMapMap(int argc, char* argv[]);
 // int rapMapSAMap(int argc, char* argv[]);
 
@@ -62,8 +64,9 @@ int main(int argc, char* argv[]) {
   auto validateApp = app.add_subcommand(
       "validate", "test k-mer lookup for reference sequences");
   auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
+  auto alignmentApp = app.add_subcommand("align", "align paired end RNA-seq reads") ;
 
-  util::IndexOptions indexOpt;
+  IndexOptions indexOpt;
   indexApp
       ->add_option("-k,--klen", indexOpt.k,
                    "length of the k-mer with which the compacted dBG was built",
@@ -83,9 +86,9 @@ int main(int argc, char* argv[]) {
                  "length of the extension to store in the sparse index",
                  static_cast<uint32_t>(4));
 
-  util::TestOptions testOpt;
+  TestOptions testOpt;
 
-  util::ValidateOptions validateOpt;
+  ValidateOptions validateOpt;
   validateApp
       ->add_option("-i,--index", validateOpt.indexDir,
                    "directory where the pufferfish index is stored")
@@ -94,8 +97,11 @@ int main(int argc, char* argv[]) {
       ->add_option("-r,--ref", validateOpt.refFile,
                    "fasta file with reference sequences")
       ->required();
+  validateApp
+    ->add_option("-g,--gfa", validateOpt.gfaFileName,
+                 "GFA file name needed for edge table validation") ;
 
-  util::ValidateOptions lookupOpt;
+  ValidateOptions lookupOpt;
   lookupApp
       ->add_option("-i,--index", lookupOpt.indexDir,
                    "directory where the pufferfish index is stored")
@@ -104,6 +110,45 @@ int main(int argc, char* argv[]) {
       ->add_option("-r,--ref", lookupOpt.refFile,
                    "fasta file with reference sequences")
       ->required();
+
+  AlignmentOpts alignmentOpt ;
+  alignmentApp
+    ->add_option("-i,--index", alignmentOpt.indexDir,
+                 "directory where the pufferfish index is stored")
+    ->required() ;
+  alignmentApp
+    ->add_option(",--mate1", alignmentOpt.read1,
+                 "path to left end of the read files")
+    ->required() ;
+  alignmentApp
+    ->add_option(",--mate2", alignmentOpt.read2,
+                 "path to right end of the read files")
+    ->required() ;
+  alignmentApp
+    ->add_flag("-m,--just-mapping", alignmentOpt.justMap,
+               "don't attempt alignment validation; just do mapping");
+  alignmentApp
+    ->add_option("-p,--threads", alignmentOpt.numThreads,
+                 "specfy number of threads") ;
+  alignmentApp
+    ->add_option("-o,--outdir", alignmentOpt.outname,
+                 "output directory where the alignment results would get stored")
+    ->required() ;
+
+  alignmentApp
+    ->add_option(",--maxSpliceGap", alignmentOpt.maxSpliceGap,
+               "specify maximum splice gap that two uni-mems should have");
+  alignmentApp
+    ->add_option(",--maxFragmentLength", alignmentOpt.maxFragmentLength,
+               "specify maximum distance between last uni-mem of the left end and first uni-mem of the right end of the read pairs");
+  alignmentApp
+    ->add_flag(",--writeOrphans", alignmentOpt.writeOrphans,
+                 "write Orphans flag");
+
+  alignmentApp
+    ->add_flag(",--noOutput", alignmentOpt.noOutput,
+                 "run without writing sam");
+
 
   try {
     app.parse(argc, argv);
@@ -119,7 +164,10 @@ int main(int argc, char* argv[]) {
     return pufferfishValidate(validateOpt);
   } else if (app.got_subcommand(lookupApp)) {
     return pufferfishTestLookup(lookupOpt);
-  } else {
+  } else if (app.got_subcommand(alignmentApp)) {
+    return pufferfishAligner(alignmentOpt);
+  }
+  else {
     std::cerr << "I don't know the requested sub-command\n";
     return 1;
   }

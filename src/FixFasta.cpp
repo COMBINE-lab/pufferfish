@@ -36,6 +36,8 @@ void fixFasta(single_parser* parser,
 
   uint32_t n{0};
   std::vector<std::string> transcriptNames;
+  std::map<std::string, bool> shortFlag ;
+
   std::vector<int64_t> transcriptStarts;
   constexpr char bases[] = {'A', 'C', 'G', 'T'};
   uint32_t polyAClipLength{10};
@@ -60,7 +62,7 @@ void fixFasta(single_parser* parser,
   // longest human transcript is Titin (108861), so this gives us a *lot* of
   // leeway before
   // we issue any warning.
-  size_t tooLong = 200000;
+  //size_t tooLong = 200000;
   //size_t numDistinctKmers{0};
   //size_t numKmers{0};
   size_t currIndex{0};
@@ -82,9 +84,11 @@ void fixFasta(single_parser* parser,
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     auto rg = parser->getReadGroup();
+    bool tooShort{false} ;
 
     while (parser->refill(rg)) {
       for (auto& read : rg) { // for each sequence
+        tooShort = false;
         std::string& readStr = read.seq;
         uint32_t readLen = readStr.size();
         uint32_t completeLen = readLen;
@@ -112,9 +116,9 @@ void fixFasta(single_parser* parser,
             XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
                   readLen, 0);
         //RC hash calculation
-        auto txRCStringHash =
-            XXH64(reinterpret_cast<void*>(const_cast<char*>(revCompStr.data())),
-                  readLen, 0);
+        //auto txRCStringHash =
+        //    XXH64(reinterpret_cast<void*>(const_cast<char*>(revCompStr.data())),
+        //          readLen, 0);
 
         // First, replace non ATCG nucleotides
         for (size_t b = 0; b < readLen; ++b) {
@@ -154,18 +158,6 @@ void fixFasta(single_parser* parser,
         if (readStr.size() >= k) {
           // If we're suspicious the user has fed in a *genome* rather
           // than a transcriptome, say so here.
-         /*
-         if (readStr.size() >= tooLong) {
-            log->warn("Entry with header [{}] was longer than {} nucleotides.  "
-                      "Are you certain that "
-                      "we are indexing a transcriptome and not a genome?",
-                      read.name, tooLong);
-          } else if (readStr.size() < k) {
-            log->warn("Entry with header [{}], had length less than "
-                      "the k-mer length of {} (perhaps after poly-A clipping)",
-                      read.name, k);
-          }*/
-
           uint32_t txpIndex = n++;
 
           // The name of the current transcript
@@ -176,9 +168,9 @@ void fixFasta(single_parser* parser,
           // Add this transcript, indexed by it's sequence's hash value
           // to the potential duplicate list.
           bool didCollide{false};
-          bool didCollideRC{false};
+          //bool didCollideRC{false};
           auto dupIt = potentialDuplicates.find(txStringHash);
-          auto dupRCIt = potentialDuplicates.find(txRCStringHash) ;
+          //auto dupRCIt = potentialDuplicates.find(txRCStringHash) ;
           if (dupIt != potentialDuplicates.end()){
             auto& dupList = dupIt->second;
             for (auto& dupInfo : dupList) {
@@ -227,6 +219,10 @@ void fixFasta(single_parser* parser,
 
           // If there was no collision, then add the transcript
           transcriptNames.emplace_back(processedName);
+          if(!tooShort)
+              shortFlag[processedName] = false ;
+          else
+              shortFlag[processedName] = true ;
           // nameHasher.process(processedName.begin(), processedName.end());
 
           // The position at which this transcript starts
@@ -299,38 +295,44 @@ void fixFasta(single_parser* parser,
 
   std::ofstream ffa(outFile);
   size_t prev1{0};
+  size_t numWritten{0};
   for (size_t i = 0; i < transcriptNames.size(); ++i) {
     size_t next1 = onePos[i];
     size_t len = next1 - prev1;
-    ffa << ">" << transcriptNames[i] << "\n";
-    ffa << concatText.substr(prev1, len) << "\n";
+    if(!shortFlag[transcriptNames[i]]){
+        ffa << ">" << transcriptNames[i] << "\n";
+        ffa << concatText.substr(prev1, len) << "\n";
+        ++numWritten;
+    }
     prev1 = next1 + 1;
   }
   ffa.close();
+  std::cerr << "wrote " << numWritten << " contigs\n";
 }
 
 int main(int argc, char* argv[]) {
   uint32_t k;
   std::string cfile;
   std::string rfile;
-  popl::Switch helpOption("h", "help", "produce help message");
-  popl::Value<uint32_t> kOpt(
-      "k", "klen", "length of the k-mer with which the compacted dBG was built",
-      31, &k);
-  popl::Value<std::string> inOpt("i", "input", "input fasta file");
-  popl::Value<std::string> outOpt("o", "out", "output fasta file");
 
   popl::OptionParser op("Allowed options");
-  op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
+  auto helpOption = op.add<popl::Switch>("h", "help", "produce help message");
+  auto kOpt = op.add<popl::Value<uint32_t>>(
+      "k", "klen", "length of the k-mer with which the compacted dBG was built",
+      31, &k);
+  auto inOpt = op.add<popl::Value<std::string>>("i", "input", "input fasta file");
+  auto outOpt = op.add<popl::Value<std::string>>("o", "out", "output fasta file");
+
+  //op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
 
   op.parse(argc, argv);
-  if (helpOption.isSet()) {
+  if (helpOption->is_set()) {
     std::cout << op << '\n';
     std::exit(0);
   }
 
-  std::string refFile = inOpt.getValue();
-  std::string outFile = outOpt.getValue();
+  std::string refFile = inOpt->value();
+  std::string outFile = outOpt->value();
 
   size_t numThreads{1};
   std::unique_ptr<single_parser> transcriptParserPtr{nullptr};

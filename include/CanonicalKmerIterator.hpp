@@ -66,6 +66,7 @@ private:
   }
 
 public:
+  inline stx::string_view seq() { return s_; }
   // use:  ++iter;
   // pre:
   // post: *iter is now exhausted
@@ -93,6 +94,20 @@ public:
     return tmp;
   }
 
+  // use:  iter += constant int;
+  // pre:
+  // post: *iter is now exhausted
+  //       OR *iter is the next valid pair of kmer and location after advancing
+  inline CanonicalKmerIterator& operator+=(int advance) {
+    //CanonicalKmerIterator tmp(*this) ;
+    while(advance > 0){
+        operator++() ;
+        advance-- ;
+    }
+    return *this;
+  }
+
+
   // use:  val = (a == b);
   // pre:
   // post: (val == true) if a and b are both exhausted
@@ -119,6 +134,12 @@ public:
   // pre:  *iter is not NULL
   // post: km will be (*iter).first, i will be (*iter).second
   inline pointer operator->() { return &(operator*()); }
+
+  void jumpTo(int pos) {
+    lastinvalid_ = pos-1;
+    find_next(pos-1,(pos-1));
+  }
+
 
 private:
   /*
