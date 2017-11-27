@@ -58,7 +58,7 @@ private:
   //predecessor,stores the same
   //transcript in reverse order
   //improve walkability
-  sdsl::int_vector<8> edgeVec2_;
+  //sdsl::int_vector<8> edgeVec2_;
 
   std::vector<std::pair<std::string, std::string>> newSegments;
   pufg::Graph semiCG;

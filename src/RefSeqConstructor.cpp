@@ -393,7 +393,11 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
     std::vector<nextCompatibleStruct> predecessors ;
     CanonicalKmer::k(k) ;
 
-    auto& edges = pfi_->getRevEdge() ;
+    // [DEV BUG] TODO : Moving to having only one "edge set" breaks this.  FIX THIS!!
+    // The below line used to be this:
+    //auto& edges = pfi_->getRevEdge() ;
+    auto& edges = pfi_->getEdge() ;
+
     util::Direction dir = isCurContigFw?util::Direction::BACKWORD:util::Direction::FORWARD ;
 
     uint8_t edgeVec = edges[contig.contigIdx_] ;

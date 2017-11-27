@@ -154,7 +154,7 @@ void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
 
 sdsl::int_vector<2>& PosFinder::getContigSeqVec() { return seqVec_; }
 sdsl::int_vector<8>& PosFinder::getEdgeVec() { return edgeVec_; }
-sdsl::int_vector<8>& PosFinder::getEdgeVec2() { return edgeVec2_; }
+//sdsl::int_vector<8>& PosFinder::getEdgeVec2() { return edgeVec2_; }
 
 
 void PosFinder::parseFile() {
