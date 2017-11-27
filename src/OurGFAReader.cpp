@@ -234,7 +234,7 @@ void PosFinder::parseFile() {
   //Initialize edgeVec_
   //bad way, have to re-think
   edgeVec_ = sdsl::int_vector<8>(contig_cnt, 0) ;
-  edgeVec2_ = sdsl::int_vector<8>(contig_cnt, 0) ;
+  //edgeVec2_ = sdsl::int_vector<8>(contig_cnt, 0) ;
   
 
   std::map<char, char> cMap = {{'A','T'}, {'T','A'}, {'C','G'}, {'G','C'}} ;
@@ -255,7 +255,40 @@ void PosFinder::parseFile() {
       // a-,b+ rc(start kmer of a) , start kmer of b
       // a-,b- rc(start kmer of a) , rc(end kmer of b)
 
+      CanonicalKmer lastKmerInContig;
+      CanonicalKmer firstKmerInNextContig;
+      Direction contigDirection;
+      Direction nextContigDirection;
+      // If a is in the forward orientation, the last k-mer comes from the end, otherwise it is the reverse complement of the first k-mer
+      if (ore) {
+        lastKmerInContig.fromNum(seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k));
+        contigDirection = Direction::APPEND;
+      } else {
+        lastKmerInContig.fromNum(seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k));
+        lastKmerInContig.swap();
+        contigDirection = Direction::PREPEND;
+      }
 
+      // If a is in the forward orientation, the first k-mer comes from the beginning, otherwise it is the reverse complement of the last k-mer
+      if (nextore) {
+        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k));
+        nextContigDirection = Direction::PREPEND;
+      } else {
+        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k));
+        firstKmerInNextContig.swap();
+        nextContigDirection = Direction::APPEND;
+      }
+
+      // The character to append / prepend to contig to get to next contig
+      const char contigChar = firstKmerInNextContig.to_str()[k-1];
+      // The character to prepend / append to next contig to get to contig
+      const char nextContigChar = lastKmerInContig.to_str()[0];
+
+      edgeVec_[forder] |= encodeEdge(contigChar, contigDirection);
+      edgeVec_[nextForder] |= encodeEdge(nextContigChar, nextContigDirection);
+
+      //////////// ========== Old implementation
+      /*
       uint64_t kn = (!ore)? (seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k)) ;
       uint64_t knn = (nextore)? (seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k)) ;
 
@@ -285,7 +318,8 @@ void PosFinder::parseFile() {
         edgeVec_[forder] |=  encodeEdge(cMap[nkmer[0]], Direction::APPEND);
         edgeVec2_[nextForder] |=  encodeEdge(cMap[ckmer[0]], Direction::APPEND);
       } 
-      
+      */
+      // ====================== End of Old Implementation ///////////////
       
 
       /*

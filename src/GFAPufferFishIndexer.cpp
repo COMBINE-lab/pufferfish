@@ -14,6 +14,7 @@
 #include "PufferfishIndex.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
+#include "PufferfishConfig.hpp"
 #include "cereal/archives/json.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "sdsl/int_vector.hpp"
@@ -235,7 +236,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   // sdsl::int_vector<> seqVec(tlen, 0, 2);
   auto& seqVec = pf.getContigSeqVec();
   auto& edgeVec = pf.getEdgeVec() ;
-  auto& edgeVec2 = pf.getEdgeVec2() ;
+  //auto& edgeVec2 = pf.getEdgeVec2() ;
 
   sdsl::bit_vector rankVec(tlen);
   auto& cnmap = pf.getContigNameMap();
@@ -248,7 +249,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
   std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
   std::cerr << "edgeVecSize = "<<sdsl::size_in_mega_bytes(edgeVec) << "\n";
-  std::cerr << "edgeVec2Size = "<<sdsl::size_in_mega_bytes(edgeVec2) << "\n";
+  //std::cerr << "edgeVec2Size = "<<sdsl::size_in_mega_bytes(edgeVec2) << "\n";
   // std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
   std::cerr << "num keys = " << nkeys << "\n";
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
@@ -276,7 +277,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
   sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
-  sdsl::store_to_file(edgeVec2, outdir + "/revedge.bin");
+  //sdsl::store_to_file(edgeVec2, outdir + "/revedge.bin");
 
   // size_t slen = seqVec.size();
   //#ifndef PUFFER_DEBUG
@@ -318,6 +319,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     {
       cereal::JSONOutputArchive indexDesc(descStream);
       std::string sampStr = "dense";
+      std::vector<std::string> refFiles{gfa_file};
+      indexDesc(cereal::make_nvp("IndexVersion", pufferfish::indexVersion));
+      indexDesc(cereal::make_nvp("ReferenceFiles", refFiles));
       indexDesc(cereal::make_nvp("sampling_type", sampStr));
       indexDesc(cereal::make_nvp("k", k));
       indexDesc(cereal::make_nvp("num_kmers", nkeys));
