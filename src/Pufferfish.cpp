@@ -20,6 +20,7 @@
 //
 
 #include "CLI/CLI.hpp"
+#include "clipp.h"
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -57,59 +58,134 @@ commands.)";
 }
 
 int main(int argc, char* argv[]) {
-
-  CLI::App app{"Pufferfish : An efficient dBG index."};
-  auto indexApp = app.add_subcommand("index", "build the pufferfish index");
-  auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
-  auto validateApp = app.add_subcommand(
-      "validate", "test k-mer lookup for reference sequences");
-  auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
-  auto alignmentApp = app.add_subcommand("align", "align paired end RNA-seq reads") ;
-
+  using namespace clipp;
+  using std::cout;
+  enum class mode {help, index, validate, lookup, align};
+  mode selected = mode::help;
+  AlignmentOpts alignmentOpt ;
   IndexOptions indexOpt;
-  indexApp
-      ->add_option("-k,--klen", indexOpt.k,
-                   "length of the k-mer with which the compacted dBG was built",
-                   static_cast<uint32_t>(31))
-      ->required();
-  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file")
-      ->required();
-  indexApp
-      ->add_option("-o,--output", indexOpt.outdir,
-                   "directory where index is written")
-      ->required();
-  indexApp
-    ->add_flag("-s,--sparse", indexOpt.isSparse,
-               "use the sparse pufferfish index (less space, but slower lookup)");
-  indexApp
-    ->add_option("-e,--extension", indexOpt.extensionSize,
-                 "length of the extension to store in the sparse index",
-                 static_cast<uint32_t>(4));
-
-  TestOptions testOpt;
-
+  //TestOptions testOpt;
   ValidateOptions validateOpt;
-  validateApp
-      ->add_option("-i,--index", validateOpt.indexDir,
-                   "directory where the pufferfish index is stored")
-      ->required();
-  validateApp
-      ->add_option("-r,--ref", validateOpt.refFile,
-                   "fasta file with reference sequences")
-      ->required();
-  validateApp
-    ->add_option("-g,--gfa", validateOpt.gfaFileName,
-                 "GFA file name needed for edge table validation") ;
-
   ValidateOptions lookupOpt;
-  lookupApp
-      ->add_option("-i,--index", lookupOpt.indexDir,
-                   "directory where the pufferfish index is stored")
-      ->required();
-  lookupApp
-      ->add_option("-r,--ref", lookupOpt.refFile,
-                   "fasta file with reference sequences")
-      ->required();
+
+  auto indexMode = (
+                    command("index").set(selected, mode::index),
+                    (required("-o", "--output").call([]{cout << "parsing --output\n\n";}) & value("output_dir", indexOpt.outdir)) % "directory where index is written",
+                    (required("-g", "--gfa").call([]{cout << "parsing --gfa\n\n";}) & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
+                    (required("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
+                    (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
+                    (option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
+                    (option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)"
+                    );
+
+  /*
+  auto testMode = (
+                   command("test").set(selected, mode::test)
+                   );
+  */
+  auto validateMode = (
+                       command("validate").set(selected, mode::validate),
+                       (required("-i", "--index") & value("index", validateOpt.indexDir)) % "directory where the pufferfish index is stored",
+                       (required("-r", "--ref") & value("ref", validateOpt.refFile)) % "fasta file with reference sequences",
+                       (required("-g", "--gfa") & value("gfa", validateOpt.gfaFileName)) % "GFA file name needed for edge table validation"
+                       );
+  auto lookupMode = (
+                     command("lookup").set(selected, mode::lookup),
+                     (required("-i", "--index") & value("index", lookupOpt.indexDir)) % "directory where the pufferfish index is stored",
+                     (required("-r", "--ref") & value("ref", lookupOpt.refFile)) % "fasta file with reference sequences"
+                     );
+
+  std::string throwaway;
+  auto alignMode = (
+                    command("align").set(selected, mode::align),
+                    (required("-i", "--index") & value("index", alignmentOpt.indexDir)) % "directory where the pufferfish index is stored",
+                    (
+                     (
+                     ((required("--mate1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
+                     ((required("--mate2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
+                     ) |
+                     ((required("--read") & value("reads", throwaway)) % "path to single-end read files")
+                    ),
+                    (option("-m", "--just-mapping") & value("just map", alignmentOpt.justMap)) % "don't attempt alignment validation; just do mapping",
+                    (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
+                    (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "output file where the alignment results will be stored",
+                    (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "specify maximum splice gap that two uni-MEMs should have",
+                    (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
+                    (option("--writeOrphans").set(alignmentOpt.writeOrphans, true)) % "write Orphans flag",
+                    (option("--noOutput").set(alignmentOpt.noOutput, true)) % "run without writing SAM file"
+                    );
+
+  auto cli = (
+              (indexMode | validateMode | lookupMode | alignMode | command("help").set(selected,mode::help) ),
+              option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version"));
+
+  decltype(parse(argc, argv, cli)) res;
+  try {
+    res = parse(argc, argv, cli);
+  } catch (std::exception& e) {
+    std::cout << "\n\nParsing command line failed with exception: " << e.what() << "\n";
+    std::cout << "\n\n";
+    std::cout << make_man_page(cli, "mantis");
+    return 1;
+  }
+
+
+  if(res) {
+    switch(selected) {
+    case mode::index: pufferfishIndex(indexOpt);  break;
+    case mode::validate: pufferfishValidate(validateOpt);  break;
+    case mode::lookup: pufferfishTestLookup(lookupOpt); break;
+    case mode::align: pufferfishAligner(alignmentOpt); break;
+    case mode::help: std::cout << make_man_page(cli, "pufferfish"); break;
+    }
+  } else {
+    debug::print(std::cerr, res);
+    auto b = res.begin();
+    auto e = res.end();
+    std::cerr << "any blocked " << res.any_blocked() << "\n";
+    std::cerr << "any conflict " << res.any_conflict() << "\n";
+    std::cerr << "any bad repeat " << res.any_bad_repeat() << "\n";
+    std::cerr << "any error " << res.any_error() << "\n";
+    for( auto& m : res.missing() ) {
+      std::cerr << "missing " << m.param()->label() << "\n";
+    }
+    if (std::distance(b,e) > 0) {
+      if (b->arg() == "index") {
+        std::cout << make_man_page(indexMode, "pufferfish");
+        while (b != e) {
+          std::cerr << b->arg() << "\n";
+          ++b;
+        }
+      } else if (b->arg() == "validate") {
+        std::cout << make_man_page(validateMode, "pufferfish");
+      } else if (b->arg() == "lookup") {
+        std::cout << make_man_page(lookupMode, "pufferfish");
+      } else if (b->arg() == "align") {
+        std::cout << make_man_page(alignMode, "pufferfish");
+      } else {
+        std::cout << "There is no command \"" << b->arg() << "\"\n";
+        std::cout << usage_lines(cli, "pufferfish") << '\n';
+        return 1;
+      }
+    } else {
+      std::cout << usage_lines(cli, "pufferfish") << '\n';
+      return 1;
+    }
+  }
+
+
+  /*
+  if (app.got_subcommand(indexApp)) {
+    return pufferfishIndex(indexOpt);
+  } else if (app.got_subcommand(testApp)) {
+    return pufferfishTest(testOpt);
+  } else if (app.got_subcommand(validateApp)) {
+    return pufferfishValidate(validateOpt);
+  } else if (app.got_subcommand(lookupApp)) {
+    return pufferfishTestLookup(lookupOpt);
+  } else if (app.got_subcommand(alignmentApp)) {
+    return pufferfishAligner(alignmentOpt);
+  }
 
   AlignmentOpts alignmentOpt ;
   alignmentApp
@@ -150,6 +226,61 @@ int main(int argc, char* argv[]) {
                  "run without writing sam");
 
 
+  CLI::App app{"Pufferfish : An efficient dBG index."};
+  auto indexApp = app.add_subcommand("index", "build the pufferfish index");
+  auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
+  auto validateApp = app.add_subcommand(
+      "validate", "test k-mer lookup for reference sequences");
+  auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
+  auto alignmentApp = app.add_subcommand("align", "align paired end RNA-seq reads") ;
+
+  IndexOptions indexOpt;
+  indexApp
+      ->add_option("-k,--klen", indexOpt.k,
+                   "length of the k-mer with which the compacted dBG was built",
+                   static_cast<uint32_t>(31))
+      ->required();
+  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file")
+      ->required();
+  indexApp
+      ->add_option("-o,--output", indexOpt.outdir,
+                   "directory where index is written")
+      ->required();
+  indexApp
+    ->add_flag("-s,--sparse", indexOpt.isSparse,
+               "use the sparse pufferfish index (less space, but slower lookup)");
+  indexApp
+    ->add_option("-e,--extension", indexOpt.extensionSize,
+                 "length of the extension to store in the sparse index",
+                 static_cast<uint32_t>(4));
+  IndexOptions indexOpt;
+
+  TestOptions testOpt;
+
+  ValidateOptions validateOpt;
+  validateApp
+      ->add_option("-i,--index", validateOpt.indexDir,
+                   "directory where the pufferfish index is stored")
+      ->required();
+  validateApp
+      ->add_option("-r,--ref", validateOpt.refFile,
+                   "fasta file with reference sequences")
+      ->required();
+  validateApp
+    ->add_option("-g,--gfa", validateOpt.gfaFileName,
+                 "GFA file name needed for edge table validation") ;
+
+  ValidateOptions lookupOpt;
+  lookupApp
+      ->add_option("-i,--index", lookupOpt.indexDir,
+                   "directory where the pufferfish index is stored")
+      ->required();
+  lookupApp
+      ->add_option("-r,--ref", lookupOpt.refFile,
+                   "fasta file with reference sequences")
+      ->required();
+
+
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& e) {
@@ -171,5 +302,6 @@ int main(int argc, char* argv[]) {
     std::cerr << "I don't know the requested sub-command\n";
     return 1;
   }
+  */
   return 0;
 }
