@@ -21,6 +21,7 @@
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "spdlog/spdlog.h"
+#include "Kmer.hpp" // currently requires need k <= 32
 //#include "gfakluge.hpp"
 
 uint64_t swap_uint64(uint64_t val) {
