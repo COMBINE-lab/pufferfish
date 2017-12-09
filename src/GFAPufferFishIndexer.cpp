@@ -24,6 +24,9 @@
 #include "Kmer.hpp" // currently requires need k <= 32
 //#include "gfakluge.hpp"
 
+
+namespace kmers = combinelib::kmers;
+
 uint64_t swap_uint64(uint64_t val) {
   val = ((val << 8) & 0xFF00FF00FF00FF00ULL) |
         ((val >> 8) & 0x00FF00FF00FF00FFULL);
@@ -157,7 +160,7 @@ std::string packedToString(sdsl::int_vector<2>& seqVec, uint64_t offset, uint32_
   std::stringstream s;
   for (size_t i = offset; i < offset + len; ++i) {
     auto c = seqVec[i];
-    s << my_mer::rev_code(c);
+    s << kmers::charForCode(c);
   }
   auto st = s.str();
   return st;
@@ -309,7 +312,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           my_mer r;
           r.word__(0) = *kb1;
           std::cerr << "I thought I saw " << sk.to_str() << ", but I saw "
-                    << r.to_str() << "\n";
+                    << r.toStr() << "\n";
         }
 #endif
       }

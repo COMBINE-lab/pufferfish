@@ -16,7 +16,11 @@
 #include <sparsepp/spp.h>
 // using spp:sparse_hash_map;
 
+// polute the namespace --- put this in the functions that need it.
+namespace kmers = combinelib::kmers;
+
 template <typename PufferfishIndexT> class MemCollector {
+  
 
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
@@ -194,7 +198,7 @@ public:
         cCurrPos += baseCnt;
         for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
           // be dirty and peek into the underlying read
-          fastNextReadCode = my_mer::code(readSeqView[readSeqOffset]);
+          fastNextReadCode = kmers::codeForChar(readSeqView[readSeqOffset]);
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
@@ -211,7 +215,7 @@ public:
         cCurrPos -= baseCnt;
         for (int i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
           // be dirty and peek into the underlying read
-          fastNextReadCode = my_mer::code(my_mer::complement(readSeqView[readSeqOffset]));
+          fastNextReadCode = kmers::codeForChar(kmers::complement(readSeqView[readSeqOffset]));
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;

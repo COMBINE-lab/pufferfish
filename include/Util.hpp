@@ -15,18 +15,21 @@
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
 #include "jellyfish/mer_dna.hpp"
+#include "Kmer.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
 #include "CanonicalKmer.hpp"
 
-
+#ifndef __DEFINE_LIKELY_MACRO__
+#define __DEFINE_LIKELY_MACRO__
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x),1)
 #define UNLIKELY(x) __builtin_expect((x),0)
 #else
 #define LIKELY(x) (x)
 #define UNLIKELY(x) (x)
+#endif
 #endif
 
 namespace util {

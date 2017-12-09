@@ -10,6 +10,7 @@
 #include <iterator>
 
 namespace pufferfish {
+  namespace kmers = combinelib::kmers;
 // class CanonicalKmerIterator : public std::iterator<std::input_iterator_tag,
 // std::pair<CanonicalKmer, int>, int> {
 class CanonicalKmerIterator
@@ -47,7 +48,7 @@ private:
     // j is the last nucleotide in the k-mer we're building
     for (; j < static_cast<int>(s_.length()); ++j) {
       // get the code for the last nucleotide, save it as c
-      int c = my_mer::code(s_[j]);
+      int c = kmers::codeForChar(s_[j]);
       // c is a valid code if != -1
       if (c != -1) {
         p_.first.shiftFw(c);
@@ -77,7 +78,7 @@ public:
     if (!invalid_) {
       find_next(p_.second, lpos - 1);
       /** --- implementation that doesn't skip non-{ACGT}
-      int c = my_mer::code(s_[lpos]);
+      int c = kmers::codeForChar(s_[lpos]);
       if (c!=-1) { km_.shiftFw(c); } else { lastinvalid_ = pos_ + k_; }
       ++pos_;
       */
@@ -155,7 +156,7 @@ bool valid{false};
 // j is the last nucleotide in the k-mer we're building
 while (j < s_.length()) {
   // get the code for the last nucleotide, save it as c
-  int c = my_mer::code(s_[j]);
+  int c = kmers::codeForChar(s_[j]);
   // c is a valid code if != -1
   if (c != -1) {
     km_.shiftFw(c);

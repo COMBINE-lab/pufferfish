@@ -293,10 +293,13 @@ public:
   }
 
   Kmer(const Kmer& other) = default;
+  Kmer(Kmer&& other) = default;
+  Kmer(Kmer& other) = default;
+  Kmer& operator=(Kmer& other) = default;
 
   template <
       typename IterT,
-      typename = typename std::enable_if<!has_length<IterT>::value, void>::type>
+       typename = typename std::enable_if<!has_length<IterT>::value, void>::type>
   Kmer& operator=(IterT iter) {
     fromChars(iter);
     return *this;
@@ -364,7 +367,10 @@ public:
   bool fromChars(ViewT& v) {
     return fromChars(v.begin());
   }
-
+  bool fromChars(Kmer& k) {
+      data_[0] = k.data_[0];
+      return true;
+  }
   /**
    * Append the character `c` to the end of the k-mer
    **/
@@ -380,6 +386,24 @@ public:
   uint64_t prepend(char c) {
     auto r = (data_[0] & 0x03);
     data_[0] = (data_[0] >> 2) | (doEncodeBinary(c) << (2 * k_ - 2));
+    return r;
+  }
+
+   /**
+   * Append the character `c` to the end of the k-mer
+   **/
+  uint64_t append(int i) {
+    auto r = (data_[0] >> (2 * k_ - 2)) & 0x03;
+    data_[0] = maskTable[k_] & ((data_[0] << 2) | static_cast<base_type>(i));
+    return r;
+  }
+
+  /**
+   * Prepend the character `c` to the beginning of the k-mer
+   **/
+  uint64_t prepend(int i) {
+    auto r = (data_[0] & 0x03);
+    data_[0] = (data_[0] >> 2) | (static_cast<base_type>(i) << (2 * k_ - 2));
     return r;
   }
 
@@ -427,7 +451,7 @@ public:
    **/
   static uint16_t k() { return k_; }
 
-  std::string toStr() {
+  std::string toStr() const {
     std::string s(k_, 'X');
     auto& d = data_[0];
     int32_t offset = (2 * k_) - 2;

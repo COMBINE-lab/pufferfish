@@ -798,8 +798,9 @@ bool alignReads(
   std::streambuf* outBuf ;
   std::ofstream outFile ;
   //bool haveOutputFile{false} ;
+  std::shared_ptr<spdlog::logger> outLog{nullptr};
+  if (!mopts->noOutput) {
   if(mopts->outname == ""){
-
     outBuf = std::cout.rdbuf() ;
   }else{
     outFile.open(mopts->outname) ;
@@ -818,19 +819,16 @@ bool alignReads(
   spdlog::set_async_mode(queueSize);
 
   auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(outStream) ;
-  std::shared_ptr<spdlog::logger> outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
+  outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
   outLog->set_pattern("%v");
-
-  //mopts->noOutput = true;
-
-  uint32_t nthread = mopts->numThreads ;
-  std::unique_ptr<paired_parser> pairParserPtr{nullptr} ;
-
   //write the SAMHeader
   //If nothing gets printed by this
   //time we are in trouble
   writeSAMHeader(pfi, outLog) ;
+  }
 
+  uint32_t nthread = mopts->numThreads ;
+  std::unique_ptr<paired_parser> pairParserPtr{nullptr} ;
 
   size_t chunkSize{10000} ;
   SpinLockT iomutex ;
@@ -857,7 +855,7 @@ bool alignReads(
     pairParserPtr->stop();
 	consoleLog->info("flushing output queue.");
   printAlignmentSummary(hctrs, consoleLog);
-	outLog->flush();
+	if (outLog) { outLog->flush(); }
   }
 
 
