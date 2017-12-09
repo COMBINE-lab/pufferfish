@@ -528,13 +528,12 @@ void processReadsPair(paired_parser* parser,
 
   //@fatemeh Initialize aligner ksw 
   ksw2pp::KSW2Config config ;
-  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE) ;
+  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
   config.gapo = -1 * GAP_SCORE ;
   config.gape = -1 * GAP_SCORE ;
   config.bandwidth = -1 ;
   config.flag = KSW_EZ_RIGHT ;
-
   aligner.config() = config ;
   
   auto rg = parser->getReadGroup() ;

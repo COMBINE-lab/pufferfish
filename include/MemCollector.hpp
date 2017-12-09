@@ -21,7 +21,6 @@ namespace kmers = combinelib::kmers;
 
 template <typename PufferfishIndexT> class MemCollector {
   
-
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
@@ -29,6 +28,7 @@ public:
                    spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
     using namespace pufferfish::common_types;
+    namespace kmers = combinelib::kmers;
     //(void)verbose;
 
     if (hits.empty()) {
