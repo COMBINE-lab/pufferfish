@@ -258,12 +258,24 @@ public:
     CanonicalKmer::k(k);
     pufferfish::CanonicalKmerIterator kit_end;
     pufferfish::CanonicalKmerIterator kit1(read);
-    //util::QueryCache qc;
-    //constexpr uint32_t skip{5};
-    //uint32_t pos{0};               
+
+    /**
+     *  Testing heuristic.  If we just succesfully matched a k-mer, and extended it to a uni-MEM, then
+     *  the nucleotide after the end of the match is very likely to be a sequencing error (or a variant).
+     *  In this case, the next "k" k-mers will still likely overlap that error and not match.  So, instead
+     *  of looking at each of them (or skipping all of them, which might decrease sensitivity), we will 
+     *  skip (by a Mohsen number ;P) until we are at least k bases away from the end of the valid match.
+     *  Then, so as to maintain high sensitivity, we will start skipping by only 1 k-mer at a time.
+     **/              
+
+    // Start off pretending we are at least k bases away from the last hit
+    uint32_t skip{1};
+    int32_t basesSinceLastHit{k};
+    bool justHit{false};
+
     while (kit1 != kit_end) {
-      //if (pos % skip == 0) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
+      if (basesSinceLastHit >= k) { skip = 1; }
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
@@ -280,13 +292,19 @@ public:
         if(verbose) std::cout<<"len after expansion: "<<phits.k_<<"\n" ;
         
         rawHits.push_back(std::make_pair(readPosOld, phits));
+        basesSinceLastHit = 1;
+        skip = 5;
+        kit1 += (skip-1);
        //} else {
        //  ++kit1;
        //}
        //++pos;
-      } else
+      } else {
        // ++pos;
-        ++kit1;
+       basesSinceLastHit += skip;
+       kit1 += skip;
+       //++kit1;
+      }
     }
 
     // if this is the right end of a paired-end read, use memCollectionRight,
