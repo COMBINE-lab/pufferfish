@@ -289,8 +289,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   // rankVec.resize(0);
   //#endif
 
+  uint32_t hashBits = 4;
+
   if (!indexOpts.isSparse) {
-    sdsl::int_vector<> posVec(nkeys, 0, w);
+    sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
     {
       size_t i = 0;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
@@ -301,7 +303,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           std::cerr << "i =  " << i << ", size = " << seqVec.size()
                     << ", idx = " << idx << ", size = " << posVec.size() << "\n";
         }
-        posVec[idx] = kb1.pos();
+        ContigKmerIterator::value_type mer = *kb1;
+        posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
 
         // validate
 #ifdef PUFFER_DEBUG

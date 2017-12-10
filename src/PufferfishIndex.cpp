@@ -236,8 +236,18 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
-    auto dat = seq_.data();
     uint64_t pos = pos_[res];
+    uint64_t hashbits = pos & 0xF;
+    pos = pos >> 4;
+    if ((km & 0xF) != hashbits) { 
+        return {std::numeric_limits<uint32_t>::max(),
+          std::numeric_limits<uint64_t>::max(),
+          std::numeric_limits<uint32_t>::max(),
+          true,
+          0,
+          k_,
+          core::range<IterT>{}};
+    }
     uint64_t twopos = pos << 1;
     uint64_t fk = seq_.get_int(twopos, twok_);
     // say how the kmer fk matches mer; either

@@ -246,6 +246,7 @@ public:
                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
+                  util::QueryCache& qc,
                   bool verbose=false) {
     // currently unused:
     // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
@@ -257,9 +258,11 @@ public:
     CanonicalKmer::k(k);
     pufferfish::CanonicalKmerIterator kit_end;
     pufferfish::CanonicalKmerIterator kit1(read);
-    util::QueryCache qc;
-
+    //util::QueryCache qc;
+    //constexpr uint32_t skip{5};
+    //uint32_t pos{0};               
     while (kit1 != kit_end) {
+      //if (pos % skip == 0) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
@@ -277,7 +280,12 @@ public:
         if(verbose) std::cout<<"len after expansion: "<<phits.k_<<"\n" ;
         
         rawHits.push_back(std::make_pair(readPosOld, phits));
+       //} else {
+       //  ++kit1;
+       //}
+       //++pos;
       } else
+       // ++pos;
         ++kit1;
     }
 

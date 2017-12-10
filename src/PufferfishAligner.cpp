@@ -525,6 +525,7 @@ void processReadsPair(paired_parser* parser,
   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits ;
   std::vector<util::JointMems> jointHits ;
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
+  util::QueryCache qc;
 
   //@fatemeh Initialize aligner ksw 
   ksw2pp::KSW2Config config ;
@@ -562,6 +563,7 @@ void processReadsPair(paired_parser* parser,
                              leftHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_LEFT,
+                             qc,
                              verbose
                              /*
                              mopts->consistentHits,
@@ -570,6 +572,7 @@ void processReadsPair(paired_parser* parser,
                              rightHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_RIGHT,
+                             qc,
                              verbose
                              /*,
                              mopts->consistentHits,
