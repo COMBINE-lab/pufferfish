@@ -250,8 +250,10 @@ public:
                   bool verbose=false) {
     // currently unused:
     // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-    if (verbose)
+    if (verbose) {
       std::cout << (mateStatus == util::MateStatus::PAIRED_END_RIGHT) << "\n";
+    }
+
     util::ProjectedHits phits;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
@@ -275,7 +277,7 @@ public:
 
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
-      if (basesSinceLastHit >= k) { skip = 1; }
+      skip = (basesSinceLastHit >= k) ? 1 : 5;
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos

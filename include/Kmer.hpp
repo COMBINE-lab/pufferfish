@@ -11,12 +11,15 @@
 namespace combinelib {
 namespace kmers {
 
+#ifndef __DEFINE_LIKELY_MACRO__
+#define __DEFINE_LIKELY_MACRO__
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x), 1)
 #define UNLIKELY(x) __builtin_expect((x), 0)
 #else
 #define LIKELY(x) (x)
 #define UNLIKELY(x) (x)
+#endif
 #endif
 
 /**
