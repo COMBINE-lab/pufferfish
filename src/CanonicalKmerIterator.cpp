@@ -8,6 +8,8 @@
 #include <utility>
 
 namespace pufferfish {
+  namespace kmers = combinelib::kmers;
+
 /* Note: That an iter is exhausted means that (iter._invalid == true) */
 
 // use:  find_next(i,j, last_valid);
@@ -23,7 +25,7 @@ void CanonicalKmerIterator::find_next(int j) { //}, bool last_valid) {
   for (; j < s_.length(); ++j) {
     // while (j < s_.length()) {
     // get the code for the last nucleotide, save it as c
-    int c = my_mer::code(s_[j]);
+    int c = kmers::codeForChar(s_[j]);
     // c is a valid code if != -1
     if (c != -1) {
       km_.shiftFw(c);
@@ -57,7 +59,7 @@ inline CanonicalKmerIterator& CanonicalKmerIterator::operator++() {
   if (!invalid_) {
     find_next(pos_, lpos - 1);
     /*
-    int c = my_mer::code(s_[lpos]);
+    int c = kmers::codeForChar(s_[lpos]);
     if (c!=-1) { km_.shiftFw(c); } else { lastinvalid_ = pos_ + k_; }
     ++pos_;
     */
@@ -151,7 +153,7 @@ void CanonicalKmerIterator::find_next(size_t i, size_t j, bool last_valid) {
 while (s_[j] != 0) {
   //auto c =
   //char c = s_[j] & 0xDF; // mask lowercase bit
-  int c = my_mer::code(s_[j]);
+  int c = kmers::codeForChar(s_[j]);
   if (c != -1) {//} == 'A' || c == 'C' || c == 'G' || c == 'T') {
     if (last_valid) {
       p_.first.shiftFw(c);

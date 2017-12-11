@@ -97,7 +97,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
 
       uint8_t edgeVec = edge[ctgInfo.fileOrder] ;
       uint8_t loop = 0 ;
-
+/*
       std::bitset<8> b = edgeVec ;
       std::cerr << "Parsing vector " << b << "\n" ;
 
@@ -131,6 +131,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
         kb = kbtmp ;
         ke = ketmp ;
       }
+      */
       
       /*
       while(edgeVec){
@@ -230,7 +231,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
 
   }
 
-  /*
+  
   {
     ScopedTimer st;
     std::vector<std::string> read_file = {validateOpts.refFile};
@@ -303,7 +304,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
         }
       }
     }
-  }*/
+  }
   std::cerr << "found = " << found << ", not found = " << notFound << "\n";
   std::cerr << "correctPos = " << correctPosCntr
             << ", incorrectPos = " << incorrectPosCntr << "\n";

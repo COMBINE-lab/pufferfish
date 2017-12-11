@@ -19,6 +19,8 @@
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 
+namespace kmers = combinelib::kmers;
+
 template <typename IndexT>
 int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
   CanonicalKmer::k(pi.k());
@@ -55,7 +57,7 @@ int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
         bool valid = true;
         int lastinvalid = -1;
           for (size_t i = 0; i < r1.length(); ++i) {
-          int c = my_mer::code(r1[i]);
+          int c = kmers::codeForChar(r1[i]);
           if (c != -1) {
             mer.shiftFw(r1[i]);
             valid = (i - lastinvalid >= k);

@@ -38,24 +38,6 @@ int pufferfishValidate(
 int pufferfishTestLookup(
     ValidateOptions& lookupOpts); // int argc, char* argv[]);
 int pufferfishAligner(AlignmentOpts& alignmentOpts) ;
-// int rapMapMap(int argc, char* argv[]);
-// int rapMapSAMap(int argc, char* argv[]);
-
-void printUsage() {
-  std::string versionString = pufferfish::version;
-  std::cerr << "Pufferfish v" << versionString << '\n';
-  std::cerr << "=====================================\n";
-  auto usage =
-      R"(
-There are currently 2 Pufferfish subcommands
-    index --- builds a Pufferfish index
-    test --- tests k-mer lookup in the index
-
-Run a corresponding command "pufferrish <cmd> -h" for
-more information on each of the possible Pufferfish
-commands.)";
-  std::cerr << usage << '\n';
-}
 
 int main(int argc, char* argv[]) {
   using namespace clipp;
@@ -106,13 +88,16 @@ int main(int argc, char* argv[]) {
                      ) |
                      ((required("--read") & value("reads", throwaway)) % "path to single-end read files")
                     ),
-                    (option("-m", "--just-mapping") & value("just map", alignmentOpt.justMap)) % "don't attempt alignment validation; just do mapping",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
-                    (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "output file where the alignment results will be stored",
+                    (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
+                    (
+                      (required("--noOutput").set(alignmentOpt.noOutput, true)) % "run without writing SAM file"
+                        |
+                      (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "output file where the alignment results will be stored"
+                    ),
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
-                    (option("--writeOrphans").set(alignmentOpt.writeOrphans, true)) % "write Orphans flag",
-                    (option("--noOutput").set(alignmentOpt.noOutput, true)) % "run without writing SAM file"
+                    (option("--writeOrphans").set(alignmentOpt.writeOrphans, true)) % "write Orphans flag"
                     );
 
   auto cli = (
@@ -125,7 +110,7 @@ int main(int argc, char* argv[]) {
   } catch (std::exception& e) {
     std::cout << "\n\nParsing command line failed with exception: " << e.what() << "\n";
     std::cout << "\n\n";
-    std::cout << make_man_page(cli, "mantis");
+    std::cout << make_man_page(cli, "pufferfish");
     return 1;
   }
 
@@ -139,23 +124,11 @@ int main(int argc, char* argv[]) {
     case mode::help: std::cout << make_man_page(cli, "pufferfish"); break;
     }
   } else {
-    debug::print(std::cerr, res);
     auto b = res.begin();
     auto e = res.end();
-    std::cerr << "any blocked " << res.any_blocked() << "\n";
-    std::cerr << "any conflict " << res.any_conflict() << "\n";
-    std::cerr << "any bad repeat " << res.any_bad_repeat() << "\n";
-    std::cerr << "any error " << res.any_error() << "\n";
-    for( auto& m : res.missing() ) {
-      std::cerr << "missing " << m.param()->label() << "\n";
-    }
     if (std::distance(b,e) > 0) {
       if (b->arg() == "index") {
         std::cout << make_man_page(indexMode, "pufferfish");
-        while (b != e) {
-          std::cerr << b->arg() << "\n";
-          ++b;
-        }
       } else if (b->arg() == "validate") {
         std::cout << make_man_page(validateMode, "pufferfish");
       } else if (b->arg() == "lookup") {

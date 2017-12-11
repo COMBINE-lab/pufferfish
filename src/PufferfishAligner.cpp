@@ -525,16 +525,16 @@ void processReadsPair(paired_parser* parser,
   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits ;
   std::vector<util::JointMems> jointHits ;
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
+  util::QueryCache qc;
 
   //@fatemeh Initialize aligner ksw 
   ksw2pp::KSW2Config config ;
-  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE) ;
+  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
   config.gapo = -1 * GAP_SCORE ;
   config.gape = -1 * GAP_SCORE ;
   config.bandwidth = -1 ;
   config.flag = KSW_EZ_RIGHT ;
-
   aligner.config() = config ;
   
   auto rg = parser->getReadGroup() ;
@@ -563,6 +563,7 @@ void processReadsPair(paired_parser* parser,
                              leftHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_LEFT,
+                             qc,
                              verbose
                              /*
                              mopts->consistentHits,
@@ -571,6 +572,7 @@ void processReadsPair(paired_parser* parser,
                              rightHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_RIGHT,
+                             qc,
                              verbose
                              /*,
                              mopts->consistentHits,
@@ -798,8 +800,9 @@ bool alignReads(
   std::streambuf* outBuf ;
   std::ofstream outFile ;
   //bool haveOutputFile{false} ;
+  std::shared_ptr<spdlog::logger> outLog{nullptr};
+  if (!mopts->noOutput) {
   if(mopts->outname == ""){
-
     outBuf = std::cout.rdbuf() ;
   }else{
     outFile.open(mopts->outname) ;
@@ -818,19 +821,16 @@ bool alignReads(
   spdlog::set_async_mode(queueSize);
 
   auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(outStream) ;
-  std::shared_ptr<spdlog::logger> outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
+  outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
   outLog->set_pattern("%v");
-
-  //mopts->noOutput = true;
-
-  uint32_t nthread = mopts->numThreads ;
-  std::unique_ptr<paired_parser> pairParserPtr{nullptr} ;
-
   //write the SAMHeader
   //If nothing gets printed by this
   //time we are in trouble
   writeSAMHeader(pfi, outLog) ;
+  }
 
+  uint32_t nthread = mopts->numThreads ;
+  std::unique_ptr<paired_parser> pairParserPtr{nullptr} ;
 
   size_t chunkSize{10000} ;
   SpinLockT iomutex ;
@@ -857,7 +857,7 @@ bool alignReads(
     pairParserPtr->stop();
 	consoleLog->info("flushing output queue.");
   printAlignmentSummary(hctrs, consoleLog);
-	outLog->flush();
+	if (outLog) { outLog->flush(); }
   }
 
 

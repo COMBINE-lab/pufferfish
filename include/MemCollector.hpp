@@ -16,8 +16,11 @@
 #include <sparsepp/spp.h>
 // using spp:sparse_hash_map;
 
-template <typename PufferfishIndexT> class MemCollector {
+// polute the namespace --- put this in the functions that need it.
+namespace kmers = combinelib::kmers;
 
+template <typename PufferfishIndexT> class MemCollector {
+  
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
@@ -25,6 +28,7 @@ public:
                    spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
     using namespace pufferfish::common_types;
+    namespace kmers = combinelib::kmers;
     //(void)verbose;
 
     if (hits.empty()) {
@@ -194,7 +198,7 @@ public:
         cCurrPos += baseCnt;
         for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
           // be dirty and peek into the underlying read
-          fastNextReadCode = my_mer::code(readSeqView[readSeqOffset]);
+          fastNextReadCode = kmers::codeForChar(readSeqView[readSeqOffset]);
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
@@ -211,7 +215,7 @@ public:
         cCurrPos -= baseCnt;
         for (int i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
           // be dirty and peek into the underlying read
-          fastNextReadCode = my_mer::code(my_mer::complement(readSeqView[readSeqOffset]));
+          fastNextReadCode = kmers::codeForChar(kmers::complement(readSeqView[readSeqOffset]));
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
@@ -242,21 +246,38 @@ public:
                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
+                  util::QueryCache& qc,
                   bool verbose=false) {
     // currently unused:
     // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-    if (verbose)
+    if (verbose) {
       std::cout << (mateStatus == util::MateStatus::PAIRED_END_RIGHT) << "\n";
+    }
+
     util::ProjectedHits phits;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
     CanonicalKmer::k(k);
     pufferfish::CanonicalKmerIterator kit_end;
     pufferfish::CanonicalKmerIterator kit1(read);
-    util::QueryCache qc;
+
+    /**
+     *  Testing heuristic.  If we just succesfully matched a k-mer, and extended it to a uni-MEM, then
+     *  the nucleotide after the end of the match is very likely to be a sequencing error (or a variant).
+     *  In this case, the next "k" k-mers will still likely overlap that error and not match.  So, instead
+     *  of looking at each of them (or skipping all of them, which might decrease sensitivity), we will 
+     *  skip (by a Mohsen number ;P) until we are at least k bases away from the end of the valid match.
+     *  Then, so as to maintain high sensitivity, we will start skipping by only 1 k-mer at a time.
+     **/              
+
+    // Start off pretending we are at least k bases away from the last hit
+    uint32_t skip{1};
+    int32_t basesSinceLastHit{k};
+    bool justHit{false};
 
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
+      skip = (basesSinceLastHit >= k) ? 1 : 5;
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
@@ -273,8 +294,19 @@ public:
         if(verbose) std::cout<<"len after expansion: "<<phits.k_<<"\n" ;
         
         rawHits.push_back(std::make_pair(readPosOld, phits));
-      } else
-        ++kit1;
+        basesSinceLastHit = 1;
+        skip = 5;
+        kit1 += (skip-1);
+       //} else {
+       //  ++kit1;
+       //}
+       //++pos;
+      } else {
+       // ++pos;
+       basesSinceLastHit += skip;
+       kit1 += skip;
+       //++kit1;
+      }
     }
 
     // if this is the right end of a paired-end read, use memCollectionRight,

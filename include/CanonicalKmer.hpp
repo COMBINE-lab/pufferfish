@@ -2,6 +2,7 @@
 #define __CANONICAL_KMER_HPP__
 
 #include "jellyfish/mer_dna.hpp"
+#include "Kmer.hpp"
 
 // NO_MATCH => two k-mers k1, and k2 are distinct such that k1 != k2 and rc(k1)
 // != k2
@@ -9,8 +10,10 @@
 // TWIN_MATCH => rc(k1) = k2
 enum class KmerMatchType : uint8_t { NO_MATCH = 0, IDENTITY_MATCH, TWIN_MATCH };
 
-using my_mer = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
-
+namespace kmers = combinelib::kmers;
+using my_mer = kmers::Kmer<32,1>;//jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
+//using my_mer2 = jellyfish::mer_dna_ns::mer_base_static<uint64_t, 1>;
+  
 /**
  * This class wraps a pair of jellifish k-mers
  * (i.e., mer_dna objects).  It maintains both a
@@ -30,7 +33,7 @@ public:
   CanonicalKmer(const CanonicalKmer& other) = default;
   CanonicalKmer& operator=(CanonicalKmer& other) = default;
 
-  static inline void k(int kIn) { my_mer::k(kIn); }
+  static inline void k(int kIn) { my_mer::k(kIn);}
   static inline int k() { return my_mer::k(); }
 
   inline bool fromStr(const std::string& s) {
@@ -39,8 +42,8 @@ public:
       return false;
     }
     for (size_t i = 0; i < k; ++i) {
-      fw_.shift_right(s[i]);
-      rc_.shift_left(my_mer::complement(s[i]));
+      fw_.prepend(s[i]);
+      rc_.append(kmers::complement(s[i]));
     }
     return true;
   }
@@ -49,15 +52,15 @@ public:
     auto k = my_mer::k();
     // if (s.length() < k) { return false; }
     for (size_t i = 0; i < k; ++i) {
-      fw_.shift_right(s[i]);
-      rc_.shift_left(my_mer::complement(s[i]));
+      fw_.prepend(s[i]);
+      rc_.append(kmers::complement(s[i]));
     }
     return true;
   }
 
   inline void fromNum(uint64_t w) {
     fw_.word__(0) = w;
-    rc_ = fw_.get_reverse_complement();
+    rc_ = fw_.getRC();
   }
 
   inline void swap(){
@@ -69,30 +72,30 @@ public:
 
   inline bool isFwCanonical() const { return fw_ < rc_; }
 
-  inline auto shiftFw(int c) -> decltype(this->fw_.shift_right(c)) {
-    rc_.shift_left(my_mer::complement(c));
-    return fw_.shift_right(c);
+  inline auto shiftFw(int c) -> decltype(this->fw_.prepend(c)) {
+    rc_.append(kmers::complement(c));
+    return fw_.prepend(c);
   }
 
-  inline auto shiftBw(int c) -> decltype(this->fw_.shift_left(c)) {
-    rc_.shift_right(my_mer::complement(c));
-    return fw_.shift_left(c);
+  inline auto shiftBw(int c) -> decltype(this->fw_.append(c)) {
+    rc_.prepend(kmers::complement(c));
+    return fw_.append(c);
   }
 
-  inline auto shiftFw(char c) -> decltype(this->fw_.shift_right(c)) {
-    int x = my_mer::code(c);
+  inline auto shiftFw(char c) -> decltype(kmers::charForCode(this->fw_.prepend(c))) {
+    int x = kmers::codeForChar(c);
     if (x == -1)
       return 'N';
-    rc_.shift_left(my_mer::complement(x));
-    return my_mer::rev_code(fw_.shift_right(x));
+    rc_.append(kmers::complement(x));
+    return kmers::charForCode(fw_.prepend(x));
   }
 
-  inline auto shiftBw(char c) -> decltype(this->fw_.shift_left(c)) {
-    int x = my_mer::code(c);
+  inline auto shiftBw(char c) -> decltype(kmers::charForCode(this->fw_.append(c))) {
+    int x = kmers::codeForChar(c);
     if (x == -1)
       return 'N';
-    rc_.shift_right(my_mer::complement(x));
-    return my_mer::rev_code(fw_.shift_left(x));
+    rc_.prepend(kmers::complement(x));
+    return kmers::charForCode(fw_.append(x));
   }
 
   inline uint64_t getCanonicalWord() const {
@@ -124,7 +127,7 @@ public:
   }
 
   inline std::string to_str() const {
-    std::string s = fw_.to_str();
+    std::string s = fw_.toStr();
     std::reverse(s.begin(), s.end());
     return s;
   }

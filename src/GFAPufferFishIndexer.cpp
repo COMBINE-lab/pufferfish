@@ -24,6 +24,9 @@
 #include "Kmer.hpp" // currently requires need k <= 32
 //#include "gfakluge.hpp"
 
+
+namespace kmers = combinelib::kmers;
+
 uint64_t swap_uint64(uint64_t val) {
   val = ((val << 8) & 0xFF00FF00FF00FF00ULL) |
         ((val >> 8) & 0x00FF00FF00FF00FFULL);
@@ -157,7 +160,7 @@ std::string packedToString(sdsl::int_vector<2>& seqVec, uint64_t offset, uint32_
   std::stringstream s;
   for (size_t i = offset; i < offset + len; ++i) {
     auto c = seqVec[i];
-    s << my_mer::rev_code(c);
+    s << kmers::charForCode(c);
   }
   auto st = s.str();
   return st;
@@ -286,8 +289,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   // rankVec.resize(0);
   //#endif
 
+  uint32_t hashBits = 4;
+
   if (!indexOpts.isSparse) {
-    sdsl::int_vector<> posVec(nkeys, 0, w);
+    sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
     {
       size_t i = 0;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
@@ -298,7 +303,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           std::cerr << "i =  " << i << ", size = " << seqVec.size()
                     << ", idx = " << idx << ", size = " << posVec.size() << "\n";
         }
-        posVec[idx] = kb1.pos();
+        ContigKmerIterator::value_type mer = *kb1;
+        posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
 
         // validate
 #ifdef PUFFER_DEBUG
@@ -309,7 +315,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           my_mer r;
           r.word__(0) = *kb1;
           std::cerr << "I thought I saw " << sk.to_str() << ", but I saw "
-                    << r.to_str() << "\n";
+                    << r.toStr() << "\n";
         }
 #endif
       }

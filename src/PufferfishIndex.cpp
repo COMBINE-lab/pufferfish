@@ -213,6 +213,18 @@ std::string PufferfishIndex::getSeqStr(size_t globalPos, size_t length, bool isF
 
 
 
+inline uint64_t our_read_int(uint64_t* word, uint8_t offset, const uint8_t len)
+{
+    uint64_t w1 = (*word)>>offset;
+    if ((offset+len) > 64) { // if offset+len > 64
+        return w1 |  // w1 or w2 adepted:
+               ((*(word+1) & sdsl::bits::lo_set[(offset+len)&0x3F])   // set higher bits zero
+                << (64-offset));  // move bits to the left
+    } else {
+        return w1 & sdsl::bits::lo_set[len];
+    }
+}
+
 /**
  * Returns a ProjectedHits object containing all of the reference loci matching this
  * provided Canonical kmer (including the oritentation of the match).  The provided
@@ -225,6 +237,17 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
     uint64_t pos = pos_[res];
+    uint64_t hashbits = pos & 0xF;
+    pos = pos >> 4;
+    if ((km & 0xF) != hashbits) { 
+        return {std::numeric_limits<uint32_t>::max(),
+          std::numeric_limits<uint64_t>::max(),
+          std::numeric_limits<uint32_t>::max(),
+          true,
+          0,
+          k_,
+          core::range<IterT>{}};
+    }
     uint64_t twopos = pos << 1;
     uint64_t fk = seq_.get_int(twopos, twok_);
     // say how the kmer fk matches mer; either

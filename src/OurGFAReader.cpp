@@ -2,12 +2,13 @@
 #include "CanonicalKmer.hpp"
 #include "cereal/archives/binary.hpp"
 #include "xxhash.h"
+#include "Kmer.hpp"
 #include <algorithm>
 #include <string>
 #include <bitset>
 
 
-
+namespace kmers = combinelib::kmers;
 enum class Direction : bool { PREPEND, APPEND } ;
 
 
@@ -147,7 +148,7 @@ size_t PosFinder::fillContigInfoMap_() {
 void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
                           stx::string_view str) {
   for (size_t i = 0; i < str.length(); ++i) {
-    auto c = my_mer::code(str[i]);
+    auto c = kmers::codeForChar(str[i]);
     seqVec[offset + i] = c;
   }
 }
