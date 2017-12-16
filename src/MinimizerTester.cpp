@@ -41,19 +41,23 @@ int main(int argc, char* argv[]) {
     uint64_t splittedUnitigCnt = 0; // total number of unitigs that we had a split in
     uint64_t tmpUnitigSplitCnt = 0; // number of splits in current unitig
     uint64_t prevPos = 0;
-    while (cur < seq.size()) {
+    while (cur < seq.size()-(k-1)) {
       // if we've already passed the last kmer in current unitig, go to next unitig
       if (cur >= next - (k-1)) {
+        // got to the end of the unitig. Add the new contig to the right minimizer bucket
+        buckets[minimizer].first += (cur+(k-1)-prevPos);
+        buckets[minimizer].second++;
+        minimizer = 0x01 << 2*m; // reset minimizer to max for next contig
         start = next;
         cur = next;
         next = unitigS(contigCntr++);
+
         if (tmpUnitigSplitCnt > 0) {
           splittedUnitigCnt++;
           unitigSplitCnt += tmpUnitigSplitCnt;
           // reset current unitig split cnt to zero
           tmpUnitigSplitCnt = 0;
         }
-        if (cur >= seq.size()-(k-1)) break;
       }
 
       // if current kmer is the first kmer in unitig or we've surpassed current minimizer
@@ -65,10 +69,14 @@ int main(int argc, char* argv[]) {
         minimizerPos = cur + relMinimizerPos;
         // If we are not at a new unitig and the minimizer is different from previous one, this means a split in unitig
         if (cur != start and minimizer != tmpMinimizer) {
-          tmpUnitigSplitCnt++;
+          // store the info about the new unitig up until this minimizer
+          buckets[minimizer].first += (cur+(k-1)-prevPos);
+          buckets[minimizer].second++;
+          tmpUnitigSplitCnt++; // increase unitig split count
           prevPos = cur;
         }
-      }
+        minimizer = tmpMinimizer;
+      } 
       else {
         uint64_t nextPotentialMinPos = cur+(k-(m-1));
         uint8_t nextPotentialMinimizer = seq.get_int(2*nextPotentialMinPos, 2*m);
@@ -83,6 +91,10 @@ int main(int argc, char* argv[]) {
       }
       cur++;
     }
+    std::cout << "MINIMIZER LENGTH : "<< m << "\n";
+    std::cout << "# of unitigs before splitting: " << contigCntr << "\n"
+              << "# of unitigs after splitting: " << unitigSplitCnt << "\n"
+              << "# of unitigs that were splitted: " << splittedUnitigCnt << "\n";
   }
 
 }
