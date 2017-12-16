@@ -42,6 +42,7 @@ add_executable(myGFAtester MyGFATester.cpp FastxParser.cpp)
 #add_executable(myGraphtester MyGraphTester.cpp)
 add_executable(pufferize Pufferizer.cpp)
 add_executable(edgedensity EdgeDensity.cpp)
+add_executable(minimizerTester MinimizerTester.cpp)
 
 #target_link_libraries(pufferfish-index-old z sdsl)
 target_link_libraries(pufferfish puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)
@@ -50,6 +51,7 @@ target_link_libraries(myGFAtester z sdsl puffer)
 target_link_libraries(pufferize puffer z)
 target_link_libraries(edgedensity z puffer)
 target_link_libraries(kswcli z ksw2)
+target_link_libraries(minimizerTester puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)
 #target_link_libraries(myGraphtester puffer)
 
 
