@@ -35,6 +35,7 @@ set(pufferfish_lib_srcs
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 
 #add_executable(pufferfish-index-old PufferFishIndexer.cpp FastxParser.cpp)
+add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
 add_executable(kswcli cli.cpp)
 add_executable(pufferfish Pufferfish.cpp)
 add_executable(fixFasta FixFasta.cpp FastxParser.cpp xxhash.c)
@@ -45,6 +46,7 @@ add_executable(edgedensity EdgeDensity.cpp)
 
 #target_link_libraries(pufferfish-index-old z sdsl)
 target_link_libraries(pufferfish puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)
+target_link_libraries(bcalm_pufferize z)
 target_link_libraries(fixFasta z)
 target_link_libraries(myGFAtester z sdsl puffer)
 target_link_libraries(pufferize puffer z)

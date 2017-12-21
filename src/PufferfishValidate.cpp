@@ -224,6 +224,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
         loop++ ;
         }*/
 
+
       }
     
     std::cerr << "Found all edges \n" ;

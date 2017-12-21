@@ -289,10 +289,12 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   // rankVec.resize(0);
   //#endif
 
-  uint32_t hashBits = 4;
-
-  if (!indexOpts.isSparse) {
-    sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
+  // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
+  //uint32_t hashBits = 4;
+  if (!indexOpts.isSparse) {  
+    // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
+    // sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
+    sdsl::int_vector<> posVec(nkeys, 0, w);
     {
       size_t i = 0;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
@@ -304,8 +306,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
                     << ", idx = " << idx << ", size = " << posVec.size() << "\n";
         }
         ContigKmerIterator::value_type mer = *kb1;
-        posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
-
+        // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
+        //posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
+        posVec[idx] = kb1.pos(); 
+        
         // validate
 #ifdef PUFFER_DEBUG
         uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
