@@ -1,6 +1,7 @@
 # Index
  * [What is pufferfish?](#whatis)
-
+ * [Using pufferfish?](#using)
+ 
 # What is pufferfish? <a name="whatis"></a>
 
 **short answer** : Pufferfish is a new time and memory-efficient data structure for indexing a compacted, colored de Bruijn graph (ccdBG).  You can read more about pufferfish in our [pre-print on bioRxiv](https://www.biorxiv.org/content/early/2017/09/21/191874).
