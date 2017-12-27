@@ -100,6 +100,7 @@ public:
   sdsl::int_vector<2>& getSeq() {return seq_;}
   sdsl::int_vector<8>& getEdge() {return edge_;}
   sdsl::bit_vector::select_1_type& getBoundarySelect() {return contigSelect_;}
+  sdsl::bit_vector& getBoundary() {return contigBoundary_;}
   //sdsl::int_vector<8>& getRevEdge() {return revedge_;}
 
   uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
