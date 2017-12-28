@@ -1,25 +1,31 @@
+//#include <limits>
 
 #include "sdsl/int_vector.hpp"
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 
 #include "PufferfishIndex.hpp"
+#include "xxhash.h"
 
 struct Bucket {
   uint64_t numOfKmers = 0;
   uint64_t numOfUnitigs = 0;
   uint64_t seqLength = 0;
 };
-void findMinimizer(uint64_t kmer, uint8_t k, uint8_t m, uint64_t* minimizer, uint64_t* minimizerPos) {
+void findMinimizer(uint64_t kmer, uint8_t k, uint8_t m, uint64_t* minimizer, uint64_t* minimizerPos, std::map<uint64_t, uint64_t>& val2hash) {
   uint8_t mask = (0x01 << 2*m)-1;
+  //std::cout << " -- sw " << *minimizer;
   for (uint64_t cntr = 0; cntr <= (uint64_t)k-m; cntr++) {
     //std::cout << "c" << cntr << " " << ((kmer >> 2*cntr) & mask) << " ";
-    if ((*minimizer) > ((kmer >> 2*cntr) & mask)) {
-      (*minimizer) = (kmer >> 2*cntr) & mask;
+    uint64_t val = (kmer >> 2*cntr) & mask;
+    uint64_t minHash = val2hash[val];// XXH64(&val, 64, 0);
+    //std::cout << val << " " << minHash << " ";
+    if ((*minimizer) > minHash) {
+      (*minimizer) = minHash;
       (*minimizerPos) = cntr;
     }
   }
-  //std::cout << " --- ";
+  //std::cout << " --- newMin : " << *minimizer << " ";
 }
 
 int main(int argc, char* argv[]) {
@@ -32,6 +38,16 @@ int main(int argc, char* argv[]) {
 
   for (uint8_t m = 2; m < 3; m++) {
     std::cout << "\n\nMINIMIZER LENGTH : "<< static_cast<size_t>(m) << "\n\n";
+    std::map<uint64_t, uint64_t> hash2bucketIdx;
+    std::map<uint64_t, uint64_t> val2hash;
+    size_t bucketCnt = (0x01 << 2*m);
+    for (uint64_t i = 0; i < bucketCnt; i++) {
+      uint64_t val = i;
+      size_t a = XXH64(&val, 64, 0);
+      hash2bucketIdx[a] = i;
+      val2hash[i] = a;
+      std::cout << i << " " << a << "\n";
+    }
     uint64_t contigCntr = 1;
     uint64_t start = 0;
     uint64_t cur = 0;
@@ -48,18 +64,19 @@ int main(int argc, char* argv[]) {
     std::cout << "\nEnd of test.\n";
     std::exit(1);
     */
-    uint64_t minimizer = 0x01 << 2*m;
+    uint64_t minimizer = -1;//std::numeric_limits<uint64_t>::max; //0x01 << 2*m;
     uint64_t minimizerPos = 0;
     uint64_t totalNumOfKmers = (next - cur) -k+1;
     //std::cout << totalNumOfKmers << " " ;
 
     // findMinimizer test:
-    /*
+    /*x
     uint8_t tmpMinimizer = 0x01 << 2*m;
     uint64_t relMinimizerPos = 0;
     findMinimizer(0xFFFFFFFEFFFFFFFF, k, m, &tmpMinimizer, &relMinimizerPos);
     std::cout << "IT SHOULD BE 11 AND IS " << (size_t)tmpMinimizer << "\n";
     */
+
     std::vector<Bucket> buckets(0x01 << 2*m);
     // initial all pairs to zero
     uint64_t unitigSplitCnt = 0; // total number of splits happening across all unitigs
@@ -69,17 +86,19 @@ int main(int argc, char* argv[]) {
     while (cur <= seq.size()-k) {
       // if current kmer is the first kmer in unitig or we've surpassed current minimizer
       if (cur == start or cur > minimizerPos) {
+        //std::cout << "2\n ";
         uint64_t kmer = seq.get_int(2*cur, 2*k);
-        uint64_t tmpMinimizer = 0x01 << 2*m; // reset minimizer to max
+        uint64_t tmpMinimizer = -1;//std::numeric_limits<uint64_t>::max; //0x01 << 2*m; // reset minimizer to max
         uint64_t relMinimizerPos = 0;
-        findMinimizer(kmer, k, m, &tmpMinimizer, &relMinimizerPos);
+        findMinimizer(kmer, k, m, &tmpMinimizer, &relMinimizerPos, val2hash);
         minimizerPos = cur + relMinimizerPos;
         // If we are not at a new unitig and the minimizer is different from previous one, this means a split in unitig
         if (cur != start and minimizer != tmpMinimizer) {
           // store the info about the new unitig up until this minimizer
-          buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
-          buckets[minimizer].numOfKmers += cur-prevPos;
-          buckets[minimizer].numOfUnitigs++;
+          //std::cout << "2 " << minimizer << " " << hash2bucketIdx[minimizer] << " -- ";
+          buckets[hash2bucketIdx[minimizer]].seqLength += (cur+(k-1)-prevPos);
+          buckets[hash2bucketIdx[minimizer]].numOfKmers += cur-prevPos;
+          buckets[hash2bucketIdx[minimizer]].numOfUnitigs++;
           tmpUnitigSplitCnt++; // increase unitig split count
           prevPos = cur;
         }
@@ -87,14 +106,17 @@ int main(int argc, char* argv[]) {
         //std::cout << (size_t)minimizer << "\n";
       }
       else {
-        uint64_t nextPotentialMinimizer = seq.get_int(2*(cur+(k-m)), 2*m);
+        //std::cout << "3 \n";
+        uint64_t val = seq.get_int(2*(cur+(k-m)), 2*m);
+        uint64_t nextPotentialMinimizer = val2hash[val];//XXH64(&val, 64, 0);
         if (nextPotentialMinimizer < minimizer) {
           tmpUnitigSplitCnt++;
           minimizer = nextPotentialMinimizer;
           minimizerPos = cur+(k-m);
-          buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
-          buckets[minimizer].numOfKmers += (cur-prevPos);
-          buckets[minimizer].numOfUnitigs++;
+          //std::cout << "3 " << minimizer << " " << hash2bucketIdx[minimizer] << " -- ";
+          buckets[hash2bucketIdx[minimizer]].seqLength += (cur+(k-1)-prevPos);
+          buckets[hash2bucketIdx[minimizer]].numOfKmers += (cur-prevPos);
+          buckets[hash2bucketIdx[minimizer]].numOfUnitigs++;
           prevPos = cur;
         }
       }
@@ -103,17 +125,19 @@ int main(int argc, char* argv[]) {
       // first add the last part of the contig not added (at least one kmer)
       // then go to the next unitig
       if (cur >= next - (k-1)) {
+        ///std::cout << "4 \n";
         // got to the end of the unitig. Add the new contig to the right minimizer bucket
-        buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
-        buckets[minimizer].numOfKmers += (cur-prevPos);
-        buckets[minimizer].numOfUnitigs++;
+        //std::cout << "4 " << minimizer << " " << hash2bucketIdx[minimizer] << " -- ";
+        buckets[hash2bucketIdx[minimizer]].seqLength += (cur+(k-1)-prevPos);
+        buckets[hash2bucketIdx[minimizer]].numOfKmers += (cur-prevPos);
+        buckets[hash2bucketIdx[minimizer]].numOfUnitigs++;
         if (tmpUnitigSplitCnt > 0) {
           splittedUnitigCnt++;
           unitigSplitCnt += tmpUnitigSplitCnt;
           // reset current unitig split cnt to zero
           tmpUnitigSplitCnt = 0;
         }
-        minimizer = 0x01 << 2*m; // reset minimizer to max for next contig
+        minimizer = -1;//std::numeric_limits<uint64_t>::max; //0x01 << 2*m; // reset minimizer to max for next contig
         start = next;
         cur = next;
         prevPos = cur;
@@ -148,13 +172,13 @@ int main(int argc, char* argv[]) {
       if (bIt->numOfKmers != 0) {
         sumNumKmers += bIt->numOfKmers;
         totalBits += bIt->seqLength*2 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1));
-        std::cout << "bucket" << static_cast<size_t>(bCntr++) << " : "
-                << "# of unitigs: " << bIt->numOfUnitigs << " , "
-                << "# of kmers: " << bIt->numOfKmers << " , "
-                << "bits per kmer pos "<< ceil(log2(bIt->numOfKmers+1)) << "\n";
+        std::cout << "b" << static_cast<size_t>(bCntr++) << ":"
+                << "u" << bIt->numOfUnitigs << ","
+                << "k" << bIt->numOfKmers << ","
+                << ceil(log2(bIt->numOfKmers+1)) << "\t";
       }
     }
-    std::cout <<"total number of kmers: " << sumNumKmers << "\n"
+    std::cout <<"\ntotal number of kmers: " << sumNumKmers << "\n"
               <<"total bits: " << totalBits << " or " << totalBits/(1024*1024*8) << "MB\n";
   }
 
