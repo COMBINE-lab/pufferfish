@@ -66,9 +66,7 @@ int main(int argc, char* argv[]) {
     uint64_t splittedUnitigCnt = 0; // total number of unitigs that we had a split in
     uint64_t tmpUnitigSplitCnt = 0; // number of splits in current unitig
     uint64_t prevPos = 0;
-    bool alreadyCounted = false;
     while (cur <= seq.size()-k) {
-      alreadyCounted = false;
       // if current kmer is the first kmer in unitig or we've surpassed current minimizer
       if (cur == start or cur > minimizerPos) {
         uint64_t kmer = seq.get_int(2*cur, 2*k);
@@ -81,7 +79,6 @@ int main(int argc, char* argv[]) {
           // store the info about the new unitig up until this minimizer
           buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
           buckets[minimizer].numOfKmers += cur-prevPos;
-          buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
           if (cur <= prevPos)
             std::cout << "oh oh! " << cur << " " << prevPos << "\n";
           buckets[minimizer].numOfUnitigs++;
@@ -103,20 +100,19 @@ int main(int argc, char* argv[]) {
           buckets[minimizer].numOfKmers += (cur-prevPos);
           buckets[minimizer].numOfUnitigs++;
           prevPos = cur;
-          alreadyCounted = true;
         }
       }
       cur++;
-      // if we've already passed the last kmer in current unitig, go to next unitig
+      // if we've already passed the last kmer in current unitig,
+      // first add the last part of the contig not added (at least one kmer)
+      // then go to the next unitig
       if (cur >= next - (k-1)) {
         // got to the end of the unitig. Add the new contig to the right minimizer bucket
-        if (!alreadyCounted) {
-          buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
-          buckets[minimizer].numOfKmers += (cur-prevPos);
-          if (cur <= prevPos)
-            std::cout << "oh oh! " << cur << " " << prevPos << "\n";
-         buckets[minimizer].numOfUnitigs++;
-        }
+        buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
+        buckets[minimizer].numOfKmers += (cur-prevPos);
+        if (cur <= prevPos)
+          std::cout << "oh oh! " << cur << " " << prevPos << "\n";
+        buckets[minimizer].numOfUnitigs++;
         if (tmpUnitigSplitCnt > 0) {
           splittedUnitigCnt++;
           unitigSplitCnt += tmpUnitigSplitCnt;
