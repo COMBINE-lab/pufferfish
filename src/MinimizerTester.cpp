@@ -12,7 +12,7 @@ struct Bucket {
 };
 void findMinimizer(uint64_t kmer, uint8_t k, uint8_t m, uint64_t* minimizer, uint64_t* minimizerPos) {
   uint8_t mask = (0x01 << 2*m)-1;
-  for (uint64_t cntr = 0; cntr <= k-m; cntr++) {
+  for (uint64_t cntr = 0; cntr <= (uint64_t)k-m; cntr++) {
     //std::cout << "c" << cntr << " " << ((kmer >> 2*cntr) & mask) << " ";
     if ((*minimizer) > ((kmer >> 2*cntr) & mask)) {
       (*minimizer) = (kmer >> 2*cntr) & mask;
@@ -81,6 +81,9 @@ int main(int argc, char* argv[]) {
           // store the info about the new unitig up until this minimizer
           buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
           buckets[minimizer].numOfKmers += cur-prevPos;
+          buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
+          if (cur <= prevPos)
+            std::cout << "oh oh! " << cur << " " << prevPos << "\n";
           buckets[minimizer].numOfUnitigs++;
           tmpUnitigSplitCnt++; // increase unitig split count
           prevPos = cur;
@@ -95,6 +98,8 @@ int main(int argc, char* argv[]) {
           minimizer = nextPotentialMinimizer;
           minimizerPos = cur+(k-m);
           buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
+          if (cur <= prevPos)
+            std::cout << "oh oh! " << cur << " " << prevPos << "\n";
           buckets[minimizer].numOfKmers += (cur-prevPos);
           buckets[minimizer].numOfUnitigs++;
           prevPos = cur;
@@ -108,7 +113,9 @@ int main(int argc, char* argv[]) {
         if (!alreadyCounted) {
           buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
           buckets[minimizer].numOfKmers += (cur-prevPos);
-          buckets[minimizer].numOfUnitigs++;
+          if (cur <= prevPos)
+            std::cout << "oh oh! " << cur << " " << prevPos << "\n";
+         buckets[minimizer].numOfUnitigs++;
         }
         if (tmpUnitigSplitCnt > 0) {
           splittedUnitigCnt++;
@@ -120,7 +127,7 @@ int main(int argc, char* argv[]) {
         start = next;
         cur = next;
         prevPos = cur;
-        next = unitigS(contigCntr++)+1;
+        next = unitigS(++contigCntr)+1;
         if (next == 1) {
           //next = seq.size();
           //std::cout << next << " " << cur << "\n";
@@ -128,7 +135,6 @@ int main(int argc, char* argv[]) {
           break;
         }
         totalNumOfKmers += next-cur-k+1;
-        std::cout <<next << "," << cur << "," << totalNumOfKmers << " " ;
       }
 
 
