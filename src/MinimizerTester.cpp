@@ -79,8 +79,6 @@ int main(int argc, char* argv[]) {
           // store the info about the new unitig up until this minimizer
           buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
           buckets[minimizer].numOfKmers += cur-prevPos;
-          if (cur <= prevPos)
-            std::cout << "oh oh! " << cur << " " << prevPos << "\n";
           buckets[minimizer].numOfUnitigs++;
           tmpUnitigSplitCnt++; // increase unitig split count
           prevPos = cur;
@@ -95,8 +93,6 @@ int main(int argc, char* argv[]) {
           minimizer = nextPotentialMinimizer;
           minimizerPos = cur+(k-m);
           buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
-          if (cur <= prevPos)
-            std::cout << "oh oh! " << cur << " " << prevPos << "\n";
           buckets[minimizer].numOfKmers += (cur-prevPos);
           buckets[minimizer].numOfUnitigs++;
           prevPos = cur;
@@ -110,8 +106,6 @@ int main(int argc, char* argv[]) {
         // got to the end of the unitig. Add the new contig to the right minimizer bucket
         buckets[minimizer].seqLength += (cur+(k-1)-prevPos);
         buckets[minimizer].numOfKmers += (cur-prevPos);
-        if (cur <= prevPos)
-          std::cout << "oh oh! " << cur << " " << prevPos << "\n";
         buckets[minimizer].numOfUnitigs++;
         if (tmpUnitigSplitCnt > 0) {
           splittedUnitigCnt++;
