@@ -1,4 +1,8 @@
-# What is pufferfish?
+# Index
+ * [What is pufferfish?](#whatis)
+ * [Using pufferfish?](#using)
+ 
+# What is pufferfish? <a name="whatis"></a>
 
 **short answer** : Pufferfish is a new time and memory-efficient data structure for indexing a compacted, colored de Bruijn graph (ccdBG).  You can read more about pufferfish in our [pre-print on bioRxiv](https://www.biorxiv.org/content/early/2017/09/21/191874).
 
@@ -23,3 +27,22 @@ Pufferfish depends on sdsl-lite, to install from the pufferfish root directory e
 The **master** branch of pufferfish is _not_ necessarily stable, but it should, at any given time contain a working version of the index.  That is, breaking changes should not be pushed to master.  The **develop** branch of pufferfish is guaranteed to be neither stable nor working at any given point, but a best-faith effort will be made to not commit broken code to this branch.  For feature branches, all bets are off.
 
 For more details about pufferfish, please check out our [pre-print on bioRxiv](https://www.biorxiv.org/content/early/2017/09/21/191874), as well as the (updating) blog post [here](http://robpatro.com/blog/?p=494).
+
+
+# Using Pufferfish <a name="using"></a>
+
+## Using Pufferfish with BCALM2
+
+You can use pufferfish with the unitig file provided by [BCALM2](https://github.com/GATB/bcalm).  Once you have downloaded and built bcalm, you can run it on your reference sequence file to produce a list of compacted unitigs like so:
+
+```
+bcalm -abundance-min 1 -max-memory <mem_in_MB> -nb-cores <cores_to_use> -in reference.fa  -out out_prefix -k <k>
+```
+
+This will generate, in addition to some other files, a file called `out_prefix.unitigs.fa`.  These are, unfortunately, not quite in the format required by pufferfish yet (unitigs can span reference boundaries).  To fix this, we must `pufferize` the file.  We can do that as such:
+
+```
+bcalm_pufferizer -k <k> -r reference.fa -u out_prefix.unitigs.fa
+```
+
+This will create a file called `out_prefix.unitigs.fa.pufferized.gfa`, on which you can then build the pufferfish index.
