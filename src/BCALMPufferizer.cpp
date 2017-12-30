@@ -8,6 +8,7 @@
 #include "FastxParser.hpp"
 #include "Kmer.hpp"
 #include "clipp.h"
+#include "string_view.hpp"
 
 struct pconfig {
     uint32_t k=31;
@@ -52,34 +53,47 @@ getTerminalKmers(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, uint3
   return km;
 }
 
-uint32_t saveUnitig(std::string& seq, uint32_t id, std::ofstream& ofile) {
+uint32_t saveUnitig(stx::string_view seq, uint32_t id, std::ofstream& ofile) {
     ofile << "S\t" << id << "\t" << seq << '\n'; 
     return id + 1;
 }
 
-uint32_t createUnitig(UnitigMap& umap, uint32_t k, const std::string& header, std::string&& seq, 
+uint32_t createUnitig(UnitigMap& umap, uint32_t k, const std::string& header, stx::string_view seqin, 
                       uint32_t id, std::ofstream& ofile) {
+    stx::string_view seq;
+    std::string str;
     if (seq.length() == k) {
         KmerT ut(seq.begin());
-        seq = ut.getCanonical().toStr();
+        auto cut = ut.getCanonical();
+        if (ut == cut) {
+            seq = seqin;
+        } else {
+          str = ut.getCanonical().toStr();
+          seq = str;
+        }
+    } else {
+        seq = seqin;
     }
     auto nid = saveUnitig(seq, id, ofile);
 
     KmerT canonFirst(seq.begin());
     canonFirst.canonicalize();
+    /*
     if (umap.skmer.contains(canonFirst.word(0)) or umap.ekmer.contains(canonFirst.word(0))) {
         std::cerr << "Error: Initial kmer " << canonFirst.toStr() << " is repeated.\n";
         std::exit(1);
     }
-
+    */  
     KmerT canonLast(seq.end() - k);
     canonLast.canonicalize();
+    /*
     if (umap.skmer.contains(canonLast.word(0)) or umap.ekmer.contains(canonLast.word(0))) {
         std::cerr << "Error: Last kmer is repeated.\n";
         std::exit(1);
     }
-    umap.ekmer[canonLast.word(0)] = std::make_pair(id, seq.length());
-    umap.skmer[canonFirst.word(0)] = std::make_pair(id, seq.length());
+    */
+    umap.ekmer.emplace(canonLast.word(0), std::make_pair(id, seq.length()));
+    umap.skmer.emplace(canonFirst.word(0), std::make_pair(id, seq.length()));
     return nid;
 }
 
@@ -90,10 +104,15 @@ UnitigMap splitUnitigs(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser,
   auto rg = parser.getReadGroup();
   uint32_t unitigId{0};
   KmerT mer;
+  uint32_t numProcessed{0};
   while (parser.refill(rg)) {
     for (auto& rp : rg) {
+        if (numProcessed % 100000 == 0 and numProcessed > 0) {
+            std::cout << "created " << numProcessed << " unitigs\n";
+        }
       auto& h = rp.name;
       auto& seq = rp.seq;
+      stx::string_view seqview = seq;
       uint32_t prev{0};
       bool first{true};
       mer.fromChars(seq.begin());
@@ -106,19 +125,20 @@ UnitigMap splitUnitigs(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser,
           if (km.skmer.contains(mer.word(0)) or km.ekmer.contains(rcmer.word(0))) {
               if (i + k - 1 - prev >= k) {
               uint64_t len = i + k - 1  - prev;
-              unitigId = createUnitig(umap, k, h, seq.substr(prev, len), unitigId, ufile);
+              unitigId = createUnitig(umap, k, h, seqview.substr(prev, len), unitigId, ufile);
               prev = i;
               }
           }
           if (km.ekmer.contains(mer.word(0)) or km.skmer.contains(rcmer.word(0))) {
               uint64_t len = i + k - prev;
-              unitigId = createUnitig(umap, k, h, seq.substr(prev, len), unitigId, ufile);
+              unitigId = createUnitig(umap, k, h, seqview.substr(prev, len), unitigId, ufile);
               prev = i + 1;
           }
       } 
       if (seq.length() - prev >= k) {
-          unitigId = createUnitig(umap, k, h, seq.substr(prev), unitigId, ufile);
+          unitigId = createUnitig(umap, k, h, seqview.substr(prev), unitigId, ufile);
       }
+      ++numProcessed;
     }
   }
   return umap;
@@ -129,6 +149,8 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
     KmerT mer;
     char ori = '*';
     auto rg = parser.getReadGroup();
+    const auto skend = umap.skmer.end();
+    const auto ekend = umap.ekmer.end();
     while (parser.refill(rg)) {
         for (auto& rp : rg) { 
             auto& ref = rp.seq;
@@ -138,15 +160,17 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
             while (i < ref.length() - k + 1) {
                 mer.fromChars(ref.begin() + i); 
                 auto nkmer = mer.getCanonical();
+                auto skIt = umap.skmer.find(nkmer.word(0));
+                auto ekIt = umap.ekmer.find(nkmer.word(0));
                 std::decay<decltype(umap.skmer[nkmer.word(0)])>::type unitigInfo;
-                if (umap.skmer.contains(nkmer.word(0)) and umap.ekmer.contains(nkmer.word(0))) {
-                    unitigInfo = umap.skmer[nkmer.word(0)];
+                if (skIt != skend and ekIt != ekend) {//umap.skmer.contains(nkmer.word(0)) and umap.ekmer.contains(nkmer.word(0))) {
+                    unitigInfo = skIt->second;//umap.skmer[nkmer.word(0)];
                     ori = (mer == nkmer) ? '+' : '-';
-                } else if (umap.skmer.contains(nkmer.word(0))) {
-                    unitigInfo = umap.skmer[nkmer.word(0)];
+                } else if (skIt != skend) {///umap.skmer.contains(nkmer.word(0))) {
+                    unitigInfo = skIt->second;//umap.skmer[nkmer.word(0)];
                     ori = '+';
-                } else if (umap.ekmer.contains(nkmer.word(0))) {
-                    unitigInfo = umap.ekmer[nkmer.word(0)];
+                } else if (ekIt != ekend) {//umap.ekmer.contains(nkmer.word(0))) {
+                    unitigInfo = ekIt->second;//umap.ekmer[nkmer.word(0)];
                     ori = '-';
                 } else {
                     std::cerr << pctr << " paths reconstructed.\n";

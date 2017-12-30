@@ -799,6 +799,7 @@ bool alignReads(
 
   std::streambuf* outBuf ;
   std::ofstream outFile ;
+  std::unique_ptr<std::ostream> outStream{nullptr};
   //bool haveOutputFile{false} ;
   std::shared_ptr<spdlog::logger> outLog{nullptr};
   if (!mopts->noOutput) {
@@ -813,14 +814,15 @@ bool alignReads(
   //out stream to the buffer
   //it can be std::cout or a file
 
-  std::ostream outStream(outBuf) ;
+  //std::ostream outStream(outBuf) ;
+  outStream.reset(new std::ostream(outBuf));
 
   //this is my async queue
   //a power of 2
   size_t queueSize{268435456};
   spdlog::set_async_mode(queueSize);
 
-  auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(outStream) ;
+  auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(*outStream) ;
   outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
   outLog->set_pattern("%v");
   //write the SAMHeader

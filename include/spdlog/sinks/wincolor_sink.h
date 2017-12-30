@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "spdlog/sinks/base_sink.h"
-#include "spdlog/details/null_mutex.h"
-#include "spdlog/common.h"
+#include "base_sink.h"
+#include "../details/null_mutex.h"
+#include "../common.h"
 
 #include <mutex>
 #include <string>
@@ -44,7 +44,7 @@ public:
 
     virtual ~wincolor_sink()
     {
-        flush();
+        this->flush();
     }
 
     wincolor_sink(const wincolor_sink& other) = delete;
@@ -80,7 +80,11 @@ private:
     {
         CONSOLE_SCREEN_BUFFER_INFO orig_buffer_info;
         GetConsoleScreenBufferInfo(out_handle_, &orig_buffer_info);
-        SetConsoleTextAttribute(out_handle_, attribs);
+        WORD back_color = orig_buffer_info.wAttributes;
+        // retrieve the current background color
+        back_color &= ~(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+        // keep the background color unchanged
+        SetConsoleTextAttribute(out_handle_, attribs | back_color);
         return  orig_buffer_info.wAttributes; //return orig attribs
     }
 };

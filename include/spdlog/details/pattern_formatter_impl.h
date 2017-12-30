@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include "spdlog/formatter.h"
-#include "spdlog/details/log_msg.h"
-#include "spdlog/details/os.h"
-#include "spdlog/fmt/fmt.h"
+#include "../formatter.h"
+#include "../details/log_msg.h"
+#include "../details/os.h"
+#include "../fmt/fmt.h"
 
 #include <chrono>
 #include <ctime>
@@ -79,79 +79,54 @@ static int to12h(const tm& t)
 }
 
 //Abbreviated weekday name
-using days_array = std::array<std::string, 7>;
-static const days_array& days()
-{
-    static const days_array arr{ { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" } };
-    return arr;
-}
+static const std::string days[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 class a_formatter:public flag_formatter
 {
     void format(details::log_msg& msg, const std::tm& tm_time) override
     {
-        msg.formatted << days()[tm_time.tm_wday];
+        msg.formatted << days[tm_time.tm_wday];
     }
 };
-// message counter formatter
-class i_formatter SPDLOG_FINAL:public flag_formatter
-{
-    void format(details::log_msg& msg, const std::tm&) override
-    {
-        msg.formatted << '#' << msg.msg_id;
-    }
-};
+
 //Full weekday name
-static const days_array& full_days()
-{
-    static const days_array arr{ { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" } };
-    return arr;
-}
-class A_formatter SPDLOG_FINAL :public flag_formatter
+static const std::string full_days[] { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+class A_formatter:public flag_formatter
 {
     void format(details::log_msg& msg, const std::tm& tm_time) override
     {
-        msg.formatted << full_days()[tm_time.tm_wday];
+        msg.formatted << full_days[tm_time.tm_wday];
     }
 };
 
 //Abbreviated month
-using months_array = std::array<std::string, 12>;
-static const months_array& months()
-{
-    static const months_array arr{ { "Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec" } };
-    return arr;
-}
+static const std::string  months[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec" };
 class b_formatter:public flag_formatter
 {
     void format(details::log_msg& msg, const std::tm& tm_time) override
     {
-        msg.formatted << months()[tm_time.tm_mon];
+        msg.formatted << months[tm_time.tm_mon];
     }
 };
 
 //Full month name
-static const months_array& full_months()
-{
-    static const months_array arr{ { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" } };
-    return arr;
-}
-class B_formatter SPDLOG_FINAL :public flag_formatter
+static const std::string full_months[] { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+class B_formatter:public flag_formatter
 {
     void format(details::log_msg& msg, const std::tm& tm_time) override
     {
-        msg.formatted << full_months()[tm_time.tm_mon];
+        msg.formatted << full_months[tm_time.tm_mon];
     }
 };
 
 
-//write 2 ints seperated by sep with padding of 2
+//write 2 ints separated by sep with padding of 2
 static fmt::MemoryWriter& pad_n_join(fmt::MemoryWriter& w, int v1, int v2, char sep)
 {
     w << fmt::pad(v1, 2, '0') << sep << fmt::pad(v2, 2, '0');
     return w;
 }
 
-//write 3 ints seperated by sep with padding of 2
+//write 3 ints separated by sep with padding of 2
 static fmt::MemoryWriter& pad_n_join(fmt::MemoryWriter& w, int v1, int v2, int v3, char sep)
 {
     w << fmt::pad(v1, 2, '0') << sep << fmt::pad(v2, 2, '0') << sep << fmt::pad(v3, 2, '0');
@@ -164,7 +139,7 @@ class c_formatter SPDLOG_FINAL:public flag_formatter
 {
     void format(details::log_msg& msg, const std::tm& tm_time) override
     {
-        msg.formatted << days()[tm_time.tm_wday] << ' ' << months()[tm_time.tm_mon] << ' ' << tm_time.tm_mday << ' ';
+        msg.formatted << days[tm_time.tm_wday] << ' ' << months[tm_time.tm_mon] << ' ' << tm_time.tm_mday << ' ';
         pad_n_join(msg.formatted, tm_time.tm_hour, tm_time.tm_min, tm_time.tm_sec, ':') << ' ' << tm_time.tm_year + 1900;
     }
 };
@@ -287,6 +262,16 @@ class F_formatter SPDLOG_FINAL:public flag_formatter
     }
 };
 
+class E_formatter SPDLOG_FINAL:public flag_formatter
+{
+    void format(details::log_msg& msg, const std::tm&) override
+    {
+        auto duration = msg.time.time_since_epoch();
+        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+        msg.formatted << seconds;
+    }
+};
+
 // AM/PM
 class p_formatter SPDLOG_FINAL:public flag_formatter
 {
@@ -399,6 +384,14 @@ class pid_formatter SPDLOG_FINAL:public flag_formatter
     }
 };
 
+// message counter formatter
+class i_formatter SPDLOG_FINAL :public flag_formatter
+{
+    void format(details::log_msg& msg, const std::tm&) override
+    {
+        msg.formatted << fmt::pad(msg.msg_id, 6, '0');
+    }
+};
 
 class v_formatter SPDLOG_FINAL:public flag_formatter
 {
@@ -495,7 +488,7 @@ class full_formatter SPDLOG_FINAL:public flag_formatter
 // pattern_formatter inline impl
 ///////////////////////////////////////////////////////////////////////////////
 inline spdlog::pattern_formatter::pattern_formatter(const std::string& pattern, pattern_time_type pattern_time)
-: _pattern_time(pattern_time)
+    : _pattern_time(pattern_time)
 {
     compile_pattern(pattern);
 }
@@ -623,6 +616,10 @@ inline void spdlog::pattern_formatter::handle_flag(char flag)
         _formatters.push_back(std::unique_ptr<details::flag_formatter>(new details::F_formatter()));
         break;
 
+    case('E'):
+        _formatters.push_back(std::unique_ptr<details::flag_formatter>(new details::E_formatter()));
+        break;
+
     case('p'):
         _formatters.push_back(std::unique_ptr<details::flag_formatter>(new details::p_formatter()));
         break;
@@ -652,11 +649,10 @@ inline void spdlog::pattern_formatter::handle_flag(char flag)
         _formatters.push_back(std::unique_ptr<details::flag_formatter>(new details::pid_formatter()));
         break;
 
-#if defined(SPDLOG_ENABLE_MESSAGE_COUNTER)
+
     case ('i'):
         _formatters.push_back(std::unique_ptr<details::flag_formatter>(new details::i_formatter()));
         break;
-#endif
 
     default: //Unknown flag appears as is
         _formatters.push_back(std::unique_ptr<details::flag_formatter>(new details::ch_formatter('%')));
@@ -665,7 +661,7 @@ inline void spdlog::pattern_formatter::handle_flag(char flag)
     }
 }
 
-inline std::tm spdlog::pattern_formatter::get_time(details::log_msg& msg) 
+inline std::tm spdlog::pattern_formatter::get_time(details::log_msg& msg)
 {
     if (_pattern_time == pattern_time_type::local)
         return details::os::localtime(log_clock::to_time_t(msg.time));

@@ -238,7 +238,7 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
   if (res < numKmers_) {
     uint64_t pos = pos_[res];
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
-    /*
+    /* 
     uint64_t hashbits = pos & 0xF;
     pos = pos >> 4;
     if ((km & 0xF) != hashbits) { 
@@ -249,7 +249,8 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
           0,
           k_,
           core::range<IterT>{}};
-    }*/
+    }
+    */
     uint64_t twopos = pos << 1;
     uint64_t fk = seq_.get_int(twopos, twok_);
     // say how the kmer fk matches mer; either
