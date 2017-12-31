@@ -35,7 +35,7 @@ public:
   uint32_t numThreads{1};
   uint32_t maxNumHits{200};
   uint32_t maxSpliceGap{100};
-  uint32_t maxFragmentLength{1000};
+  uint32_t maxFragmentLength{5000};
   std::string outname;
   double quasiCov{0.0};
   bool pairedEnd{false};

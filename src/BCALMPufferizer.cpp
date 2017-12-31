@@ -17,15 +17,24 @@ struct pconfig {
 };
 
 using KmerT = combinelib::kmers::Kmer<32,1>;
+enum class OccT : uint8_t { START, END, BOTH };
+
+struct ContigInfo {
+	OccT type;
+	uint32_t id;
+	uint32_t length;
+};
 
 struct KmerContigMap {
-    spp::sparse_hash_set<uint64_t> skmer;
-    spp::sparse_hash_set<uint64_t> ekmer;
+	spp::sparse_hash_map<uint64_t, OccT> kmers;
+    //spp::sparse_hash_set<uint64_t> skmer;
+    //spp::sparse_hash_set<uint64_t> ekmer;
 };
 
 struct UnitigMap {
-    spp::sparse_hash_map<uint64_t, std::pair<uint32_t, uint32_t>> skmer;
-    spp::sparse_hash_map<uint64_t, std::pair<uint32_t, uint32_t>> ekmer;
+    spp::sparse_hash_map<uint64_t, ContigInfo> kmers;
+    //spp::sparse_hash_map<uint64_t, std::pair<uint32_t, uint32_t>> skmer;
+    //spp::sparse_hash_map<uint64_t, std::pair<uint32_t, uint32_t>> ekmer;
 };
 
 
@@ -46,8 +55,27 @@ getTerminalKmers(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, uint3
       auto& r1 = rp.seq;
       start.fromChars(rp.seq.begin());
       end.fromChars(rp.seq.end() - k);
-      km.skmer.insert(start.word(0));
-      km.ekmer.insert(end.word(0));
+      if (start == end) {
+	      auto it = km.kmers.find(start.word(0));
+	      if (it == km.kmers.end()) {
+		      km.kmers[start.word(0)] = OccT::BOTH;
+	      }
+      } else {
+      	auto sit = km.kmers.find(start.word(0));
+	if (sit != km.kmers.end()) {
+		sit->second = (sit->second == OccT::END or sit->second == OccT::BOTH) ? OccT::BOTH : OccT::START;
+	} else {
+		km.kmers[start.word(0)] = OccT::START;
+	}
+	auto eit = km.kmers.find(end.word(0));
+	if (eit != km.kmers.end()) {
+		eit->second = (eit->second == OccT::START or eit->second == OccT::BOTH) ? OccT::BOTH : OccT::END;
+	} else {
+		km.kmers[end.word(0)] = OccT::END;
+	}
+      }
+      //km.skmer.insert(start.word(0));
+      //km.ekmer.insert(end.word(0));
     }
   }
   return km;
@@ -92,8 +120,30 @@ uint32_t createUnitig(UnitigMap& umap, uint32_t k, const std::string& header, st
         std::exit(1);
     }
     */
+    /*auto lastIt = umap.kmers.find(canonLast.word(0));
+    if ( lastIt != umap.kmers.end() ) {
+	    lastIt->kind = true;
+	    lastIt->endID = id;
+	    lastIt->endLen = seq.length();
+    } else {
+	    umap.kmers[
+    }
+    */
+
+    if (canonLast == canonFirst) {
+	    ContigInfo info {OccT::BOTH, id, seq.length()};
+    	umap.kmers.emplace(canonLast.word(0), info);
+    } else {
+	    ContigInfo infoe {OccT::END, id, seq.length()};
+    	umap.kmers.emplace(canonLast.word(0), infoe); 
+	    ContigInfo infos {OccT::START, id, seq.length()};
+	umap.kmers.emplace(canonFirst.word(0), infos);
+    }
+
+    /*
     umap.ekmer.emplace(canonLast.word(0), std::make_pair(id, seq.length()));
     umap.skmer.emplace(canonFirst.word(0), std::make_pair(id, seq.length()));
+    */
     return nid;
 }
 
@@ -122,14 +172,29 @@ UnitigMap splitUnitigs(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser,
           }
           first = false;
           auto rcmer = mer.getRC();
-          if (km.skmer.contains(mer.word(0)) or km.ekmer.contains(rcmer.word(0))) {
+	  auto merIt = km.kmers.find(mer.word(0));
+	  auto rcmerIt = (mer == rcmer) ? merIt : km.kmers.find(rcmer.word(0));
+	  bool startFW = false;
+	  bool endFW = false;
+	  bool startRC = false;
+	  bool endRC = false;
+	  if (merIt != km.kmers.end()) {
+		  startFW = (merIt->second == OccT::START or merIt->second == OccT::BOTH) ? true : false;
+		  endFW = (merIt->second == OccT::END or merIt->second == OccT::BOTH) ? true : false;
+	  }
+	  if (rcmerIt != km.kmers.end()) {
+		  startRC = (rcmerIt->second == OccT::START or rcmerIt->second == OccT::BOTH) ? true : false;
+		  endRC = (rcmerIt->second == OccT::END or rcmerIt->second == OccT::BOTH) ? true : false;
+	  }
+
+          if (startFW or endRC) {//km.skmer.contains(mer.word(0)) or km.ekmer.contains(rcmer.word(0))) {
               if (i + k - 1 - prev >= k) {
               uint64_t len = i + k - 1  - prev;
               unitigId = createUnitig(umap, k, h, seqview.substr(prev, len), unitigId, ufile);
               prev = i;
               }
           }
-          if (km.ekmer.contains(mer.word(0)) or km.skmer.contains(rcmer.word(0))) {
+          if (endFW or startRC) {//km.ekmer.contains(mer.word(0)) or km.skmer.contains(rcmer.word(0))) {
               uint64_t len = i + k - prev;
               unitigId = createUnitig(umap, k, h, seqview.substr(prev, len), unitigId, ufile);
               prev = i + 1;
@@ -149,8 +214,9 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
     KmerT mer;
     char ori = '*';
     auto rg = parser.getReadGroup();
-    const auto skend = umap.skmer.end();
-    const auto ekend = umap.ekmer.end();
+    const auto itEnd = umap.kmers.end();
+    //const auto skend = umap.skmer.end();
+    //const auto ekend = umap.ekmer.end();
     while (parser.refill(rg)) {
         for (auto& rp : rg) { 
             auto& ref = rp.seq;
@@ -160,17 +226,18 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
             while (i < ref.length() - k + 1) {
                 mer.fromChars(ref.begin() + i); 
                 auto nkmer = mer.getCanonical();
-                auto skIt = umap.skmer.find(nkmer.word(0));
-                auto ekIt = umap.ekmer.find(nkmer.word(0));
-                std::decay<decltype(umap.skmer[nkmer.word(0)])>::type unitigInfo;
-                if (skIt != skend and ekIt != ekend) {//umap.skmer.contains(nkmer.word(0)) and umap.ekmer.contains(nkmer.word(0))) {
-                    unitigInfo = skIt->second;//umap.skmer[nkmer.word(0)];
+		auto kIt = umap.kmers.find(nkmer.word(0));
+                //auto skIt = umap.skmer.find(nkmer.word(0));
+                //auto ekIt = umap.ekmer.find(nkmer.word(0));
+                std::decay<decltype(umap.kmers[nkmer.word(0)])>::type unitigInfo;
+                if (kIt->second.type == OccT::BOTH) {//umap.skmer.contains(nkmer.word(0)) and umap.ekmer.contains(nkmer.word(0))) {
+                    unitigInfo = kIt->second;//umap.skmer[nkmer.word(0)];
                     ori = (mer == nkmer) ? '+' : '-';
-                } else if (skIt != skend) {///umap.skmer.contains(nkmer.word(0))) {
-                    unitigInfo = skIt->second;//umap.skmer[nkmer.word(0)];
+                } else if (kIt->second.type == OccT::START) {///umap.skmer.contains(nkmer.word(0))) {
+                    unitigInfo = kIt->second;//umap.skmer[nkmer.word(0)];
                     ori = '+';
-                } else if (ekIt != ekend) {//umap.ekmer.contains(nkmer.word(0))) {
-                    unitigInfo = ekIt->second;//umap.ekmer[nkmer.word(0)];
+                } else if (kIt->second.type == OccT::END) {//umap.ekmer.contains(nkmer.word(0))) {
+                    unitigInfo = kIt->second;//umap.ekmer[nkmer.word(0)];
                     ori = '-';
                 } else {
                     std::cerr << pctr << " paths reconstructed.\n";
@@ -178,11 +245,12 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
                     std::cerr << mer.toStr() << "   ,   " << nkmer.toStr() << "\n";
                     std::exit(1);
                 }
-                i += unitigInfo.second - k + 1;
+                i += unitigInfo.length - k + 1;
                 char comma = (i < ref.length() - k + 1) ? ',' : '\n';
-                ufile << unitigInfo.first << ori << comma;
+                ufile << unitigInfo.id << ori << comma;
             }
             ++pctr;
+	    //std::cerr << "wrote " << pctr << " paths \n";
         }
     }
     ufile << '\n';
@@ -203,7 +271,7 @@ int main(int argc, char* argv[]) {
     parser.start();
     auto kmap = getTerminalKmers(parser, config.k);
     parser.stop();
-    std::cout << "have " << kmap.skmer.size() << " contigs\n";
+    std::cout << "have " << kmap.kmers.size() << " contigs\n";
     
     std::cout << "splitting unitigs\n";
 
@@ -214,7 +282,7 @@ int main(int argc, char* argv[]) {
     auto umap = splitUnitigs(uparser, kmap, config.k, ufile);
     uparser.stop();
     std::cerr << "done\n";
-    std::cerr << "umap size = " << umap.skmer.size() << "\n";
+    std::cerr << "umap size = " << umap.kmers.size() << "\n";
     
     std::cerr << "start reconstructing the paths\n";
     fastx_parser::FastxParser<fastx_parser::ReadSeq> rparser({config.ref}, 1, 1);
