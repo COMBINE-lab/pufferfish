@@ -7,6 +7,17 @@
 #include "PufferfishIndex.hpp"
 #include "xxhash.h"
 
+uint64_t hashIt(uint64_t val, std::map<uint64_t, uint64_t>& val2hash) {
+  // return val;
+  // return val2hash[val];
+  return XXH64(&val, sizeof(uint64_t), 0);
+}
+
+uint64_t decodeHash(uint64_t hash, std::map<uint64_t, uint64_t>& hash2bucketIdx) {
+  //return hash;
+  return hash2bucketIdx[hash];
+}
+
 struct Bucket {
   uint64_t numOfKmers = 0;
   uint64_t numOfUnitigs = 0;
@@ -18,7 +29,7 @@ void findMinimizer(uint64_t kmer, uint8_t k, uint8_t m, uint64_t* minimizer, uin
   for (uint64_t cntr = 0; cntr <= (uint64_t)k-m; cntr++) {
     //std::cout << "c" << cntr << " " << ((kmer >> 2*cntr) & mask) << " ";
     uint64_t val = (kmer >> 2*cntr) & mask;
-    uint64_t minHash = val2hash[val];// XXH64(&val, 64, 0);
+    uint64_t minHash = hashIt(val, val2hash);
     //std::cout << val << " " << minHash << " ";
     if ((*minimizer) > minHash) {
       (*minimizer) = minHash;
@@ -36,17 +47,17 @@ int main(int argc, char* argv[]) {
   sdsl::int_vector<2>& seq = pfi.getSeq();
   sdsl::bit_vector::select_1_type& unitigS = pfi.getBoundarySelect();
 
-  for (uint8_t m = 2; m < 3; m++) {
+  for (uint8_t m = 2; m < 13; m++) {
     std::cout << "\n\nMINIMIZER LENGTH : "<< static_cast<size_t>(m) << "\n\n";
     std::map<uint64_t, uint64_t> hash2bucketIdx;
     std::map<uint64_t, uint64_t> val2hash;
     size_t bucketCnt = (0x01 << 2*m);
     for (uint64_t i = 0; i < bucketCnt; i++) {
       uint64_t val = i;
-      size_t a = XXH64(&val, 64, 0);
+      size_t a = XXH64(&val, sizeof(uint64_t), 0);
       hash2bucketIdx[a] = i;
       val2hash[i] = a;
-      std::cout << i << " " << a << "\n";
+      //std::cout << i << " " << a << "\n";
     }
     uint64_t contigCntr = 1;
     uint64_t start = 0;
@@ -96,9 +107,9 @@ int main(int argc, char* argv[]) {
         if (cur != start and minimizer != tmpMinimizer) {
           // store the info about the new unitig up until this minimizer
           //std::cout << "2 " << minimizer << " " << hash2bucketIdx[minimizer] << " -- ";
-          buckets[hash2bucketIdx[minimizer]].seqLength += (cur+(k-1)-prevPos);
-          buckets[hash2bucketIdx[minimizer]].numOfKmers += cur-prevPos;
-          buckets[hash2bucketIdx[minimizer]].numOfUnitigs++;
+          buckets[decodeHash(minimizer, hash2bucketIdx)].seqLength += (cur+(k-1)-prevPos);
+          buckets[decodeHash(minimizer, hash2bucketIdx)].numOfKmers += cur-prevPos;
+          buckets[decodeHash(minimizer, hash2bucketIdx)].numOfUnitigs++;
           tmpUnitigSplitCnt++; // increase unitig split count
           prevPos = cur;
         }
@@ -108,15 +119,15 @@ int main(int argc, char* argv[]) {
       else {
         //std::cout << "3 \n";
         uint64_t val = seq.get_int(2*(cur+(k-m)), 2*m);
-        uint64_t nextPotentialMinimizer = val2hash[val];//XXH64(&val, 64, 0);
+        uint64_t nextPotentialMinimizer = hashIt(val, val2hash); //val2hash[val];//XXH64(&val, 64, 0);
         if (nextPotentialMinimizer < minimizer) {
           tmpUnitigSplitCnt++;
           minimizer = nextPotentialMinimizer;
           minimizerPos = cur+(k-m);
           //std::cout << "3 " << minimizer << " " << hash2bucketIdx[minimizer] << " -- ";
-          buckets[hash2bucketIdx[minimizer]].seqLength += (cur+(k-1)-prevPos);
-          buckets[hash2bucketIdx[minimizer]].numOfKmers += (cur-prevPos);
-          buckets[hash2bucketIdx[minimizer]].numOfUnitigs++;
+          buckets[decodeHash(minimizer, hash2bucketIdx)].seqLength += (cur+(k-1)-prevPos);
+          buckets[decodeHash(minimizer, hash2bucketIdx)].numOfKmers += (cur-prevPos);
+          buckets[decodeHash(minimizer, hash2bucketIdx)].numOfUnitigs++;
           prevPos = cur;
         }
       }
@@ -128,9 +139,9 @@ int main(int argc, char* argv[]) {
         ///std::cout << "4 \n";
         // got to the end of the unitig. Add the new contig to the right minimizer bucket
         //std::cout << "4 " << minimizer << " " << hash2bucketIdx[minimizer] << " -- ";
-        buckets[hash2bucketIdx[minimizer]].seqLength += (cur+(k-1)-prevPos);
-        buckets[hash2bucketIdx[minimizer]].numOfKmers += (cur-prevPos);
-        buckets[hash2bucketIdx[minimizer]].numOfUnitigs++;
+        buckets[decodeHash(minimizer, hash2bucketIdx)].seqLength += (cur+(k-1)-prevPos);
+        buckets[decodeHash(minimizer, hash2bucketIdx)].numOfKmers += (cur-prevPos);
+        buckets[decodeHash(minimizer, hash2bucketIdx)].numOfUnitigs++;
         if (tmpUnitigSplitCnt > 0) {
           splittedUnitigCnt++;
           unitigSplitCnt += tmpUnitigSplitCnt;
@@ -172,10 +183,11 @@ int main(int argc, char* argv[]) {
       if (bIt->numOfKmers != 0) {
         sumNumKmers += bIt->numOfKmers;
         totalBits += bIt->seqLength*2 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1));
-        std::cout << "b" << static_cast<size_t>(bCntr++) << ":"
+        /*std::cout << "b" << static_cast<size_t>(bCntr++) << ":"
                 << "u" << bIt->numOfUnitigs << ","
                 << "k" << bIt->numOfKmers << ","
                 << ceil(log2(bIt->numOfKmers+1)) << "\t";
+        */
       }
     }
     std::cout <<"\ntotal number of kmers: " << sumNumKmers << "\n"

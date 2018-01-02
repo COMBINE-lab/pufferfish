@@ -1,5 +1,8 @@
 #set(gfalib_srcs gfakluge.cpp)
 #add_library(gfakluge STATIC ${gfalib_srcs})
+#set(murmur_lib_src Murmurhash3.cpp)
+#add_library(mumur STATIC ${murmur_lib_src})
+
 set(ksw2_lib_srcs
     kalloc.c
     KSW2Aligner.cpp
@@ -51,7 +54,7 @@ target_link_libraries(myGFAtester z sdsl puffer)
 target_link_libraries(pufferize puffer z)
 target_link_libraries(edgedensity z puffer)
 target_link_libraries(kswcli z ksw2)
-target_link_libraries(minimizerTester puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)
+target_link_libraries(minimizerTester puffer sdsl z ksw2 ${JEMALLOC_LIBRARIES})
 #target_link_libraries(myGraphtester puffer)
 
 
