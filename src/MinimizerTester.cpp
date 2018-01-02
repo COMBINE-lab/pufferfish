@@ -78,6 +78,7 @@ int main(int argc, char* argv[]) {
     uint64_t minimizer = -1;//std::numeric_limits<uint64_t>::max; //0x01 << 2*m;
     uint64_t minimizerPos = 0;
     uint64_t totalNumOfKmers = (next - cur) -k+1;
+    uint64_t totalSeqSize = next-cur;
     //std::cout << totalNumOfKmers << " " ;
 
     // findMinimizer test:
@@ -160,6 +161,7 @@ int main(int argc, char* argv[]) {
           break;
         }
         totalNumOfKmers += next-cur-k+1;
+        totalSeqSize += next-cur;
       }
 
 
@@ -172,9 +174,11 @@ int main(int argc, char* argv[]) {
     std::cout << "\nBefore applying minimizers:\n"
               << "# of kmers: " << totalNumOfKmers << " , "
               << "bits per kmer pos "<< ceil(log2(totalNumOfKmers)) << "\n"
+              << "total sequence length: " << totalSeqSize << "\n"
               <<"total bits: " << totalBits << " or " << totalBits/(1024*1024*8) << "MB\n";
 
 
+    size_t seqSize = 0;
     totalBits = 0;
     uint64_t sumNumKmers = 0;
     std::cout << "\nAfter applying minimizers:\n";
@@ -183,6 +187,7 @@ int main(int argc, char* argv[]) {
       if (bIt->numOfKmers != 0) {
         sumNumKmers += bIt->numOfKmers;
         totalBits += bIt->seqLength*2 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1));
+        seqSize += bIt->seqLength;
         /*std::cout << "b" << static_cast<size_t>(bCntr++) << ":"
                 << "u" << bIt->numOfUnitigs << ","
                 << "k" << bIt->numOfKmers << ","
@@ -191,6 +196,7 @@ int main(int argc, char* argv[]) {
       }
     }
     std::cout <<"\ntotal number of kmers: " << sumNumKmers << "\n"
+              <<"Sum of all sequence lengths: " << seqSize << "\n"
               <<"total bits: " << totalBits << " or " << totalBits/(1024*1024*8) << "MB\n";
   }
 
