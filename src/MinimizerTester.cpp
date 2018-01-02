@@ -6,6 +6,7 @@
 
 #include "PufferfishIndex.hpp"
 #include "xxhash.h"
+#include "BooPHF.h"
 
 uint64_t hashIt(uint64_t val, std::map<uint64_t, uint64_t>& val2hash) {
   // return val;
@@ -41,6 +42,7 @@ void findMinimizer(uint64_t kmer, uint8_t k, uint8_t m, uint64_t* minimizer, uin
 
 int main(int argc, char* argv[]) {
 
+  boomphf::mphf<uint64_t, boomphf::SingleHashFunctor<uint64_t>> fakeBoomphf;
   PufferfishIndex pfi(argv[1]);
   std::cout << "\nloaded!\n\n";
   uint8_t k = pfi.k();
@@ -168,7 +170,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "\n";
     // boundary bv + seq bv --> seq.size()*3 + these two vectors overhead
-    uint64_t totalBits = totalNumOfKmers*ceil(log2(totalNumOfKmers+1)) + (seq.size()*3) + sizeof(seq)*2;
+    uint64_t totalBits = totalNumOfKmers*ceil(log2(totalNumOfKmers+1)) + (seq.size()*3) + sizeof(seq)*2 + sizeof(fakeBoomphf);
     std::cout << "# of unitigs before splitting: " << contigCntr << "\n"
               << "# of unitigs after splitting: " << unitigSplitCnt << "\n"
               << "# of unitigs that were splitted: " << splittedUnitigCnt << "\n";
@@ -189,7 +191,7 @@ int main(int argc, char* argv[]) {
       if (bIt->numOfKmers != 0) {
         sumNumKmers += bIt->numOfKmers;
         // boundary bv + seq bv --> seq.size()*3 + these two vectors overhead
-        totalBits += bIt->seqLength*3 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1)) + sizeof(seq)*2;
+        totalBits += bIt->seqLength*3 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1)) + sizeof(seq)*2 + sizeof(fakeBoomphf);
         if (ceil(log2(bIt->numOfKmers+1)) > maxPosLen)
           maxPosLen = ceil(log2(bIt->numOfKmers+1));
         seqSize += bIt->seqLength;
@@ -200,7 +202,7 @@ int main(int argc, char* argv[]) {
         */
       }
     }
-    size_t oneMPHFSize = seqSize*3+sumNumKmers*maxPosLen + sizeof(seq)*2*buckets.size();
+    size_t oneMPHFSize = seqSize*3+sumNumKmers*maxPosLen + (sizeof(seq)*2)*buckets.size() + sizeof(fakeBoomphf);
     std::cout <<"\ntotal number of kmers: " << sumNumKmers << "\n"
               <<"Sum of all sequence lengths: " << seqSize << "\n"
               <<"1 MPHF per bucket total bits: " << totalBits << " or " << totalBits/(1024*1024*8) << "MB\n"
