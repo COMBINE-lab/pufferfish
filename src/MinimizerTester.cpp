@@ -180,6 +180,7 @@ int main(int argc, char* argv[]) {
 
 
     size_t seqSize = 0;
+    size_t maxPosLen = 0;
     totalBits = 0;
     uint64_t sumNumKmers = 0;
     std::cout << "\nAfter applying minimizers:\n";
@@ -189,6 +190,8 @@ int main(int argc, char* argv[]) {
         sumNumKmers += bIt->numOfKmers;
         // boundary bv + seq bv --> seq.size()*3 + these two vectors overhead
         totalBits += bIt->seqLength*3 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1)) + sizeof(seq)*2;
+        if (ceil(log2(bIt->numOfKmers+1)) > maxPosLen)
+          maxPosLen = ceil(log2(bIt->numOfKmers+1));
         seqSize += bIt->seqLength;
         /*std::cout << "b" << static_cast<size_t>(bCntr++) << ":"
                 << "u" << bIt->numOfUnitigs << ","
@@ -197,9 +200,11 @@ int main(int argc, char* argv[]) {
         */
       }
     }
+    size_t oneMPHFSize = seqSize*3+sumNumKmers*maxPosLen + sizeof(seq)*2*buckets.size();
     std::cout <<"\ntotal number of kmers: " << sumNumKmers << "\n"
               <<"Sum of all sequence lengths: " << seqSize << "\n"
-              <<"total bits: " << totalBits << " or " << totalBits/(1024*1024*8) << "MB\n";
+              <<"1 MPHF per bucket total bits: " << totalBits << " or " << totalBits/(1024*1024*8) << "MB\n"
+              <<"1 global MPHF total bits: " << oneMPHFSize << " or " << oneMPHFSize/(1024*1024*8) << "MB\n";
   }
 
 }
