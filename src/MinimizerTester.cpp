@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
     for (auto bIt = buckets.begin(); bIt != buckets.end(); bIt++) {
       if (bIt->numOfKmers != 0) {
         sumNumKmers += bIt->numOfKmers;
-        totalBits += bIt->seqLength*2 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1));
+        totalBits += bIt->seqLength*3 + bIt->numOfKmers*ceil(log2(bIt->numOfKmers+1)) + sizeof(seq)*2;
         seqSize += bIt->seqLength;
         /*std::cout << "b" << static_cast<size_t>(bCntr++) << ":"
                 << "u" << bIt->numOfUnitigs << ","
