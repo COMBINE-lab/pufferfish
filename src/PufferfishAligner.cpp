@@ -78,6 +78,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                         std::vector<util::JointMems>& jointMemsList,
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
+                        double coverageRatio,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   //uint32_t perfectCoverage{2*readLen};
@@ -112,7 +113,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
           // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
           // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
           auto totalCoverage = lclust->coverage + rclust->coverage;
-          if (totalCoverage >= 0.5 * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
+          if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
             if (verbose) {
               std::cout <<"\ntid:"<<tid<<"\n";
@@ -152,7 +153,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   }
   // FILTER 2
   // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
-  double coverageRatio = 0.5;
+  //double coverageRatio = 0.5;
   // if we've found a perfect match, we will erase any match that is not perfect
   if (maxCoverage == perfectCoverage) {
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
@@ -504,8 +505,6 @@ void processReadsPair(paired_parser* parser,
   MemCollector<PufferfishIndexT> memCollector(&pfi) ;
 
   //create aligner
-
-
   spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
   RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
@@ -598,7 +597,7 @@ void processReadsPair(paired_parser* parser,
       }
 
       if(lh && rh){
-        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, totLen, verbose) ;
+        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, totLen, mopts->scoreRatio, verbose) ;
       }
       else{
         //ignore orphans for now
