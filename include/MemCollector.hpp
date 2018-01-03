@@ -272,12 +272,13 @@ public:
 
     // Start off pretending we are at least k bases away from the last hit
     uint32_t skip{1};
+    uint32_t altSkip{5};
     int32_t basesSinceLastHit{k};
     bool justHit{false};
 
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
-      skip = (basesSinceLastHit >= k) ? 1 : 5;
+      skip = (basesSinceLastHit >= k) ? 1 : altSkip;
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
@@ -295,7 +296,7 @@ public:
         
         rawHits.push_back(std::make_pair(readPosOld, phits));
         basesSinceLastHit = 1;
-        skip = 5;
+        skip = altSkip;
         kit1 += (skip-1);
        //} else {
        //  ++kit1;

@@ -700,6 +700,8 @@ void processReadsPair(paired_parser* parser,
 
       if(jointAlignments.size() > 0 and !mopts->noOutput){
         writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
+      } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
+        writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
       }
 
 

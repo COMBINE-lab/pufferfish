@@ -154,6 +154,89 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
 }
 
 template <typename ReadPairT, typename IndexT>
+inline uint32_t writeUnmappedAlignmentsToStream(
+    ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+
+	auto& read1Temp = formatter.read1Temp;
+	auto& read2Temp = formatter.read2Temp;
+	// auto& qual1Temp = formatter.qual1Temp;
+	// auto& qual2Temp = formatter.qual2Temp;
+	auto& cigarStr1 = formatter.cigarStr1;
+	auto& cigarStr2 = formatter.cigarStr2;
+
+	cigarStr1.clear();
+	cigarStr2.clear();
+	cigarStr1.write("*");//"{}M", r.first.seq.length());
+	cigarStr2.write("*");//"{}M", r.second.seq.length());
+	//std::cerr << cigarStr1.c_str() << "\n";
+	uint16_t flags1, flags2;
+
+	auto& readName = r.first.name;
+	// If the read name contains multiple space-separated parts,
+	// print only the first
+	size_t splitPos = readName.find(' ');
+	if (splitPos < readName.length()) {
+		readName[splitPos] = '\0';
+	} else {
+		splitPos = readName.length();
+	}
+
+	if (splitPos > 2 and readName[splitPos - 2] == '/') {
+		readName[splitPos - 2] = '\0';
+	}
+
+	auto& mateName = r.second.name;
+	// If the read name contains multiple space-separated parts,
+	// print only the first
+	splitPos = mateName.find(' ');
+	if (splitPos < mateName.length()) {
+		mateName[splitPos] = '\0';
+	} else {
+		splitPos = mateName.length();
+	}
+
+	// trim /2 from the pe read
+	if (splitPos > 2 and mateName[splitPos - 2] == '/') {
+		mateName[splitPos - 2] = '\0';
+	}
+      std::string* readSeq1 = &(r.first.seq);
+      std::string* readSeq2 = &(r.second.seq);
+
+     std::string numHitFlag = fmt::format("NH:i:0", jointHits.size());
+
+      sstream << readName.c_str() << '\t'                    // QNAME
+              << 77 << '\t'                              // FLAGS
+              << "*\t"                             // RNAME
+              << 0 << '\t'                          // POS (1-based)
+              << 255 << '\t'                                   // MAPQ
+              << cigarStr1.c_str() << '\t'                   // CIGAR
+              //<< qa.cigar << '\t'                   // CIGAR
+              << '=' << '\t'                                 // RNEXT
+              << 0 << '\t'                      // PNEXT
+              << 0 << '\t' // TLEN
+              << *readSeq1 << '\t'                           // SEQ
+              << "*\t"                                       // QUAL
+              << numHitFlag << '\n';
+
+      sstream << mateName.c_str() << '\t'                    // QNAME
+              << 141 << '\t'                              // FLAGS
+              << "*\t"                             // RNAME
+              << 0 << '\t'                      // POS (1-based)
+              << 255 << '\t'                                   // MAPQ
+              << cigarStr2.c_str() << '\t'                   // CIGAR
+	        //<< qa.mateCigar << '\t'                   // CIGAR
+              << '=' << '\t'                                 // RNEXT
+              << 0 << '\t'                          // PNEXT
+              << 0 << '\t' // TLEN
+              << *readSeq2 << '\t'                           // SEQ
+              << "*\t"                                       // QUAL
+              << numHitFlag << '\n';
+
+   return 0;
+}
+
+template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
