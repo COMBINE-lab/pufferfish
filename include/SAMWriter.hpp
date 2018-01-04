@@ -153,6 +153,60 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
   }
 }
 
+template <typename ReadT, typename IndexT>
+inline uint32_t writeUnmappedAlignmentsToStreamSingle(
+    ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+
+	auto& read1Temp = formatter.read1Temp;
+	//auto& read2Temp = formatter.read2Temp;
+	// auto& qual1Temp = formatter.qual1Temp;
+	// auto& qual2Temp = formatter.qual2Temp;
+	auto& cigarStr1 = formatter.cigarStr1;
+	//auto& cigarStr2 = formatter.cigarStr2;
+
+	cigarStr1.clear();
+	//cigarStr2.clear();
+	cigarStr1.write("*");//"{}M", r.first.seq.length());
+	//cigarStr2.write("*");//"{}M", r.second.seq.length());
+	//std::cerr << cigarStr1.c_str() << "\n";
+
+	uint16_t flags1;
+	auto& readName = r.name;
+
+    // If the read name contains multiple space-separated parts,
+    // print only the first
+    size_t splitPos = readName.find(' ');
+    if (splitPos < readName.length()) {
+      readName[splitPos] = '\0';
+    } else {
+      splitPos = readName.length();
+    }
+
+    if (splitPos > 2 and readName[splitPos - 2] == '/') {
+      readName[splitPos - 2] = '\0';
+    }
+
+    std::string* readSeq1 = &(r.seq);
+
+    std::string numHitFlag = fmt::format("NH:i:0", jointHits.size());
+
+    sstream << readName.c_str() << '\t' // QNAME
+            << 4 << '\t'               // FLAGS
+            << "*\t"                    // RNAME
+            << 0 << '\t'                // POS (1-based)
+            << 255 << '\t'              // MAPQ
+            << cigarStr1.c_str()
+            << '\t' // CIGAR
+            << '=' << '\t'       // RNEXT
+            << 0 << '\t'         // PNEXT
+            << 0 << '\t'         // TLEN
+            << *readSeq1 << '\t' // SEQ
+            << "*\t"             // QUAL
+            << numHitFlag << '\n';
+    return 0;
+}
+
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
@@ -234,6 +288,102 @@ inline uint32_t writeUnmappedAlignmentsToStream(
               << numHitFlag << '\n';
 
    return 0;
+}
+
+
+template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToStreamSingle(
+    ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+
+  auto& read1Temp = formatter.read1Temp;
+  //auto& read2Temp = formatter.read2Temp;
+  // auto& qual1Temp = formatter.qual1Temp;
+  // auto& qual2Temp = formatter.qual2Temp;
+  auto& cigarStr1 = formatter.cigarStr1;
+  //auto& cigarStr2 = formatter.cigarStr2;
+
+  cigarStr1.clear();
+  //cigarStr2.clear();
+  cigarStr1.write("{}M", r.seq.length());
+  //cigarStr2.write("{}M", r.second.seq.length());
+  //std::cerr << cigarStr1.c_str() << "\n";
+  uint16_t flags1;
+
+  auto& readName = r.name;
+  // If the read name contains multiple space-separated parts,
+  // print only the first
+  size_t splitPos = readName.find(' ');
+  if (splitPos < readName.length()) {
+    readName[splitPos] = '\0';
+  } else {
+    splitPos = readName.length();
+  }
+
+  if (splitPos > 2 and readName[splitPos - 2] == '/') {
+    readName[splitPos - 2] = '\0';
+  }
+
+  std::string numHitFlag = fmt::format("NH:i:{}", jointHits.size());
+  uint32_t alnCtr{0};
+  // uint32_t trueHitCtr{0};
+  // util::QuasiAlignment* firstTrueHit{nullptr};
+  bool haveRev1{false};
+  bool* haveRev = nullptr;
+
+  size_t i{0};
+  for (auto& qa : jointHits) {
+    ++i;
+    auto& refName = formatter.index->refName(qa.tid);
+    uint32_t txpLen = formatter.index->refLength(qa.tid);
+    // === SAM
+      getSamFlags(qa, flags1);
+      if (alnCtr != 0) {
+        flags1 |= 0x100;
+      }
+
+      adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1);
+
+      // Reverse complement the read and reverse
+      // the quality string if we need to
+      std::string* readSeq1 = &(r.seq);
+      // std::string* qstr1 = &(r.first.qual);
+      if (!qa.fwd) {
+        if (!haveRev1) {
+          util::reverseRead(*readSeq1, read1Temp);
+          haveRev1 = true;
+        }
+        readSeq1 = &(read1Temp);
+        // qstr1 = &(qual1Temp);
+      }
+
+      // If the fragment overhangs the right end of the reference
+      // adjust fragLen (overhanging the left end is already handled).
+      int32_t read1Pos = qa.pos;
+      const bool read1First{true};
+
+      const int32_t minPos = read1Pos;
+      if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
+
+      // get the fragment length as a signed int
+      const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
+
+      sstream << readName.c_str() << '\t'                    // QNAME
+              << flags1 << '\t'                              // FLAGS
+              << refName << '\t'                             // RNAME
+              << qa.pos + 1 << '\t'                          // POS (1-based)
+              << 1 << '\t'                                   // MAPQ
+              << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
+              << '=' << '\t'                                 // RNEXT
+              << 0 << '\t'                      // PNEXT
+              << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
+              << *readSeq1 << '\t'                           // SEQ
+              << "*\t"                                       // QUAL
+              << numHitFlag << '\n';
+
+    ++alnCtr;
+  }
+  return 0;
 }
 
 template <typename ReadPairT, typename IndexT>

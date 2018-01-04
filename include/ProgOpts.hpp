@@ -32,6 +32,7 @@ public:
   std::string read1;
   std::string read2;
   std::string unmatedReads;
+  bool singleEnd{false};
   uint32_t numThreads{1};
   uint32_t maxNumHits{200};
   uint32_t maxSpliceGap{100};

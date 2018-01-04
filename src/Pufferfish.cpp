@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
                      ((required("--mate1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
                      ((required("--mate2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
                      ) |
-                     ((required("--read") & value("reads", throwaway)) % "path to single-end read files")
+                     ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
                     ),
                     (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",

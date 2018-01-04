@@ -66,6 +66,8 @@
 #define EPS 5
 
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
+using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
+
 using HitCounters = util::HitCounters ;
 using QuasiAlignment = util::QuasiAlignment ;
 using MateStatus = util::MateStatus ;
@@ -750,6 +752,210 @@ void processReadsPair(paired_parser* parser,
   } // processed all reads
 }
 
+//===========
+// SINGLE END
+//============
+template <typename PufferfishIndexT>
+void processReadsSingle(single_parser* parser,
+                     PufferfishIndexT& pfi,
+                     SpinLockT* iomutex,
+                     std::shared_ptr<spdlog::logger> outQueue,
+                     HitCounters& hctr,
+                     AlignmentOpts* mopts){
+  MemCollector<PufferfishIndexT> memCollector(&pfi) ;
+
+  //create aligner
+  spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
+  RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
+  std::vector<std::string> refBlocks ;
+
+  auto logger = spdlog::get("stderrLog") ;
+  fmt::MemoryWriter sstream ;
+  //size_t batchSize{2500} ;
+  size_t readLen{0};
+  size_t totLen{0};
+
+  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits ;
+  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits ;
+  std::vector<util::JointMems> jointHits ;
+  PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
+  util::QueryCache qc;
+
+  //@fatemeh Initialize aligner ksw 
+  ksw2pp::KSW2Config config ;
+  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
+
+  config.gapo = -1 * GAP_SCORE ;
+  config.gape = -1 * GAP_SCORE ;
+  config.bandwidth = -1 ;
+  config.flag = KSW_EZ_RIGHT ;
+  aligner.config() = config ;
+  
+  auto rg = parser->getReadGroup() ;
+  while(parser->refill(rg)){
+    for(auto& read : rg){
+      readLen = read.seq.length() ;
+      totLen = readLen;
+      bool verbose = false;
+      if(verbose) std::cout << read.name << "\n";
+      ++hctr.numReads ;
+
+      jointHits.clear() ;
+      leftHits.clear() ;
+      memCollector.clear();
+
+      bool lh = memCollector(read.seq,
+                             leftHits,
+                             mopts->maxSpliceGap,
+                             MateStatus::SINGLE_END,
+                             qc,
+                             verbose
+                             /*
+                             mopts->consistentHits,
+                             refBlocks*/) ;
+      //do intersection on the basis of
+      //performance, or going towards selective alignment
+      //otherwise orphan
+      if(verbose){
+        for(auto& l : leftHits){
+          auto& lclust = l.second ;
+          for(auto& clust : lclust)
+            for(auto& m : clust.mems){
+              std::cout << "before join "<<m.memInfo->cid << " cpos "<< m.memInfo->cpos<< "\n" ;
+            }
+        }
+      }
+
+      // Filter left hits
+      uint32_t maxCoverage{0};
+      uint32_t perfectCoverage{readLen};
+      std::vector<std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>> validHits;
+      validHits.reserve(2*leftHits.size());
+      for (auto& l : leftHits) {
+        auto& lclust = l.second;
+        for (auto clustIt = lclust.begin(); clustIt != lclust.end(); ++clustIt) {
+          if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage;}
+          if (clustIt->coverage >= mopts->scoreRatio * maxCoverage and clustIt->coverage == perfectCoverage ) {
+            validHits.emplace_back(static_cast<uint32_t>(l.first), clustIt);
+          } 
+        }
+        double thresh = mopts->scoreRatio * maxCoverage;
+        // remove from valid hits those that don't reach the coverage threshold
+        std::remove_if(validHits.begin(), validHits.end(), 
+          [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
+            return static_cast<double>(e.second->coverage) < thresh; 
+          });
+      }
+
+      int maxScore = std::numeric_limits<int>::min();
+      bool doTraverse = !mopts->justMap;
+      /*
+      if (doTraverse) {
+        if(!jointHits.empty() && jointHits.front().coverage() < 2*readLen) {
+          for(auto& hit : jointHits){
+            traverseGraph(rpair, hit, pfi, refSeqConstructor, contigSeqCache, aligner, verbose) ;
+            // update minScore across all hits
+            if(hit.leftClust->score + hit.rightClust->score > maxScore) {
+              maxScore = hit.leftClust->score + hit.rightClust->score;
+            }
+          }
+        }
+        else if(!jointHits.empty()){
+          maxScore = 2 * readLen * MATCH_SCORE ;
+          for(auto& jointHit : jointHits){
+            jointHit.leftClust->score = jointHit.leftClust->coverage * MATCH_SCORE ;
+            jointHit.rightClust->score = jointHit.rightClust->coverage * MATCH_SCORE;
+            jointHit.leftClust->cigar = std::to_string(readLen)+"M" ;
+            jointHit.rightClust->cigar = std::to_string(readLen)+"M" ;
+          }
+
+        }
+      }
+      */
+      hctr.totHits += validHits.size();
+      hctr.seHits += validHits.size();
+      hctr.numMapped += !validHits.empty() ? 1 : 0;
+      if (validHits.size() > hctr.maxMultimapping) {
+        hctr.maxMultimapping = validHits.size();
+      }
+      std::vector<QuasiAlignment> jointAlignments;
+      for (auto& hit : validHits) {
+        // reference id
+        size_t tid = hit.first;
+        auto memIt = hit.second;
+        jointAlignments.emplace_back(tid,                   // reference id
+                                     memIt->firstRefPos(), // reference pos
+                                     memIt->isFw,          // fwd direction
+                                     readLen,               // read length
+                                     memIt->cigar,          // cigar string
+                                     readLen,               // fragment length
+                                     false);                // properly paired
+        // Fill in the mate info		         // Fill in the mate
+        // info
+        auto& qaln = jointAlignments.back();
+        qaln.mateLen = readLen;
+        qaln.mateCigar = "";
+        qaln.matePos = 0;       // jointHit.rightClust->getTrFirstHitPos();
+        qaln.mateIsFwd = false; // jointHit.rightClust->isFw;
+        qaln.mateStatus = MateStatus::SINGLE_END;
+      }
+
+      hctr.totAlignment += validHits.size();
+
+      if (validHits.size() > 0 and !mopts->noOutput) {
+        writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
+                               mopts->writeOrphans, mopts->justMap);
+      } else if (validHits.size() == 0 and !mopts->noOutput) {
+        writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
+                                        sstream, mopts->writeOrphans,
+                                        mopts->justMap);
+      }
+
+      // write them on cmd
+      if (hctr.numReads > hctr.lastPrint + 1000000) {
+        hctr.lastPrint.store(hctr.numReads.load());
+        if (!mopts->quiet and iomutex->try_lock()) {
+          if (hctr.numReads > 0) {
+            std::cerr << "\r\r";
+          }
+          std::cerr << "saw " << hctr.numReads << " reads : "
+                    << "pe / read = "
+                    << hctr.peHits / static_cast<float>(hctr.numReads)
+                    << " : se / read = "
+                    << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
+#if defined(__DEBUG__) || defined(__TRACK_CORRECT__)
+          std::cerr << ": true hit \% = "
+                    << (100.0 * (hctr.trueHits / static_cast<float>(hctr.numReads)));
+#endif // __DEBUG__
+          iomutex->unlock();
+        }
+      }
+    } // for all reads in this job
+
+
+
+     //TODO Dump Output
+    // DUMP OUTPUT
+    if (!mopts->noOutput) {
+      std::string outStr(sstream.str());
+      //std::cout << "\n OutStream size "<< outStr.size() << "\n" ;
+      // Get rid of last newline
+      if (!outStr.empty()) {
+        outStr.pop_back();
+        outQueue->info(std::move(outStr));
+      }
+      sstream.clear();
+      /*
+        iomutex->lock();
+        outStream << sstream.str();
+        iomutex->unlock();
+        sstream.clear();
+      */
+    }
+
+  } // processed all reads
+}
+
 template <typename PufferfishIndexT>
 bool spawnProcessReadsthreads(
                               uint32_t nthread,
@@ -777,6 +983,32 @@ bool spawnProcessReadsthreads(
   return true ;
 }
 
+template <typename PufferfishIndexT>
+bool spawnProcessReadsthreads(
+                              uint32_t nthread,
+                              single_parser* parser,
+                              PufferfishIndexT& pfi,
+                              SpinLockT& iomutex,
+                              std::shared_ptr<spdlog::logger> outQueue,
+                              HitCounters& hctr,
+                              AlignmentOpts* mopts){
+
+  std::vector<std::thread> threads ;
+
+  for(size_t i = 0; i < nthread ; ++i){
+
+    threads.emplace_back(processReadsSingle<PufferfishIndexT>,
+                         parser,
+                         std::ref(pfi),
+                         &iomutex,
+                         outQueue,
+                         std::ref(hctr),
+                         mopts);
+  }
+  for(auto& t : threads) { t.join(); }
+
+  return true ;
+}
 
 void printAlignmentSummary(HitCounters& hctrs, std::shared_ptr<spdlog::logger> consoleLog) {
   consoleLog->info("Done mapping reads.");
@@ -834,9 +1066,11 @@ bool alignReads(
 
   uint32_t nthread = mopts->numThreads ;
   std::unique_ptr<paired_parser> pairParserPtr{nullptr} ;
+  std::unique_ptr<single_parser> singleParserPtr{nullptr} ;
 
   size_t chunkSize{10000} ;
   SpinLockT iomutex ;
+  if (!mopts->singleEnd)
   {
     ScopedTimer timer(!mopts->quiet) ;
     HitCounters hctrs ;
@@ -861,12 +1095,25 @@ bool alignReads(
 	consoleLog->info("flushing output queue.");
   printAlignmentSummary(hctrs, consoleLog);
 	if (outLog) { outLog->flush(); }
+  } else {
+    ScopedTimer timer(!mopts->quiet) ;
+    HitCounters hctrs ;
+    consoleLog->info("mapping reads ... \n\n\n") ;
+    std::vector<std::string> readVec = util::tokenize(mopts->unmatedReads, ',') ;
+
+    uint32_t nprod = (readVec.size() > 1) ? 2 : 1;
+    singleParserPtr.reset(new single_parser(readVec, nthread, nprod, chunkSize));
+    singleParserPtr->start();
+
+    spawnProcessReadsthreads(nthread, singleParserPtr.get(), pfi, iomutex,
+                             outLog, hctrs, mopts) ;
+
+    singleParserPtr->stop();
+    consoleLog->info("flushing output queue.");
+    printAlignmentSummary(hctrs, consoleLog);
+    if (outLog) { outLog->flush(); }
   }
-
-
   return true ;
-
-
 }
 
 int pufferfishAligner(AlignmentOpts& alnargs){
