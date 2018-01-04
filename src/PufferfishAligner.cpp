@@ -835,7 +835,7 @@ void processReadsSingle(single_parser* parser,
         auto& lclust = l.second;
         for (auto clustIt = lclust.begin(); clustIt != lclust.end(); ++clustIt) {
           if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage;}
-          if (clustIt->coverage >= mopts->scoreRatio * maxCoverage and clustIt->coverage == perfectCoverage ) {
+          if (clustIt->coverage >= mopts->scoreRatio * maxCoverage or clustIt->coverage == perfectCoverage ) {
             validHits.emplace_back(static_cast<uint32_t>(l.first), clustIt);
           } 
         }
