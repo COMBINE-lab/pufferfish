@@ -841,10 +841,30 @@ void processReadsSingle(single_parser* parser,
         }
         double thresh = mopts->scoreRatio * maxCoverage;
         // remove from valid hits those that don't reach the coverage threshold
+        std::sort(
+            validHits.begin(), validHits.end(),
+            [thresh](
+                std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>&
+                    e1, std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e2) -> bool {
+              return e1.second->coverage > e2.second->coverage;
+            });
+            
+        validHits.erase(std::remove_if(
+            validHits.begin(), validHits.end(),
+            [thresh, readLen](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
+              return (static_cast<double>(e.second->coverage < 0.25 * readLen));
+            }), validHits.end());
+            
+        if (validHits.size() > 0) {
+          validHits.erase(validHits.begin() + 1, validHits.end());
+            }
+            
+            /*
         std::remove_if(validHits.begin(), validHits.end(), 
           [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
             return static_cast<double>(e.second->coverage) < thresh; 
           });
+          */
       }
 
       int maxScore = std::numeric_limits<int>::min();
