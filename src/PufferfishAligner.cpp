@@ -922,7 +922,18 @@ void processReadsSingle(single_parser* parser,
 
       hctr.totAlignment += validHits.size();
 
-      if (validHits.size() > 0 and !mopts->noOutput) {
+      if(validHits.size() > 0 and mopts->krakOut){
+        std::vector<std::vector<util::MemInfo>> mems;
+        for (auto& hit : validHits) {
+          // reference id
+          size_t tid = hit.first;
+          auto memIt = hit.second;
+          mems.emplace_back(memIt->mems);
+        }
+        writeAlignmentsToKrakenDump(read, formatter, jointAlignments, sstream,
+                                    mems);
+      }
+      else if (validHits.size() > 0 and !mopts->noOutput) {
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
                                mopts->writeOrphans, mopts->justMap);
       } else if (validHits.size() == 0 and !mopts->noOutput) {
@@ -1081,7 +1092,9 @@ bool alignReads(
   //write the SAMHeader
   //If nothing gets printed by this
   //time we are in trouble
-  writeSAMHeader(pfi, outLog) ;
+  if(not mopts->krakOut){
+    writeSAMHeader(pfi, outLog) ;
+  }
   }
 
   uint32_t nthread = mopts->numThreads ;

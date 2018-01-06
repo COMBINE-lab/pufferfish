@@ -207,6 +207,41 @@ inline uint32_t writeUnmappedAlignmentsToStreamSingle(
     return 0;
 }
 
+template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
+                                            PairedAlignmentFormatter<IndexT>& formatter,
+                                            std::vector<util::QuasiAlignment>& jointHits,
+                                            fmt::MemoryWriter& sstream,
+                                            std::vector<std::vector<util::MemInfo>>& mems) {
+  auto& readName = r.name;
+  // If the read name contains multiple space-separated parts,
+  // print only the first
+  size_t splitPos = readName.find(' ');
+  if (splitPos < readName.length()) {
+    readName[splitPos] = '\0';
+  } else {
+    splitPos = readName.length();
+  }
+
+  if (splitPos > 2 and readName[splitPos - 2] == '/') {
+    readName[splitPos - 2] = '\0';
+  }
+  sstream << readName.c_str() << "\t" << jointHits.size() << "\n";
+
+  size_t memIdx {0};
+  for (auto& qa : jointHits) {
+    auto& refName = formatter.index->refName(qa.tid);
+    sstream << refName << '\t' << mems[memIdx].size();
+    for (auto& mem: mems[memIdx]){
+      sstream << "\t" << mem.memInfo->cpos << "\t" << mem.memInfo->memlen;
+    }
+    sstream << "\n";
+    memIdx++;
+  }
+  return 0;
+}
+
+
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,

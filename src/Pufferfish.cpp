@@ -91,6 +91,7 @@ int main(int argc, char* argv[]) {
                     (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
+                    (option("-k", "--kraken").set(alignmentOpt.krakOut, true)) % "dump kraken format output",
                     (
                       (required("--noOutput").set(alignmentOpt.noOutput, true)) % "run without writing SAM file"
                         |
