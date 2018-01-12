@@ -44,13 +44,13 @@ int main(int argc, char* argv[]) {
 
   boomphf::mphf<uint64_t, boomphf::SingleHashFunctor<uint64_t>> fakeBoomphf;
   PufferfishIndex pfi(argv[1]);
-  std::cout << "\nloaded!\n\n";
+  std::cerr << "\nloaded!\n\n";
   uint8_t k = pfi.k();
   sdsl::int_vector<2>& seq = pfi.getSeq();
   sdsl::bit_vector::select_1_type& unitigS = pfi.getBoundarySelect();
 
   for (uint8_t m = 2; m < 13; m++) {
-    std::cout << "\n\nMINIMIZER LENGTH : "<< static_cast<size_t>(m) << "\n\n";
+    std::cerr << "\n\nMINIMIZER LENGTH : "<< static_cast<size_t>(m) << "\n\n";
     std::map<uint64_t, uint64_t> hash2bucketIdx;
     std::map<uint64_t, uint64_t> val2hash;
     size_t bucketCnt = (0x01 << 2*m);
@@ -168,13 +168,13 @@ int main(int argc, char* argv[]) {
 
 
     }
-    std::cout << "\n";
+    std::cerr << "\n";
     // boundary bv + seq bv --> seq.size()*3 + these two vectors overhead
     uint64_t totalBits = totalNumOfKmers*ceil(log2(totalNumOfKmers+1)) + (seq.size()*3) + sizeof(seq)*2 + sizeof(fakeBoomphf);
-    std::cout << "# of unitigs before splitting: " << contigCntr << "\n"
+    std::cerr << "# of unitigs before splitting: " << contigCntr << "\n"
               << "# of unitigs after splitting: " << unitigSplitCnt << "\n"
               << "# of unitigs that were splitted: " << splittedUnitigCnt << "\n";
-    std::cout << "\nBefore applying minimizers:\n"
+    std::cerr << "\nBefore applying minimizers:\n"
               << "# of kmers: " << totalNumOfKmers << " , "
               << "bits per kmer pos "<< ceil(log2(totalNumOfKmers)) << "\n"
               << "total sequence length: " << totalSeqSize << "\n"
@@ -185,8 +185,9 @@ int main(int argc, char* argv[]) {
     size_t maxPosLen = 0;
     totalBits = 0;
     uint64_t sumNumKmers = 0;
-    std::cout << "\nAfter applying minimizers:\n";
+    std::cerr << "\nAfter applying minimizers:\n";
     uint8_t bCntr = 0;
+    std::ofstream outfile("gen-bucket-"+std::to_string(m)+".dist");
     for (auto bIt = buckets.begin(); bIt != buckets.end(); bIt++) {
       if (bIt->numOfKmers != 0) {
         sumNumKmers += bIt->numOfKmers;
@@ -195,15 +196,16 @@ int main(int argc, char* argv[]) {
         if (ceil(log2(bIt->numOfKmers+1)) > maxPosLen)
           maxPosLen = ceil(log2(bIt->numOfKmers+1));
         seqSize += bIt->seqLength;
-        /*std::cout << "b" << static_cast<size_t>(bCntr++) << ":"
-                << "u" << bIt->numOfUnitigs << ","
-                << "k" << bIt->numOfKmers << ","
-                << ceil(log2(bIt->numOfKmers+1)) << "\t";
-        */
+        outfile << "b" << static_cast<size_t>(bCntr++) << ","
+                << "\t" << bIt->numOfUnitigs << ","
+                << "\t" << bIt->numOfKmers << ","
+                << "\t" << ceil(log2(bIt->numOfKmers+1)) << "\n";
+        
       }
     }
+    outfile.close();
     size_t oneMPHFSize = seqSize*3+sumNumKmers*maxPosLen + (sizeof(seq)*2)*buckets.size() + sizeof(fakeBoomphf);
-    std::cout <<"\ntotal number of kmers: " << sumNumKmers << "\n"
+    std::cerr <<"\ntotal number of kmers: " << sumNumKmers << "\n"
               <<"Sum of all sequence lengths: " << seqSize << "\n"
               <<"1 MPHF per bucket total bits: " << totalBits << " or " << totalBits/(1024*1024*8) << "MB\n"
               <<"1 global MPHF total bits: " << oneMPHFSize << " or " << oneMPHFSize/(1024*1024*8) << "MB\n";
