@@ -2,7 +2,6 @@
 #include <set> // std::set
 #include <deque> // std::deque
 //#include <queue> // std::priority_queue
-#include <map>
 #include "sparsepp/spp.h"
 
 #define NO_PARENT 0
@@ -118,6 +117,6 @@ class KrakMap {
         std::set<uint64_t> activeTaxa;
         Rank pruningLevel = Rank::SPECIES;
         TaxaNode* root = nullptr;
-        std::map<Rank, uint64_t> mappedReadCntr;
+        spp::sparse_hash_map<uint64_t, std::pair<uint64_t, Rank>> mappedReadCntr;
     
 };

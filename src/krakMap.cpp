@@ -208,10 +208,10 @@ void KrakMap::findBestPath() {
         }
         walker = &taxaNodeMap[maxId];
     }
-    if (mappedReadCntr.find(walker->getRank()) == mappedReadCntr.end())
-        mappedReadCntr[walker->getRank()] = 1;
+    if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
+        mappedReadCntr[walker->getId()] = std::make_pair(1, walker->getRank());
     else
-        mappedReadCntr[walker->getRank()] += 1;
+        mappedReadCntr[walker->getId()].first += 1;
 }
 
 void KrakMap::clearReadSubTree() {
