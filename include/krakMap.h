@@ -74,7 +74,7 @@ class KrakMap {
     private:
         void walk2theRoot(TaxaNode* child);
         void propagateInfo();
-        void findBestPath();
+        void assignRead();
         void clearReadSubTree();
         void initializeRanks() {
             str2Rank["no rank"] = Rank::STRAIN;
