@@ -9,6 +9,9 @@ struct krakMapOpts {
     std::string taxonomyTree_filename;
     std::string refId2TaxId_filename;
     std::string mapperOutput_filename;
+    std::string truth_filename;
+    std::string output_filename;
+    std::string level;
 };
 
 void TaxaNode::addInterval(uint64_t begin, uint64_t len) {
@@ -124,8 +127,9 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         }
 
         // calculate score and intervals for all internal nodes
-
+        // constructInternalNodes();
         // find best path for this read
+        // findBestPath();
 
         // update counter of the corresponding level in the taxonomy tree
     }
@@ -151,6 +155,12 @@ int main(int argc, char* argv[]) {
   app.add_option("-s,--seq2taxa", kopts.refId2TaxId_filename, "path to the refId 2 taxaId file")
       ->required();
   app.add_option("-m,--mapperout", kopts.mapperOutput_filename, "path to the pufferfish mapper output file")
+      ->required();
+  app.add_option("-r,--truth", kopts.truth_filename, "path to the truth taxonomy counts file")
+      ->required();
+  app.add_option("-o,--output", kopts.output_filename, "path to the output file to write results")
+      ->required();
+  app.add_option("-l,--level", kopts.level, "choose between (species, genus, family, order, class, phylum)")
       ->required();
 
   try {
