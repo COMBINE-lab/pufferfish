@@ -54,8 +54,15 @@ void TaxaNode::cleanIntervalsAndCalcScore() {
 }
 
 bool TaxaNode::addChild(TaxaNode* child) { 
-    children.push_back(child);
+    activeChildren.push_back(child->getId());
+    activeChildrenCount++;
     return true;
+}
+
+void TaxaNode::reset() {
+     intervals.clear();
+     activeChildren.clear();
+     activeChildrenCount = 0;
 }
 
 
@@ -91,13 +98,7 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_fi
         taxaNodeMap[id] = TaxaNode(id, str2Rank[rank], pid);
         std::getline(tfile, tmp);
     }
-    tfile.close();
-
-    // add pointers to children for each taxa node
-    for (auto& kv : taxaNodeMap) {
-        TaxaNode& taxaNode = kv.second;
-        taxaNodeMap[taxaNode.getParentId()].addChild(&taxaNode);
-    }     
+    tfile.close();  
 }
 
 bool KrakMap::classify(std::string& mapperOutput_filename) {
@@ -107,10 +108,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     while (!mfile.eof()) {
         mfile >> rid >> mcnt >> rlen;
         // reset everything we've done for previous read
-        // leaves.clear();
-        leaves = std::priority_queue <TaxaNode*, std::vector<TaxaNode*>, TaxaNodePtrComparator>();
-        resetIntervals();
-
+        clearReadSubTree();
         // construct intervals for leaves
         for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
             mfile >> tname >> icnt;
@@ -123,11 +121,11 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
                 taxaPtr->addInterval(ibeg, ilen);
             }
             taxaPtr->cleanIntervalsAndCalcScore();
-            leaves.push(taxaPtr);
+            unready.push_front(taxaPtr);
         }
 
-        // calculate score and intervals for all internal nodes
-        // constructInternalNodes();
+        // propagate score and intervals to all internal nodes
+        // propagateInfo();
         // find best path for this read
         // findBestPath();
 
@@ -136,11 +134,13 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     return true;
 }
 
-void KrakMap::resetIntervals() {
+void KrakMap::clearReadSubTree() {
     for (auto & activeTaxum : activeTaxa) {
-        taxaNodeMap[activeTaxum].clearIntervals();
+        taxaNodeMap[activeTaxum].reset();
     }
     activeTaxa.clear();
+    unready.clear();
+    ripe.clear();
 }
 
 

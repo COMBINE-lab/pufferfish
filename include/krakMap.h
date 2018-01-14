@@ -1,7 +1,7 @@
 #include <vector>
 #include <set> // std::set
-//#include <deque> // std::deque
-#include <queue> // std::priority_queue
+#include <deque> // std::deque
+//#include <queue> // std::priority_queue
 #include "sparsepp/spp.h"
 
 
@@ -44,13 +44,14 @@ class TaxaNode {
         uint64_t getParentId() {return parentId;}
         uint64_t getId() {return id;}
         Rank getRank() const {return rank;}
-        void clearIntervals() {intervals.clear();}
+        void reset();
 
     private:
         uint64_t id;
         uint32_t score;
         uint64_t parentId;
-        std::vector<TaxaNode*> children;
+        uint64_t activeChildrenCount;
+        std::vector<uint64_t> activeChildren;
         std::vector<Interval> intervals;
         Rank rank;
 };
@@ -69,7 +70,7 @@ class KrakMap {
         void saveClassificationResults(std::string& output_filename);
 
     private:
-        void resetIntervals();
+        void clearReadSubTree();
         void initializeRanks() {
             str2Rank["no rank"] = Rank::STRAIN;
             str2Rank["varietas"] = Rank::VARIETAS;
@@ -107,7 +108,8 @@ class KrakMap {
         spp::sparse_hash_map<uint32_t, TaxaNode> taxaNodeMap;
         spp::sparse_hash_map<std::string, uint32_t> refId2taxId;
         spp::sparse_hash_map<std::string, Rank> str2Rank;
-        std::priority_queue<TaxaNode*, std::vector<TaxaNode*>, TaxaNodePtrComparator> leaves;
+        std::deque<TaxaNode*> unready;
+        std::deque<TaxaNode*> ripe;
         std::set<uint64_t> activeTaxa;
         Rank pruneLevel = Rank::SPECIES;
     
