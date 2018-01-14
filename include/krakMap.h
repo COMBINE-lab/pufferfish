@@ -37,7 +37,7 @@ class TaxaNode {
                 }
             }
         bool isRoot() { return parentId == NO_PARENT; }//TODO not easy with the new design return children.size(); }
-        bool isRipe() { if (notIncorporatedChildrenCounter == -1) std::exit(1); std::cerr << notIncorporatedChildrenCounter << "\n"; return !notIncorporatedChildrenCounter;} // ripe if zero
+        bool isRipe() { return !notIncorporatedChildrenCounter;} // ripe if zero
         void addInterval(uint64_t begin, uint64_t len);
         void updateIntervals(TaxaNode* child);
         /**

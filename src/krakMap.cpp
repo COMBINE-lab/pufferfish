@@ -124,7 +124,7 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_fi
 
 bool KrakMap::classify(std::string& mapperOutput_filename) {
     std::cerr << "KrakMap: Classify ..\n";
-    std::cerr << "Mapping Output File: " << mapperOutput_filename << "\n";
+    std::cerr << "\tMapping Output File: " << mapperOutput_filename << "\n";
     std::ifstream mfile(mapperOutput_filename);
     std::string rid, tname; // read id, taxa name temp
     uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
@@ -150,7 +150,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         }
 
         // propagate score and intervals to all internal nodes
-        std::cerr << "Update intervals and scores of internal nodes...\n";
+        // std::cerr << "Update intervals and scores of internal nodes...\n";
         propagateInfo();
         // find best path for this read
         // findBestPath();
@@ -161,15 +161,12 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
 }
 
 void KrakMap::walk2theRoot(TaxaNode* child) {
-    //std::cerr << "start ";
     while (!child->isRoot()) {
-        //std::cerr << child->getId() << " ";
         TaxaNode* parent = &taxaNodeMap[child->getParentId()]; // fetch parent
         activeTaxa.insert(parent->getId());
         parent->addChild(child); // add current node as its child
         child = parent; // walk to parent --> parent is the new child
     }
-    //std::cerr << "end\n";
 }
 
 //TODO don't like it 
@@ -178,20 +175,14 @@ void KrakMap::walk2theRoot(TaxaNode* child) {
 // we shouldn't .. but it just doesn't happen because it doesn't .. :/
 void KrakMap::propagateInfo() {
     while (!hits.empty()) {
-        std::cerr << "size: " << hits.size() << " " ;
         TaxaNode* taxaPtr = hits.back();
-        std::cerr << taxaPtr->getId() << "\n";
         hits.pop_back();
-        // if the hit itself is not ripe, push it back to the deque
-        if (!taxaPtr->isRipe()) { 
-            hits.push_front(taxaPtr);
-        }
-        std::cerr << "loop\n" << taxaPtr->getId() << " ";
+        // if the hit itself is not ripe, no need to push it back to the queue
+        // when it's the turn for one of the other hits, it'll get ripe and updated
         while (!taxaPtr->isRoot() && taxaPtr->isRipe()) {
             TaxaNode* parentPtr = &taxaNodeMap[taxaPtr->getParentId()];
             parentPtr->updateIntervals(taxaPtr);
             taxaPtr = parentPtr;
-            std::cerr << taxaPtr->getId() << " ";
         }
     }
 }
