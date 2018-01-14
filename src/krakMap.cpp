@@ -153,7 +153,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         // std::cerr << "Update intervals and scores of internal nodes...\n";
         propagateInfo();
         // find best path for this read
-        // findBestPath();
+        findBestPath();
 
         // update counter of the corresponding level in the taxonomy tree
     }
@@ -185,6 +185,33 @@ void KrakMap::propagateInfo() {
             taxaPtr = parentPtr;
         }
     }
+}
+
+void KrakMap::findBestPath() {
+    TaxaNode* walker = root;
+    
+    while (walker->getRank() != pruningLevel) {
+        uint64_t maxScore=0, maxId, maxCntr;
+        for (auto childId : walker->getActiveChildren()) {
+            TaxaNode& child = taxaNodeMap[childId];
+            if (child.getScore() == maxScore) {
+                maxCntr++;
+            }
+            else if (child.getScore() > maxScore) {
+                maxId = childId;
+                maxScore = child.getScore();
+                maxCntr = 1;
+            }
+        }
+        if (maxCntr != 1) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
+            break;
+        }
+        walker = &taxaNodeMap[maxId];
+    }
+    if (mappedReadCntr.find(walker->getRank()) == mappedReadCntr.end())
+        mappedReadCntr[walker->getRank()] = 1;
+    else
+        mappedReadCntr[walker->getRank()] += 1;
 }
 
 void KrakMap::clearReadSubTree() {

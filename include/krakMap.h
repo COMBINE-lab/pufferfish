@@ -2,6 +2,7 @@
 #include <set> // std::set
 #include <deque> // std::deque
 //#include <queue> // std::priority_queue
+#include <map>
 #include "sparsepp/spp.h"
 
 #define NO_PARENT 0
@@ -50,7 +51,9 @@ class TaxaNode {
 
         uint64_t getParentId() {return parentId;}
         uint64_t getId() {return id;}
-        Rank getRank() const {return rank;}
+        Rank getRank() {return rank;}
+        uint64_t getScore() {return score;}
+        std::set<uint64_t>& getActiveChildren() {return activeChildren;}
         void reset();
 
     private:
@@ -69,9 +72,10 @@ class KrakMap {
         KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename);
         bool classify(std::string& mapperOutput_filename);
         void saveClassificationResults(std::string& output_filename);
-        void propagateInfo();
     private:
         void walk2theRoot(TaxaNode* child);
+        void propagateInfo();
+        void findBestPath();
         void clearReadSubTree();
         void initializeRanks() {
             str2Rank["no rank"] = Rank::STRAIN;
@@ -112,8 +116,8 @@ class KrakMap {
         spp::sparse_hash_map<std::string, Rank> str2Rank;
         std::deque<TaxaNode*> hits;
         std::set<uint64_t> activeTaxa;
-        Rank pruneLevel = Rank::SPECIES;
+        Rank pruningLevel = Rank::SPECIES;
         TaxaNode* root = nullptr;
-        std::set<Rank> mappedReadCntr;
+        std::map<Rank, uint64_t> mappedReadCntr;
     
 };
