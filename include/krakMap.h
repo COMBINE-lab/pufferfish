@@ -4,6 +4,7 @@
 //#include <queue> // std::priority_queue
 #include "sparsepp/spp.h"
 
+#define NO_PARENT 0
 
 // inclusive for begin 
 // exclusive for end
@@ -29,10 +30,16 @@ class TaxaNode {
     public:
         TaxaNode() { rank = Rank::STRAIN; score = 0;}
         TaxaNode(uint64_t inId, Rank inRank, uint64_t inPid) : 
-            id(inId), score(0), parentId(inPid), rank(inRank) {}
-        bool isLeaf() { return true; }//TODO not easy with the new design return children.size(); }
+            id(inId), score(0), parentId(inPid), rank(inRank) {
+                if (inId == inPid) {
+                    rank = Rank::LIFE;
+                    inPid = NO_PARENT;
+                }
+            }
+        bool isRoot() { return parentId == NO_PARENT; }//TODO not easy with the new design return children.size(); }
+        bool isRipe() { return !notIncorporatedChildrenCounter;} // ripe if zero
         void addInterval(uint64_t begin, uint64_t len);
-
+        void updateIntervals(TaxaNode* child);
         /**
          * Sorts intervals
          * Merge intervals if possible
@@ -50,26 +57,21 @@ class TaxaNode {
         uint64_t id;
         uint32_t score;
         uint64_t parentId;
-        uint64_t activeChildrenCount;
-        std::vector<uint64_t> activeChildren;
+        uint64_t notIncorporatedChildrenCounter;
+        std::set<uint64_t> activeChildren; //it's a set because, we might add the same child multiple times
         std::vector<Interval> intervals;
         Rank rank;
 };
 
-class TaxaNodePtrComparator {
-    public:
-        bool operator()(const TaxaNode* a, const TaxaNode* b) {
-            return (a->getRank() > b->getRank()); // comparator should work as greater if we want to have minimum rank on top in pq
-        }
-};
 
 class KrakMap {
     public:
         KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename);
         bool classify(std::string& mapperOutput_filename);
         void saveClassificationResults(std::string& output_filename);
-
+        void propagateInfo();
     private:
+        void walk2theRoot(TaxaNode* child);
         void clearReadSubTree();
         void initializeRanks() {
             str2Rank["no rank"] = Rank::STRAIN;
@@ -108,9 +110,9 @@ class KrakMap {
         spp::sparse_hash_map<uint32_t, TaxaNode> taxaNodeMap;
         spp::sparse_hash_map<std::string, uint32_t> refId2taxId;
         spp::sparse_hash_map<std::string, Rank> str2Rank;
-        std::deque<TaxaNode*> unready;
-        std::deque<TaxaNode*> ripe;
+        std::deque<TaxaNode*> hits;
         std::set<uint64_t> activeTaxa;
         Rank pruneLevel = Rank::SPECIES;
+        TaxaNode* root;
     
 };

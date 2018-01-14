@@ -17,6 +17,19 @@ struct krakMapOpts {
 void TaxaNode::addInterval(uint64_t begin, uint64_t len) {
     intervals.emplace_back(begin, begin+len);
 }
+
+void TaxaNode::updateIntervals(TaxaNode* child) {
+
+    // reduce the unready child counter
+    notIncorporatedChildrenCounter--;
+
+    // merge two sorted interval lists into parent
+    // update parent score
+    /* for (auto pit=intervals.begin(), cit=child->intervals.begin(); 
+        pit != intervals.end() && cit != child->intervals.end();) {
+        // it's hard .. soo hard!!!!
+    } */
+}
 /**
  * Sorts intervals
  * Merge intervals if possible
@@ -54,15 +67,19 @@ void TaxaNode::cleanIntervalsAndCalcScore() {
 }
 
 bool TaxaNode::addChild(TaxaNode* child) { 
-    activeChildren.push_back(child->getId());
-    activeChildrenCount++;
-    return true;
+    // if this child was not already added
+    if (activeChildren.find(child->getId()) == activeChildren.end()) {
+        activeChildren.insert(child->getId()); // add it
+        notIncorporatedChildrenCounter++; // increase not incorprated children counter
+        return true;
+    }
+    return false;
 }
 
 void TaxaNode::reset() {
      intervals.clear();
      activeChildren.clear();
-     activeChildrenCount = 0;
+     notIncorporatedChildrenCounter = 0;
 }
 
 
@@ -96,6 +113,8 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_fi
             std::cerr << taxonomyC2P[id].first << " " << taxonomyC2P.size() << "\n";
         } */
         taxaNodeMap[id] = TaxaNode(id, str2Rank[rank], pid);
+        if (taxaNodeMap[id].isRoot())
+            root = &taxaNodeMap[id];
         std::getline(tfile, tmp);
     }
     tfile.close();  
@@ -116,16 +135,17 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
             activeTaxa.insert(tid);
             // fetch the taxum from the map
             TaxaNode* taxaPtr = &taxaNodeMap[tid];
+            walk2theRoot(taxaPtr);
             for (size_t i = 0; i < icnt; ++i) {
                 mfile >> ibeg >> ilen;
                 taxaPtr->addInterval(ibeg, ilen);
             }
             taxaPtr->cleanIntervalsAndCalcScore();
-            unready.push_front(taxaPtr);
+            hits.push_front(taxaPtr);
         }
 
         // propagate score and intervals to all internal nodes
-        // propagateInfo();
+        propagateInfo();
         // find best path for this read
         // findBestPath();
 
@@ -134,13 +154,41 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     return true;
 }
 
+void KrakMap::walk2theRoot(TaxaNode* child) {
+    while (!child->isRoot()) {
+        TaxaNode* parent = &taxaNodeMap[child->getParentId()]; // fetch parent
+        activeTaxa.insert(parent->getId());
+        parent->addChild(child); // add current node as its child
+        child = parent; // walk to parent --> parent is the new child
+    }
+}
+
+//TODO don't like it 
+// It's not as beautiful as when the root is ripe, we are done, but it does the same thing :/
+// will we pass being ripe and become overripe? (negative # of incorporated children .. )
+// we shouldn't .. but it just doesn't happen because it doesn't .. :/
+void KrakMap::propagateInfo() {
+    while (!hits.empty()) {
+        TaxaNode* taxaPtr = hits.back();
+        hits.pop_back();
+        // if the hit itself is not ripe, push it back to the deque
+        if (!taxaPtr->isRipe()) { 
+            hits.push_front(taxaPtr);
+        }
+        while (!taxaPtr->isRoot() && taxaPtr->isRipe()) {
+            TaxaNode* parentPtr = &taxaNodeMap[taxaPtr->getParentId()];
+            parentPtr->updateIntervals(taxaPtr);
+            taxaPtr = parentPtr;
+        }
+    }
+}
+
 void KrakMap::clearReadSubTree() {
     for (auto & activeTaxum : activeTaxa) {
         taxaNodeMap[activeTaxum].reset();
     }
     activeTaxa.clear();
-    unready.clear();
-    ripe.clear();
+    hits.clear();
 }
 
 
