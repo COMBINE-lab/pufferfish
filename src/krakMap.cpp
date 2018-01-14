@@ -84,6 +84,8 @@ void TaxaNode::reset() {
 
 
 KrakMap::KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename) {
+
+    std::cerr << "KrakMap: Construct ..\n";
     // map rank string values to enum values
     initializeRanks();
 
@@ -121,6 +123,8 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_fi
 }
 
 bool KrakMap::classify(std::string& mapperOutput_filename) {
+    std::cerr << "KrakMap: Classify ..\n";
+    std::cerr << "Mapping Output File: " << mapperOutput_filename << "\n";
     std::ifstream mfile(mapperOutput_filename);
     std::string rid, tname; // read id, taxa name temp
     uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
@@ -129,6 +133,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         // reset everything we've done for previous read
         clearReadSubTree();
         // construct intervals for leaves
+        // std::cerr << "# of hits: " << mcnt << "...\n";
         for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
             mfile >> tname >> icnt;
             tid = refId2taxId[tname];
@@ -145,6 +150,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         }
 
         // propagate score and intervals to all internal nodes
+        std::cerr << "Update intervals and scores of internal nodes...\n";
         propagateInfo();
         // find best path for this read
         // findBestPath();
@@ -155,12 +161,15 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
 }
 
 void KrakMap::walk2theRoot(TaxaNode* child) {
+    //std::cerr << "start ";
     while (!child->isRoot()) {
+        //std::cerr << child->getId() << " ";
         TaxaNode* parent = &taxaNodeMap[child->getParentId()]; // fetch parent
         activeTaxa.insert(parent->getId());
         parent->addChild(child); // add current node as its child
         child = parent; // walk to parent --> parent is the new child
     }
+    //std::cerr << "end\n";
 }
 
 //TODO don't like it 
@@ -169,16 +178,20 @@ void KrakMap::walk2theRoot(TaxaNode* child) {
 // we shouldn't .. but it just doesn't happen because it doesn't .. :/
 void KrakMap::propagateInfo() {
     while (!hits.empty()) {
+        std::cerr << "size: " << hits.size() << " " ;
         TaxaNode* taxaPtr = hits.back();
+        std::cerr << taxaPtr->getId() << "\n";
         hits.pop_back();
         // if the hit itself is not ripe, push it back to the deque
         if (!taxaPtr->isRipe()) { 
             hits.push_front(taxaPtr);
         }
+        std::cerr << "loop\n" << taxaPtr->getId() << " ";
         while (!taxaPtr->isRoot() && taxaPtr->isRipe()) {
             TaxaNode* parentPtr = &taxaNodeMap[taxaPtr->getParentId()];
             parentPtr->updateIntervals(taxaPtr);
             taxaPtr = parentPtr;
+            std::cerr << taxaPtr->getId() << " ";
         }
     }
 }
@@ -217,5 +230,6 @@ int main(int argc, char* argv[]) {
     return app.exit(e);
   }
   KrakMap krakMap(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename);
+  krakMap.classify(kopts.mapperOutput_filename);
   return 0;
 }

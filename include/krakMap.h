@@ -28,16 +28,16 @@ enum class Rank : uint8_t {
 
 class TaxaNode {
     public:
-        TaxaNode() { rank = Rank::STRAIN; score = 0;}
+        TaxaNode() { rank = Rank::STRAIN; score = 0; notIncorporatedChildrenCounter = 0;}
         TaxaNode(uint64_t inId, Rank inRank, uint64_t inPid) : 
-            id(inId), score(0), parentId(inPid), rank(inRank) {
-                if (inId == inPid) {
+            id(inId), score(0), parentId(inPid), notIncorporatedChildrenCounter(0), rank(inRank) {
+                if (id == parentId) {
                     rank = Rank::LIFE;
-                    inPid = NO_PARENT;
+                    parentId = NO_PARENT;
                 }
             }
         bool isRoot() { return parentId == NO_PARENT; }//TODO not easy with the new design return children.size(); }
-        bool isRipe() { return !notIncorporatedChildrenCounter;} // ripe if zero
+        bool isRipe() { if (notIncorporatedChildrenCounter == -1) std::exit(1); std::cerr << notIncorporatedChildrenCounter << "\n"; return !notIncorporatedChildrenCounter;} // ripe if zero
         void addInterval(uint64_t begin, uint64_t len);
         void updateIntervals(TaxaNode* child);
         /**
@@ -113,6 +113,7 @@ class KrakMap {
         std::deque<TaxaNode*> hits;
         std::set<uint64_t> activeTaxa;
         Rank pruneLevel = Rank::SPECIES;
-        TaxaNode* root;
+        TaxaNode* root = nullptr;
+        std::set<Rank> mappedReadCntr;
     
 };
