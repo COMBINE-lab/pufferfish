@@ -10,7 +10,8 @@ struct krakMapOpts {
     std::string refId2TaxId_filename;
     std::string mapperOutput_filename;
     std::string output_filename;
-    std::string level;
+    std::string level = "species";
+    double filterThreshold = 0;
 };
 
 void TaxaNode::addInterval(uint64_t begin, uint64_t len) {
@@ -322,8 +323,10 @@ int main(int argc, char* argv[]) {
       ->required();
   app.add_option("-o,--output", kopts.output_filename, "path to the output file to write results")
       ->required();
-  app.add_option("-l,--level", kopts.level, "choose between (species, genus, family, order, class, phylum)")
-      ->required();
+  app.add_option("-l,--level", kopts.level, "choose between (species, genus, family, order, class, phylum). Default:species")
+      ->required(false);
+  app.add_option("-f,--filter", kopts.filterThreshold, "choose the threshold (0-1) to filter out mappings with a score below that. Default: no filter")
+      ->required(false);
 
   try {
     app.parse(argc, argv);
