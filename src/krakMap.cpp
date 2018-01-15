@@ -49,16 +49,19 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
     else {
         std::cerr << "ERROR!! Both parent an child intervals were empty.\n";
     }
+    std::cerr << "init ";
     std::vector<Interval>::iterator cur;
     while (pit != parentIntervals.end() || cit != childIntervals.end()) {
         // find the smallest interval between the heads of the two lists
         if (pit == parentIntervals.end() || cit->begin < pit->begin) {
             cur = cit;
             cit++;
+            std::cerr << "cit++ "; 
         }
         else {
             cur = pit;
             pit++;  
+            std::cerr << "pit++ ";
         }
         // merge the new interval
         // Note: since both lists are sorted
@@ -176,6 +179,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
     while (!mfile.eof()) {
         mfile >> rid >> mcnt >> rlen;
+        std::cerr << rid << "\n";
         // reset everything we've done for previous read
         clearReadSubTree();
         // construct intervals for leaves
@@ -199,7 +203,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         std::cerr << "Update intervals and scores of internal nodes ..\n";
         propagateInfo();
         // find best path for this read
-        std::cerr << "Assign Read ..\n";
+        std::cerr << "\nAssign Read ..\n";
         assignRead();
     }
     return true;
@@ -234,9 +238,9 @@ void KrakMap::propagateInfo() {
 
 void KrakMap::assignRead() {
     TaxaNode* walker = root;
-    
+    //std::cerr << rankToStr(pruningLevel) << " ";
     while (walker->getRank() != pruningLevel) {
-        uint64_t maxScore=0, maxId = -1, maxCntr;
+        uint64_t maxScore=0, maxId = -1, maxCntr = 0;
         for (auto childId : walker->getActiveChildren()) {
             TaxaNode& child = taxaNodeMap[childId];
             if (child.getScore() == maxScore) {
