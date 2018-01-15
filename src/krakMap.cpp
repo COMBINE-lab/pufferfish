@@ -9,7 +9,6 @@ struct krakMapOpts {
     std::string taxonomyTree_filename;
     std::string refId2TaxId_filename;
     std::string mapperOutput_filename;
-    std::string truth_filename;
     std::string output_filename;
     std::string level;
 };
@@ -25,10 +24,55 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
 
     // merge two sorted interval lists into parent
     // update parent score
-    /* for (auto pit=intervals.begin(), cit=child->intervals.begin(); 
-        pit != intervals.end() && cit != child->intervals.end();) {
-        // it's hard .. soo hard!!!!
-    } */
+    score = 0;
+    auto& childIntervals = child->getIntervals();
+    std::vector<Interval> parentIntervals(intervals.size());
+    std::copy(intervals.begin(), intervals.end(), parentIntervals.begin());
+    
+    intervals.clear();
+    intervals.reserve(parentIntervals.size()+childIntervals.size());
+    
+    std::vector<Interval>::iterator pit = parentIntervals.begin();
+    std::vector<Interval>::iterator cit = childIntervals.begin();
+    std::vector<Interval>::iterator fit = intervals.begin();
+    std::cerr << parentIntervals.size() << " " << childIntervals.size() << " ";
+
+    // add the smallest interval as the first interval
+    if ( (pit == parentIntervals.end() && cit != parentIntervals.end()) || cit->begin < pit->begin) {
+        intervals.emplace_back(cit->begin, cit->end);
+        cit++;
+    }
+    else if (pit != parentIntervals.end()) {
+        intervals.emplace_back(pit->begin, pit->end);
+        pit++;
+    }
+    else {
+        std::cerr << "ERROR!! Both parent an child intervals were empty.\n";
+    }
+    std::vector<Interval>::iterator cur;
+    while (pit != parentIntervals.end() || cit != childIntervals.end()) {
+        // find the smallest interval between the heads of the two lists
+        if (pit == parentIntervals.end() || cit->begin < pit->begin) {
+            cur = cit;
+            cit++;
+        }
+        else {
+            cur = pit;
+            pit++;  
+        }
+        // merge the new interval
+        // Note: since both lists are sorted
+        // the new interval's begin is always >= the last inserted interval's
+        if (fit->end >= cur->begin) { // if the new interval has an overlap with the last inserted one
+            fit->end = cur->end; // merge them
+        } else { // insert the interval as a separate one and move fit forward
+            intervals.emplace_back(cur->begin, cur->end);
+            fit++;
+        }
+    }
+    for (auto& it : intervals) {
+        score += it.end - it.begin;
+    }
 }
 /**
  * Sorts intervals
@@ -83,12 +127,14 @@ void TaxaNode::reset() {
 }
 
 
-KrakMap::KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename) {
+KrakMap::KrakMap(std::string& taxonomyTree_filename, 
+                 std::string& refId2TaxId_filename, 
+                 std::string pruneLevelIn="species") {
 
     std::cerr << "KrakMap: Construct ..\n";
     // map rank string values to enum values
     initializeRanks();
-
+    pruningLevel = str2Rank[pruneLevelIn];
     std::ifstream tfile;
     uint32_t id, pid;
     std::string rank, name;
@@ -150,9 +196,10 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         }
 
         // propagate score and intervals to all internal nodes
-        // std::cerr << "Update intervals and scores of internal nodes...\n";
+        std::cerr << "Update intervals and scores of internal nodes ..\n";
         propagateInfo();
         // find best path for this read
+        std::cerr << "Assign Read ..\n";
         assignRead();
     }
     return true;
@@ -212,6 +259,15 @@ void KrakMap::assignRead() {
         mappedReadCntr[walker->getId()].first += 1;
 }
 
+void KrakMap::serialize(std::string& output_filename) {
+    std::ofstream ofile(output_filename);
+    ofile << "taxaId\ttaxaRank\tcount\n";
+    for (auto& kv : mappedReadCntr) {
+        ofile << kv.first << "\t" << rankToStr(kv.second.second) << "\t" << kv.second.first << "\n";
+    }
+    ofile.close();
+}
+    
 void KrakMap::clearReadSubTree() {
     for (auto & activeTaxum : activeTaxa) {
         taxaNodeMap[activeTaxum].reset();
@@ -233,8 +289,6 @@ int main(int argc, char* argv[]) {
       ->required();
   app.add_option("-m,--mapperout", kopts.mapperOutput_filename, "path to the pufferfish mapper output file")
       ->required();
-  app.add_option("-r,--truth", kopts.truth_filename, "path to the truth taxonomy counts file")
-      ->required();
   app.add_option("-o,--output", kopts.output_filename, "path to the output file to write results")
       ->required();
   app.add_option("-l,--level", kopts.level, "choose between (species, genus, family, order, class, phylum)")
@@ -245,7 +299,8 @@ int main(int argc, char* argv[]) {
   } catch (const CLI::ParseError& e) {
     return app.exit(e);
   }
-  KrakMap krakMap(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename);
+  KrakMap krakMap(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level);
   krakMap.classify(kopts.mapperOutput_filename);
+  krakMap.serialize(kopts.output_filename);
   return 0;
 }

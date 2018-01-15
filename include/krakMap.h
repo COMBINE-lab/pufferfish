@@ -11,6 +11,7 @@
 struct Interval {
     uint32_t begin;
     uint32_t end;
+    Interval() {}
     Interval(uint32_t inBegin, uint32_t inEnd) : begin(inBegin), end(inEnd) {}
 };
 
@@ -28,9 +29,15 @@ enum class Rank : uint8_t {
 
 class TaxaNode {
     public:
-        TaxaNode() { rank = Rank::STRAIN; score = 0; notIncorporatedChildrenCounter = 0;}
+        TaxaNode() { 
+            rank = Rank::STRAIN; 
+            score = 0; 
+            notIncorporatedChildrenCounter = 0;
+        }
         TaxaNode(uint64_t inId, Rank inRank, uint64_t inPid) : 
-            id(inId), score(0), parentId(inPid), notIncorporatedChildrenCounter(0), rank(inRank) {
+            id(inId), score(0), parentId(inPid), 
+            notIncorporatedChildrenCounter(0), 
+            rank(inRank) {
                 if (id == parentId) {
                     rank = Rank::LIFE;
                     parentId = NO_PARENT;
@@ -53,6 +60,7 @@ class TaxaNode {
         Rank getRank() {return rank;}
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
+        std::vector<Interval>& getIntervals() {return intervals;}
         void reset();
 
     private:
@@ -68,9 +76,10 @@ class TaxaNode {
 
 class KrakMap {
     public:
-        KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename);
+        KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename, std::string pruneLevelIn);
         bool classify(std::string& mapperOutput_filename);
         void saveClassificationResults(std::string& output_filename);
+        void serialize(std::string& output_filename);
     private:
         void walk2theRoot(TaxaNode* child);
         void propagateInfo();
@@ -109,6 +118,75 @@ class KrakMap {
             str2Rank["superkingdom"] = Rank::SUPERKINGDOM;
             str2Rank["domain"] = Rank::DOMAINE;
             str2Rank["life"] = Rank::LIFE; 
+        }
+        std::string rankToStr(Rank r) {
+            switch (r) {
+                case Rank::STRAIN:
+                    return "no rank";
+                case Rank::VARIETAS:
+                    return "varietas";
+                case Rank::SUBSPECIES:
+                    return "subspecies";
+                case Rank::SPECIES:
+                    return "species";
+                case Rank::SPECIESSUBGROUP:
+                    return "species subgroup";
+                case Rank::SPECIESGROUP:
+                    return "species group";
+                case Rank::SUBGENUS:
+                    return "subgenus";
+                case Rank::GENUS:
+                    return "genus";
+                case Rank::SUPERGENUS:
+                    return "supergenus";
+                case Rank::SUBFAMILY:
+                    return "subfamily";
+                case Rank::FAMILY:
+                    return "family";
+                case Rank::SUPERFAMILY:
+                    return "superfamily";
+                case Rank::SUBTRIBE:
+                    return "subtribe";
+                case Rank::TRIBE:
+                    return "tribe";
+                case Rank::FORMA:
+                    return "forma";
+                case Rank::COHORT:
+                    return "cohort";
+                case Rank::PARVORDER:
+                    return "parvorder";
+                case Rank::SUBORDER:
+                    return "suborder";
+                case Rank::ORDER:
+                    return "order";
+                case Rank::INFRAORDER:
+                    return "infraorder";
+                case Rank::SUPERORDER:
+                    return "superorder";
+                case Rank::SUBCLASS:
+                    return "subclass";
+                case Rank::CLASS:
+                    return "class";
+                case Rank::INFRACLASS:
+                    return "infraclass";
+                case Rank::SUPERCLASS:
+                    return "superclass";
+                case Rank::SUBPHYLUM:
+                    return "subphylum";
+                case Rank::PHYLUM:
+                    return "phylum";
+                case Rank::SUPERPHYLUM:
+                    return "superphylum";
+                case Rank::KINGDOM:
+                    return "kingdom";
+                case Rank::SUPERKINGDOM:
+                    return "superkingdom";
+                case Rank::DOMAINE:
+                    return "domain";
+                case Rank::LIFE:
+                    return "life";
+            }
+            return "really!! none?";
         }
         spp::sparse_hash_map<uint32_t, TaxaNode> taxaNodeMap;
         spp::sparse_hash_map<std::string, uint32_t> refId2taxId;
