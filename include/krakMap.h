@@ -4,7 +4,7 @@
 //#include <queue> // std::priority_queue
 #include "sparsepp/spp.h"
 
-#define NO_PARENT 0
+#define NO_PARENT -1
 
 // inclusive for begin 
 // exclusive for end
@@ -34,16 +34,18 @@ class TaxaNode {
             score = 0; 
             notIncorporatedChildrenCounter = 0;
         }
-        TaxaNode(uint64_t inId, Rank inRank, uint64_t inPid) : 
-            id(inId), score(0), parentId(inPid), 
-            notIncorporatedChildrenCounter(0), 
-            rank(inRank) {
+        TaxaNode(uint64_t inId, uint64_t inPid, Rank inRank) : 
+            id(inId), parentId(inPid), rank(inRank),
+            score(0), notIncorporatedChildrenCounter(0) 
+             {
+                // we go into the loop just for 1
                 if (id == parentId) {
                     rank = Rank::LIFE;
                     parentId = NO_PARENT;
+                    //std::cerr << id << "\n";
                 }
             }
-        bool isRoot() { return parentId == NO_PARENT; }//TODO not easy with the new design return children.size(); }
+        bool isRoot() { return rank == Rank::LIFE; }//TODO not easy with the new design return children.size(); }
         bool isRipe() { return !notIncorporatedChildrenCounter;} // ripe if zero
         void addInterval(uint64_t begin, uint64_t len);
         void updateIntervals(TaxaNode* child);
@@ -64,13 +66,16 @@ class TaxaNode {
         void reset();
 
     private:
+        // fix for all the mappings (coming from taxonomy tree structure)
         uint64_t id;
-        uint32_t score;
         uint64_t parentId;
+        Rank rank;
+        // change per read mapping
+        uint32_t score;
         uint64_t notIncorporatedChildrenCounter;
         std::set<uint64_t> activeChildren; //it's a set because, we might add the same child multiple times
         std::vector<Interval> intervals;
-        Rank rank;
+        
 };
 
 
@@ -194,7 +199,7 @@ class KrakMap {
         std::deque<TaxaNode*> hits;
         std::set<uint64_t> activeTaxa;
         Rank pruningLevel = Rank::SPECIES;
-        TaxaNode* root = nullptr;
+        uint64_t rootId = 1;
         spp::sparse_hash_map<uint64_t, std::pair<uint64_t, Rank>> mappedReadCntr;
     
 };

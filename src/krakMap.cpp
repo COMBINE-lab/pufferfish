@@ -21,6 +21,7 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
 
     // reduce the unready child counter
     notIncorporatedChildrenCounter--;
+    //std::cerr << score << " " << child->getScore() << " ";
 
     // merge two sorted interval lists into parent
     // update parent score
@@ -77,6 +78,7 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
     for (auto& it : intervals) {
         score += it.end - it.begin;
     }
+    //std::cerr << score << "\n";
 }
 /**
  * Sorts intervals
@@ -89,7 +91,10 @@ void TaxaNode::cleanIntervalsAndCalcScore() {
     [](Interval& i1, Interval& i2){
         return i1.begin != i2.begin?i1.begin < i2.begin:i1.end < i2.end;
     });
-
+    // std::cerr << score << " -> "; 
+    /* for (auto i : intervals) {
+        std::cerr << "<" << i.begin << "," << i.end << "> ";
+    } */
     // merge intervals if necessary
     // calculate score / coverage !! this whole process is repetition of mapping coverage calc!!
     for (auto it=intervals.begin(); it != intervals.end();) {
@@ -105,13 +110,19 @@ void TaxaNode::cleanIntervalsAndCalcScore() {
                 next = it+1; // it pointer and its next are always valid
             }
             else {// no overlap anymore and no merging. Update score and leave the loop
-                score += (it->end-it->begin);
                 merged = false;
             }
         }
         // there is nothing to merge with the current it, so increase it
         it++;
     }
+
+    // std::cerr << " to ";
+    for (auto& i : intervals) {
+        // std::cerr << "<" << i.begin << "," << i.end << "> ";
+        score += i.end - i.begin;
+    }
+    // std::cerr << ": " << score << "\n";
 }
 
 bool TaxaNode::addChild(TaxaNode* child) { 
@@ -128,6 +139,7 @@ void TaxaNode::reset() {
      intervals.clear();
      activeChildren.clear();
      notIncorporatedChildrenCounter = 0;
+     score = 0;
 }
 
 
@@ -164,9 +176,11 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename,
             std::cerr << "MULTIPLE NODE IDs: " << id << " " << rank << " --> ";
             std::cerr << taxonomyC2P[id].first << " " << taxonomyC2P.size() << "\n";
         } */
-        taxaNodeMap[id] = TaxaNode(id, str2Rank[rank], pid);
-        if (taxaNodeMap[id].isRoot())
-            root = &taxaNodeMap[id];
+        taxaNodeMap[id] = TaxaNode(id, pid, str2Rank[rank]);
+        if (taxaNodeMap[id].isRoot()) {
+            rootId = id;
+            std::cerr << "set root " << id << "\n";
+        }
         std::getline(tfile, tmp);
     }
     tfile.close();  
@@ -176,11 +190,12 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     std::cerr << "KrakMap: Classify ..\n";
     std::cerr << "\tMapping Output File: " << mapperOutput_filename << "\n";
     std::ifstream mfile(mapperOutput_filename);
-    std::string rid, tname; // read id, taxa name temp
+    std::string rid, tname, tmp; // read id, taxa name temp
     uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
     while (!mfile.eof()) {
         mfile >> rid >> mcnt >> rlen;
-        //std::cerr << rid << "\n";
+        //std::cerr << "r" << rid << "\n";
+        std::set<uint64_t> seen;
         // reset everything we've done for previous read
         clearReadSubTree();
         // construct intervals for leaves
@@ -188,16 +203,24 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
             mfile >> tname >> icnt;
             tid = refId2taxId[tname];
-            activeTaxa.insert(tid);
-            // fetch the taxum from the map
-            TaxaNode* taxaPtr = &taxaNodeMap[tid];
-            walk2theRoot(taxaPtr);
-            for (size_t i = 0; i < icnt; ++i) {
-                mfile >> ibeg >> ilen;
-                taxaPtr->addInterval(ibeg, ilen);
+            if (activeTaxa.find(tid) == activeTaxa.end()) { //FIXIT when writing the mappings actually!! multiple exactly the same mappings
+                activeTaxa.insert(tid);
+                // fetch the taxum from the map
+                TaxaNode* taxaPtr = &taxaNodeMap[tid];
+                walk2theRoot(taxaPtr);
+                for (size_t i = 0; i < icnt; ++i) {
+                    mfile >> ibeg >> ilen;
+                    taxaPtr->addInterval(ibeg, ilen);
+                }
+                taxaPtr->cleanIntervalsAndCalcScore();
+                hits.push_front(taxaPtr);
             }
-            taxaPtr->cleanIntervalsAndCalcScore();
-            hits.push_front(taxaPtr);
+            else { // anyways we have to pass them in the file
+                //std::getline(mfile, tmp);
+                for (size_t i = 0; i < icnt; ++i) {
+                    mfile >> ibeg >> ilen;
+                }
+            }
         }
 
         // propagate score and intervals to all internal nodes
@@ -239,11 +262,12 @@ void KrakMap::propagateInfo() {
 }
 
 void KrakMap::assignRead() {
-    TaxaNode* walker = root;
+    TaxaNode& walker = taxaNodeMap[rootId];
+    //std::cerr << "root: " << walker.getId() << "\n";
     //std::cerr << rankToStr(pruningLevel) << " ";
-    while (walker->getRank() != pruningLevel) {
+    while (walker.getRank() != pruningLevel) {
         uint64_t maxScore=0, maxId = -1, maxCntr = 0;
-        for (auto childId : walker->getActiveChildren()) {
+        for (auto childId : walker.getActiveChildren()) {
             TaxaNode& child = taxaNodeMap[childId];
             if (child.getScore() == maxScore) {
                 maxCntr++;
@@ -254,15 +278,17 @@ void KrakMap::assignRead() {
                 maxCntr = 1;
             }
         }
+        //std::cerr << "in loop: " << walker.getId() << " " << maxCntr << "\n";
         if (maxCntr != 1) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
             break;
         }
-        walker = &taxaNodeMap[maxId];
+        walker = taxaNodeMap[maxId];
     }
-    if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
-        mappedReadCntr[walker->getId()] = std::make_pair(1, walker->getRank());
+    //std::cerr << walker.getId() << " " << rankToStr(walker.getRank()) << "\n";
+    if (mappedReadCntr.find(walker.getId()) == mappedReadCntr.end())
+        mappedReadCntr[walker.getId()] = std::make_pair(1, walker.getRank());
     else
-        mappedReadCntr[walker->getId()].first += 1;
+        mappedReadCntr[walker.getId()].first += 1;
 }
 
 void KrakMap::serialize(std::string& output_filename) {
