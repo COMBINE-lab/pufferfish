@@ -35,10 +35,9 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
     std::vector<Interval>::iterator pit = parentIntervals.begin();
     std::vector<Interval>::iterator cit = childIntervals.begin();
     std::vector<Interval>::iterator fit = intervals.begin();
-    std::cerr << parentIntervals.size() << " " << childIntervals.size() << " ";
 
     // add the smallest interval as the first interval
-    if ( (pit == parentIntervals.end() && cit != parentIntervals.end()) || cit->begin < pit->begin) {
+    if (cit != childIntervals.end() && (pit == parentIntervals.end() || cit->begin < pit->begin)) {
         intervals.emplace_back(cit->begin, cit->end);
         cit++;
     }
@@ -48,20 +47,22 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
     }
     else {
         std::cerr << "ERROR!! Both parent an child intervals were empty.\n";
+        std::exit(1);
     }
-    std::cerr << "init ";
     std::vector<Interval>::iterator cur;
     while (pit != parentIntervals.end() || cit != childIntervals.end()) {
         // find the smallest interval between the heads of the two lists
-        if (pit == parentIntervals.end() || cit->begin < pit->begin) {
+        if (cit != childIntervals.end() && (pit == parentIntervals.end() || cit->begin < pit->begin) )  {
             cur = cit;
             cit++;
-            std::cerr << "cit++ "; 
         }
-        else {
+        else if (pit != parentIntervals.end()) {
             cur = pit;
             pit++;  
-            std::cerr << "pit++ ";
+        }
+        else {
+            std::cerr << "ERROR!! Shouldn't even enter the loop.\n";
+            std::exit(1);
         }
         // merge the new interval
         // Note: since both lists are sorted
@@ -179,7 +180,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
     while (!mfile.eof()) {
         mfile >> rid >> mcnt >> rlen;
-        std::cerr << rid << "\n";
+        //std::cerr << rid << "\n";
         // reset everything we've done for previous read
         clearReadSubTree();
         // construct intervals for leaves
@@ -200,10 +201,11 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
         }
 
         // propagate score and intervals to all internal nodes
-        std::cerr << "Update intervals and scores of internal nodes ..\n";
+        // std::cerr << "Update intervals and scores of internal nodes ..\n";
         propagateInfo();
+
         // find best path for this read
-        std::cerr << "\nAssign Read ..\n";
+        // std::cerr << "\nAssign Read ..\n";
         assignRead();
     }
     return true;
@@ -264,6 +266,7 @@ void KrakMap::assignRead() {
 }
 
 void KrakMap::serialize(std::string& output_filename) {
+    std::cerr << "Write results in the file\n";
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     for (auto& kv : mappedReadCntr) {
