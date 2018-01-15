@@ -81,14 +81,14 @@ class TaxaNode {
 
 class KrakMap {
     public:
-        KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename, std::string pruneLevelIn);
+        KrakMap(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn);
         bool classify(std::string& mapperOutput_filename);
         void saveClassificationResults(std::string& output_filename);
         void serialize(std::string& output_filename);
     private:
         void walk2theRoot(TaxaNode* child);
         void propagateInfo();
-        void assignRead();
+        void assignRead(uint64_t readLen);
         void clearReadSubTree();
         void initializeRanks() {
             str2Rank["no rank"] = Rank::STRAIN;
@@ -200,6 +200,7 @@ class KrakMap {
         std::set<uint64_t> activeTaxa;
         Rank pruningLevel = Rank::SPECIES;
         uint64_t rootId = 1;
+        double filteringThreshold = 0;
         spp::sparse_hash_map<uint64_t, std::pair<uint64_t, Rank>> mappedReadCntr;
     
 };

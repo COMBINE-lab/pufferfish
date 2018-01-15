@@ -137,10 +137,12 @@ void TaxaNode::reset() {
 
 KrakMap::KrakMap(std::string& taxonomyTree_filename, 
                  std::string& refId2TaxId_filename, 
-                 std::string pruneLevelIn="species") {
+                 std::string pruneLevelIn,
+                 double filteringThresholdIn) {
 
     std::cerr << "KrakMap: Construct ..\n";
     // map rank string values to enum values
+    filteringThreshold = filteringThresholdIn;
     initializeRanks();
     pruningLevel = str2Rank[pruneLevelIn];
     std::ifstream tfile;
@@ -220,7 +222,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
 
         // find best path for this read
         //std::cerr << "Assign Read ..\n";
-        assignRead();
+        assignRead(rlen);
     }
     return true;
 }
@@ -253,7 +255,7 @@ void KrakMap::propagateInfo() {
 }
 
 // why? why? why I don't understand this pointer/reference thing :mad: :dissapointed:
-void KrakMap::assignRead() {
+void KrakMap::assignRead(uint64_t readLen) {
     TaxaNode* walker = &taxaNodeMap[rootId];
     while (walker->getRank() != pruningLevel) {
         uint64_t maxScore=0, maxId = -1, maxCntr = 0;
@@ -268,9 +270,10 @@ void KrakMap::assignRead() {
                 maxCntr = 1;
             }
         }
-        if (maxCntr != 1) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
+        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<readLen*filteringThreshold) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
             break;
         }
+
         walker = &taxaNodeMap[maxId];
     }
     if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
@@ -333,7 +336,7 @@ int main(int argc, char* argv[]) {
   } catch (const CLI::ParseError& e) {
     return app.exit(e);
   }
-  KrakMap krakMap(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level);
+  KrakMap krakMap(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold);
   krakMap.classify(kopts.mapperOutput_filename);
   krakMap.serialize(kopts.output_filename);
   return 0;
