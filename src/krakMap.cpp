@@ -205,7 +205,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
                 // first condition: Ignore those references that we don't have a taxaId for
                 // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
                 if (refId2taxId.find(tname) != refId2taxId.end() &&
-                    activeTaxa.find(tid) == activeTaxa.end()) { 
+                    activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
                     tid = refId2taxId[tname];
                     activeTaxa.insert(tid);
                     // fetch the taxum from the map
@@ -284,7 +284,7 @@ void KrakMap::assignRead(uint64_t readLen) {
                 maxCntr = 1;
             }
         }
-        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()</*44*/readLen*filteringThreshold) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
+        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<44/*readLen*filteringThreshold*/) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
             break;
         }
 
