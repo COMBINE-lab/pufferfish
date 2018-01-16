@@ -270,6 +270,7 @@ void KrakMap::propagateInfo() {
 // why? why? why I don't understand this pointer/reference thing :mad: :dissapointed:
 void KrakMap::assignRead(uint64_t readLen) {
     TaxaNode* walker = &taxaNodeMap[rootId];
+    if (walker->getScore()<44/*readLen*filteringThreshold*/) return;
     while (walker->getRank() != pruningLevel) {
         uint64_t maxScore=0, maxId = -1, maxCntr = 0;
         for (auto childId : walker->getActiveChildren()) {
@@ -284,7 +285,8 @@ void KrakMap::assignRead(uint64_t readLen) {
                 maxCntr = 1;
             }
         }
-        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<44/*readLen*filteringThreshold*/) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
+        // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
+        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<44/*readLen*filteringThreshold*/) { 
             break;
         }
 
