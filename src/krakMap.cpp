@@ -164,19 +164,24 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename,
     tfile.open(taxonomyTree_filename);
     std::string tmp;
     while (!tfile.eof()) {
-        tfile >> id >> tmp >> pid >> tmp >> rank;
-        // std::cout << id << tmp << pid << tmp << rank << "\n";
-        /* if (taxonomyC2P.find(id) != taxonomyC2P.end()) {
-            std::cerr << "MULTIPLE NODE IDs: " << id << " " << rank << " --> ";
-            std::cerr << taxonomyC2P[id].first << " " << taxonomyC2P.size() << "\n";
+        tfile >> id >> tmp >> pid >> tmp >> rank >> tmp;
+        if (tmp != "|") {
+            rank += " " + tmp;
+        }
+        /* if (taxaNodeMap.find(id) != taxaNodeMap.end()) {
+            std::cerr << "MULTIPLE NODE IDs: " << id << " " << pid << " " << rank << " --> ";
+            std::cerr << taxaNodeMap[id].getId() << " " << taxaNodeMap[id].getParentId() << " " << rankToStr(taxaNodeMap[id].getRank()) << " " << taxaNodeMap.size() << "\n";
+            std::exit(1);
         } */
         taxaNodeMap[id] = TaxaNode(id, pid, str2Rank[rank]);
         if (taxaNodeMap[id].isRoot()) {
             rootId = id;
-            std::cerr << "set root " << id << "\n";
+            std::cerr << "Root Id : " << id << "\n";
         }
         std::getline(tfile, tmp);
+        
     }
+
     tfile.close();  
 }
 
@@ -188,41 +193,46 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
     while (!mfile.eof()) {
         mfile >> rid >> mcnt >> rlen;
-        // std::cerr << "r" << rid << "\n";
-        std::set<uint64_t> seen;
-        // reset everything we've done for previous read
-        clearReadSubTree();
-        // construct intervals for leaves
-        for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
-            mfile >> tname >> icnt;
-            tid = refId2taxId[tname];
-            if (activeTaxa.find(tid) == activeTaxa.end()) { //FIXIT when writing the mappings actually!! multiple exactly the same mappings
-                activeTaxa.insert(tid);
-                // fetch the taxum from the map
-                TaxaNode* taxaPtr = &taxaNodeMap[tid];
-                walk2theRoot(taxaPtr);
-                for (size_t i = 0; i < icnt; ++i) {
-                    mfile >> ibeg >> ilen;
-                    taxaPtr->addInterval(ibeg, ilen);
+        if (mcnt != 0) {
+            //std::cerr << "r" << rid << " " << mcnt << "\n";
+            std::set<uint64_t> seen;
+            // reset everything we've done for previous read
+            clearReadSubTree();
+            // construct intervals for leaves
+            for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
+                mfile >> tname >> icnt;
+                //FIXME when writing the mappings actually!! multiple exactly the same mappings
+                // first condition: Ignore those references that we don't have a taxaId for
+                // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
+                if (refId2taxId.find(tname) != refId2taxId.end() &&
+                    activeTaxa.find(tid) == activeTaxa.end()) { 
+                    tid = refId2taxId[tname];
+                    activeTaxa.insert(tid);
+                    // fetch the taxum from the map
+                    TaxaNode* taxaPtr = &taxaNodeMap[tid];
+                    walk2theRoot(taxaPtr);
+                    for (size_t i = 0; i < icnt; ++i) {
+                        mfile >> ibeg >> ilen;
+                        taxaPtr->addInterval(ibeg, ilen);
+                    }
+                    taxaPtr->cleanIntervalsAndCalcScore();
+                    hits.push_front(taxaPtr);
                 }
-                taxaPtr->cleanIntervalsAndCalcScore();
-                hits.push_front(taxaPtr);
-            }
-            else { // anyways we have to pass them in the file
+                else { // anyways we have to pass them in the file
+                    std::getline(mfile, tmp);
+                }
+            } 
+
+            // propagate score and intervals to all internal nodes
+            //std::cerr << "Update intervals and scores of internal nodes ..\n";
+            propagateInfo();
+
+            // find best path for this read
+            //std::cerr << "Assign Read ..\n";
+            assignRead(rlen);
+        } else {
                 std::getline(mfile, tmp);
-                /* for (size_t i = 0; i < icnt; ++i) {
-                    mfile >> ibeg >> ilen;
-                } */
-            }
         }
-
-        // propagate score and intervals to all internal nodes
-        //std::cerr << "Update intervals and scores of internal nodes ..\n";
-        propagateInfo();
-
-        // find best path for this read
-        //std::cerr << "Assign Read ..\n";
-        assignRead(rlen);
     }
     return true;
 }
@@ -247,9 +257,12 @@ void KrakMap::propagateInfo() {
         // if the hit itself is not ripe, no need to push it back to the queue
         // when it's the turn for one of the other hits, it'll get ripe and updated
         while (!taxaPtr->isRoot() && taxaPtr->isRipe()) {
+            //if (taxaPtr->getParentId() == 680) 
+            //    std::cerr << taxaPtr->getId() << " " << taxaPtr->getScore() << "\n";
             TaxaNode* parentPtr = &taxaNodeMap[taxaPtr->getParentId()];
             parentPtr->updateIntervals(taxaPtr);
             taxaPtr = parentPtr;
+            
         }
     }
 }
@@ -260,6 +273,7 @@ void KrakMap::assignRead(uint64_t readLen) {
     while (walker->getRank() != pruningLevel) {
         uint64_t maxScore=0, maxId = -1, maxCntr = 0;
         for (auto childId : walker->getActiveChildren()) {
+            
             TaxaNode& child = taxaNodeMap[childId];
             if (child.getScore() == maxScore) {
                 maxCntr++;
@@ -270,7 +284,7 @@ void KrakMap::assignRead(uint64_t readLen) {
                 maxCntr = 1;
             }
         }
-        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<readLen*filteringThreshold) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
+        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()</*44*/readLen*filteringThreshold) { // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
             break;
         }
 
@@ -310,7 +324,8 @@ void KrakMap::clearReadSubTree() {
  * -s /mnt/scratch2/avi/meta-map/kraken/KrakenDB/seqid2taxid.map 
  * -m /mnt/scratch2/avi/meta-map/kraken/puff/dmps/HC1.dmp 
  * -o HC1.out 
- * -l species
+ * -l genus (optional)
+ * -f 0.8 (optional)
  **/
 int main(int argc, char* argv[]) {
   (void)argc;
