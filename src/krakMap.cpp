@@ -29,7 +29,6 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
     auto& childIntervals = child->getIntervals();
     std::vector<Interval> parentIntervals(intervals.size());
     std::copy(intervals.begin(), intervals.end(), parentIntervals.begin());
-    
     intervals.clear();
     intervals.reserve(parentIntervals.size()+childIntervals.size());
     
@@ -69,7 +68,7 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
         // Note: since both lists are sorted
         // the new interval's begin is always >= the last inserted interval's
         if (fit->end >= cur->begin) { // if the new interval has an overlap with the last inserted one
-            fit->end = cur->end; // merge them
+            fit->end = std::max(cur->end, fit->end); // merge them
         } else { // insert the interval as a separate one and move fit forward
             intervals.emplace_back(cur->begin, cur->end);
             fit++;
@@ -191,13 +190,16 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     std::ifstream mfile(mapperOutput_filename);
     std::string rid, tname, tmp; // read id, taxa name temp
     uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
+    uint64_t totalReadCnt = 0, totalUnmappedReads = 0, seqNotFound = 0;
     while (!mfile.eof()) {
         mfile >> rid >> mcnt >> rlen;
+        totalReadCnt++;
         if (mcnt != 0) {
-            //std::cerr << "r" << rid << " " << mcnt << "\n";
+            //std::cout << "r" << rid << " " << mcnt << "\n";
             std::set<uint64_t> seen;
             // reset everything we've done for previous read
             clearReadSubTree();
+            // std::cerr << activeTaxa.size() << " ";
             // construct intervals for leaves
             for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
                 mfile >> tname >> icnt;
@@ -208,6 +210,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
                     activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
                     tid = refId2taxId[tname];
                     activeTaxa.insert(tid);
+                    
                     // fetch the taxum from the map
                     TaxaNode* taxaPtr = &taxaNodeMap[tid];
                     walk2theRoot(taxaPtr);
@@ -222,18 +225,27 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
                     std::getline(mfile, tmp);
                 }
             } 
+            if (activeTaxa.size() == 0) {
+                seqNotFound++;
+            }
+            else {
+                // propagate score and intervals to all internal nodes
+                // std::cerr << "Update intervals and scores of internal nodes ..\n";
+                propagateInfo();
 
-            // propagate score and intervals to all internal nodes
-            //std::cerr << "Update intervals and scores of internal nodes ..\n";
-            propagateInfo();
-
-            // find best path for this read
-            //std::cerr << "Assign Read ..\n";
-            assignRead(rlen);
+                // find best path for this read
+                // std::cerr << "Assign Read ..\n";
+                assignRead(rlen);
+            }
         } else {
+                totalUnmappedReads++;
                 std::getline(mfile, tmp);
         }
     }
+    std::cout << "\nTotal Reads: " << totalReadCnt << "\n"
+              << "Total Mapped Reads: " << totalReadCnt - totalUnmappedReads << "\n"
+              << "Sequence Not Found: " << seqNotFound << "\n"
+              << "Reads Classified: " << readCntr << "\n";
     return true;
 }
 
@@ -257,8 +269,6 @@ void KrakMap::propagateInfo() {
         // if the hit itself is not ripe, no need to push it back to the queue
         // when it's the turn for one of the other hits, it'll get ripe and updated
         while (!taxaPtr->isRoot() && taxaPtr->isRipe()) {
-            //if (taxaPtr->getParentId() == 680) 
-            //    std::cerr << taxaPtr->getId() << " " << taxaPtr->getScore() << "\n";
             TaxaNode* parentPtr = &taxaNodeMap[taxaPtr->getParentId()];
             parentPtr->updateIntervals(taxaPtr);
             taxaPtr = parentPtr;
@@ -270,7 +280,13 @@ void KrakMap::propagateInfo() {
 // why? why? why I don't understand this pointer/reference thing :mad: :dissapointed:
 void KrakMap::assignRead(uint64_t readLen) {
     TaxaNode* walker = &taxaNodeMap[rootId];
-    if (walker->getScore()<44/*readLen*filteringThreshold*/) return;
+    if (walker->getScore()<readLen*filteringThreshold) {
+         if (mappedReadCntr.find(0) == mappedReadCntr.end())
+            mappedReadCntr[0] = std::make_pair(1, walker->getRank());
+        else
+            mappedReadCntr[0].first += 1;
+        return;
+    }
     while (walker->getRank() != pruningLevel) {
         uint64_t maxScore=0, maxId = -1, maxCntr = 0;
         for (auto childId : walker->getActiveChildren()) {
@@ -286,12 +302,13 @@ void KrakMap::assignRead(uint64_t readLen) {
             }
         }
         // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
-        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<44/*readLen*filteringThreshold*/) { 
+        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<readLen*filteringThreshold) { 
             break;
         }
 
         walker = &taxaNodeMap[maxId];
     }
+    readCntr++;
     if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
         mappedReadCntr[walker->getId()] = std::make_pair(1, walker->getRank());
     else

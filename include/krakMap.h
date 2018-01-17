@@ -202,5 +202,5 @@ class KrakMap {
         uint64_t rootId = 1;
         double filteringThreshold = 0;
         spp::sparse_hash_map<uint64_t, std::pair<uint64_t, Rank>> mappedReadCntr;
-    
+        uint64_t readCntr = 0;
 };
