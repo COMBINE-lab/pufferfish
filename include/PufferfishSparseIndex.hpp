@@ -118,6 +118,7 @@ public:
 
   uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
   //uint8_t getRevEdgeEntry(uint64_t contigRank) {return revedge_[contigRank];}
+  std::vector<CanonicalKmer> getNextKmerOnGraph(uint64_t cid, util::Direction dir, bool isCurContigFwd);
 
   CanonicalKmer getStartKmer(uint64_t cid) ;
   CanonicalKmer getEndKmer(uint64_t cid) ;
