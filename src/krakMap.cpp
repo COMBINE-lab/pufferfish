@@ -279,12 +279,14 @@ void KrakMap::propagateInfo() {
 
 // why? why? why I don't understand this pointer/reference thing :mad: :dissapointed:
 void KrakMap::assignRead(uint64_t readLen) {
+    double threshold = filteringThreshold >= 1 ? filteringThreshold : readLen*filteringThreshold;
     TaxaNode* walker = &taxaNodeMap[rootId];
-    if (walker->getScore()<readLen*filteringThreshold) {
+    if (walker->getScore()<threshold) {
          if (mappedReadCntr.find(0) == mappedReadCntr.end())
-            mappedReadCntr[0] = std::make_pair(1, walker->getRank());
+            mappedReadCntr.insert(std::make_pair(0, TaxaInfo(1, walker->getRank())));
+            //mappedReadCntr[0] = TaxaInfo(1, walker->getRank());
         else
-            mappedReadCntr[0].first += 1;
+            mappedReadCntr[0].increment();
         return;
     }
     while (walker->getRank() != pruningLevel) {
@@ -302,7 +304,7 @@ void KrakMap::assignRead(uint64_t readLen) {
             }
         }
         // zero --> no children (it's a leaf) || > 1 --> more than one child with max score
-        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<readLen*filteringThreshold) { 
+        if (maxCntr != 1 || taxaNodeMap[maxId].getScore()<threshold) { 
             break;
         }
 
@@ -310,9 +312,10 @@ void KrakMap::assignRead(uint64_t readLen) {
     }
     readCntr++;
     if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
-        mappedReadCntr[walker->getId()] = std::make_pair(1, walker->getRank());
+        mappedReadCntr.insert(std::make_pair(walker->getId(), TaxaInfo(1, walker->getRank())));
+        //mappedReadCntr[walker->getId()] = TaxaInfo(1, walker->getRank());
     else
-        mappedReadCntr[walker->getId()].first += 1;
+        mappedReadCntr[walker->getId()].increment();
 }
 
 void KrakMap::serialize(std::string& output_filename) {
@@ -320,7 +323,7 @@ void KrakMap::serialize(std::string& output_filename) {
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     for (auto& kv : mappedReadCntr) {
-        ofile << kv.first << "\t" << rankToStr(kv.second.second) << "\t" << kv.second.first << "\n";
+        ofile << kv.first << "\t" << rankToStr(kv.second.rank) << "\t" << kv.second.cnt << "\n";
     }
     ofile.close();
 }

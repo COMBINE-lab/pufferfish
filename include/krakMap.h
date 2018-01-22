@@ -78,6 +78,17 @@ class TaxaNode {
         
 };
 
+struct TaxaInfo {
+    uint64_t cnt;
+    uint64_t subTreeCnt;
+    Rank rank;
+    TaxaInfo() {};
+    TaxaInfo(uint64_t cntIn, Rank rankIn) : cnt(cntIn), subTreeCnt(cntIn), rank(rankIn) {}
+    void increment() {
+        cnt += 1;
+        subTreeCnt += 1;
+    }
+};
 
 class KrakMap {
     public:
@@ -201,6 +212,6 @@ class KrakMap {
         Rank pruningLevel = Rank::SPECIES;
         uint64_t rootId = 1;
         double filteringThreshold = 0;
-        spp::sparse_hash_map<uint64_t, std::pair<uint64_t, Rank>> mappedReadCntr;
+        spp::sparse_hash_map<uint64_t, TaxaInfo> mappedReadCntr;
         uint64_t readCntr = 0;
 };
