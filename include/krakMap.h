@@ -85,8 +85,8 @@ struct TaxaInfo {
     TaxaInfo() {};
     TaxaInfo(uint64_t cntIn, Rank rankIn) : cnt(cntIn), subTreeCnt(cntIn), rank(rankIn) {}
     void increment() {
-        cnt += 1;
-        subTreeCnt += 1;
+        cnt++;
+        subTreeCnt++;
     }
 };
 

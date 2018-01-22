@@ -221,7 +221,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
                     taxaPtr->cleanIntervalsAndCalcScore();
                     hits.push_front(taxaPtr);
                 }
-                else { // anyways we have to pass them in the file
+                else { // otherwise we have to read till the end of the line and throw it away
                     std::getline(mfile, tmp);
                 }
             } 
@@ -311,19 +311,29 @@ void KrakMap::assignRead(uint64_t readLen) {
         walker = &taxaNodeMap[maxId];
     }
     readCntr++;
-    if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
+    if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end()) {
         mappedReadCntr.insert(std::make_pair(walker->getId(), TaxaInfo(1, walker->getRank())));
+    }
         //mappedReadCntr[walker->getId()] = TaxaInfo(1, walker->getRank());
     else
         mappedReadCntr[walker->getId()].increment();
+    
+    if (walker->getId() != rootId) {
+        do {
+            walker = &taxaNodeMap[walker->getParentId()];
+            if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
+                mappedReadCntr.insert(std::make_pair(walker->getId(), TaxaInfo(0, walker->getRank())));
+            mappedReadCntr[walker->getId()].subTreeCnt++;       
+        } while (walker->getId() != rootId);
+    }
 }
 
 void KrakMap::serialize(std::string& output_filename) {
     std::cerr << "Write results in the file\n";
     std::ofstream ofile(output_filename);
-    ofile << "taxaId\ttaxaRank\tcount\n";
+    ofile << "taxaId\ttaxaRank\tcount\tsubTreeCount\n";
     for (auto& kv : mappedReadCntr) {
-        ofile << kv.first << "\t" << rankToStr(kv.second.rank) << "\t" << kv.second.cnt << "\n";
+        ofile << kv.first << "\t" << rankToStr(kv.second.rank) << "\t" << kv.second.cnt << "\t" << kv.second.subTreeCnt << "\n";
     }
     ofile.close();
 }
