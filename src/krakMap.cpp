@@ -283,7 +283,7 @@ void KrakMap::assignRead(uint64_t readLen) {
     TaxaNode* walker = &taxaNodeMap[rootId];
     if (walker->getScore()<threshold) {
          if (mappedReadCntr.find(0) == mappedReadCntr.end())
-            mappedReadCntr.insert(std::make_pair(0, TaxaInfo(1, walker->getRank())));
+            mappedReadCntr.insert(std::make_pair(0, TaxaInfo(1, Rank::UNCLASSIFIED)));
             //mappedReadCntr[0] = TaxaInfo(1, walker->getRank());
         else
             mappedReadCntr[0].increment();
@@ -318,13 +318,11 @@ void KrakMap::assignRead(uint64_t readLen) {
     else
         mappedReadCntr[walker->getId()].increment();
     
-    if (walker->getId() != rootId) {
-        do {
-            walker = &taxaNodeMap[walker->getParentId()];
-            if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
-                mappedReadCntr.insert(std::make_pair(walker->getId(), TaxaInfo(0, walker->getRank())));
-            mappedReadCntr[walker->getId()].subTreeCnt++;       
-        } while (walker->getId() != rootId);
+    while (walker->getId() != rootId) {
+        walker = &taxaNodeMap[walker->getParentId()];
+        if (mappedReadCntr.find(walker->getId()) == mappedReadCntr.end())
+            mappedReadCntr.insert(std::make_pair(walker->getId(), TaxaInfo(0, walker->getRank())));
+        mappedReadCntr[walker->getId()].subTreeCnt++;     
     }
 }
 

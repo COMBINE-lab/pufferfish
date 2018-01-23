@@ -23,7 +23,8 @@ enum class Rank : uint8_t {
     PARVORDER, INFRAORDER, SUBORDER, ORDER, SUPERORDER, // order sub group
     COHORT, INFRACLASS, SUBCLASS, CLASS, SUPERCLASS, // class sub group
     SUBPHYLUM, PHYLUM, SUPERPHYLUM, // phylum sub group
-    KINGDOM, SUPERKINGDOM , DOMAINE, LIFE // general sub group
+    KINGDOM, SUPERKINGDOM , DOMAINE, LIFE, // general sub group
+    UNCLASSIFIED
 };
 
 
@@ -201,6 +202,8 @@ class KrakMap {
                     return "domain";
                 case Rank::LIFE:
                     return "life";
+                case Rank::UNCLASSIFIED:
+                    return "unclassified";
             }
             return "really!! none?";
         }
