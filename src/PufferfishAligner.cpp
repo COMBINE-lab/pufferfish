@@ -545,7 +545,7 @@ void processReadsPair(paired_parser* parser,
       totLen = readLen + rpair.second.seq.length();
       //std::cout << readLen << "\n";
       bool verbose = false;// rpair.second.name == "read30055083/ENST00000302182;mate1:504-603;mate2:582-680";// "fake2";
-      if(verbose) std::cout << rpair.first.name << "\n";
+      if(verbose) std::cerr << rpair.first.name << "\n";
 
       ++hctr.numReads ;
 
@@ -809,7 +809,7 @@ void processReadsSingle(single_parser* parser,
                              mopts->maxSpliceGap,
                              MateStatus::SINGLE_END,
                              qc,
-                             verbose
+                             read.name == "avn_3185234_3185397_55504/2"//verbose
                              /*
                              mopts->consistentHits,
                              refBlocks*/) ;
@@ -833,10 +833,30 @@ void processReadsSingle(single_parser* parser,
       validHits.reserve(2*leftHits.size());
       for (auto& l : leftHits) {
         auto& lclust = l.second;
+        /* if (read.name == "spj_1622951_1623126_68819/2") {
+              std::cout << "\ntid" << l.first << " " << pfi.refName(l.first) << " cluster size:" << lclust.size() << "\n";
+              for (auto& clus : lclust) {
+                std::cout << "mem size: " << clus.mems.size() << "\n";
+                for (auto& mem : clus.mems) {
+                  std::cout << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
+                }
+                std::cout << "\n";
+              }
+        } */
         for (auto clustIt = lclust.begin(); clustIt != lclust.end(); ++clustIt) {
           if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage;}
           if (clustIt->coverage >= mopts->scoreRatio * maxCoverage or clustIt->coverage == perfectCoverage ) {
             validHits.emplace_back(static_cast<uint32_t>(l.first), clustIt);
+            if (read.name == "spj_1622951_1623126_68819/2") {
+              std::cout << "\ntid" << l.first << " " << pfi.refName(l.first) << " coverage:" << clustIt->coverage << "\n";
+              /* for (auto& clus : lclust) {
+                std::cout << "mem size: " << clus.mems.size() << "\n";
+                for (auto& mem : clus.mems) {
+                  std::cout << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
+                }
+                std::cout << "\n";
+              } */
+        }
           } 
         }
         double thresh = mopts->scoreRatio * maxCoverage;
@@ -855,16 +875,16 @@ void processReadsSingle(single_parser* parser,
               return (static_cast<double>(e.second->coverage < 0.25 * readLen));
             }), validHits.end());
             
-        if (validHits.size() > 0) {
+        /* if (validHits.size() > 0) {
           validHits.erase(validHits.begin() + 1, validHits.end());
-            }
+            } */
             
-            /*
+            
         std::remove_if(validHits.begin(), validHits.end(), 
           [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
             return static_cast<double>(e.second->coverage) < thresh; 
           });
-          */
+         
       }
 
       int maxScore = std::numeric_limits<int>::min();
@@ -922,7 +942,10 @@ void processReadsSingle(single_parser* parser,
 
       hctr.totAlignment += validHits.size();
 
-      if (validHits.size() > 0 and !mopts->noOutput) {
+      if(mopts->krakOut){                                                                                                                                           
+        writeAlignmentsToKrakenDump(read, formatter, validHits, sstream);                                                
+      }    
+      else if (validHits.size() > 0 and !mopts->noOutput) {
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
                                mopts->writeOrphans, mopts->justMap);
       } else if (validHits.size() == 0 and !mopts->noOutput) {
@@ -1081,7 +1104,8 @@ bool alignReads(
   //write the SAMHeader
   //If nothing gets printed by this
   //time we are in trouble
-  writeSAMHeader(pfi, outLog) ;
+  if (!mopts->krakOut)
+    writeSAMHeader(pfi, outLog) ;
   }
 
   uint32_t nthread = mopts->numThreads ;

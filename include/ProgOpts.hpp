@@ -49,6 +49,7 @@ public:
   bool quiet{false};
 	bool writeOrphans{false} ;
   bool justMap{false};
+  bool krakOut{false};
 };
 
 

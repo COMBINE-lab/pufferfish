@@ -154,6 +154,75 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
 }
 
 template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
+                                   PairedAlignmentFormatter<IndexT>& formatter,
+                                   std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
+                                   fmt::MemoryWriter& sstream) {
+  auto& readName = r.name;
+  // If the read name contains multiple space-separated parts,
+  // print only the first
+  size_t splitPos = readName.find(' ');
+  if (splitPos < readName.length()) {
+    readName[splitPos] = '\0';
+  } else {
+    splitPos = readName.length();
+  } 
+  
+  if (splitPos > 2 and readName[splitPos - 2] == '/') {
+    readName[splitPos - 2] = '\0';
+  }
+  
+  uint32_t readLength{r.seq.length()}, effectiveLen{r.seq.length()};
+/*   // KMER SIZE HARD CODED
+  size_t rIdx, kSize{31}, left_boundary{kSize-1}, right_boundary{effectiveLen-kSize-1};
+  
+  // Middle Region
+  for (rIdx=left_boundary+1; rIdx<right_boundary; rIdx++){
+    auto base = r.seq[rIdx];
+    if (base == 'n' or base == 'N'){
+      effectiveLen -= 1;
+    }
+  } 
+  // effective read length for each hit
+  std::vector<size_t> effReadLens(validHits.size(), effectiveLen);
+
+  // get max min position with each hit
+  for (size_t memIdx=0; memIdx<jointHits.size(); memIdx++) {
+    size_t minIdx{readLength};
+    int32_t maxIdx{-1};
+    for (auto& mem: mems[memIdx]){
+      auto startPos = mem.memInfo->rpos;
+      auto endPos = startPos + mem.memInfo->memlen-1;
+      if (startPos < minIdx){
+        minIdx = startPos;
+      } 
+      if (endPos > maxIdx){
+        maxIdx = endPos;
+      } 
+    } 
+    if (minIdx<kSize){
+      effReadLens[memIdx] -= minIdx;
+    } 
+    if (maxIdx>readLength-kSize+1){
+      effReadLens[memIdx] -= readLength-maxIdx;
+    } 
+  }  */
+  sstream << readName.c_str() << "\t" << validHits.size() << "\t" << r.seq.length() << "\n";
+
+  for (auto& qa : validHits) {
+    auto& refName = formatter.index->refName(qa.first);
+    auto& clust = qa.second;
+    sstream << refName << '\t' << clust->mems.size();
+    for (auto& mem: clust->mems){
+      sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+    }
+    sstream << "\n";
+  }   
+  return 0;
+
+}
+
+template <typename ReadT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {

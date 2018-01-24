@@ -141,7 +141,7 @@ public:
         }
         }*/
       if (verbose) {
-        std::cout << "\ntid" << tid << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
+        std::cout << "\ntid" << tid << " " << pfi_->refName(tid) << " , isFw:" << isFw << " cluster size:" << currMemClusters.size() << "\n";
         for (auto& clus : currMemClusters) {
           std::cout << "mem size: " << clus.mems.size() << "\n";
           for (auto& mem : clus.mems) {
@@ -272,7 +272,7 @@ public:
 
     // Start off pretending we are at least k bases away from the last hit
     uint32_t skip{1};
-    uint32_t altSkip{5};
+    uint32_t altSkip{1};
     int32_t basesSinceLastHit{k};
     bool justHit{false};
 
