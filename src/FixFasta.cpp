@@ -4,7 +4,6 @@
 #include "sparsepp/spp.h"
 #include "spdlog/spdlog.h"
 #include "xxhash.h"
-#include "Util.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -62,14 +61,14 @@ void fixFasta(single_parser* parser,
   // longest human transcript is Titin (108861), so this gives us a *lot* of
   // leeway before
   // we issue any warning.
-  //size_t tooLong = 200000;
+  size_t tooLong = 200000;
   //size_t numDistinctKmers{0};
   //size_t numKmers{0};
   size_t currIndex{0};
   size_t numDups{0};
   std::map<XXH64_hash_t, std::vector<DupInfo>> potentialDuplicates;
   spp::sparse_hash_map<uint64_t, std::vector<std::string>> duplicateNames;
-  std::cerr << "\n[Step 1 of 4] : counting k-mers: "<<k<<"\n";
+  std::cerr << "\n[Step 1 of 4] : counting k-mers\n";
 
   // rsdic::RSDicBuilder rsdb;
   std::vector<uint64_t>
@@ -90,10 +89,6 @@ void fixFasta(single_parser* parser,
       for (auto& read : rg) { // for each sequence
         tooShort = false;
         std::string& readStr = read.seq;
-        uint32_t readLen = readStr.size();
-        uint32_t completeLen = readLen;
-
-
         readStr.erase(
             std::remove_if(readStr.begin(), readStr.end(),
                            [](const char a) -> bool { return !(isprint(a)); }),
@@ -101,24 +96,13 @@ void fixFasta(single_parser* parser,
 
         // seqHasher.process(readStr.begin(), readStr.end());
 
-        std::string revCompStr;
-        util::reverseRead(readStr,revCompStr) ;
-
-        revCompStr.erase(
-            std::remove_if(revCompStr.begin(), revCompStr.end(),
-                           [](const char a) -> bool { return !(isprint(a)); }),
-            revCompStr.end());
-
-
+        uint32_t readLen = readStr.size();
+        uint32_t completeLen = readLen;
 
         // get the hash to check for collisions before we change anything.
         auto txStringHash =
             XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
                   readLen, 0);
-        //RC hash calculation
-        //auto txRCStringHash =
-        //    XXH64(reinterpret_cast<void*>(const_cast<char*>(revCompStr.data())),
-        //          readLen, 0);
 
         // First, replace non ATCG nucleotides
         for (size_t b = 0; b < readLen; ++b) {
@@ -155,9 +139,21 @@ void fixFasta(single_parser* parser,
         readLen = readStr.size();
         // If the transcript was completely removed during clipping, don't
         // include it in the index.
-        if (readStr.size() >= k) {
+        if (readStr.size() > 0) {
           // If we're suspicious the user has fed in a *genome* rather
           // than a transcriptome, say so here.
+          if (readStr.size() >= tooLong) {
+            //log->warn("Entry with header [{}] was longer than {} nucleotides.  "
+              //        "Are you certain that "
+                //      "we are indexing a transcriptome and not a genome?",
+                  //    read.name, tooLong);
+          } else if (readStr.size() <= k) {
+            log->warn("Entry with header [{}], had length less than "
+                      "the k-mer length of {} (perhaps after poly-A clipping)",
+                      read.name, k);
+            tooShort = true ;
+          }
+
           uint32_t txpIndex = n++;
 
           // The name of the current transcript
@@ -168,10 +164,8 @@ void fixFasta(single_parser* parser,
           // Add this transcript, indexed by it's sequence's hash value
           // to the potential duplicate list.
           bool didCollide{false};
-          //bool didCollideRC{false};
           auto dupIt = potentialDuplicates.find(txStringHash);
-          //auto dupRCIt = potentialDuplicates.find(txRCStringHash) ;
-          if (dupIt != potentialDuplicates.end()){
+          if (dupIt != potentialDuplicates.end()) {
             auto& dupList = dupIt->second;
             for (auto& dupInfo : dupList) {
               // they must be of the same length
@@ -189,27 +183,6 @@ void fixFasta(single_parser* parser,
               }   // if readLen == dupInfo.txLen
             }     // for dupInfo : dupList
           }       // if we had a potential duplicate
-
-          /*
-          if (dupRCIt != potentialDuplicates.end()) {
-            auto& dupList = dupRCIt->second;
-            for (auto& dupInfo : dupList) {
-              // they must be of the same length
-              if (readLen == dupInfo.txLen) {
-                bool collisionRC =
-                    (revCompStr.compare(0, readLen,
-                                     txpSeqStream.data() + dupInfo.txOffset,
-                                     readLen) == 0);
-                if (collisionRC) {
-                  ++numDups;
-                  didCollide = true;
-                  duplicateNames[dupInfo.txId].push_back(processedName);
-                  continue;
-                } // if collision
-              }   // if readLen == dupInfo.txLen
-            }     // for dupInfo : dupList
-          }       // if we had a potential duplicate
-          */
 
           if (!keepDuplicates and didCollide) {
             // roll back the txp index & skip the rest of this loop
@@ -314,25 +287,24 @@ int main(int argc, char* argv[]) {
   uint32_t k;
   std::string cfile;
   std::string rfile;
-
-  popl::OptionParser op("Allowed options");
-  auto helpOption = op.add<popl::Switch>("h", "help", "produce help message");
-  auto kOpt = op.add<popl::Value<uint32_t>>(
+  popl::Switch helpOption("h", "help", "produce help message");
+  popl::Value<uint32_t> kOpt(
       "k", "klen", "length of the k-mer with which the compacted dBG was built",
       31, &k);
-  auto inOpt = op.add<popl::Value<std::string>>("i", "input", "input fasta file");
-  auto outOpt = op.add<popl::Value<std::string>>("o", "out", "output fasta file");
+  popl::Value<std::string> inOpt("i", "input", "input fasta file");
+  popl::Value<std::string> outOpt("o", "out", "output fasta file");
 
-  //op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
+  popl::OptionParser op("Allowed options");
+  op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
 
   op.parse(argc, argv);
-  if (helpOption->is_set()) {
+  if (helpOption.isSet()) {
     std::cout << op << '\n';
     std::exit(0);
   }
 
-  std::string refFile = inOpt->value();
-  std::string outFile = outOpt->value();
+  std::string refFile = inOpt.getValue();
+  std::string outFile = outOpt.getValue();
 
   size_t numThreads{1};
   std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
@@ -344,8 +316,7 @@ int main(int argc, char* argv[]) {
   transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
   transcriptParserPtr->start();
   std::mutex iomutex;
-  //bool keepDuplicates{true};
-  bool keepDuplicates{false};
+  bool keepDuplicates{true};
   fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console,
            outFile);
   return 0;
