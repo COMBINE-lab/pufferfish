@@ -222,9 +222,9 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
                     hits.push_front(taxaPtr);
                 }
                 else { // otherwise we have to read till the end of the line and throw it away
-                    if (refId2taxId.find(tname) != refId2taxId.end()) {
-                        std::cerr << "Repeated reference:\n" << "read: " << rid << "\nref: " << tname << "\n"; 
-                    }
+                    /* if (refId2taxId.find(tname) != refId2taxId.end()) {
+                        std::cerr << "Repeated reference:\n" << "\tread: " << rid << "\n\tref: " << tname << "\n"; 
+                    } */
                     std::getline(mfile, tmp);
                 }
             } 

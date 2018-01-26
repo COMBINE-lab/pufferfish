@@ -272,7 +272,7 @@ public:
 
     // Start off pretending we are at least k bases away from the last hit
     uint32_t skip{1};
-    uint32_t altSkip{1};
+    uint32_t altSkip{5};
     int32_t basesSinceLastHit{k};
     bool justHit{false};
 
