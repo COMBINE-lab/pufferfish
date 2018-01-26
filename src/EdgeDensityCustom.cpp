@@ -9,6 +9,7 @@
 #include "Util.hpp"
 #include "sparsepp/spp.h"
 
+#define _verbose(fmt, args...) fprintf(stderr, fmt, ##args)
 
 #define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
 #define PBWIDTH 60
@@ -79,6 +80,10 @@ void parseGFA(std::string& gfaFile, spp::sparse_hash_map<uint64_t, Node>& g){
   while (std::getline(*file, ln)) {
     char firstC = ln[0];
     //skipping everything other than path and contig
+
+    pathCount++ ;
+    _verbose("\rNumber of processed paths: %u", pathCount);
+
     if (firstC != 'S' and firstC != 'P')
       continue;
 
@@ -89,6 +94,7 @@ void parseGFA(std::string& gfaFile, spp::sparse_hash_map<uint64_t, Node>& g){
 
     // count vertex
     if (tag == "S") {
+      continue ;
       try {
         uint64_t nid = std::stoll(id);
         if(nid > maxnid)
@@ -118,7 +124,11 @@ void parseGFA(std::string& gfaFile, spp::sparse_hash_map<uint64_t, Node>& g){
 
 		// update graph and add the new set of segments to it
     if(contigVec.size() == 1){
-      singleNodes.push_back(contigVec[0].first) ;
+      //singleNodes.push_back(contigVec[0].first) ;
+      Node n(contigVec[0].first) ;
+      if(g.find(contigVec[0].first) == g.end()){
+        g[contigVec[0].first] = n ;
+      }
     }
     for (size_t i = 0; i < contigVec.size()-1; i++){
       auto fromNode = contigVec[i].first ;
@@ -166,8 +176,7 @@ void parseGFA(std::string& gfaFile, spp::sparse_hash_map<uint64_t, Node>& g){
       //std::cerr << "\n" ;
       std::exit(1) ;
       }*/
-    pathCount++ ;
-    if(pathCount%10000 == 0){ std::cout << "processed paths  "<< pathCount << " %\r"; }
+    //<< "processed paths  "<< pathCount << " %\r"; }
 	}
   std::cerr << "\nNumber of vertices " << contig_cnt << "\n" ;
   std::cerr << "Done Reading gfa file\n";
