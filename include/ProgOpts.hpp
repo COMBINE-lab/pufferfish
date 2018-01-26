@@ -42,6 +42,7 @@ public:
   double quasiCov{0.0};
   bool pairedEnd{false};
   bool noOutput{false};
+  bool krakOut{false};
   bool sensitive{false};
   bool strictCheck{false};
   bool fuzzy{false};

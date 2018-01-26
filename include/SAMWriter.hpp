@@ -207,6 +207,100 @@ inline uint32_t writeUnmappedAlignmentsToStreamSingle(
     return 0;
 }
 
+template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
+                                            PairedAlignmentFormatter<IndexT>& formatter,
+                                            std::vector<util::QuasiAlignment>& jointHits,
+                                            fmt::MemoryWriter& sstream,
+                                            std::vector<std::vector<util::MemInfo>>& mems) {
+  auto& readName = r.name;
+  // If the read name contains multiple space-separated parts,
+  // print only the first
+  size_t splitPos = readName.find(' ');
+  if (splitPos < readName.length()) {
+    readName[splitPos] = '\0';
+  } else {
+    splitPos = readName.length();
+  }
+
+  if (splitPos > 2 and readName[splitPos - 2] == '/') {
+    readName[splitPos - 2] = '\0';
+  }
+
+  //uint32_t readLength{r.seq.length()}, effectiveLen{r.seq.length()};
+  // KMER SIZE HARD CODED
+  //size_t rIdx, kSize{31}, left_boundary{kSize-1}, right_boundary{effectiveLen-kSize-1};
+
+  //// until left-boundary
+  //for (rIdx=left_boundary; rIdx>=0; rIdx--){
+  //  auto base = r.seq[rIdx];
+  //  if (base == 'n' or base == 'N'){
+  //    effectiveLen -= rIdx+1;
+  //    break
+  //  }
+  //}
+
+  //// Middle Region
+  //for (rIdx=left_boundary+1; rIdx<right_boundary; rIdx++){
+  //  auto base = r.seq[rIdx];
+  //  if (base == 'n' or base == 'N'){
+  //    effectiveLen -= 1;
+  //  }
+  //}
+
+  ////Right Boundary
+  //for (rIdx=right_boundary; rIdx<readLength; rIdx++){
+  //  auto base = r.seq[rIdx];
+  //  if (base == 'n' or base == 'N'){
+  //    effectiveLen -= readLength-rIdx-1;
+  //    break;
+  //  }
+  //}
+
+  //if (effectiveLen <= 0){
+  //  std::cerr<<"ERROR: Wrong length correction for N";
+  //  exit(1);
+  //}
+
+  // effective read length for each hit
+  std::vector<size_t> effReadLens(jointHits.size());
+  uint32_t readLength{r.seq.length()}, ksize{31};
+  // get max min position with each hit
+  for (size_t memIdx=0; memIdx<jointHits.size(); memIdx++) {
+    size_t minIdx{readLength}, maxIdx{-1}, effectiveLen{readLength};
+    for (auto& mem: mems[memIdx]){
+      auto startPos = mem.memInfo->rpos;
+      auto endPos = startPos + mem.memInfo->memlen-1;
+      if (startPos < minIdx){
+        minIdx = startPosl
+      }
+      if (endPos > maxIdx){
+        maxIdx = endPos;
+      }
+    }
+    if (minIdx<ksize){
+      effectiveLen -= minPos;
+    }
+    if (maxIdx>readLength-ksize+1){
+      effReadLens[memIdx] -= readLength-maxIdx;
+    }
+  }
+
+  sstream << readName.c_str() << "\t" << jointHits.size() << "\t" << effectiveLen << "\n";
+
+  for (auto& qa : jointHits) {
+    auto& refName = formatter.index->refName(qa.tid);
+    sstream << refName << '\t' << mems[memIdx].size();
+    for (auto& mem: mems[memIdx]){
+      sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+    }
+    sstream << "\n";
+    memIdx++;
+  }
+  return 0;
+}
+
+
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,

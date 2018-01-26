@@ -56,7 +56,7 @@
 #include "RefSeqConstructor.hpp"
 #include "KSW2Aligner.hpp"
 
-#define START_CONTIG_ID ((uint32_t)-1) 
+#define START_CONTIG_ID ((uint32_t)-1)
 #define END_CONTIG_ID ((uint32_t)-2)
 
 #define MATCH_SCORE 1
@@ -239,7 +239,7 @@ util::ContigBlock getContigBlock(std::vector<util::UniMemInfo>::iterator memInfo
                                         memInfo->cGlobalPos,
                                         memInfo->clen,
                                         pfi->getSeqStr(memInfo->cGlobalPos, memInfo->clen)};
-  
+
   return (*contigSeqCache)[memInfo->cid];
 }
 
@@ -274,7 +274,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
     auto mmTstart = clust->mems[it].tpos + clust->mems[it].memInfo->memlen;
     auto mmTend = clust->mems[it+1].tpos;
 
-    // NOTE: Assume that consistency condition is met, merging the mems 
+    // NOTE: Assume that consistency condition is met, merging the mems
     if (mmTend < mmTstart) { // this means the not matched seq is empty. i.e. we have exact match in transition from txp_i to txp_(i+1)
       continue;
     }
@@ -417,7 +417,7 @@ void createSeqPairs(PufferfishIndexT* pfi,
       if (verbose)
         std::cerr << "\n\n\nSUCCESS   end extension::: " << read.name << "\n" << "read: " << endReadSeq << " ref: " << refSeq << "\n"
                 << "tid " << tid << " starting from " << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << " endRem " << endRem << " cid " << scb.contigIdx_ << "\n" ;
-      
+
       //std::cout << " part of read "<<endReadSeq<<"\n"
       //          << " part of ref  " << refSeq << "\n";
       calculateCigar(endReadSeq, refSeq, aligner, clust, verbose) ;
@@ -528,7 +528,7 @@ void processReadsPair(paired_parser* parser,
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
   util::QueryCache qc;
 
-  //@fatemeh Initialize aligner ksw 
+  //@fatemeh Initialize aligner ksw
   ksw2pp::KSW2Config config ;
   ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
@@ -537,7 +537,7 @@ void processReadsPair(paired_parser* parser,
   config.bandwidth = -1 ;
   config.flag = KSW_EZ_RIGHT ;
   aligner.config() = config ;
-  
+
   auto rg = parser->getReadGroup() ;
   while(parser->refill(rg)){
     for(auto& rpair : rg){
@@ -640,7 +640,7 @@ void processReadsPair(paired_parser* parser,
 
       bool doTraverse = !mopts->justMap;
       if (doTraverse) {
-        //TODO Have to make it per thread 
+        //TODO Have to make it per thread
         //have to make write access thread safe
         //std::cout << "traversing graph \n" ;
 
@@ -685,7 +685,7 @@ void processReadsPair(paired_parser* parser,
                                       jointHit.leftClust->getTrFirstHitPos(),     // reference pos
                                       jointHit.leftClust->isFw ,     // fwd direction
                                       readLen, // read length
-                                      jointHit.leftClust->cigar, // cigar string 
+                                      jointHit.leftClust->cigar, // cigar string
                                       jointHit.fragmentLen,       // fragment length
                                       true);         // properly paired
           // Fill in the mate info		         // Fill in the mate info
@@ -781,7 +781,7 @@ void processReadsSingle(single_parser* parser,
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
   util::QueryCache qc;
 
-  //@fatemeh Initialize aligner ksw 
+  //@fatemeh Initialize aligner ksw
   ksw2pp::KSW2Config config ;
   ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
@@ -790,7 +790,7 @@ void processReadsSingle(single_parser* parser,
   config.bandwidth = -1 ;
   config.flag = KSW_EZ_RIGHT ;
   aligner.config() = config ;
-  
+
   auto rg = parser->getReadGroup() ;
   while(parser->refill(rg)){
     for(auto& read : rg){
@@ -837,34 +837,34 @@ void processReadsSingle(single_parser* parser,
           if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage;}
           if (clustIt->coverage >= mopts->scoreRatio * maxCoverage or clustIt->coverage == perfectCoverage ) {
             validHits.emplace_back(static_cast<uint32_t>(l.first), clustIt);
-          } 
+          }
         }
         double thresh = mopts->scoreRatio * maxCoverage;
         // remove from valid hits those that don't reach the coverage threshold
-        std::sort(
+        /*std::sort(
             validHits.begin(), validHits.end(),
             [thresh](
                 std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>&
                     e1, std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e2) -> bool {
               return e1.second->coverage > e2.second->coverage;
             });
-            
+
         validHits.erase(std::remove_if(
             validHits.begin(), validHits.end(),
             [thresh, readLen](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
               return (static_cast<double>(e.second->coverage < 0.25 * readLen));
             }), validHits.end());
-            
+
         if (validHits.size() > 0) {
           validHits.erase(validHits.begin() + 1, validHits.end());
-            }
-            
-            /*
-        std::remove_if(validHits.begin(), validHits.end(), 
-          [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
-            return static_cast<double>(e.second->coverage) < thresh; 
-          });
-          */
+          }
+
+        */
+        std::remove_if(validHits.begin(), validHits.end(),
+                       [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
+                         return static_cast<double>(e.second->coverage) < thresh;
+                       });
+        
       }
 
       int maxScore = std::numeric_limits<int>::min();
@@ -922,7 +922,18 @@ void processReadsSingle(single_parser* parser,
 
       hctr.totAlignment += validHits.size();
 
-      if (validHits.size() > 0 and !mopts->noOutput) {
+      if(mopts->krakOut){
+        std::vector<std::vector<util::MemInfo>> mems;
+        for (auto& hit : validHits) {
+          // reference id
+          size_t tid = hit.first;
+          auto memIt = hit.second;
+          mems.emplace_back(memIt->mems);
+        }
+        writeAlignmentsToKrakenDump(read, formatter, jointAlignments, sstream,
+                                    mems);
+      }
+      else if (validHits.size() > 0 and !mopts->noOutput) {
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
                                mopts->writeOrphans, mopts->justMap);
       } else if (validHits.size() == 0 and !mopts->noOutput) {
@@ -1081,7 +1092,9 @@ bool alignReads(
   //write the SAMHeader
   //If nothing gets printed by this
   //time we are in trouble
-  writeSAMHeader(pfi, outLog) ;
+  if(not mopts->krakOut){
+    writeSAMHeader(pfi, outLog) ;
+  }
   }
 
   uint32_t nthread = mopts->numThreads ;
