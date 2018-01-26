@@ -20,7 +20,8 @@
 namespace kmers = combinelib::kmers;
 
 template <typename PufferfishIndexT> class MemCollector {
-  
+  enum class ExpansionTerminationType : uint8_t { MISMATCH = 0, CONTIG_END, READ_END };  
+
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
@@ -159,6 +160,7 @@ public:
 
   size_t expandHitEfficient(util::ProjectedHits& hit,
                             pufferfish::CanonicalKmerIterator& kit,
+			    ExpansionTerminationType& et,
                             bool verbose) {
 
     if(verbose){
@@ -184,6 +186,7 @@ public:
     auto readSeqOffset = currReadStart + k - 1;
     int fastNextReadCode{0};
     bool stillMatch = true;
+    bool foundTermCondition = false;
 
     while (stillMatch and
            (cCurrPos < cEndPos) and
@@ -202,6 +205,8 @@ public:
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
+	    et = ExpansionTerminationType::MISMATCH;
+	    foundTermCondition = true;
             break;
           }
           hit.k_++;
@@ -219,6 +224,8 @@ public:
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
+	    et = ExpansionTerminationType::MISMATCH;
+	    foundTermCondition = true;
             break;
           }
           hit.k_++;
@@ -227,6 +234,12 @@ public:
         }
       }
     }
+
+    if (!foundTermCondition) {
+	    et = (cCurrPos >= cEndPos or cCurrPos <= cStartPos) ? 
+		    ExpansionTerminationType::CONTIG_END : ExpansionTerminationType::READ_END;
+    }
+
     if (!hit.contigOrientation_) {
       if (verbose)
         std::cout << hit.k_ << " prev contig pos:" << hit.contigPos_ << "\n";
@@ -272,9 +285,10 @@ public:
 
     // Start off pretending we are at least k bases away from the last hit
     uint32_t skip{1};
-    uint32_t altSkip{1};
+    uint32_t altSkip{5};
     int32_t basesSinceLastHit{k};
     bool justHit{false};
+    ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
 
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
@@ -291,12 +305,12 @@ public:
             std::cout << posIt.transcript_id() << "\t" <<  refPosOri.isFW << "\t" << refPosOri.pos << "\n" ;
           } 
         }
-        expandHitEfficient(phits, kit1, verbose);
+        expandHitEfficient(phits, kit1, et, verbose);
         if(verbose) std::cout<<"len after expansion: "<<phits.k_<<"\n" ;
         
         rawHits.push_back(std::make_pair(readPosOld, phits));
         basesSinceLastHit = 1;
-        skip = altSkip;
+        skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
         kit1 += (skip-1);
        //} else {
        //  ++kit1;

@@ -282,7 +282,9 @@ void KrakMap::propagateInfo() {
 
 // why? why? why I don't understand this pointer/reference thing :mad: :dissapointed:
 void KrakMap::assignRead(uint64_t readLen) {
-    double threshold = filteringThreshold >= 1 ? filteringThreshold : readLen*filteringThreshold;
+	int32_t k{31};
+    //double threshold = filteringThreshold >= 1 ? filteringThreshold : readLen*filteringThreshold;
+    double threshold = filteringThreshold >= 1 ? filteringThreshold : ((readLen - k + 1)*filteringThreshold + (k-1));
     TaxaNode* walker = &taxaNodeMap[rootId];
     if (walker->getScore()<threshold) {
          if (mappedReadCntr.find(0) == mappedReadCntr.end())
