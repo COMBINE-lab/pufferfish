@@ -10,6 +10,8 @@
 
 
 
+
+
 void parseGFA(std::string& gfaFile, pufg::Graph& g){
   std::string ln;
   std::string tag, id, value;
@@ -24,21 +26,44 @@ void parseGFA(std::string& gfaFile, pufg::Graph& g){
   //spp::sparse_hash_map<std::string, uint64_t> seq2id;
 
   //uint64_t idCntr = 0;
+  uint64_t maxnid{0};
+  uint64_t contig_cnt{0} ;
+  std::vector<uint64_t> singleNodes ;
 
+  int countDebugNodes{0} ;
 
   while (std::getline(*file, ln)) {
     char firstC = ln[0];
-    //skipping everything other than path
-		if (firstC != 'P')
-			continue;
+    //skipping everything other than path and contig
+    if (firstC != 'S' and firstC != 'P')
+      continue;
+
     stx::string_view lnview(ln);
     std::vector<stx::string_view> splited = util::split(lnview, '\t');
+
+
+    tag = splited[0].to_string();
+    id = splited[1].to_string();
+
+    // add vertex
+    if (tag == "S") {
+      try {
+        uint64_t nid = std::stoll(id);
+        if(nid > maxnid)
+          maxnid = nid ;
+      } catch (std::exception& e) {
+        // not a numeric contig id
+      }
+      contig_cnt++;
+    }
+
+		if (firstC != 'P')
+			continue;
     if (splited.size() != 3) {
       std::cerr << "the path line should have 3 fields (tab separated) --- skipping!\n";
       continue;
     }
-    // tag = splited[0].to_string();
-    id = splited[1].to_string();
+
     if (id == "") {
       std::cerr << "interesting; the ID is empty.  Skipping\n";
       continue;
@@ -52,13 +77,39 @@ void parseGFA(std::string& gfaFile, pufg::Graph& g){
 		//contigVec = convertOld2newPath(contigVec);
 
 		// update graph and add the new set of segments to it
+    if(contigVec.size() == 1){
+      singleNodes.push_back(contigVec[0].first) ;
+    }
     for (size_t i = 0; i < contigVec.size()-1; i++) 
       g.addEdge(contigVec[i].first, contigVec[i].second, contigVec[i+1].first, contigVec[i+1].second);
+
+
+    //debugging line 
+    //sanityCheck(g) ;
+    if(contigVec.size() > 1){
+      auto nodes = g.getVertices() ;
+      //std::cerr << "num of nodes " << nodes.size() << "\n" ;
+      for(const auto& x : nodes){
+        auto node = x.second ;
+        auto inEdges = node.getPredecessors() ;
+        auto outEdges = node.getSuccessors() ;
+
+        size_t totalEdges = inEdges.size() + outEdges.size() ;
+        if(totalEdges > 8){
+          std::cerr << "After adding line "<<lnview << "\n" ;
+          std::cerr << "num of nodes " << nodes.size() << "\n" ;
+          std::cerr << node.getId() << ": " << totalEdges << "\n" ;
+          std::exit(1) ;
+        }
+        //avgDensity += double(totalEdges)/8.0 ; 
+      }
+    }
 
 		// set pathStart and pathEnd (do we need this)
 		// setPathStart(id, contigVec[0]); (do we need this)
 		// setDonTouchSide(contigVec); (do we need this)
 	}
+  std::cerr << "Number of vertices " << contig_cnt << "\n" ;
   std::cerr << "Done Reading gfa file\n";
  
 
