@@ -869,12 +869,7 @@ void processReadsSingle(single_parser* parser,
               return e1.second->coverage > e2.second->coverage;
             });
             
-        /* if (validHits.size() > 0) {
-          validHits.erase(validHits.begin() + 1, validHits.end());
-            } */
-            
-            
-	validHits.erase(std::remove_if(validHits.begin(), validHits.end(), 
+        validHits.erase(std::remove_if(validHits.begin(), validHits.end(), 
           [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
             return static_cast<double>(e.second->coverage) < thresh; 
           }), validHits.end());
