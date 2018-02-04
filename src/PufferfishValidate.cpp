@@ -95,8 +95,8 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
       //std::cerr << "Start kmer " << kb.to_str() << "\n" ;
       //std::cerr << "End kmer " << ke.to_str() << "\n" ;
 
-      uint8_t edgeVec = edge[ctgInfo.fileOrder] ;
-      uint8_t loop = 0 ;
+      //uint8_t edgeVec = edge[ctgInfo.fileOrder] ;
+      //uint8_t loop = 0 ;
 /*
       std::bitset<8> b = edgeVec ;
       std::cerr << "Parsing vector " << b << "\n" ;

@@ -305,7 +305,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           std::cerr << "i =  " << i << ", size = " << seqVec.size()
                     << ", idx = " << idx << ", size = " << posVec.size() << "\n";
         }
-        ContigKmerIterator::value_type mer = *kb1;
+        // ContigKmerIterator::value_type mer = *kb1;
         // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
         //posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
         posVec[idx] = kb1.pos(); 

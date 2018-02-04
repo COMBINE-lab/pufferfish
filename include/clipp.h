@@ -1,10 +1,30 @@
 /*****************************************************************************
+ *  ___  _    _   ___ ___
+ * |  _|| |  | | | _ \ _ \   CLIPP - command line interfaces for modern C++
+ * | |_ | |_ | | |  _/  _/   version 1.1.0
+ * |___||___||_| |_| |_|     https://github.com/muellan/clipp
  *
- * CLIPP - command line interfaces for modern C++
+ * Licensed under the MIT License <http://opensource.org/licenses/MIT>.
+ * Copyright (c) 2017 André Müller <foss@andremueller-online.de>
  *
- * released under MIT license
+ * ---------------------------------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * (c) 2017 André Müller; foss@andremueller-online.de
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  *
  *****************************************************************************/
 
@@ -1613,6 +1633,40 @@ alphabetic(const arg_string& s) {
 
 /*************************************************************************//**
  *
+ * @brief predicate that returns false if the argument string is
+ *        equal to any string from the exclusion list
+ *
+ *****************************************************************************/
+class none_of
+{
+public:
+    none_of(arg_list strs):
+        excluded_{std::move(strs)}
+    {}
+
+    template<class... Strings>
+    none_of(arg_string str, Strings&&... strs):
+        excluded_{std::move(str), std::forward<Strings>(strs)...}
+    {}
+
+    template<class... Strings>
+    none_of(const char* str, Strings&&... strs):
+        excluded_{arg_string(str), std::forward<Strings>(strs)...}
+    {}
+
+    bool operator () (const arg_string& arg) const {
+        return (std::find(begin(excluded_), end(excluded_), arg)
+                == end(excluded_));
+    }
+
+private:
+    arg_list excluded_;
+};
+
+
+
+/*************************************************************************//**
+ *
  * @brief predicate that returns the first substring match within the input
  *        string that rmeepresents a number
  *        (with at maximum one decimal point and digit separators)
@@ -1821,6 +1875,7 @@ class parameter :
     public detail::token<parameter>,
     public detail::action_provider<parameter>
 {
+    /** @brief adapts a 'match_predicate' to the 'match_function' interface */
     class predicate_adapter {
     public:
         explicit
@@ -1840,7 +1895,7 @@ public:
     parameter():
         flags_{},
         matcher_{predicate_adapter{match::none}},
-        label_{}, required_{false}
+        label_{}, required_{false}, greedy_{false}
     {}
 
     /** @brief makes "flag" parameter */
@@ -1849,7 +1904,7 @@ public:
     parameter(arg_string str, Strings&&... strs):
         flags_{},
         matcher_{predicate_adapter{match::none}},
-        label_{}, required_{false}
+        label_{}, required_{false}, greedy_{false}
     {
         add_flags(std::move(str), std::forward<Strings>(strs)...);
     }
@@ -1859,7 +1914,7 @@ public:
     parameter(const arg_list& flaglist):
         flags_{},
         matcher_{predicate_adapter{match::none}},
-        label_{}, required_{false}
+        label_{}, required_{false}, greedy_{false}
     {
         add_flags(flaglist);
     }
@@ -1872,7 +1927,7 @@ public:
     parameter(match_predicate filter):
         flags_{},
         matcher_{predicate_adapter{std::move(filter)}},
-        label_{}, required_{false}
+        label_{}, required_{false}, greedy_{false}
     {}
 
     /** @brief makes "value" parameter with custom match function
@@ -1882,7 +1937,7 @@ public:
     parameter(match_function filter):
         flags_{},
         matcher_{std::move(filter)},
-        label_{}, required_{false}
+        label_{}, required_{false}, greedy_{false}
     {}
 
 
@@ -1897,6 +1952,21 @@ public:
     parameter&
     required(bool yes) noexcept {
         required_ = yes;
+        return *this;
+    }
+
+
+    //---------------------------------------------------------------
+    /** @brief returns if a parameter should match greedily */
+    bool
+    greedy() const noexcept {
+        return greedy_;
+    }
+
+    /** @brief determines if a parameter should match greedily */
+    parameter&
+    greedy(bool yes) noexcept {
+        greedy_ = yes;
         return *this;
     }
 
@@ -2025,6 +2095,7 @@ private:
     match_function matcher_;
     doc_string label_;
     bool required_ = false;
+    bool greedy_ = false;
 };
 
 
@@ -2421,6 +2492,24 @@ inline parameter
 any_other(Targets&&... tgts)
 {
     return parameter{match::any}
+        .target(std::forward<Targets>(tgts)...)
+        .required(false).blocking(false).repeatable(true);
+}
+
+
+
+/*************************************************************************//**
+ *
+ * @brief makes catch-all value parameter with custom filter
+ *
+ *****************************************************************************/
+template<class Filter, class... Targets, class = typename std::enable_if<
+    traits::is_callable<Filter,bool(const char*)>::value ||
+    traits::is_callable<Filter,subrange(const char*)>::value>::type>
+inline parameter
+any(Filter&& filter, Targets&&... tgts)
+{
+    return parameter{std::forward<Filter>(filter)}
         .target(std::forward<Targets>(tgts)...)
         .required(false).blocking(false).repeatable(true);
 }
@@ -3354,6 +3443,39 @@ using pattern = group::child;
 
 /*************************************************************************//**
  *
+ * @brief apply an action to all parameters in a group
+ *
+ *****************************************************************************/
+template<class Action>
+void for_all_params(group& g, Action&& action)
+{
+    for(auto& p : g) {
+        if(p.is_group()) {
+            for_all_params(p.as_group(), action);
+        }
+        else {
+            action(p.as_param());
+        }
+    }
+}
+
+template<class Action>
+void for_all_params(const group& g, Action&& action)
+{
+    for(auto& p : g) {
+        if(p.is_group()) {
+            for_all_params(p.as_group(), action);
+        }
+        else {
+            action(p.as_param());
+        }
+    }
+}
+
+
+
+/*************************************************************************//**
+ *
  * @brief makes a group of parameters and/or groups
  *
  *****************************************************************************/
@@ -3540,14 +3662,9 @@ operator & (group a, group b)
  *        where all single char flag params ("-a", "b", ...) are joinable
  *
  *****************************************************************************/
-inline group&
-joinable(group& param) {
-    return param.joinable(true);
-}
-
-inline group&&
-joinable(group&& param) {
-    return std::move(param.joinable(true));
+inline group
+joinable(group g) {
+    return g.joinable(true);
 }
 
 //-------------------------------------------------------------------
@@ -3626,6 +3743,23 @@ repeatable(group p1, P2 p2, Ps... ps)
 
 /*************************************************************************//**
  *
+ * @brief makes a parameter greedy (match with top priority)
+ *
+ *****************************************************************************/
+inline parameter
+greedy(parameter p) {
+    return p.greedy(true);
+}
+
+inline parameter
+operator ! (parameter p) {
+    return greedy(p);
+}
+
+
+
+/*************************************************************************//**
+ *
  * @brief recursively prepends a prefix to all flags
  *
  *****************************************************************************/
@@ -3637,16 +3771,16 @@ with_prefix(const arg_string& prefix, parameter&& p) {
 
 //-------------------------------------------------------------------
 inline group&
-with_prefix(const arg_string& prefix, group& params)
+with_prefix(const arg_string& prefix, group& g)
 {
-    for(auto& p : params) {
+    for(auto& p : g) {
         if(p.is_group()) {
             with_prefix(prefix, p.as_group());
         } else {
             with_prefix(prefix, p.as_param());
         }
     }
-    return params;
+    return g;
 }
 
 
@@ -3687,16 +3821,16 @@ with_prefixes_short_long(const arg_string& shortpfx, const arg_string& longpfx,
 inline group&
 with_prefixes_short_long(const arg_string& shortFlagPrefix,
                          const arg_string& longFlagPrefix,
-                         group& params)
+                         group& g)
 {
-    for(auto& p : params) {
+    for(auto& p : g) {
         if(p.is_group()) {
             with_prefixes_short_long(shortFlagPrefix, longFlagPrefix, p.as_group());
         } else {
             with_prefixes_short_long(shortFlagPrefix, longFlagPrefix, p.as_param());
         }
     }
-    return params;
+    return g;
 }
 
 
@@ -4063,10 +4197,10 @@ private:
  *        candidate parameters are traversed using a scoped DFS traverser
  *
  *****************************************************************************/
-template<class Predicate>
+template<class ParamSelector>
 match_t
 full_match(scoped_dfs_traverser pos, const arg_string& arg,
-           const Predicate& select)
+           const ParamSelector& select)
 {
     if(arg.empty()) return match_t{};
 
@@ -4094,10 +4228,10 @@ full_match(scoped_dfs_traverser pos, const arg_string& arg,
  *        candidate parameters are traversed using a scoped DFS traverser
  *
  *****************************************************************************/
-template<class Predicate>
+template<class ParamSelector>
 match_t
 prefix_match(scoped_dfs_traverser pos, const arg_string& arg,
-             const Predicate& select)
+             const ParamSelector& select)
 {
     if(arg.empty()) return match_t{};
 
@@ -4130,10 +4264,10 @@ prefix_match(scoped_dfs_traverser pos, const arg_string& arg,
  *        candidate parameters are traversed using a scoped DFS traverser
  *
  *****************************************************************************/
-template<class Predicate>
+template<class ParamSelector>
 match_t
 partial_match(scoped_dfs_traverser pos, const arg_string& arg,
-              const Predicate& select)
+              const ParamSelector& select)
 {
     if(arg.empty()) return match_t{};
 
@@ -4301,7 +4435,6 @@ public:
         //skipping of blocking & required patterns is not allowed
         if(!blocked_ && !pos_.matched() && pos_->required() && pos_->blocking()) {
             blocked_ = true;
-            return false;
         }
 
         add_nomatch(arg);
@@ -4383,31 +4516,50 @@ private:
     /** @brief try to find a parameter/pattern that matches 'arg' */
     bool try_match(const arg_string& arg)
     {
-        //Note: flag-params will always take precedence over value-params
+        //match greedy parameters before everything else
+        if(pos_->is_param() && pos_->blocking() && pos_->as_param().greedy()) {
+            const auto match = pos_->as_param().match(arg);
+            if(match && match.length() == arg.size()) {
+                add_match(detail::match_t{arg,pos_});
+                return true;
+            }
+        }
+
+        //try flags first (alone, joinable or strict sequence)
         if(try_match_full(arg, detail::select_flags{})) return true;
         if(try_match_joined_flags(arg)) return true;
         if(try_match_joined_sequence(arg, detail::select_flags{})) return true;
+        //try value params (alone or strict sequence)
         if(try_match_full(arg, detail::select_values{})) return true;
         if(try_match_joined_sequence(arg, detail::select_all{})) return true;
+        //try joinable params + values in any order
         if(try_match_joined_params(arg)) return true;
         return false;
     }
 
     //---------------------------------------------------------------
-    template<class Predicate>
-    bool try_match_full(const arg_string& arg, const Predicate& select)
+    /**
+     * @brief try to match full argument
+     * @param select : predicate that candidate parameters must satisfy
+     */
+    template<class ParamSelector>
+    bool try_match_full(const arg_string& arg, const ParamSelector& select)
     {
         auto match = detail::full_match(pos_, arg, select);
-
         if(!match) return false;
-
         add_match(match);
         return true;
     }
 
     //---------------------------------------------------------------
-    template<class Predicate>
-    bool try_match_joined_sequence(arg_string arg, const Predicate& acceptFirst)
+    /**
+     * @brief try to match argument as blocking sequence of parameters
+     * @param select : predicate that a parameter matching the prefix of
+     *                 'arg' must satisfy
+     */
+    template<class ParamSelector>
+    bool try_match_joined_sequence(arg_string arg,
+                                   const ParamSelector& acceptFirst)
     {
         auto fstMatch = detail::prefix_match(pos_, arg, acceptFirst);
 
@@ -4445,7 +4597,7 @@ private:
             }
 
         }
-
+        //if arg not fully covered => discard temporary matches
         if(!arg.empty() || matches.empty()) return false;
 
         for(const auto& m : matches) add_match(m);
@@ -4453,46 +4605,46 @@ private:
     }
 
     //-----------------------------------------------------
+    /** @brief try to match 'arg' as a concatenation of joinable flags */
     bool try_match_joined_flags(const arg_string& arg)
     {
-        return try_match_joined([&](const group& g) {
-            if(try_match_joined(g, arg, detail::select_flags{},
-                                g.common_flag_prefix()) )
-            {
-                return true;
-            }
-            return false;
+        return find_join_group(pos_, [&](const group& g) {
+            return try_match_joined(g, arg, detail::select_flags{},
+                                    g.common_flag_prefix());
         });
     }
 
     //---------------------------------------------------------------
+    /** @brief try to match 'arg' as a concatenation of joinable parameters */
     bool try_match_joined_params(const arg_string& arg)
     {
-        return try_match_joined([&](const group& g) {
-            if(try_match_joined(g, arg, detail::select_all{}) ) {
-                return true;
-            }
-            return false;
+        return find_join_group(pos_, [&](const group& g) {
+            return try_match_joined(g, arg, detail::select_all{});
         });
     }
 
     //-----------------------------------------------------
-    template<class Predicate>
+    /** @brief try to match 'arg' as concatenation of joinable parameters
+     *         that are all contaied within one group
+     */
+    template<class ParamSelector>
     bool try_match_joined(const group& joinGroup, arg_string arg,
-                          const Predicate& pred,
+                          const ParamSelector& select,
                           const arg_string& prefix = "")
     {
+        //temporary parser with 'joinGroup' as top-level group
         parser parse {joinGroup};
+        //records temporary matches
         std::vector<match_t> matches;
 
         while(!arg.empty()) {
-            auto match = detail::prefix_match(parse.pos_, arg, pred);
+            auto match = detail::prefix_match(parse.pos_, arg, select);
 
             if(!match) return false;
 
             arg.erase(0, match.str().size());
             //make sure prefix is always present after the first match
-            //ensures that, e.g., flags "-a" and "-b" will be found in "-ab"
+            //so that, e.g., flags "-a" and "-b" will be found in "-ab"
             if(!arg.empty() && !prefix.empty() && arg.find(prefix) != 0 &&
                 prefix != match.str())
             {
@@ -4514,20 +4666,21 @@ private:
     }
 
     //-----------------------------------------------------
-    template<class Predicate>
-    bool try_match_joined(const Predicate& pred)
+    template<class GroupSelector>
+    bool find_join_group(const scoped_dfs_traverser& start,
+                         const GroupSelector& accept) const
     {
-        if(pos_ && pos_.parent().joinable()) {
-            const auto& g = pos_.parent();
-            if(pred(g)) return true;
+        if(start && start.parent().joinable()) {
+            const auto& g = start.parent();
+            if(accept(g)) return true;
             return false;
         }
 
-        auto pos = pos_;
+        auto pos = start;
         while(pos) {
             if(pos->is_group() && pos->as_group().joinable()) {
                 const auto& g = pos->as_group();
-                if(pred(g)) return true;
+                if(accept(g)) return true;
                 pos.next_sibling();
             }
             else {
@@ -5309,17 +5462,17 @@ class usage_lines
 public:
     using string = doc_string;
 
-    usage_lines(const group& params, string prefix = "",
+    usage_lines(const group& cli, string prefix = "",
                 const doc_formatting& fmt = doc_formatting{})
     :
-        params_(params), fmt_(fmt), prefix_(std::move(prefix))
+        cli_(cli), fmt_(fmt), prefix_(std::move(prefix))
     {
         if(!prefix_.empty()) prefix_ += ' ';
         if(fmt_.start_column() > 0) prefix_.insert(0, fmt.start_column(), ' ');
     }
 
-    usage_lines(const group& params, const doc_formatting& fmt):
-        usage_lines(params, "", fmt)
+    usage_lines(const group& cli, const doc_formatting& fmt):
+        usage_lines(cli, "", fmt)
     {}
 
     usage_lines& ommit_outermost_group_surrounders(bool yes) {
@@ -5342,7 +5495,7 @@ public:
 
 
 private:
-    const group& params_;
+    const group& cli_;
     doc_formatting fmt_;
     string prefix_;
     bool ommitOutermostSurrounders_ = false;
@@ -5377,10 +5530,10 @@ private:
     void print_usage(OStream& os) const
     {
         context cur;
-        cur.pos = params_.begin_dfs();
+        cur.pos = cli_.begin_dfs();
         cur.linestart = true;
         cur.level = cur.pos.level();
-        cur.outermost = &params_;
+        cur.outermost = &cli_;
 
         print_usage(os, cur, prefix_);
     }
@@ -5604,33 +5757,33 @@ private:
      * @brief prints flags in one group in a merged fashion
      *
      *******************************************************************/
-    string joined_label(const group& params, const context& cur) const
+    string joined_label(const group& g, const context& cur) const
     {
         if(!fmt_.merge_alternative_flags_with_common_prefix() &&
            !fmt_.merge_joinable_with_common_prefix()) return "";
 
-        const bool flagsonly = std::all_of(params.begin(), params.end(),
+        const bool flagsonly = std::all_of(g.begin(), g.end(),
             [](const pattern& p){
                 return p.is_param() && !p.as_param().flags().empty();
             });
 
         if(!flagsonly) return "";
 
-        const bool showOpt = params.all_optional() &&
-            !(ommitOutermostSurrounders_ && cur.outermost == &params);
+        const bool showOpt = g.all_optional() &&
+            !(ommitOutermostSurrounders_ && cur.outermost == &g);
 
-        auto pfx = params.common_flag_prefix();
+        auto pfx = g.common_flag_prefix();
         if(pfx.empty()) return "";
 
         const auto n = pfx.size();
-        if(params.exclusive() &&
+        if(g.exclusive() &&
            fmt_.merge_alternative_flags_with_common_prefix())
         {
             string lbl;
             if(showOpt) lbl += fmt_.optional_prefix();
             lbl += pfx + fmt_.alternatives_prefix();
             bool first = true;
-            for(const auto& p : params) {
+            for(const auto& p : g) {
                 if(p.is_param()) {
                     if(first)
                         first = false;
@@ -5644,10 +5797,10 @@ private:
             return lbl;
         }
         //no alternatives, but joinable flags
-        else if(params.joinable() &&
+        else if(g.joinable() &&
             fmt_.merge_joinable_with_common_prefix())
         {
-            const bool allSingleChar = std::all_of(params.begin(), params.end(),
+            const bool allSingleChar = std::all_of(g.begin(), g.end(),
                 [&](const pattern& p){
                     return p.is_param() &&
                         p.as_param().flags().front().substr(n).size() == 1;
@@ -5657,7 +5810,7 @@ private:
                 string lbl;
                 if(showOpt) lbl += fmt_.optional_prefix();
                 lbl += pfx;
-                for(const auto& p : params) {
+                for(const auto& p : g) {
                     if(p.is_param())
                         lbl += p.as_param().flags().front().substr(n);
                 }
@@ -5786,11 +5939,11 @@ public:
             usgFmt_.max_flags_per_param_in_doc());
     }
 
-    documentation(const group& params,
+    documentation(const group& cli,
                   const param_filter& filter,
                   const doc_formatting& fmt = doc_formatting{})
     :
-        documentation(params, fmt, filter)
+        documentation(cli, fmt, filter)
     {}
 
     template<class OStream>
@@ -5821,20 +5974,20 @@ private:
      *
      *******************************************************************/
     template<class OStream>
-    void print_doc(OStream& os, const group& params,
+    void print_doc(OStream& os, const group& cli,
                    printed& sofar,
                    int indentLvl = 0) const
     {
-        if(params.empty()) return;
+        if(cli.empty()) return;
 
         //if group itself doesn't have docstring
-        if(params.doc().empty()) {
-            for(const auto& p : params) {
+        if(cli.doc().empty()) {
+            for(const auto& p : cli) {
                 print_doc(os, p, sofar, indentLvl);
             }
         }
         else { //group itself does have docstring
-            bool anyDocInside = std::any_of(params.begin(), params.end(),
+            bool anyDocInside = std::any_of(cli.begin(), cli.end(),
                 [](const pattern& p){ return !p.doc().empty(); });
 
             if(anyDocInside) { //group docstring as title, then child entries
@@ -5843,19 +5996,19 @@ private:
                 }
                 auto indent = string(fmt_.start_column(), ' ');
                 if(indentLvl > 0) indent += string(fmt_.indent_size() * indentLvl, ' ');
-                os << indent << params.doc() << '\n';
+                os << indent << cli.doc() << '\n';
                 sofar = printed::nothing;
-                for(const auto& p : params) {
+                for(const auto& p : cli) {
                     print_doc(os, p, sofar, indentLvl + 1);
                 }
                 sofar = printed::paragraph;
             }
             else { //group label first then group docstring
-                auto lbl = usage_lines(params, usgFmt_)
+                auto lbl = usage_lines(cli, usgFmt_)
                            .ommit_outermost_group_surrounders(true).str();
 
                 str::trim(lbl);
-                print_entry(os, lbl, params.doc(), fmt_, sofar, indentLvl);
+                print_entry(os, lbl, cli.doc(), fmt_, sofar, indentLvl);
             }
         }
     }
@@ -6075,13 +6228,13 @@ private:
  *
  *****************************************************************************/
 inline man_page
-make_man_page(const group& params,
+make_man_page(const group& cli,
               doc_string progname = "",
               const doc_formatting& fmt = doc_formatting{})
 {
     man_page man;
-    man.append_section("SYNOPSIS", usage_lines(params,progname,fmt).str());
-    man.append_section("OPTIONS", documentation(params,fmt).str());
+    man.append_section("SYNOPSIS", usage_lines(cli,progname,fmt).str());
+    man.append_section("OPTIONS", documentation(cli,fmt).str());
     return man;
 }
 

@@ -24,6 +24,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <string>
 //#include <cereal/archives/json.hpp>
 
 #include "PufferfishConfig.hpp"
@@ -78,17 +79,27 @@ int main(int argc, char* argv[]) {
                      );
 
   std::string throwaway;
+  auto isValidRatio = [](const std::string&s) -> bool {
+    auto r = std::stod(s);
+    bool ok{true};
+    if (r <= 0 or r > 1) {
+      std::cerr << "The --scoreRatio you provided was " << r << ", it must be in (0,1]\n";
+      ok = false;
+    }
+    return ok;
+  };
+
   auto alignMode = (
                     command("align").set(selected, mode::align),
                     (required("-i", "--index") & value("index", alignmentOpt.indexDir)) % "directory where the pufferfish index is stored",
                     (
                      (
-                     ((required("--mate1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
-                     ((required("--mate2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
+                      ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
+                      ((required("--mate2", "-2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
                      ) |
                      ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
                     ),
-                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
+                    (option("--scoreRatio") & value(isValidRatio, "score ratio", alignmentOpt.scoreRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
                     (
