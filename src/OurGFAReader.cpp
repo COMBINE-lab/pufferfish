@@ -255,6 +255,13 @@ void PosFinder::parseFile() {
       // a+,b- end kmer of a , rc(end kmer of b)
       // a-,b+ rc(start kmer of a) , start kmer of b
       // a-,b- rc(start kmer of a) , rc(end kmer of b)
+      /*
+        1. `a+,(*)` we need to append a nucl to the `end-kmer`
+        2. `a-,(*)` we need to prepend rc(nucl) to the `start-kmer`
+        3. `(*),a+` we need to prepend a nucl to `start-kmer`
+        4. `(*),a-` we need to append a rc(nucl) to `end-kmer`
+       */
+        
 
       CanonicalKmer lastKmerInContig;
       CanonicalKmer firstKmerInNextContig;

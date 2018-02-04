@@ -194,10 +194,16 @@ enum class MateStatus : uint8_t {
   //required for edge extension
   
   enum class Direction : bool { FORWARD = 0, BACKWORD = 1 };
+
+  enum class Type : bool { APPEND = 0, PREPEND = 1 };
+
+  
   struct extension{
     char c;
     Direction dir ;
-  };
+    };
+
+
 
   struct ContigCecheBlock{
     uint32_t cpos ;

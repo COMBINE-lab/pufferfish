@@ -623,6 +623,44 @@ CanonicalKmer PufferfishSparseIndex::getEndKmer(uint64_t rank){
   return kb ;
 }
 
+std::vector<CanonicalKmer> PufferfishSparseIndex::getNextKmerOnGraph(uint64_t rank, util::Direction dir, bool isCurContigFwd){
+  //get the edge vec
+  std::vector<CanonicalKmer> nextKmers ;
+  uint8_t edgeVec = edge_[rank] ;
+  uint8_t mask = 1 ;
+  std::vector<char> nuclmap = {'C','G','T','A','C','G','T','A'} ;
+  std::map<char, char> cMap = {{'A','T'}, {'T','A'}, {'C','G'}, {'G','C'}} ;
+
+  if(dir == util::Direction::FORWARD){
+    // We need to append so let's concentrate on the lower 4 bits
+    auto ke = getEndKmer(rank) ;
+    auto ktmp = ke ;
+    for(uint8_t i=0; i < 4; ++i){
+      ktmp = ke ;
+      if(edgeVec & (mask << i)){
+        char c = nuclmap[i] ;
+        char charToAdd = (isCurContigFwd) ? c : cMap[c] ;
+        ktmp.shiftFw(charToAdd) ;
+        nextKmers.push_back(ktmp) ;
+      }
+    }
+  }else{
+    auto kb = getStartKmer(rank) ;
+    auto ktmp = kb ;
+    for(uint8_t i=4; i < 8; ++i){
+      ktmp = kb ;
+      if(edgeVec & (mask << i)){
+        char c = nuclmap[i] ;
+        char charToAdd = (isCurContigFwd) ? c : cMap[c] ;
+        ktmp.shiftBw(charToAdd) ;
+        nextKmers.push_back(ktmp) ;
+      }
+    }
+  }
+  return nextKmers ;
+}
+
+
 uint32_t PufferfishSparseIndex::getContigLen(uint64_t rank){
   uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
   uint64_t contigEnd = contigSelect_(rank + 1);

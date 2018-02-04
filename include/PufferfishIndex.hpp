@@ -103,6 +103,7 @@ public:
   //sdsl::int_vector<8>& getRevEdge() {return revedge_;}
 
   uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
+  std::vector<CanonicalKmer> getNextKmerOnGraph(uint64_t cid, util::Direction dir, bool isCurContigFwd);
 
   //uint8_t getRevEdgeEntry(uint64_t contigRank) {return revedge_[contigRank];}
 
