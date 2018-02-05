@@ -25,6 +25,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cstdlib>
 //#include <cereal/archives/json.hpp>
 
 #include "PufferfishConfig.hpp"
@@ -79,14 +80,19 @@ int main(int argc, char* argv[]) {
                      );
 
   std::string throwaway;
-  auto isValidRatio = [](const std::string&s) -> bool {
-    auto r = std::stod(s);
-    bool ok{true};
-    if (r <= 0 or r > 1) {
-      std::cerr << "The --scoreRatio you provided was " << r << ", it must be in (0,1]\n";
-      ok = false;
+  auto isValidRatio = [](const char* s) -> void {
+    float r{0.0};
+    std::string sv(s);
+    try {
+      r = std::stof(sv);
+    } catch (std::exception& e) {
+      std::string m = "Could not convert " + sv + " to a valid ratio\n";
+      throw std::domain_error(m);
     }
-    return ok;
+    if (r <= 0 or r > 1) {
+      std::string m = "The --scoreRatio you provided was " + sv + ", it must be in (0,1]\n";
+      throw std::domain_error(m);
+    }
   };
 
   auto alignMode = (
@@ -99,7 +105,7 @@ int main(int argc, char* argv[]) {
                      ) |
                      ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
                     ),
-                    (option("--scoreRatio") & value(isValidRatio, "score ratio", alignmentOpt.scoreRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
+                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
                     (
