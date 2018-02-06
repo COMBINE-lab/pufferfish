@@ -719,10 +719,6 @@ void processReadsPair(paired_parser* parser,
           std::cerr << "saw " << hctr.numReads << " reads : "
                     << "pe / read = " << hctr.peHits / static_cast<float>(hctr.numReads)
                     << " : se / read = " << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
-#if defined(__DEBUG__) || defined(__TRACK_CORRECT__)
-          std::cerr << ": true hit \% = "
-                    << (100.0 * (hctr.trueHits / static_cast<float>(hctr.numReads)));
-#endif // __DEBUG__
           iomutex->unlock();
         }
       }
@@ -730,23 +726,15 @@ void processReadsPair(paired_parser* parser,
 
 
 
-     //TODO Dump Output
-    // DUMP OUTPUT
+    // dump output
     if (!mopts->noOutput) {
       std::string outStr(sstream.str());
-      //std::cout << "\n OutStream size "<< outStr.size() << "\n" ;
       // Get rid of last newline
       if (!outStr.empty()) {
         outStr.pop_back();
         outQueue->info(std::move(outStr));
       }
       sstream.clear();
-      /*
-        iomutex->lock();
-        outStream << sstream.str();
-        iomutex->unlock();
-        sstream.clear();
-      */
     }
 
   } // processed all reads
