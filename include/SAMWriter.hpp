@@ -80,6 +80,20 @@ inline void getSamFlags(const util::QuasiAlignment& qaln, bool peInput,
 }
 
 template <typename IndexT>
+inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, AlignmentOpts* mopts) {
+  fmt::MemoryWriter hd;
+  hd.write("#\t");
+  if (mopts->singleEnd) {
+    hd.write("LT:S");
+  } else {
+    hd.write("LT:P");
+  }
+  hd.write("\tNT:{}", pfi.getRefLengths().size());
+  std::string headerStr(hd.str());
+  out->info(headerStr);
+}
+
+template <typename IndexT>
 inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
@@ -151,6 +165,43 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
     cigarStr1.clear();
     cigarStr1.write("{}S", qa.readLen);
   }
+}
+
+template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
+                                   PairedAlignmentFormatter<IndexT>& formatter,
+                                   std::vector<util::JointMems>& validJointHits,
+                                   fmt::MemoryWriter& sstream) {
+  auto& readName = r.first.name;
+  // If the read name contains multiple space-separated parts,
+  // print only the first
+  size_t splitPos = readName.find(' ');
+  if (splitPos < readName.length()) {
+    readName[splitPos] = '\0';
+  } else {
+    splitPos = readName.length();
+  }
+  
+  if (splitPos > 2 and readName[splitPos - 2] == '/') {
+    readName[splitPos - 2] = '\0';
+  }
+
+  sstream << readName.c_str() << "\t" << validJointHits.size() << "\t" << r.first.seq.length() << "\t" << r.second.seq.length() << "\n";
+
+  for (auto& qa : validJointHits) {
+    auto& refName = formatter.index->refName(qa.tid);
+    auto& clustLeft = qa.leftClust;
+    auto& clustRight = qa.rightClust;
+    sstream << refName << '\t' << clustLeft->mems.size() << '\t' << clustRight->mems.size();
+    for (auto& mem: clustLeft->mems){
+      sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+    }
+    for (auto& mem: clustRight->mems){
+      sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+    }
+    sstream << "\n";
+  }
+  return 0;
 }
 
 template <typename ReadT, typename IndexT>

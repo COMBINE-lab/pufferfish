@@ -700,7 +700,9 @@ void processReadsPair(paired_parser* parser,
 
       hctr.totAlignment += jointAlignments.size();
 
-      if(jointAlignments.size() > 0 and !mopts->noOutput){
+      if(mopts->krakOut){
+        writeAlignmentsToKrakenDump(rpair, formatter, jointHits, sstream);
+      } else if(jointAlignments.size() > 0 and !mopts->noOutput){
         writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
       } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
         writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
@@ -1069,7 +1071,11 @@ bool alignReads(
 
     // write the SAM Header
     // If nothing gets printed by this time we are in trouble
-    if (!mopts->krakOut) { writeSAMHeader(pfi, outLog); }
+    if (mopts->krakOut) {
+      writeKrakOutHeader(pfi, outLog, mopts);
+    } else {
+      writeSAMHeader(pfi, outLog);
+    }
   }
 
   uint32_t nthread = mopts->numThreads ;
