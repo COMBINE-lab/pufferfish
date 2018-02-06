@@ -28,7 +28,7 @@ set(pufferfish_lib_srcs
     xxhash.c 
     GFAConverter.cpp
     PufferfishAligner.cpp
-    edlib.cpp
+    #edlib.cpp
 	RefSeqConstructor.cpp
 	)
 

@@ -203,6 +203,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
 
 template <typename PufferfishIndexT>
 size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd, bool verbose) {
+  (void) verbose;
       if ( isCurContigFw == fromTheEnd)
       return contig.contigLen_ - startp - 1;
     else
@@ -279,6 +280,7 @@ std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& co
 
 template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::cutoff(std::string& seq, size_t len, bool verbose) {
+  (void) verbose;
     seq = seq.substr(0, seq.length()-len);
 }
 
@@ -287,6 +289,7 @@ void RefSeqConstructor<PufferfishIndexT>::cutoff(std::string& seq, size_t len, b
 // now eachtime calling this we are copying a string twice which is not good
 template <typename PufferfishIndexT>
 std::string RefSeqConstructor<PufferfishIndexT>::rc(std::string str, bool verbose) {
+  (void) verbose;
     for (uint32_t i = 0; i < str.length()/2; i++) {
       char tmp = str[i];
       str[i] = rev(str[str.length()-1-i]);

@@ -53,8 +53,8 @@ getTerminalKmers(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, uint3
     // we can process.
     for (auto& rp : rg) {
       auto& r1 = rp.seq;
-      start.fromChars(rp.seq.begin());
-      end.fromChars(rp.seq.end() - k);
+      start.fromChars(r1.begin());
+      end.fromChars(r1.end() - k);
       if (start == end) {
 	      auto it = km.kmers.find(start.word(0));
 	      if (it == km.kmers.end()) {
@@ -88,6 +88,7 @@ uint32_t saveUnitig(stx::string_view seq, uint32_t id, std::ofstream& ofile) {
 
 uint32_t createUnitig(UnitigMap& umap, uint32_t k, const std::string& header, stx::string_view seqin, 
                       uint32_t id, std::ofstream& ofile) {
+  (void) header;
     stx::string_view seq;
     std::string str;
     if (seq.length() == k) {
@@ -131,13 +132,13 @@ uint32_t createUnitig(UnitigMap& umap, uint32_t k, const std::string& header, st
     */
 
     if (canonLast == canonFirst) {
-	    ContigInfo info {OccT::BOTH, id, seq.length()};
+	    ContigInfo info {OccT::BOTH, id, static_cast<uint32_t>(seq.length())};
     	umap.kmers.emplace(canonLast.word(0), info);
     } else {
-	    ContigInfo infoe {OccT::END, id, seq.length()};
+	    ContigInfo infoe {OccT::END, id, static_cast<uint32_t>(seq.length())};
     	umap.kmers.emplace(canonLast.word(0), infoe); 
-	    ContigInfo infos {OccT::START, id, seq.length()};
-	umap.kmers.emplace(canonFirst.word(0), infos);
+	    ContigInfo infos {OccT::START, id, static_cast<uint32_t>(seq.length())};
+      umap.kmers.emplace(canonFirst.word(0), infos);
     }
 
     /*
@@ -214,7 +215,7 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
     KmerT mer;
     char ori = '*';
     auto rg = parser.getReadGroup();
-    const auto itEnd = umap.kmers.end();
+    //const auto itEnd = umap.kmers.end();
     //const auto skend = umap.skmer.end();
     //const auto ekend = umap.ekmer.end();
     while (parser.refill(rg)) {
@@ -222,7 +223,8 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
             auto& ref = rp.seq;
             uint32_t i{0};
             ufile << "P\t" << rp.name << '\t';
-            bool first{true};
+
+            //bool first{true};
             while (i < ref.length() - k + 1) {
                 mer.fromChars(ref.begin() + i); 
                 auto nkmer = mer.getCanonical();
@@ -254,6 +256,7 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
         }
     }
     ufile << '\n';
+    return true;
 }
 
 int main(int argc, char* argv[]) {

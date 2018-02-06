@@ -343,7 +343,7 @@ public:
 private:
   PufferfishIndexT* pfi_;
   size_t k;
-  AlignerEngine ae_;
+  //AlignerEngine ae_;
   std::vector<util::UniMemInfo> memCollectionLeft;
   std::vector<util::UniMemInfo> memCollectionRight;
 };

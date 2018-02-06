@@ -70,7 +70,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
     pf.parseFile() ;
 
     auto& seq = pi.getSeq() ;
-    auto& edge = pi.getEdge() ;
+    //auto& edge = pi.getEdge() ;
 
     auto& contigid2seq = pf.getContigNameMap() ;
 

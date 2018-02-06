@@ -41,10 +41,12 @@ public:
 
   bool addIncoming(uint64_t neighbor){
       incoming.insert(neighbor) ;
+      return true;
   }
 
   bool addOutgoing(uint64_t neighbor){
       outgoing.insert(neighbor) ;
+      return true;
   }
 
   int getDegree(){
@@ -75,14 +77,14 @@ void parseGFA(std::string& gfaFile, spp::sparse_hash_map<uint64_t, Node>& g){
   std::vector<uint64_t> singleNodes ;
   uint64_t pathCount{0} ;
 
-  int countDebugNodes{0} ;
+  //int countDebugNodes{0} ;
 
   while (std::getline(*file, ln)) {
     char firstC = ln[0];
     //skipping everything other than path and contig
 
     pathCount++ ;
-    _verbose("\rNumber of processed paths: %u", pathCount);
+    _verbose("\rNumber of processed paths: %lu", pathCount);
 
     if (firstC != 'S' and firstC != 'P')
       continue;

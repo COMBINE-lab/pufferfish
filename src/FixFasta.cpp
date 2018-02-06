@@ -1,6 +1,6 @@
 #include "FastxParser.hpp"
 #include "jellyfish/mer_dna.hpp"
-#include "popl.hpp"
+#include "clipp.h"
 #include "sparsepp/spp.h"
 #include "spdlog/spdlog.h"
 #include "xxhash.h"
@@ -284,40 +284,41 @@ void fixFasta(single_parser* parser,
 }
 
 int main(int argc, char* argv[]) {
-  uint32_t k;
-  std::string cfile;
-  std::string rfile;
-  popl::Switch helpOption("h", "help", "produce help message");
-  popl::Value<uint32_t> kOpt(
-      "k", "klen", "length of the k-mer with which the compacted dBG was built",
-      31, &k);
-  popl::Value<std::string> inOpt("i", "input", "input fasta file");
-  popl::Value<std::string> outOpt("o", "out", "output fasta file");
+  using namespace clipp;
 
-  popl::OptionParser op("Allowed options");
-  op.add(helpOption).add(kOpt).add(inOpt).add(outOpt);
+  uint32_t k{31};
+  std::string refFile;
+  std::string outFile;
+  bool printHelp{false};
 
-  op.parse(argc, argv);
-  if (helpOption.isSet()) {
-    std::cout << op << '\n';
-    std::exit(0);
+  auto cli = (
+              option("--help", "-h").set(printHelp, true) % "show usage",
+              option("--klen", "-k") & value("k-mer length", k) % "length of the k-mer used to build the cDBG (default = 31)",
+              required("--input", "-i") & value("input", refFile) % "input FASTA file",
+              required("--output", "-o") & value("output", refFile) % "output FASTA file"
+              );
+
+  if (parse(argc, argv, cli)) {
+    if (printHelp) {
+      std::cout << make_man_page(cli, "fixFasta");
+      return 0;
+    }
+    size_t numThreads{1};
+    std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
+    size_t numProd = 1;
+    std::vector<std::string> refFiles{refFile};
+
+    auto console = spdlog::stderr_color_mt("console");
+
+    transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
+    transcriptParserPtr->start();
+    std::mutex iomutex;
+    bool keepDuplicates{true};
+    fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console,
+             outFile);
+    return 0;
+  } else {
+    std::cout << usage_lines(cli, "fixFasta") << '\n';
+    return 1;
   }
-
-  std::string refFile = inOpt.getValue();
-  std::string outFile = outOpt.getValue();
-
-  size_t numThreads{1};
-  std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
-  size_t numProd = 1;
-  std::vector<std::string> refFiles{refFile};
-
-  auto console = spdlog::stderr_color_mt("console");
-
-  transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
-  transcriptParserPtr->start();
-  std::mutex iomutex;
-  bool keepDuplicates{true};
-  fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console,
-           outFile);
-  return 0;
 }

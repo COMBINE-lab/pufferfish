@@ -30,7 +30,7 @@ void parseGFA(std::string& gfaFile, pufg::Graph& g){
   uint64_t contig_cnt{0} ;
   std::vector<uint64_t> singleNodes ;
 
-  int countDebugNodes{0} ;
+  //int countDebugNodes{0} ;
 
   while (std::getline(*file, ln)) {
     char firstC = ln[0];
