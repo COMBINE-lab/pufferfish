@@ -83,7 +83,7 @@ public:
         //bool gapIsSmall = false;
         bool addNewCluster = currMemClusters.size() == 0;
         bool foundAtLeastOne = false;
-        bool foundPrev = false;
+        //bool foundPrev = false;
         for (auto prevClus = currMemClusters.rbegin();
              prevClus != currMemClusters.rend(); prevClus++) {
           if (hit.tpos - prevClus->getTrLastHitPos() < maxSpliceGap) {
@@ -286,13 +286,13 @@ public:
     // Start off pretending we are at least k bases away from the last hit
     uint32_t skip{1};
     uint32_t altSkip{5};
-    int32_t basesSinceLastHit{k};
-    bool justHit{false};
+    int32_t signedK = static_cast<int32_t>(k);
+    int32_t basesSinceLastHit{signedK};
     ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
 
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
-      skip = (basesSinceLastHit >= k) ? 1 : altSkip;
+      skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos

@@ -781,7 +781,7 @@ void processReadsSingle(single_parser* parser,
   PairedAlignmentFormatter<PufferfishIndexT*> formatter(&pfi);
   util::QueryCache qc;
 
-  //@fatemeh Initialize aligner ksw 
+  //@fatemeh Initialize aligner ksw
   ksw2pp::KSW2Config config ;
   ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
@@ -790,7 +790,7 @@ void processReadsSingle(single_parser* parser,
   config.bandwidth = -1 ;
   config.flag = KSW_EZ_RIGHT ;
   aligner.config() = config ;
-  
+
   auto rg = parser->getReadGroup() ;
   while(parser->refill(rg)){
     for(auto& read : rg){
@@ -809,10 +809,11 @@ void processReadsSingle(single_parser* parser,
                              mopts->maxSpliceGap,
                              MateStatus::SINGLE_END,
                              qc,
-                             read.name == "avn_3185234_3185397_55504/2"//verbose
+                             false //verbose
                              /*
                              mopts->consistentHits,
                              refBlocks*/) ;
+      (void)lh;
       //do intersection on the basis of
       //performance, or going towards selective alignment
       //otherwise orphan
@@ -828,7 +829,7 @@ void processReadsSingle(single_parser* parser,
 
       // Filter left hits
       uint32_t maxCoverage{0};
-      uint32_t perfectCoverage{readLen};
+      uint32_t perfectCoverage{static_cast<uint32_t>(totLen)};
       std::vector<std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>> validHits;
       validHits.reserve(2*leftHits.size());
       for (auto& l : leftHits) {
@@ -847,20 +848,22 @@ void processReadsSingle(single_parser* parser,
           if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage;}
           if (clustIt->coverage >= mopts->scoreRatio * maxCoverage or clustIt->coverage == perfectCoverage ) {
             validHits.emplace_back(static_cast<uint32_t>(l.first), clustIt);
+            /*
             if (read.name == "spj_1622951_1623126_68819/2") {
               std::cout << "\ntid" << l.first << " " << pfi.refName(l.first) << " coverage:" << clustIt->coverage << "\n";
-              /* for (auto& clus : lclust) {
-                std::cout << "mem size: " << clus.mems.size() << "\n";
-                for (auto& mem : clus.mems) {
-                  std::cout << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
-                }
-                std::cout << "\n";
-              } */
-        }
-          } 
+               for (auto& clus : lclust) {
+                 std::cout << "mem size: " << clus.mems.size() << "\n";
+                 for (auto& mem : clus.mems) {
+                 std::cout << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
+                 }
+                 std::cout << "\n";
+                 }
+            }
+            */
+          }
         }
         double thresh = mopts->scoreRatio * maxCoverage;
-        // remove from valid hits those that don't reach the coverage threshold
+        // sort the hits by coverage
         std::sort(
             validHits.begin(), validHits.end(),
             [thresh](
@@ -868,17 +871,16 @@ void processReadsSingle(single_parser* parser,
                     e1, std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e2) -> bool {
               return e1.second->coverage > e2.second->coverage;
             });
-            
-        validHits.erase(std::remove_if(validHits.begin(), validHits.end(), 
+        // remove those that don't achieve the threshold
+        validHits.erase(std::remove_if(validHits.begin(), validHits.end(),
           [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
-            return static_cast<double>(e.second->coverage) < thresh; 
+            return static_cast<double>(e.second->coverage) < thresh;
           }), validHits.end());
-         
       }
 
+      /*
       int maxScore = std::numeric_limits<int>::min();
       bool doTraverse = !mopts->justMap;
-      /*
       if (doTraverse) {
         if(!jointHits.empty() && jointHits.front().coverage() < 2*readLen) {
           for(auto& hit : jointHits){
@@ -931,13 +933,15 @@ void processReadsSingle(single_parser* parser,
 
       hctr.totAlignment += validHits.size();
 
-      if(mopts->krakOut){                                                                                                                                           
-        writeAlignmentsToKrakenDump(read, formatter, validHits, sstream);                                                
-      }    
-      else if (validHits.size() > 0 and !mopts->noOutput) {
+      // write puffkrak format output
+      if(mopts->krakOut){
+        writeAlignmentsToKrakenDump(read, formatter, validHits, sstream);
+      } else if (validHits.size() > 0 and !mopts->noOutput) {
+        // write sam output for mapped reads
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
                                mopts->writeOrphans, mopts->justMap);
       } else if (validHits.size() == 0 and !mopts->noOutput) {
+        // write sam output for un-mapped reads
         writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
                                         sstream, mopts->writeOrphans,
                                         mopts->justMap);
@@ -955,34 +959,21 @@ void processReadsSingle(single_parser* parser,
                     << hctr.peHits / static_cast<float>(hctr.numReads)
                     << " : se / read = "
                     << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
-#if defined(__DEBUG__) || defined(__TRACK_CORRECT__)
-          std::cerr << ": true hit \% = "
-                    << (100.0 * (hctr.trueHits / static_cast<float>(hctr.numReads)));
-#endif // __DEBUG__
           iomutex->unlock();
         }
       }
     } // for all reads in this job
 
 
-
-     //TODO Dump Output
-    // DUMP OUTPUT
+    // dump output
     if (!mopts->noOutput) {
       std::string outStr(sstream.str());
-      //std::cout << "\n OutStream size "<< outStr.size() << "\n" ;
       // Get rid of last newline
       if (!outStr.empty()) {
         outStr.pop_back();
         outQueue->info(std::move(outStr));
       }
       sstream.clear();
-      /*
-        iomutex->lock();
-        outStream << sstream.str();
-        iomutex->unlock();
-        sstream.clear();
-      */
     }
 
   } // processed all reads
@@ -1068,33 +1059,29 @@ bool alignReads(
   //bool haveOutputFile{false} ;
   std::shared_ptr<spdlog::logger> outLog{nullptr};
   if (!mopts->noOutput) {
-  if(mopts->outname == ""){
-    outBuf = std::cout.rdbuf() ;
-  }else{
-    outFile.open(mopts->outname) ;
-    outBuf = outFile.rdbuf() ;
-    //haveOutputFile = true ;
-  }
+    if(mopts->outname == ""){
+      outBuf = std::cout.rdbuf() ;
+    }else{
+      outFile.open(mopts->outname) ;
+      outBuf = outFile.rdbuf() ;
+      //haveOutputFile = true ;
+    }
 
-  //out stream to the buffer
-  //it can be std::cout or a file
+    // out stream to the buffer
+    // it can be std::cout or a file
+    outStream.reset(new std::ostream(outBuf));
 
-  //std::ostream outStream(outBuf) ;
-  outStream.reset(new std::ostream(outBuf));
+    // the async queue size must be a power of 2
+    size_t queueSize{268435456};
+    spdlog::set_async_mode(queueSize);
 
-  //this is my async queue
-  //a power of 2
-  size_t queueSize{268435456};
-  spdlog::set_async_mode(queueSize);
+    auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(*outStream) ;
+    outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
+    outLog->set_pattern("%v");
 
-  auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(*outStream) ;
-  outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
-  outLog->set_pattern("%v");
-  //write the SAMHeader
-  //If nothing gets printed by this
-  //time we are in trouble
-  if (!mopts->krakOut)
-    writeSAMHeader(pfi, outLog) ;
+    // write the SAM Header
+    // If nothing gets printed by this time we are in trouble
+    if (!mopts->krakOut) { writeSAMHeader(pfi, outLog); }
   }
 
   uint32_t nthread = mopts->numThreads ;
@@ -1125,8 +1112,8 @@ bool alignReads(
                              outLog, hctrs, mopts) ;
 
     pairParserPtr->stop();
-	consoleLog->info("flushing output queue.");
-  printAlignmentSummary(hctrs, consoleLog);
+    consoleLog->info("flushing output queue.");
+    printAlignmentSummary(hctrs, consoleLog);
 	if (outLog) { outLog->flush(); }
   } else {
     ScopedTimer timer(!mopts->quiet) ;
@@ -1151,17 +1138,8 @@ bool alignReads(
 
 int pufferfishAligner(AlignmentOpts& alnargs){
 
-  //auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(outStream) ;
-  //std::shared_ptr<spdlog::logger> outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
-
-//auto rawConsoleSink = std::make_shared<spdlog::sinks::stderr_sink_mt>();
-//auto rawConsoleSink = spdlog::sinks::stderr_sink_mt::instance() ;
- // auto consoleSink = std::make_shared<spdlog::sinks::ansicolor_sink>(rawConsoleSink);
-    auto consoleLog = spdlog::stderr_color_mt("console");
-
-
-    bool success{false} ;
-
+  auto consoleLog = spdlog::stderr_color_mt("console");
+  bool success{false} ;
   auto indexDir = alnargs.indexDir ;
 
   std::string indexType;

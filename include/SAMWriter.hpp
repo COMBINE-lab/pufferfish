@@ -171,11 +171,12 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
   }
-  
-  uint32_t readLength{r.seq.length()}, effectiveLen{r.seq.length()};
+
+  //uint32_t readLength{static_cast<uint32_t>(r.seq.length())};
+  //uint32_t effectiveLen{static_cast<uint32_t>(r.seq.length())};
+
 /*   // KMER SIZE HARD CODED
   size_t rIdx, kSize{31}, left_boundary{kSize-1}, right_boundary{effectiveLen-kSize-1};
-  
   // Middle Region
   for (rIdx=left_boundary+1; rIdx<right_boundary; rIdx++){
     auto base = r.seq[rIdx];
@@ -226,8 +227,10 @@ template <typename ReadT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+  (void) writeOrphans;
+  (void) justMappings;
 
-	auto& read1Temp = formatter.read1Temp;
+	//auto& read1Temp = formatter.read1Temp;
 	//auto& read2Temp = formatter.read2Temp;
 	// auto& qual1Temp = formatter.qual1Temp;
 	// auto& qual2Temp = formatter.qual2Temp;
@@ -240,7 +243,7 @@ inline uint32_t writeUnmappedAlignmentsToStreamSingle(
 	//cigarStr2.write("*");//"{}M", r.second.seq.length());
 	//std::cerr << cigarStr1.c_str() << "\n";
 
-	uint16_t flags1;
+	//uint16_t flags1;
 	auto& readName = r.name;
 
     // If the read name contains multiple space-separated parts,
@@ -280,9 +283,10 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
-
-	auto& read1Temp = formatter.read1Temp;
-	auto& read2Temp = formatter.read2Temp;
+  (void) writeOrphans;
+  (void) justMappings;
+	//auto& read1Temp = formatter.read1Temp;
+	//auto& read2Temp = formatter.read2Temp;
 	// auto& qual1Temp = formatter.qual1Temp;
 	// auto& qual2Temp = formatter.qual2Temp;
 	auto& cigarStr1 = formatter.cigarStr1;
@@ -293,7 +297,7 @@ inline uint32_t writeUnmappedAlignmentsToStream(
 	cigarStr1.write("*");//"{}M", r.first.seq.length());
 	cigarStr2.write("*");//"{}M", r.second.seq.length());
 	//std::cerr << cigarStr1.c_str() << "\n";
-	uint16_t flags1, flags2;
+	//uint16_t flags1, flags2;
 
 	auto& readName = r.first.name;
 	// If the read name contains multiple space-separated parts,
@@ -364,7 +368,7 @@ template <typename ReadT, typename IndexT>
 inline uint32_t writeAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
-
+  (void) writeOrphans;
   auto& read1Temp = formatter.read1Temp;
   //auto& read2Temp = formatter.read2Temp;
   // auto& qual1Temp = formatter.qual1Temp;
@@ -398,7 +402,6 @@ inline uint32_t writeAlignmentsToStreamSingle(
   // uint32_t trueHitCtr{0};
   // util::QuasiAlignment* firstTrueHit{nullptr};
   bool haveRev1{false};
-  bool* haveRev = nullptr;
 
   size_t i{0};
   for (auto& qa : jointHits) {
