@@ -600,8 +600,7 @@ void processReadsPair(paired_parser* parser,
 
       if(lh && rh){
         joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, totLen, mopts->scoreRatio, verbose) ;
-      }
-      else{
+      } else{
         //ignore orphans for now
       }
 
@@ -637,7 +636,7 @@ void processReadsPair(paired_parser* parser,
         }*/
 
       int maxScore = std::numeric_limits<int>::min();
-
+      /*
       bool doTraverse = !mopts->justMap;
       if (doTraverse) {
         //TODO Have to make it per thread 
@@ -664,6 +663,7 @@ void processReadsPair(paired_parser* parser,
 
         }
       }
+      */
 
 
       hctr.totHits += jointHits.size();
