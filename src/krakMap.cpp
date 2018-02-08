@@ -5,6 +5,9 @@
 #include "CLI/CLI.hpp"
 #include "krakMap.h"
 
+#define LEFT true
+#define RIGHT true
+
 struct krakMapOpts {
     std::string taxonomyTree_filename;
     std::string refId2TaxId_filename;
@@ -14,35 +17,51 @@ struct krakMapOpts {
     double filterThreshold = 0;
 };
 
-void TaxaNode::addInterval(uint64_t begin, uint64_t len) {
-    intervals.emplace_back(begin, begin+len);
+void TaxaNode::addInterval(uint64_t begin, uint64_t len, bool isLeft) {
+    if (isLeft)
+        lintervals.emplace_back(begin, begin+len);
+    else
+        rintervals.emplace_back(begin, begin+len);
 }
 
-void TaxaNode::updateIntervals(TaxaNode* child) {
+void TaxaNode::updateScore() {
+    score = 0;
+    for (auto& it : lintervals) {
+        score += it.end - it.begin;
+    }
+    for (auto& it : rintervals) {
+        score += it.end - it.begin;
+    }
+}
+void TaxaNode::updateIntervals(TaxaNode* child, bool isLeft) {
 
+    std::vector<Interval>* intervals;
     // reduce the unready child counter
     notIncorporatedChildrenCounter--;
     
     // merge two sorted interval lists into parent
     // update parent score
-    score = 0;
-    auto& childIntervals = child->getIntervals();
-    std::vector<Interval> parentIntervals(intervals.size());
-    std::copy(intervals.begin(), intervals.end(), parentIntervals.begin());
-    intervals.clear();
-    intervals.reserve(parentIntervals.size()+childIntervals.size());
+    auto& childIntervals = child->getIntervals(isLeft);
+    if (isLeft)
+        intervals = &lintervals;
+    else
+        intervals = &rintervals;
+    std::vector<Interval> parentIntervals(intervals->size());
+    std::copy(intervals->begin(), intervals->end(), parentIntervals.begin());
+    intervals->clear();
+    intervals->reserve(parentIntervals.size()+childIntervals.size());
     
     std::vector<Interval>::iterator pit = parentIntervals.begin();
     std::vector<Interval>::iterator cit = childIntervals.begin();
-    std::vector<Interval>::iterator fit = intervals.begin();
+    std::vector<Interval>::iterator fit = intervals->begin();
 
     // add the smallest interval as the first interval
     if (cit != childIntervals.end() && (pit == parentIntervals.end() || cit->begin < pit->begin)) {
-        intervals.emplace_back(cit->begin, cit->end);
+        intervals->emplace_back(cit->begin, cit->end);
         cit++;
     }
     else if (pit != parentIntervals.end()) {
-        intervals.emplace_back(pit->begin, pit->end);
+        intervals->emplace_back(pit->begin, pit->end);
         pit++;
     }
     else {
@@ -70,12 +89,9 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
         if (fit->end >= cur->begin) { // if the new interval has an overlap with the last inserted one
             fit->end = std::max(cur->end, fit->end); // merge them
         } else { // insert the interval as a separate one and move fit forward
-            intervals.emplace_back(cur->begin, cur->end);
+            intervals->emplace_back(cur->begin, cur->end);
             fit++;
         }
-    }
-    for (auto& it : intervals) {
-        score += it.end - it.begin;
     }
 }
 /**
@@ -83,24 +99,30 @@ void TaxaNode::updateIntervals(TaxaNode* child) {
  * Merge intervals if possible
  * Calculates score
 **/
-void TaxaNode::cleanIntervalsAndCalcScore() {
+void TaxaNode::cleanIntervals(bool isLeft) {
     // if we were writing intervals wrt read position we wouldn't need this part
-    std::sort(intervals.begin(), intervals.end(),
+    std::vector<Interval>* intervals;
+    if (isLeft)
+        intervals = &lintervals;
+    else
+        intervals = &rintervals;
+    
+    std::sort(intervals->begin(), intervals->end(), 
     [](Interval& i1, Interval& i2){
         return i1.begin != i2.begin?i1.begin < i2.begin:i1.end < i2.end;
     });
     // merge intervals if necessary
     // calculate score / coverage !! this whole process is repetition of mapping coverage calc!!
-    for (auto it=intervals.begin(); it != intervals.end();) {
+    for (auto it=intervals->begin(); it != intervals->end();) {
         // start from next item and merge (and erase) as much as possible
         bool merged = true;
         auto next = it+1;
-        while (next != intervals.end() && merged) {
+        while (next != intervals->end() && merged) {
             // if they overlap, merge them
             if (it->end >= next->begin) {
                 if (it->end < next->end)
                     it->end = next->end;
-                intervals.erase(next); // erase next after merging with it
+                intervals->erase(next); // erase next after merging with it
                 next = it+1; // it pointer and its next are always valid
             }
             else {// no overlap anymore and no merging. Update score and leave the loop
@@ -109,10 +131,6 @@ void TaxaNode::cleanIntervalsAndCalcScore() {
         }
         // there is nothing to merge with the current it, so increase it
         it++;
-    }
-
-    for (auto& i : intervals) {
-        score += i.end - i.begin;
     }
 }
 
@@ -127,7 +145,8 @@ bool TaxaNode::addChild(TaxaNode* child) {
 }
 
 void TaxaNode::reset() {
-     intervals.clear();
+     lintervals.clear();
+     rintervals.clear();
      activeChildren.clear();
      notIncorporatedChildrenCounter = 0;
      score = 0;
@@ -184,17 +203,76 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename,
     tfile.close();  
 }
 
+bool KrakMap::readHeader(std::ifstream& mfile) {
+    std::string tmp, readType;
+    mfile >> tmp >> readType;
+    if (tmp != "#")
+        return false;
+    if (readType == "LT:S") 
+        isPaired = false;
+    else if (readType == "LT:P")
+        isPaired = true;
+    else
+        return false;
+    return true;
+}
+
+void KrakMap::loadMappingInfo(std::ifstream& mfile) {
+    std::string tname, tmp;
+    uint64_t lcnt, rcnt, tid, ibeg, ilen;
+    mfile >> tname;
+    // first condition: Ignore those references that we don't have a taxaId for
+    // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
+    if (refId2taxId.find(tname) != refId2taxId.end() &&
+        activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
+        tid = refId2taxId[tname];
+        activeTaxa.insert(tid);
+        
+        // fetch the taxon from the map
+        TaxaNode* taxaPtr = &taxaNodeMap[tid];
+        walk2theRoot(taxaPtr);
+        mfile >> lcnt;
+        if (isPaired)
+            mfile >> rcnt;
+        for (size_t i = 0; i < lcnt; ++i) {
+            mfile >> ibeg >> ilen;
+            taxaPtr->addInterval(ibeg, ilen, LEFT);
+        }
+        if (isPaired)
+            for (size_t i = 0; i < rcnt; ++i) {
+                mfile >> ibeg >> ilen;
+                taxaPtr->addInterval(ibeg, ilen, RIGHT);
+            }
+        taxaPtr->cleanIntervals(LEFT);
+        taxaPtr->cleanIntervals(RIGHT);
+        taxaPtr->updateScore();
+        hits.push_front(taxaPtr);
+    }
+    else { // otherwise we have to read till the end of the line and throw it away
+        std::getline(mfile, tmp);
+    }
+}
+
 bool KrakMap::classify(std::string& mapperOutput_filename) {
     std::cerr << "KrakMap: Classify ..\n";
     std::cerr << "\tMapping Output File: " << mapperOutput_filename << "\n";
     std::ifstream mfile(mapperOutput_filename);
     std::string rid, tname, tmp; // read id, taxa name temp
-    uint64_t rlen, tid, mcnt, icnt, ibeg, ilen; // taxa id, read mapping count, # of interals, interval start, interval length
+    uint64_t rlen, mcnt; // taxa id, read mapping count, # of interals, interval start, interval length
     uint64_t totalReadCnt = 0, totalUnmappedReads = 0, seqNotFound = 0;
+    readHeader(mfile);
     while (!mfile.eof()) {
-        mfile >> rid >> mcnt >> rlen;
+        mfile >> rid >> mcnt;
         totalReadCnt++;
         if (mcnt != 0) {
+            if (isPaired) {
+                uint64_t rllen, rrlen;
+                mfile >> rllen >> rrlen;
+                rlen = rllen + rrlen;
+            }
+            else {
+                mfile >> rlen;
+            }
             //std::cout << "r" << rid << " " << mcnt << "\n";
             std::set<uint64_t> seen;
             // reset everything we've done for previous read
@@ -202,31 +280,7 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
             // std::cerr << activeTaxa.size() << " ";
             // construct intervals for leaves
             for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
-                mfile >> tname >> icnt;
-                //FIXME when writing the mappings actually!! multiple exactly the same mappings
-                // first condition: Ignore those references that we don't have a taxaId for
-                // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
-                if (refId2taxId.find(tname) != refId2taxId.end() &&
-                    activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
-                    tid = refId2taxId[tname];
-                    activeTaxa.insert(tid);
-                    
-                    // fetch the taxum from the map
-                    TaxaNode* taxaPtr = &taxaNodeMap[tid];
-                    walk2theRoot(taxaPtr);
-                    for (size_t i = 0; i < icnt; ++i) {
-                        mfile >> ibeg >> ilen;
-                        taxaPtr->addInterval(ibeg, ilen);
-                    }
-                    taxaPtr->cleanIntervalsAndCalcScore();
-                    hits.push_front(taxaPtr);
-                }
-                else { // otherwise we have to read till the end of the line and throw it away
-                    /* if (refId2taxId.find(tname) != refId2taxId.end()) {
-                        std::cerr << "Repeated reference:\n" << "\tread: " << rid << "\n\tref: " << tname << "\n"; 
-                    } */
-                    std::getline(mfile, tmp);
-                }
+                loadMappingInfo(mfile);   
             } 
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
@@ -273,7 +327,9 @@ void KrakMap::propagateInfo() {
         // when it's the turn for one of the other hits, it'll get ripe and updated
         while (!taxaPtr->isRoot() && taxaPtr->isRipe()) {
             TaxaNode* parentPtr = &taxaNodeMap[taxaPtr->getParentId()];
-            parentPtr->updateIntervals(taxaPtr);
+            parentPtr->updateIntervals(taxaPtr, LEFT);
+            parentPtr->updateIntervals(taxaPtr, RIGHT);
+            parentPtr->updateScore();
             taxaPtr = parentPtr;
             
         }

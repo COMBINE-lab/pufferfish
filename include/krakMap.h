@@ -48,14 +48,15 @@ class TaxaNode {
             }
         bool isRoot() { return rank == Rank::LIFE; }//TODO not easy with the new design return children.size(); }
         bool isRipe() { return !notIncorporatedChildrenCounter;} // ripe if zero
-        void addInterval(uint64_t begin, uint64_t len);
-        void updateIntervals(TaxaNode* child);
+        void addInterval(uint64_t begin, uint64_t len, bool isLeft);
+        void updateIntervals(TaxaNode* child, bool isLeft);
+        void updateScore();
         /**
          * Sorts intervals
          * Merge intervals if possible
          * Calculates score
          **/
-        void cleanIntervalsAndCalcScore();
+        void cleanIntervals(bool isLeft);
         bool addChild(TaxaNode* child);
 
         uint64_t getParentId() {return parentId;}
@@ -63,7 +64,7 @@ class TaxaNode {
         Rank getRank() {return rank;}
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
-        std::vector<Interval>& getIntervals() {return intervals;}
+        std::vector<Interval>& getIntervals(bool left) {return left?lintervals:rintervals;}
         void reset();
 
     private:
@@ -75,8 +76,8 @@ class TaxaNode {
         uint32_t score;
         uint64_t notIncorporatedChildrenCounter;
         std::set<uint64_t> activeChildren; //it's a set because, we might add the same child multiple times
-        std::vector<Interval> intervals;
-        
+        std::vector<Interval> lintervals;
+        std::vector<Interval> rintervals;
 };
 
 struct TaxaInfo {
@@ -98,6 +99,8 @@ class KrakMap {
         void saveClassificationResults(std::string& output_filename);
         void serialize(std::string& output_filename);
     private:
+        bool readHeader(std::ifstream& mfile);
+        void loadMappingInfo(std::ifstream& mfile);
         void walk2theRoot(TaxaNode* child);
         void propagateInfo();
         void assignRead(uint64_t readLen);
@@ -217,4 +220,5 @@ class KrakMap {
         double filteringThreshold = 0;
         spp::sparse_hash_map<uint64_t, TaxaInfo> mappedReadCntr;
         uint64_t readCntr = 0;
+        bool isPaired = true;
 };
