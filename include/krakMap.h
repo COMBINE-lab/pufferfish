@@ -47,7 +47,9 @@ class TaxaNode {
                 }
             }
         bool isRoot() { return rank == Rank::LIFE; }//TODO not easy with the new design return children.size(); }
-        bool isRipe() { return !notIncorporatedChildrenCounter;} // ripe if zero
+        bool isRipe() { 
+            return !notIncorporatedChildrenCounter;
+        } // ripe if zero
         void addInterval(uint64_t begin, uint64_t len, bool isLeft);
         void updateIntervals(TaxaNode* child, bool isLeft);
         void updateScore();
@@ -58,7 +60,9 @@ class TaxaNode {
          **/
         void cleanIntervals(bool isLeft);
         bool addChild(TaxaNode* child);
-
+        void setOneMoreChildAsProcessed() {
+            notIncorporatedChildrenCounter--;
+        }
         uint64_t getParentId() {return parentId;}
         uint64_t getId() {return id;}
         Rank getRank() {return rank;}

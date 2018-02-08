@@ -32,12 +32,11 @@ void TaxaNode::updateScore() {
     for (auto& it : rintervals) {
         score += it.end - it.begin;
     }
+    //std::cout << " score: " << score << "\n";
 }
 void TaxaNode::updateIntervals(TaxaNode* child, bool isLeft) {
 
     std::vector<Interval>* intervals;
-    // reduce the unready child counter
-    notIncorporatedChildrenCounter--;
     
     // merge two sorted interval lists into parent
     // update parent score
@@ -214,6 +213,7 @@ bool KrakMap::readHeader(std::ifstream& mfile) {
         isPaired = true;
     else
         return false;
+    std::getline(mfile, tmp);
     return true;
 }
 
@@ -260,10 +260,15 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
     std::string rid, tname, tmp; // read id, taxa name temp
     uint64_t rlen, mcnt; // taxa id, read mapping count, # of interals, interval start, interval length
     uint64_t totalReadCnt = 0, totalUnmappedReads = 0, seqNotFound = 0;
-    readHeader(mfile);
+    if (!readHeader(mfile)) {
+        std::cerr << "ERROR: Invalid header for mapping output file.\n";
+        std::exit(1);
+    }
+    std::cout<< "paired end? " << isPaired << "\n";
     while (!mfile.eof()) {
         mfile >> rid >> mcnt;
         totalReadCnt++;
+        //std::cout << "r" << rid << " " << mcnt << "\n";
         if (mcnt != 0) {
             if (isPaired) {
                 uint64_t rllen, rrlen;
@@ -273,7 +278,6 @@ bool KrakMap::classify(std::string& mapperOutput_filename) {
             else {
                 mfile >> rlen;
             }
-            //std::cout << "r" << rid << " " << mcnt << "\n";
             std::set<uint64_t> seen;
             // reset everything we've done for previous read
             clearReadSubTree();
@@ -330,8 +334,8 @@ void KrakMap::propagateInfo() {
             parentPtr->updateIntervals(taxaPtr, LEFT);
             parentPtr->updateIntervals(taxaPtr, RIGHT);
             parentPtr->updateScore();
+            parentPtr->setOneMoreChildAsProcessed();
             taxaPtr = parentPtr;
-            
         }
     }
 }
@@ -342,6 +346,7 @@ void KrakMap::assignRead(uint64_t readLen) {
     //double threshold = filteringThreshold >= 1 ? filteringThreshold : readLen*filteringThreshold;
     double threshold = filteringThreshold >= 1 ? filteringThreshold : ((readLen - k + 1)*filteringThreshold + (k-1));
     TaxaNode* walker = &taxaNodeMap[rootId];
+    //std::cerr << walker->getScore() << " " << threshold << "\n";
     if (walker->getScore()<threshold) {
          if (mappedReadCntr.find(0) == mappedReadCntr.end())
             mappedReadCntr.insert(std::make_pair(0, TaxaInfo(1, Rank::UNCLASSIFIED)));
