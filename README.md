@@ -46,13 +46,16 @@ To build the pufferfish do the following,
 # Using Pufferfish <a name="using"></a>
 
 **External Dependency:**
+
 In Pufferfish index building pipeline we use [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo) to build the compacted de Bruijn graph from the list of references.
 Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
 
 So before running the whole pipeline of index building, make sure you have already installed TwoPaCo.
 
 ## Core Pipeline
-Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index going through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferize -> pufferfish index*". Below are the series of the commands required for each step:
+Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index setting the required arguments in `config.json` and running the command `bash index.sh` in pufferfish directory.
+
+The commands in the `index.sh` file go through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferize -> pufferfish index*" and perform the following steps:
 1. **FixFasta**
 ```
 <Pufferfish Directory>/build/src/fixFasta -i <input_fasta> -o <output_fixed_fasta>
