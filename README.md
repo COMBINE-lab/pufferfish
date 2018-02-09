@@ -14,19 +14,6 @@ While existing hash-based indices based on the cdBG (and ccdBG) are very efficie
 **about pufferfish development:**
 Currently, Pufferfish is the software implementing this efficient ccdBG index, and allowing point (i.e., k-mer) queries.  Pufferfish is under active development, but we want to be as open (and as useful to as many people) as possible early on. However, we are also in the process of building higher-level tools (e.g., read mappers and aligners) around this index, so stay tuned!
 
-**Dependency:** 
-Pufferfish depends on sdsl-lite, to install from the pufferfish root directory execute following, 
->git clone https://github.com/simongog/sdsl-lite.git
-
->cd sdsl-lite
-
->./install.sh ../
-
-**External Dependency:**
-In Pufferfish index building pipeline we use [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo) to build the compacted de Bruijn graph from the list of references.
-Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
-
-So before running the whole pipeline of index building, make sure you have already installed TwoPaCo.
 
 **branches:**
 The **master** branch of pufferfish is _not_ necessarily stable, but it should, at any given time contain a working version of the index.  That is, breaking changes should not be pushed to master.  The **develop** branch of pufferfish is guaranteed to be neither stable nor working at any given point, but a best-faith effort will be made to not commit broken code to this branch.  For feature branches, all bets are off.
@@ -34,10 +21,19 @@ The **master** branch of pufferfish is _not_ necessarily stable, but it should, 
 For more details about pufferfish, please check out our [pre-print on bioRxiv](https://www.biorxiv.org/content/early/2017/09/21/191874), as well as the (updating) blog post [here](http://robpatro.com/blog/?p=494).
 
 # Building Pufferfish <a name="building"></a>
+**Dependency:** 
+Pufferfish depends on sdsl-lite which we explain how to install during the building process.
+
 To build the pufferfish do the following,
 >git clone git@github.com:COMBINE-lab/pufferfish.git
 
 > cd pufferfish
+
+>git clone https://github.com/simongog/sdsl-lite.git
+
+>cd sdsl-lite
+
+>./install.sh ../
 
 > mkdir build
 
@@ -48,6 +44,12 @@ To build the pufferfish do the following,
 > make
 
 # Using Pufferfish <a name="using"></a>
+
+**External Dependency:**
+In Pufferfish index building pipeline we use [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo) to build the compacted de Bruijn graph from the list of references.
+Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
+
+So before running the whole pipeline of index building, make sure you have already installed TwoPaCo.
 
 ## Core Pipeline
 Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index going through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferize -> pufferfish index*". Below are the series of the commands required for each step:
