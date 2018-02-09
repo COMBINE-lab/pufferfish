@@ -316,6 +316,7 @@ int main(int argc, char* argv[]) {
     bool keepDuplicates{true};
     fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console,
              outFile);
+    transcriptParserPtr->stop();
     return 0;
   } else {
     std::cout << usage_lines(cli, "fixFasta") << '\n';
