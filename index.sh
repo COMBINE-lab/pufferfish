@@ -1,6 +1,8 @@
 #!/bin/bash
 #!/usr/bin/env
 
+start=`date +%s`
+
 echo "Building Pufferfish Index"
 echo "Pipeline is fixFasta -> twoPaco -> twoPaCo dump -> pufferize -> pufferfish index"
 echo ""
@@ -66,7 +68,7 @@ elif [ $IS_INPUT_DIRECTORY = false ]; then
 	bname=$bname"_fixed"
 	echo "$bname"
 	echo "$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa"
-	$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}_fixed.fa
+	$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa
 else
 	echo "ERROR: Wrong format for a boolean value in json file config.json"
 	exit 1
@@ -90,3 +92,8 @@ PUFFERFISH_INDEX="$OUTPUT_DIR/$bname.puffidx"
 mkdir -p $PUFFERFISH_INDEX
 echo "$PUFFERFISH/pufferfish index -k $K -g $OUTPUT_DIR/$bname"_pufferized.gfa" -r "$OUTPUT_DIR/$bname.fa" -o $PUFFERFISH_INDEX"
 /usr/bin/time $PUFFERFISH/pufferfish index -k $K -g $OUTPUT_DIR/$bname"_pufferized.gfa" -r "$OUTPUT_DIR/$bname.fa" -o $PUFFERFISH_INDEX
+
+end=`date +%s`
+runtime=$((end-start))
+#printf "$start , $end"
+printf "\n\nTotal time: $runtime sec\n\n"
