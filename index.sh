@@ -29,6 +29,14 @@ echo "num of threads: $THREAD"
 
 IS_INPUT_DIRECTORY=$(jq -r '.input.is_input_a_directory_to_fasta_files' config.json)
 
+FILTER_SIZE=$(jq -r '.twopaco_filter_size' config.json)
+echo "$FILTER_SIZE"
+re='^[0-9]+$'
+if  [[ $FILTER_SIZE != "estimate" && ! $FILTER_SIZE =~ $re ]]; then
+   echo "ERROR: Twopaco_filter_size should either be set to word \"estimate\" or be a positive number" >&2; exit 1
+fi
+
+
 mkdir -p $OUTPUT_DIR
 mkdir -p $TMP
 
@@ -76,8 +84,15 @@ fi
 
 
 printf "\nTwoPaCo Junction Detection:\n"
-echo "$TWOPACO -k $K -t $THREAD -f 20 "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP"
-/usr/bin/time $TWOPACO -k $K -t $THREAD -f 20 "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP 
+if [ $FILTER_SIZE = "estimate" ]; then
+	file_size=$(stat -c%s "$OUTPUT_DIR/$bname.fa")
+	echo "$file_size"
+	exit 1
+fi
+
+
+echo "$TWOPACO -k $K -t $THREAD -f $FILTER_SIZE "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP"
+/usr/bin/time $TWOPACO -k $K -t $THREAD -f $FILTER_SIZE "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP 
 
 printf "\nTwoPaCo Dump:\n"
 echo "$TWOPACO_DUMP -k $K -s "$OUTPUT_DIR/$bname.fa" -f gfa1 $OUTPUT_DIR/$bname"_dbg.bin" > $OUTPUT_DIR/$bname.gfa"
