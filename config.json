@@ -9,5 +9,5 @@
 	"output_dir":"example/output",
 	"tmp_dir":"example/tmp",
 	"num_of_threads":16,
-	"twopaco_filter_size":"estimate"
+	"twopaco_filter_size":"20"
 }

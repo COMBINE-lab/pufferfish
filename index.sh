@@ -32,8 +32,9 @@ IS_INPUT_DIRECTORY=$(jq -r '.input.is_input_a_directory_to_fasta_files' config.j
 FILTER_SIZE=$(jq -r '.twopaco_filter_size' config.json)
 echo "$FILTER_SIZE"
 re='^[0-9]+$'
-if  [[ $FILTER_SIZE != "estimate" && ! $FILTER_SIZE =~ $re ]]; then
-   echo "ERROR: Twopaco_filter_size should either be set to word \"estimate\" or be a positive number" >&2; exit 1
+#if  [[ $FILTER_SIZE != "estimate" && ! $FILTER_SIZE =~ $re ]]; then
+if [[ ! $FILTER_SIZE =~ $re ]]; then
+	echo "ERROR: Twopaco_filter_size should be a positive number" >&2; exit 1
 fi
 
 
@@ -68,12 +69,12 @@ bname="ref"
 if [ $IS_INPUT_DIRECTORY = true ]; then
 	echo "Input is the path to the directory of fasta files"
 	wc -l <(cat `ls -d $INPUT_FILES/*.*`)
-	bname=$bname"_fixed"
+	bname="${bname}_${K}_fixed"
 	$PUFFERFISH/fixFasta --klen $K --input <(cat `ls -d $INPUT_FILES/*.*`) --output $OUTPUT_DIR/${bname}.fa
 elif [ $IS_INPUT_DIRECTORY = false ]; then
 	echo "Input is the path to the concatenated fasta file"
 	bname=`basename ${INPUT_FILES} | sed 's/\.[^\.]*$//'`
-	bname=$bname"_fixed"
+	bname="${bname}_${K}_fixed"
 	echo "$bname"
 	echo "$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa"
 	$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa
@@ -84,13 +85,11 @@ fi
 
 
 printf "\nTwoPaCo Junction Detection:\n"
-if [ $FILTER_SIZE = "estimate" ]; then
-	file_size=$(stat -c%s "$OUTPUT_DIR/$bname.fa")
-	echo "$file_size"
-	exit 1
-fi
-
-
+#if [ $FILTER_SIZE = "estimate" ]; then
+#	file_size=$(stat -c%s "$OUTPUT_DIR/$bname.fa")
+#	echo "$file_size"
+#	exit 1
+#fi
 echo "$TWOPACO -k $K -t $THREAD -f $FILTER_SIZE "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP"
 /usr/bin/time $TWOPACO -k $K -t $THREAD -f $FILTER_SIZE "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP 
 
