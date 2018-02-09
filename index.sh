@@ -54,19 +54,19 @@ fi
 printf "\nStarting the pipeline\n"
 
 printf "\nFixFasta:\n"
-bname=ref
-bname=$bname"_fixed"
+bname="ref"
 if [ $IS_INPUT_DIRECTORY = true ]; then
 	echo "Input is the path to the directory of fasta files"
 	wc -l <(cat `ls -d $INPUT_FILES/*.*`)
-	$PUFFERFISH/fixFasta --klen $K --input <(cat `ls -d $INPUT_FILES/*.*`) --output $OUTPUT_DIR/ref.fa
+	bname=$bname"_fixed"
+	$PUFFERFISH/fixFasta --klen $K --input <(cat `ls -d $INPUT_FILES/*.*`) --output $OUTPUT_DIR/${bname}.fa
 elif [ $IS_INPUT_DIRECTORY = false ]; then
 	echo "Input is the path to the concatenated fasta file"
 	bname=`basename ${INPUT_FILES} | sed 's/\.[^\.]*$//'`
 	bname=$bname"_fixed"
 	echo "$bname"
-	echo "$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/$(bname).fa"
-	$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/$(bname)_fixed.fa
+	echo "$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa"
+	$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}_fixed.fa
 else
 	echo "ERROR: Wrong format for a boolean value in json file config.json"
 	exit 1
