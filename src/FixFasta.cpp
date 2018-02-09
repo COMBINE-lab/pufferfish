@@ -295,7 +295,7 @@ int main(int argc, char* argv[]) {
               option("--help", "-h").set(printHelp, true) % "show usage",
               option("--klen", "-k") & value("k-mer length", k) % "length of the k-mer used to build the cDBG (default = 31)",
               required("--input", "-i") & value("input", refFile) % "input FASTA file",
-              required("--output", "-o") & value("output", refFile) % "output FASTA file"
+              required("--output", "-o") & value("output", outFile) % "output FASTA file"
               );
 
   if (parse(argc, argv, cli)) {
