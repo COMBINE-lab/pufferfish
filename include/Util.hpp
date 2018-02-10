@@ -10,16 +10,26 @@
 #include <type_traits>
 #include <vector>
 
+
+#include "CanonicalKmer.hpp"
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
+#include "jellyfish/mer_dna.hpp"
+#include "Kmer.hpp"
+#include "spdlog/spdlog.h"
+#include "spdlog/fmt/ostr.h"
+#include "spdlog/fmt/fmt.h"
+#include "CanonicalKmer.hpp"
 
-
+#ifndef __DEFINE_LIKELY_MACRO__
+#define __DEFINE_LIKELY_MACRO__
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x),1)
 #define UNLIKELY(x) __builtin_expect((x),0)
 #else
 #define LIKELY(x) (x)
 #define UNLIKELY(x) (x)
+#endif
 #endif
 
 namespace util {
@@ -169,27 +179,246 @@ template <typename T> string str(T& container) {
   return ContainerPrinter<T, has_key<T>::value>::str(container);
 }
 
-class IndexOptions {
-public:
-  uint32_t k{31};
-  std::string gfa_file;
-  std::string cfile;
-  std::string rfile;
-  std::string outdir;
-  bool isSparse{false};
-  uint32_t extensionSize{4};
-  uint32_t sampleSize{9};
-};
 
-class TestOptions {
-public:
-};
 
-class ValidateOptions {
-public:
-  std::string indexDir;
-  std::string refFile;
-};
+//Mapped object contains all the information
+//about mapping the struct is a bit changed from
+//quasi mapping
+enum class MateStatus : uint8_t {
+        SINGLE_END = 0,
+        PAIRED_END_LEFT = 1,
+        PAIRED_END_RIGHT = 2,
+        PAIRED_END_PAIRED = 3 };
+
+
+  //required for edge extension
+  
+  enum class Direction : bool { FORWARD = 0, BACKWORD = 1 };
+
+  enum class Type : bool { APPEND = 0, PREPEND = 1 };
+
+  
+  struct extension{
+    char c;
+    Direction dir ;
+    };
+
+
+
+  struct ContigCecheBlock{
+    uint32_t cpos ;
+    uint32_t blockLen ;
+    std::string cseq ;
+
+
+    ContigCecheBlock(uint32_t cposIn, uint32_t lenIn, std::string cseqIn) :
+      cpos(cposIn), blockLen(lenIn), cseq(cseqIn){}
+
+  };
+
+  struct UniMemInfo {
+    uint32_t cid;
+    bool cIsFw;
+    uint32_t rpos;
+    uint32_t memlen;
+    uint32_t cpos ;
+    uint64_t cGlobalPos;
+    uint32_t clen;
+
+    UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn, uint32_t cposIn, uint64_t cGlobalPosIn, uint32_t clenIn) :
+      cid(cidIn), cIsFw(cIsFwIn), rpos(rposIn), memlen(memlenIn), cpos(cposIn), cGlobalPos(cGlobalPosIn), clen(clenIn){}
+  };
+
+  struct MemInfo {
+    std::vector<UniMemInfo>::iterator memInfo;
+    size_t tpos;
+
+    MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn):memInfo(uniMemInfoIn), tpos(tposIn) {}
+  };
+
+  struct MemCluster {
+    // second element is the transcript position
+    std::vector<MemInfo> mems;
+    bool isFw;
+    bool isVisited = false;
+    uint32_t coverage{0};
+    std::vector<std::pair<std::string,std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
+    int score ;
+    std::string cigar ;
+    //bool isValid = true;
+    MemCluster(bool isFwIn): isFw(isFwIn) {}
+    /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
+      mems.push_back(memIn);
+      }*/
+    /*MemCluster() {
+      mems.push_back(std::make_pair(memInfoPtr, tposIn));
+      }*/
+    MemCluster(const MemCluster& other) = default;
+    MemCluster& operator=(const MemCluster& other) = default;
+    MemCluster() {}
+
+    // Add the new mem to the list and update the coverage
+    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos) {
+      if (mems.empty())
+        coverage = uniMemInfo->memlen;
+	  else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
+	  	coverage += (uniMemInfo->memlen);
+	  }
+      else { // they overlap
+          coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen)-(int)(mems.back().tpos + mems.back().memInfo->memlen), 0);
+      }
+      mems.emplace_back(uniMemInfo, tpos);
+      /*if (coverage > 100) {
+        std::cout << "fuck: " << mems.size() << " " << coverage <<"\n";
+        }*/
+    }
+    size_t getReadLastHitPos() const { return mems.empty()?0:mems.back().memInfo->rpos;}
+    size_t getTrLastHitPos() const {
+      return mems.empty()?0:mems.back().tpos;
+    }
+    size_t getTrLastMemLen() const {
+      return mems.empty()?0:mems.back().memInfo->memlen;
+    }
+    size_t getTrFirstHitPos() const { return mems.empty()?0:mems[0].tpos;}
+    inline size_t firstRefPos() const { return getTrFirstHitPos(); }
+    inline size_t lastRefPos() const { return getTrLastHitPos(); }
+    inline size_t lastMemLen() const { return getTrLastMemLen(); }
+    void calcCoverage() {
+      if (mems.size() == 0) {
+        std::cerr << "Shouldn't happen! Cluster is empty.\n";
+        return;
+      }
+      // we keep prev to take care of overlaps while calculating the coverage
+      auto lstart = mems.begin();
+      size_t offset = 0;
+      auto prev = lstart;
+      coverage = mems[0].memInfo->memlen;
+      for (auto&& mem : mems) {
+        ++offset;
+        coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
+        prev = lstart + offset;
+      }
+    }
+  };
+
+
+  struct JointMems {
+    uint32_t tid;
+    std::vector<util::MemCluster>::iterator leftClust;
+    std::vector<util::MemCluster>::iterator rightClust;
+    size_t fragmentLen;
+    JointMems(uint32_t tidIn,
+              std::vector<util::MemCluster>::iterator leftClustIn,
+              std::vector<util::MemCluster>::iterator rightClustIn,
+              size_t fragmentLenIn) : tid(tidIn), leftClust(leftClustIn), rightClust(rightClustIn), fragmentLen(fragmentLenIn) {
+    }
+    uint32_t coverage() {return leftClust->coverage+rightClust->coverage;}
+  };
+
+
+struct QuasiAlignment {
+  	QuasiAlignment() :
+    tid(std::numeric_limits<uint32_t>::max()),
+		pos(std::numeric_limits<int32_t>::max()),
+		fwd(true),
+		fragLen(std::numeric_limits<uint32_t>::max()),
+		readLen(std::numeric_limits<uint32_t>::max()),
+		isPaired(false){}
+
+        QuasiAlignment(uint32_t tidIn, int32_t posIn,
+                       bool fwdIn, uint32_t readLenIn, std::string cigarIn, //NOTE can we make it uint32?
+                uint32_t fragLenIn = 0,
+                bool isPairedIn = false) :
+            tid(tidIn), pos(posIn), fwd(fwdIn),
+            fragLen(fragLenIn), readLen(readLenIn),
+            isPaired(isPairedIn), cigar(cigarIn) {}
+
+        QuasiAlignment(QuasiAlignment&& other) = default;
+        QuasiAlignment& operator=(QuasiAlignment&) = default;
+        QuasiAlignment& operator=(QuasiAlignment&& o) = default;
+        QuasiAlignment(const QuasiAlignment& o) = default;
+        QuasiAlignment(QuasiAlignment& o) = default;
+
+        // Some convenience functions to allow salmon interop
+/*
+#ifdef RAPMAP_SALMON_SUPPORT
+        inline uint32_t transcriptID() const { return tid; }
+        inline double score() { return 1.0; }
+        inline uint32_t fragLength() const { return fragLen; }
+
+        inline uint32_t fragLengthPedantic(uint32_t txpLen) const {
+            if (mateStatus != rapmap::utils::MateStatus::PAIRED_END_PAIRED
+                or fwd == mateIsFwd) {
+                return 0;
+            }
+            int32_t p1 = fwd ? pos : matePos;
+            p1 = (p1 < 0) ? 0 : p1;
+            p1 = (p1 > txpLen) ? txpLen : p1;
+            int32_t p2 = fwd ? matePos + mateLen : pos + readLen;
+            p2 = (p2 < 0) ? 0 : p2;
+            p2 = (p2 > txpLen) ? txpLen : p2;
+
+            return (p1 > p2) ? p1 - p2 : p2 - p1;
+        }
+
+        inline int32_t hitPos() { return std::min(pos, matePos); }
+        double logProb{HUGE_VAL};
+        double logBias{HUGE_VAL};
+        inline LibraryFormat libFormat() { return format; }
+        LibraryFormat format;
+#endif // RAPMAP_SALMON_SUPPORT
+*/
+        // Only 1 since the mate must have the same tid
+        // we won't call *chimeric* alignments here.
+        uint32_t tid;
+        // Left-most position of the hit
+        int32_t pos;
+        // left-most position of the mate
+        int32_t matePos;
+        // Is the read from the forward strand
+        bool fwd;
+        // Is the mate from the forward strand
+        bool mateIsFwd;
+        // The fragment length (template length)
+        // This is 0 for single-end or orphaned reads.
+        uint32_t fragLen;
+        // The read's length
+        uint32_t readLen;
+        // The mate's length
+        uint32_t mateLen;
+        // Is this a paired *alignment* or not
+        bool isPaired;
+
+
+  std::string cigar;
+  std::string mateCigar;
+
+        MateStatus mateStatus;
+  bool active = true;
+  uint32_t numHits = 0;
+ };
+
+// from https://github.com/cppformat/cppformat/issues/105
+ class FixedBuffer : public fmt::Buffer<char> {
+        public:
+            FixedBuffer(char *array, std::size_t size)
+                : fmt::Buffer<char>(array, size) {}
+
+        protected:
+            void grow(std::size_t size) {
+                (void) size;
+                throw std::runtime_error("buffer overflow");
+            }
+    };
+
+class FixedWriter : public fmt::Writer {
+        private:
+            FixedBuffer buffer_;
+        public:
+            FixedWriter(char *array, std::size_t size)
+                : fmt::Writer(buffer_), buffer_(array, size) {}
+    };
+
 
 // For the time being, assume < 4B contigs
 // and that each contig is < 4B bases
@@ -209,6 +438,9 @@ struct Position {
     setOrientation(torien);
     // orien = torien;
   }
+
+  //The most significant bit carry
+  //the orientation information
 
   void setOrientation(bool orientation) {
     if (orientation) {
@@ -230,10 +462,20 @@ private:
   // uint32_t orientMask_
 };
 
+//struct HitPos
+struct HitQueryPos {
+  HitQueryPos(uint32_t queryPosIn, uint32_t posIn, bool queryFwdIn) :
+	queryPos(queryPosIn) , pos(posIn), queryFwd(queryFwdIn) {}
+
+  uint32_t queryPos, pos ;
+  bool queryFwd;
+
+};
+
 struct QueryCache {
-  uint64_t prevRank;
-  uint64_t contigStart;
-  uint64_t contigEnd;
+  uint64_t prevRank{std::numeric_limits<uint64_t>::max()};
+  uint64_t contigStart{std::numeric_limits<uint64_t>::max()};
+  uint64_t contigEnd{std::numeric_limits<uint64_t>::max()};
 };
 
 struct ContigPosInfo {
@@ -251,17 +493,64 @@ struct PackedContigInfo {
   size_t offset;
   uint32_t length;
 };
-  
+
 struct RefPos {
   uint32_t pos;
   bool isFW;
 };
 
+struct HitCounters {
+  std::atomic<uint64_t> numMapped{0};
+  std::atomic<uint64_t> peHits{0};
+  std::atomic<uint64_t> seHits{0};
+  std::atomic<uint64_t> trueHits{0};
+  std::atomic<uint64_t> totHits{0};
+  std::atomic<uint64_t> numReads{0};
+  std::atomic<uint64_t> tooManyHits{0};
+  std::atomic<uint64_t> lastPrint{0};
+  std::atomic<uint64_t> totAlignment{0};
+  std::atomic<uint64_t> correctAlignment{0};
+  std::atomic<uint64_t> maxMultimapping{0};
+};
+
+struct ContigBlock{
+  ContigBlock() {}
+
+  ContigBlock(uint64_t idIn, uint64_t cposIn, uint32_t len, std::string seqIn, bool isDummyIn=false) :
+    contigIdx_(idIn) , globalPos_(cposIn) , contigLen_(len), seq(seqIn), isDummy_(isDummyIn) {} 
+
+  uint64_t contigIdx_ ;
+  uint64_t globalPos_ ;
+  uint32_t contigLen_ ;
+
+  std::string seq ;
+
+  bool isDummy_;
+  bool isDummy() {return isDummy_;}
+
+  std::string substrSeq(size_t s, size_t len){
+    //std::cerr << contigLen_ << "\t" << s << "\t" << len << "\n" ;
+    if(s+len <= contigLen_){
+      return seq.substr(s,len) ;
+    }
+    else
+      return "" ;
+  }
+
+
+};
+
+
 // Structure to hold a list of "projected" (i.e. reference) hits
 // for a k-mer
+
+
 struct ProjectedHits {
+  uint32_t contigIdx_;
   // The relative position of the k-mer inducing this hit on the
   // contig
+  uint64_t globalPos_ ;
+
   uint32_t contigPos_;
   // How the k-mer inducing this hit maps to the contig
   // true for fw, false for rc
@@ -272,6 +561,8 @@ struct ProjectedHits {
 
   inline bool empty() { return refRange.empty(); }
 
+  inline uint32_t contigID() const { return contigIdx_; }
+  //inline uint64_t getGlobalPos() const { return globalPos_; }
   inline RefPos decodeHit(util::Position& p) {
     // true if the contig is fowrard on the reference
     bool contigFW = p.orientation();
@@ -321,10 +612,12 @@ bool isRevcomp(std::string s);
 std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str,
                                                   const char& ch);
 bool is_number(const std::string& s);
+std::vector<std::string> tokenize(const std::string& s, char delim) ;
 // Avoiding un-necessary stream creation + replacing strings with string view
 // is a bit > than a 2x win!
 // implementation from : https://marcoarena.wordpress.com/tag/string_view/
 std::vector<stx::string_view> split(stx::string_view str, char delims);
+std::vector<extension> getExts(uint8_t e) ;
 }
 
 #endif // _UTIL__H

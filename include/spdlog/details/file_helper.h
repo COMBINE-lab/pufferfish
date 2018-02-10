@@ -9,13 +9,14 @@
 // When failing to open a file, retry several times(5) with small delay between the tries(10 ms)
 // Throw spdlog_ex exception on errors
 
-#include "spdlog/details/os.h"
-#include "spdlog/details/log_msg.h"
+#include "../details/os.h"
+#include "../details/log_msg.h"
 
 #include <chrono>
 #include <cstdio>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <cerrno>
 
 namespace spdlog
@@ -84,14 +85,13 @@ public:
 
     void write(const log_msg& msg)
     {
-
         size_t msg_size = msg.formatted.size();
         auto data = msg.formatted.data();
         if (std::fwrite(data, 1, msg_size, _fd) != msg_size)
             throw spdlog_ex("Failed writing to file " + os::filename_to_str(_filename), errno);
     }
 
-    size_t size()
+    size_t size() const
     {
         if (!_fd)
             throw spdlog_ex("Cannot use size() on closed file " + os::filename_to_str(_filename));
@@ -103,10 +103,30 @@ public:
         return _filename;
     }
 
-    static bool file_exists(const filename_t& name)
+    static bool file_exists(const filename_t& fname)
     {
+        return os::file_exists(fname);
+    }
 
-        return os::file_exists(name);
+    //
+    // return basename and extension:
+    //
+    // "mylog.txt" => ("mylog", ".txt")
+    // "mylog" => ("mylog", "")
+    //
+    // the starting dot in filenames is ignored (hidden files):
+    //
+    // "my_folder/.mylog" => ("my_folder/.mylog")
+    // "my_folder/.mylog.txt" => ("my_folder/.mylog", ".txt")
+
+    static std::tuple<filename_t, filename_t> split_by_extenstion(const filename_t& fname)
+    {
+        auto index = fname.rfind('.');
+        bool found_ext = index != filename_t::npos && index !=0 && fname[index - 1] != details::os::folder_sep;
+        if (found_ext)
+            return std::make_tuple(fname.substr(0, index), fname.substr(index));
+        else
+            return std::make_tuple(fname, filename_t());
     }
 
 private:

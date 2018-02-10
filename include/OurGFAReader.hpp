@@ -39,6 +39,7 @@ private:
 
   // spp::sparse_hash_map<uint64_t, std::string> refMap;
   std::vector<std::string> refMap;
+  std::vector<uint32_t> refLengths;
   // maps each contig to a list of positions in different transcripts
   std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str,
                                                  const char& ch);
@@ -50,6 +51,15 @@ private:
   std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathEnd;
 
   sdsl::int_vector<2> seqVec_;
+
+  //edge table
+  //ATGC|ATGC = 8 bits
+  sdsl::int_vector<8> edgeVec_;
+  //predecessor,stores the same
+  //transcript in reverse order
+  //improve walkability
+  //sdsl::int_vector<8> edgeVec2_;
+
   std::vector<std::pair<std::string, std::string>> newSegments;
   pufg::Graph semiCG;
 
@@ -76,6 +86,9 @@ public:
   std::map<std::pair<std::string, bool>, bool, util::cmpByPair>& getPathEnd();
   std::vector<std::pair<std::string, std::string>>& getNewSegments();
   sdsl::int_vector<2>& getContigSeqVec();
+  sdsl::int_vector<8>& getEdgeVec();
+  sdsl::int_vector<8>& getEdgeVec2();
+  
   // spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool>
   // > >& getPaths() {return path;}
   // spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool>

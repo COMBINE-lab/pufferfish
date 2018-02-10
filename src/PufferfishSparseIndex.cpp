@@ -1,13 +1,13 @@
+#include <bitset>
 #include <fstream>
 #include <iostream>
-#include <bitset>
 
-#include "cereal/archives/json.hpp"
-#include "cereal/archives/binary.hpp"
 #include "CLI/Timer.hpp"
+#include "cereal/archives/binary.hpp"
+#include "cereal/archives/json.hpp"
 
-#include "PufferfishSparseIndex.hpp"
 #include "PufferFS.hpp"
+#include "PufferfishSparseIndex.hpp"
 
 PufferfishSparseIndex::PufferfishSparseIndex() {}
 
@@ -28,13 +28,13 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     std::cerr << "num kmers = " << numKmers_ << '\n';
     std::cerr << "num sampled kmers = " << numSampledKmers_ << '\n';
     std::cerr << "extension size = " << extensionSize_ << '\n';
-    twok_ = 2*k_;
+    twok_ = 2 * k_;
     infoStream.close();
   }
 
-  //std::cerr << "loading contig table ... ";
+  // std::cerr << "loading contig table ... ";
   {
-    CLI::AutoTimer timer {"Loading contig table", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading contig table", CLI::Timer::Big};
     std::ifstream contigTableStream(indexDir + "/ctable.bin");
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
@@ -44,17 +44,30 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   numContigs_ = contigTable_.size();
 
   {
-    CLI::AutoTimer timer {"Loading eq table", CLI::Timer::Big};
+    std::string rlPath = indexDir + "/reflengths.bin";
+    if (puffer::fs::FileExists(rlPath.c_str())) {
+      CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
+      std::ifstream refLengthStream(rlPath);
+      cereal::BinaryInputArchive refLengthArchive(refLengthStream);
+      refLengthArchive(refLengths_);
+    } else {
+      refLengths_ = std::vector<uint32_t>(refNames_.size(), 1000);
+    }
+  }
+
+
+  {
+    CLI::AutoTimer timer{"Loading eq table", CLI::Timer::Big};
     std::ifstream eqTableStream(indexDir + "/eqtable.bin");
     cereal::BinaryInputArchive eqTableArchive(eqTableStream);
     eqTableArchive(eqClassIDs_);
     eqTableArchive(eqLabels_);
     eqTableStream.close();
   }
-  //std::cerr << "done\n";
+  // std::cerr << "done\n";
 
   {
-    CLI::AutoTimer timer {"Loading mphf table", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading mphf table", CLI::Timer::Big};
     std::string hfile = indexDir + "/mphf.bin";
     std::ifstream hstream(hfile);
     hash_.reset(new boophf_t);
@@ -63,7 +76,7 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   }
 
   {
-    CLI::AutoTimer timer {"Loading contig boundaries", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
     std::string bfile = indexDir + "/rank.bin";
     sdsl::load_from_file(contigBoundary_, bfile);
     contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
@@ -71,10 +84,16 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   }
 
   {
-    CLI::AutoTimer timer {"Loading sequence", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
     std::string sfile = indexDir + "/seq.bin";
     sdsl::load_from_file(seq_, sfile);
     lastSeqPos_ = seq_.size() - k_;
+  }
+
+  {
+    CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
+    std::string pfile = indexDir + "/edge.bin";
+    sdsl::load_from_file(edge_, pfile);
   }
   /*
   {
@@ -84,25 +103,25 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   }*/
 
   {
-    CLI::AutoTimer timer {"Loading presence vector", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading presence vector", CLI::Timer::Big};
     std::string bfile = indexDir + "/presence.bin";
     sdsl::load_from_file(presenceVec_, bfile);
     presenceRank_ = decltype(presenceVec_)::rank_1_type(&presenceVec_);
     presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
   }
   {
-    CLI::AutoTimer timer {"Loading canonical vector", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading canonical vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/canonical.bin";
     sdsl::load_from_file(canonicalNess_, pfile);
   }
   {
-    CLI::AutoTimer timer {"Loading sampled positions", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading sampled positions", CLI::Timer::Big};
     std::string pfile = indexDir + "/sample_pos.bin";
     sdsl::load_from_file(sampledPos_, pfile);
   }
 
   {
-    CLI::AutoTimer timer {"Loading extension vector", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading extension vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/extension.bin";
     sdsl::load_from_file(auxInfo_, pfile);
     std::string pfileSize = indexDir + "/extensionSize.bin";
@@ -110,27 +129,29 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   }
 
   {
-    CLI::AutoTimer timer {"Loading direction vector", CLI::Timer::Big};
+    CLI::AutoTimer timer{"Loading direction vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/direction.bin";
     sdsl::load_from_file(directionVec_, pfile);
   }
-
 }
 
-PufferfishSparseIndex::EqClassID PufferfishSparseIndex::getEqClassID(uint32_t contigID) {
+PufferfishSparseIndex::EqClassID
+PufferfishSparseIndex::getEqClassID(uint32_t contigID) {
   return eqClassIDs_[contigID];
 }
 
-const PufferfishSparseIndex::EqClassLabel& PufferfishSparseIndex::getEqClassLabel(uint32_t contigID) {
+const PufferfishSparseIndex::EqClassLabel&
+PufferfishSparseIndex::getEqClassLabel(uint32_t contigID) {
   return eqLabels_[getEqClassID(contigID)];
 }
 
-//auto endContigMap() -> decltype(contigTable_.begin()) { return contigTable_.end(); }
-uint64_t PufferfishSparseIndex::getRawPos(CanonicalKmer& mer)  {
+// auto endContigMap() -> decltype(contigTable_.begin()) { return
+// contigTable_.end(); }
+uint64_t PufferfishSparseIndex::getRawPos(CanonicalKmer& mer) {
   auto km = mer.getCanonicalWord();
   size_t res = hash_->lookup(km);
   uint64_t pos =
-    (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
+      (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
   if (pos <= seq_.size() - k_) {
     uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
     my_mer fkm;
@@ -154,24 +175,34 @@ bool PufferfishSparseIndex::isValidPos(uint64_t pos) {
 }
 
 uint32_t PufferfishSparseIndex::contigID(CanonicalKmer& mer) {
-    auto km = mer.getCanonicalWord();
-    size_t res = hash_->lookup(km);
-    uint64_t pos =
+  auto km = mer.getCanonicalWord();
+  size_t res = hash_->lookup(km);
+  uint64_t pos =
       (res < numKmers_) ? pos_[res] : std::numeric_limits<uint64_t>::max();
-    if (pos <= seq_.size() - k_) {
-      uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
-      my_mer fkm;
-      fkm.word__(0) = fk;
-      auto keq = mer.isEquivalent(fkm);
-      if (keq != KmerMatchType::NO_MATCH) {
-        auto rank = contigRank_(pos);
-        return rank;
-      }
+  if (pos <= seq_.size() - k_) {
+    uint64_t fk = seq_.get_int(2 * pos, 2 * k_);
+    my_mer fkm;
+    fkm.word__(0) = fk;
+    auto keq = mer.isEquivalent(fkm);
+    if (keq != KmerMatchType::NO_MATCH) {
+      auto rank = contigRank_(pos);
+      return rank;
     }
-    return std::numeric_limits<uint32_t>::max();
   }
+  return std::numeric_limits<uint32_t>::max();
+}
 
-auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, util::QueryCache& qc, bool didWalk) -> util::ProjectedHits {
+/*
+//TODO does the orientation of the contig matter while chopping sequence ?
+void PufferfishSparseIndex::getRawSeq(util::ProjectedHits& phits,
+CanonicalKmerIterator& kit, std::string& contigStr, int readLen){
+
+}
+*/
+
+auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
+                                             util::QueryCache& qc, bool didWalk)
+    -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
   if (pos <= lastSeqPos_) {
     uint64_t twopos = pos << 1;
@@ -184,24 +215,31 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, u
       auto rank = contigRank_(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
-      auto rankInterval = (didWalk) ? contigBoundary_.get_int(pos, (k_-1)) : 0;
-      //auto rankEnd = contigRank_(pos + k_ - 1);
+      auto rankInterval =
+          (didWalk) ? contigBoundary_.get_int(pos, (k_ - 1)) : 0;
+      // auto rankEnd = contigRank_(pos + k_ - 1);
       if (rankInterval > 0) {
-        return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+        return {std::numeric_limits<uint32_t>::max(),
+                std::numeric_limits<uint64_t>::max(),
+                std::numeric_limits<uint32_t>::max(),
+                true,
+                0,
+                k_,
+                core::range<IterT>{}};
       }
       // the reference information in the contig table
       auto& pvec = contigTable_[rank];
       // start position of this contig
       uint64_t sp = 0;
       uint64_t contigEnd = 0;
-      if ( rank == qc.prevRank ) {
+      if (rank == qc.prevRank) {
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
         sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
         contigEnd = contigSelect_(rank + 1);
         qc.prevRank = rank;
-        qc.contigStart= sp;
+        qc.contigStart = sp;
         qc.contigEnd = contigEnd;
       }
 
@@ -217,26 +255,41 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, u
       // how the k-mer hits the contig (true if k-mer in fwd orientation, false
       // otherwise)
       bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
-      return {relPos, hitFW, static_cast<uint32_t>(clen), k_,
+      return {static_cast<uint32_t>(rank),
+              pos,
+              relPos,
+              hitFW,
+              static_cast<uint32_t>(clen),
+              k_,
               core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
+      return {std::numeric_limits<uint32_t>::max(),
+              std::numeric_limits<uint64_t>::max(),
+              std::numeric_limits<uint32_t>::max(),
+              true,
+              0,
+              k_,
               core::range<IterT>{}};
     }
   }
 
-  return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
+  return {std::numeric_limits<uint32_t>::max(),
+          std::numeric_limits<uint64_t>::max(),
+          std::numeric_limits<uint32_t>::max(),
+          true,
+          0,
+          k_,
           core::range<IterT>{}};
 }
 
-
-
-auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk) -> util::ProjectedHits {
+auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
+                                             bool didWalk)
+    -> util::ProjectedHits {
 
   using IterT = std::vector<util::Position>::iterator;
- if (pos <= lastSeqPos_) {
-   uint64_t twopos = pos << 1;
-   uint64_t fk = seq_.get_int(twopos, twok_);
+  if (pos <= lastSeqPos_) {
+    uint64_t twopos = pos << 1;
+    uint64_t fk = seq_.get_int(twopos, twok_);
     // say how the kmer fk matches mer; either
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
@@ -245,16 +298,24 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, b
       auto rank = contigRank_(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
-      auto rankInterval = (didWalk) ? contigBoundary_.get_int(pos, (k_-1)) : 0;
-      //auto rankEnd = contigRank_(pos + k_ - 1);
+      auto rankInterval =
+          (didWalk) ? contigBoundary_.get_int(pos, (k_ - 1)) : 0;
+      // auto rankEnd = contigRank_(pos + k_ - 1);
       if (rankInterval > 0) {
-        return {std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+        return {std::numeric_limits<uint32_t>::max(),
+                std::numeric_limits<uint64_t>::max(),
+                std::numeric_limits<uint32_t>::max(),
+                true,
+                0,
+                k_,
+                core::range<IterT>{}};
       }
 
       // the reference information in the contig table
       auto& pvec = contigTable_[rank];
       // start position of this contig
-      uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+      uint64_t sp =
+          (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
       uint64_t contigEnd = contigSelect_(rank + 1);
 
       // relative offset of this k-mer in the contig
@@ -266,204 +327,391 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, b
       bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
       // how the k-mer hits the contig (true if k-mer in fwd orientation, false
       // otherwise)
-      return {relPos, hitFW, static_cast<uint32_t>(clen), k_,
+      return {static_cast<uint32_t>(rank),
+              pos,
+              relPos,
+              hitFW,
+              static_cast<uint32_t>(clen),
+              k_,
               core::range<IterT>{pvec.begin(), pvec.end()}};
     } else {
-      return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
+      return {std::numeric_limits<uint32_t>::max(),
+              std::numeric_limits<uint64_t>::max(),
+              std::numeric_limits<uint32_t>::max(),
+              true,
+              0,
+              k_,
               core::range<IterT>{}};
     }
   }
- return {std::numeric_limits<uint32_t>::max(), true, 0, k_,
-     core::range<IterT>{}};
+  return {std::numeric_limits<uint32_t>::max(),
+          std::numeric_limits<uint64_t>::max(),
+          std::numeric_limits<uint32_t>::max(),
+          true,
+          0,
+          k_,
+          core::range<IterT>{}};
 }
 
+std::string PufferfishSparseIndex::getSeqStr(size_t globalPos, size_t length, bool isFw) {
+	std::string outstr = "";
+	uint64_t validLength = 0;
+	uint64_t word = 0;
+	uint8_t base = 0;
+	while (length > 0) {
+	validLength = std::min(length, (size_t)32);
+	length -= validLength;
+ 	word = seq_.get_int(2*globalPos, 2*validLength);
+	globalPos += validLength;
+	if (isFw)
+	  for(uint64_t i = 0; i < 2*validLength ;i+=2){
+		base = (word >> i) & 0x03;
+	    switch(base){
+    	case 0:
+        outstr += 'A';
+        break ;
+	    case 1:
+        outstr += 'C';
+	      break ;
+    	case 2:
+        outstr += 'G';
+    	  break ;
+	    case 3:
+        outstr += 'T';
+	      break ;
+    	}
+    }
+	else
+    for(uint64_t i = 0; i < 2*validLength ;i+=2){
+      base = (word >> i) & 0x03;
+      switch(base){
+      case 0:
+        outstr = 'T' + outstr;
+        break ;
+      case 1:
+        outstr = 'G' + outstr;
+        break ;
+      case 2:
+        outstr = 'C' + outstr;
+        break ;
+      case 3:
+        outstr = 'A' + outstr;
+        break ;
+      }
+    }
+	}
+  return outstr;
+}
 
-auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc) -> util::ProjectedHits {
+auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
+    -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
-  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(),
+                               std::numeric_limits<uint64_t>::max(),
+                               std::numeric_limits<uint32_t>::max(),
+                               true,
+                               0,
+                               k_,
+                               core::range<IterT>{}};
 
   bool didWalk{false};
 
-  auto km = mern.getCanonicalWord() ;
+  auto km = mern.getCanonicalWord();
   CanonicalKmer mer = mern;
-  if (!mer.isFwCanonical()) {mer.swap();}
+  if (!mer.isFwCanonical()) {
+    mer.swap();
+  }
 
   // lookup this k-mer
   size_t idx = hash_->lookup(km);
 
   // if the index is invalid, it's clearly not present
-  if(idx >= numKmers_) {
+  if (idx >= numKmers_) {
     return emptyHit;
   }
 
-  uint64_t pos{0} ;
-	auto currRank = (idx == 0) ? 0 : presenceRank_(idx) ;
+  uint64_t pos{0};
+  auto currRank = (idx == 0) ? 0 : presenceRank_(idx);
 
-	if(presenceVec_[idx] == 1){
-		pos = sampledPos_[currRank];
-	}else{
+  if (presenceVec_[idx] == 1) {
+    pos = sampledPos_[currRank];
+  } else {
     didWalk = true;
     int signedShift{0};
-		int inLoop = 0 ;
+    int inLoop = 0;
 
     /*
     do{
-			if(inLoop >= 1){
+            if(inLoop >= 1){
         return emptyHit;
-			}
+            }
     */
 
-			auto extensionPos = idx - currRank ;
-			uint64_t extensionWord = auxInfo_[extensionPos] ;
+    auto extensionPos = idx - currRank;
+    uint64_t extensionWord = auxInfo_[extensionPos];
 
-      if (!canonicalNess_[extensionPos] and mer.isFwCanonical()) {
-        mer.swap();
+    if (!canonicalNess_[extensionPos] and mer.isFwCanonical()) {
+      mer.swap();
+    }
+
+    bool shiftFw = (directionVec_[extensionPos] == 1);
+    // + 1 because we encode 1 as 00, 2 as 01, etc.
+    int32_t llimit =
+        extensionSize_ - static_cast<int32_t>(extSize_[extensionPos] + 1);
+
+    if (shiftFw) {
+      for (int32_t i = extensionSize_; i > llimit; --i) {
+        uint32_t ssize = 2 * (i - 1);
+        int currCode =
+            static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
+        mer.shiftFw(currCode);
+        --signedShift;
       }
-
-      bool shiftFw = (directionVec_[extensionPos] == 1);
-      // + 1 because we encode 1 as 00, 2 as 01, etc.
-      int32_t llimit = extensionSize_ - static_cast<int32_t>(extSize_[extensionPos] + 1);
-
-      if(shiftFw){
-        for( int32_t i = extensionSize_; i > llimit; --i) {
-          uint32_t ssize = 2 * (i-1);
-          int currCode = static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
-          mer.shiftFw(currCode) ;
-          --signedShift;
-        }
-      } else {
-        for( int32_t i = extensionSize_; i > llimit; --i) {
-          uint32_t ssize = 2 * (i-1);
-          int currCode = static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
-          mer.shiftBw(currCode) ;
-          ++signedShift;
-        }
+    } else {
+      for (int32_t i = extensionSize_; i > llimit; --i) {
+        uint32_t ssize = 2 * (i - 1);
+        int currCode =
+            static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
+        mer.shiftBw(currCode);
+        ++signedShift;
       }
+    }
 
+    km = mer.getCanonicalWord();
+    idx = hash_->lookup(km);
 
-      km = mer.getCanonicalWord() ;
-			idx = hash_->lookup(km) ;
+    if (idx >= numKmers_) {
+      return emptyHit;
+    }
 
-      if(idx >= numKmers_) {
-        return emptyHit;
-      }
+    currRank = (idx == 0) ? 0 : presenceRank_(idx);
+    inLoop++;
 
-			currRank = (idx == 0) ? 0 : presenceRank_(idx) ;
-			inLoop++ ;
+    /*
+      }while(presenceVec_[idx] != 1) ;
+    */
 
-      /*
-		}while(presenceVec_[idx] != 1) ;
-      */
-
-      // if we didn't find a present kmer after extension, this is a no-go
-      if (presenceVec_[idx] != 1) {
-        return emptyHit;
-      }
+    // if we didn't find a present kmer after extension, this is a no-go
+    if (presenceVec_[idx] != 1) {
+      return emptyHit;
+    }
     auto sampledPos = sampledPos_[currRank];
     pos = sampledPos + signedShift;
-	}
-	//end of sampling based pos detection
+  }
+  // end of sampling based pos detection
   return getRefPosHelper_(mern, pos, qc, didWalk);
 }
 
-auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern) -> util::ProjectedHits {
+auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern)
+    -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
-  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
+  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(),
+                               std::numeric_limits<uint64_t>::max(),
+                               std::numeric_limits<uint32_t>::max(),
+                               true,
+                               0,
+                               k_,
+                               core::range<IterT>{}};
 
   bool didWalk{false};
 
-  auto km = mern.getCanonicalWord() ;
+  auto km = mern.getCanonicalWord();
   CanonicalKmer mer = mern;
-  if (!mer.isFwCanonical()) {mer.swap();}
+  if (!mer.isFwCanonical()) {
+    mer.swap();
+  }
 
   // lookup this k-mer
   size_t idx = hash_->lookup(km);
 
   // if the index is invalid, it's clearly not present
-  if(idx >= numKmers_) {
+  if (idx >= numKmers_) {
     return emptyHit;
   }
 
-  uint64_t pos{0} ;
-	auto currRank = (idx == 0) ? 0 : presenceRank_(idx) ;
+  uint64_t pos{0};
+  auto currRank = (idx == 0) ? 0 : presenceRank_(idx);
 
-	if(presenceVec_[idx] == 1){
-		pos = sampledPos_[currRank];
-	}else{
+  if (presenceVec_[idx] == 1) {
+    pos = sampledPos_[currRank];
+  } else {
     didWalk = true;
     int signedShift{0};
-		int inLoop = 0 ;
+    int inLoop = 0;
 
     /*
     do{
-			if(inLoop >= 1){
+            if(inLoop >= 1){
         return emptyHit;
-			}
+            }
     */
 
-			auto extensionPos = idx - currRank ;
-			uint64_t extensionWord = auxInfo_[extensionPos] ;
+    auto extensionPos = idx - currRank;
+    uint64_t extensionWord = auxInfo_[extensionPos];
 
-      if (!canonicalNess_[extensionPos] and mer.isFwCanonical()) {
-        mer.swap();
+    if (!canonicalNess_[extensionPos] and mer.isFwCanonical()) {
+      mer.swap();
+    }
+
+    bool shiftFw = (directionVec_[extensionPos] == 1);
+    // + 1 because we encode 1 as 00, 2 as 01, etc.
+    int32_t llimit =
+        extensionSize_ - static_cast<int32_t>(extSize_[extensionPos] + 1);
+
+    if (shiftFw) {
+      for (int32_t i = extensionSize_; i > llimit; --i) {
+        uint32_t ssize = 2 * (i - 1);
+        int currCode =
+            static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
+        mer.shiftFw(currCode);
+        --signedShift;
       }
-
-      bool shiftFw = (directionVec_[extensionPos] == 1);
-      // + 1 because we encode 1 as 00, 2 as 01, etc.
-      int32_t llimit = extensionSize_ - static_cast<int32_t>(extSize_[extensionPos] + 1);
-
-      if(shiftFw){
-        for( int32_t i = extensionSize_; i > llimit; --i) {
-          uint32_t ssize = 2 * (i-1);
-          int currCode = static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
-          mer.shiftFw(currCode) ;
-          --signedShift;
-        }
-      } else {
-        for( int32_t i = extensionSize_; i > llimit; --i) {
-          uint32_t ssize = 2 * (i-1);
-          int currCode = static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
-          mer.shiftBw(currCode) ;
-          ++signedShift;
-        }
+    } else {
+      for (int32_t i = extensionSize_; i > llimit; --i) {
+        uint32_t ssize = 2 * (i - 1);
+        int currCode =
+            static_cast<int>((extensionWord & (0x3 << ssize)) >> ssize);
+        mer.shiftBw(currCode);
+        ++signedShift;
       }
+    }
 
+    km = mer.getCanonicalWord();
+    idx = hash_->lookup(km);
 
-      km = mer.getCanonicalWord() ;
-			idx = hash_->lookup(km) ;
+    if (idx >= numKmers_) {
+      return emptyHit;
+    }
 
-      if(idx >= numKmers_) {
-        return emptyHit;
-      }
+    currRank = (idx == 0) ? 0 : presenceRank_(idx);
+    inLoop++;
 
-			currRank = (idx == 0) ? 0 : presenceRank_(idx) ;
-			inLoop++ ;
+    /*
+      }while(presenceVec_[idx] != 1) ;
+    */
 
-      /*
-		}while(presenceVec_[idx] != 1) ;
-      */
-
-      // if we didn't find a present kmer after extension, this is a no-go
-      if (presenceVec_[idx] != 1) {
-        return emptyHit;
-      }
+    // if we didn't find a present kmer after extension, this is a no-go
+    if (presenceVec_[idx] != 1) {
+      return emptyHit;
+    }
     auto sampledPos = sampledPos_[currRank];
     pos = sampledPos + signedShift;
-	}
-	//end of sampling based pos detection
+  }
+  // end of sampling based pos detection
   return getRefPosHelper_(mern, pos, didWalk);
-  
 }
 
 uint32_t PufferfishSparseIndex::k() { return k_; }
 
+CanonicalKmer PufferfishSparseIndex::getStartKmer(uint64_t rank){
+  CanonicalKmer::k(k_) ;
+  CanonicalKmer kb ;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t fk = seq_.get_int(2*sp, 2*k_) ;
+  kb.fromNum(fk) ;
+  return kb ;
+
+}
+CanonicalKmer PufferfishSparseIndex::getEndKmer(uint64_t rank){
+  CanonicalKmer::k(k_) ;
+  CanonicalKmer kb ;
+  //uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank + 1);
+
+  uint64_t fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
+  kb.fromNum(fk) ;
+  return kb ;
+}
+
+std::vector<CanonicalKmer> PufferfishSparseIndex::getNextKmerOnGraph(uint64_t rank, util::Direction dir, bool isCurContigFwd){
+  //get the edge vec
+  std::vector<CanonicalKmer> nextKmers ;
+  uint8_t edgeVec = edge_[rank] ;
+  uint8_t mask = 1 ;
+  std::vector<char> nuclmap = {'C','G','T','A','C','G','T','A'} ;
+  std::map<char, char> cMap = {{'A','T'}, {'T','A'}, {'C','G'}, {'G','C'}} ;
+
+  if(dir == util::Direction::FORWARD){
+    // We need to append so let's concentrate on the lower 4 bits
+    auto ke = getEndKmer(rank) ;
+    auto ktmp = ke ;
+    for(uint8_t i=0; i < 4; ++i){
+      ktmp = ke ;
+      if(edgeVec & (mask << i)){
+        char c = nuclmap[i] ;
+        char charToAdd = (isCurContigFwd) ? c : cMap[c] ;
+        ktmp.shiftFw(charToAdd) ;
+        nextKmers.push_back(ktmp) ;
+      }
+    }
+  }else{
+    auto kb = getStartKmer(rank) ;
+    auto ktmp = kb ;
+    for(uint8_t i=4; i < 8; ++i){
+      ktmp = kb ;
+      if(edgeVec & (mask << i)){
+        char c = nuclmap[i] ;
+        char charToAdd = (isCurContigFwd) ? c : cMap[c] ;
+        ktmp.shiftBw(charToAdd) ;
+        nextKmers.push_back(ktmp) ;
+      }
+    }
+  }
+  return nextKmers ;
+}
+
+
+uint32_t PufferfishSparseIndex::getContigLen(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank + 1);
+  return (static_cast<uint32_t>(contigEnd - sp + 1)) ;
+}
+
+uint64_t PufferfishSparseIndex::getGlobalPos(uint64_t rank){
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  return sp ;
+}
+
+auto  PufferfishSparseIndex::getContigBlock(uint64_t rank) -> util::ContigBlock{
+  CanonicalKmer::k(k_) ;
+  CanonicalKmer kb;
+  CanonicalKmer ke;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+  uint64_t contigEnd = contigSelect_(rank+1) ;
+
+  uint32_t clen = static_cast<uint32_t>(contigEnd - sp + 1) ;
+  uint64_t fk = seq_.get_int(2*sp, 2*k_) ;
+  kb.fromNum(fk) ;
+
+  fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
+  ke.fromNum(fk) ;
+
+  std::string seq = getSeqStr(sp,clen) ;
+
+  util::ContigBlock cblock({rank,sp,clen,seq}) ;
+  return cblock;
+}
+
 /**
  * Return the position list (ref_id, pos) corresponding to a contig.
  */
-const std::vector<util::Position>& PufferfishSparseIndex::refList(uint64_t contigRank) {
+const std::vector<util::Position>&
+PufferfishSparseIndex::refList(uint64_t contigRank) {
   return contigTable_[contigRank];
 }
 
 const std::string& PufferfishSparseIndex::refName(uint64_t refRank) {
   return refNames_[refRank];
+}
+
+uint32_t PufferfishSparseIndex::refLength(uint64_t refRank) const {
+  return refLengths_[refRank];
+}
+
+const std::vector<std::string>& PufferfishSparseIndex::getRefNames() {
+  return refNames_;
+}
+
+const std::vector<uint32_t>& PufferfishSparseIndex::getRefLengths() const {
+  return refLengths_;
 }

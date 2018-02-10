@@ -12,8 +12,8 @@
 // 2. Format the message using the formatter function
 // 3. Pass the formatted message to its sinks to performa the actual logging
 
-#include "spdlog/sinks/base_sink.h"
-#include "spdlog/common.h"
+#include "sinks/base_sink.h"
+#include "common.h"
 
 #include <vector>
 #include <memory>
@@ -43,6 +43,8 @@ public:
     template <typename Arg1, typename... Args> void warn(const char* fmt, const Arg1&, const Args&... args);
     template <typename Arg1, typename... Args> void error(const char* fmt, const Arg1&, const Args&... args);
     template <typename Arg1, typename... Args> void critical(const char* fmt, const Arg1&, const Args&... args);
+
+
 #ifdef SPDLOG_WCHAR_TO_UTF8_SUPPORT
     template <typename... Args> void log(level::level_enum lvl, const wchar_t* msg);
     template <typename... Args> void log(level::level_enum lvl, const wchar_t* fmt, const Args&... args);
@@ -91,6 +93,9 @@ protected:
     // return true if the given message level should trigger a flush
     bool _should_flush_on(const details::log_msg&);
 
+    // increment the message count (only if defined(SPDLOG_ENABLE_MESSAGE_COUNTER))
+    void _incr_msg_counter(details::log_msg &msg);
+
     const std::string _name;
     std::vector<sink_ptr> _sinks;
     formatter_ptr _formatter;
@@ -102,4 +107,4 @@ protected:
 };
 }
 
-#include "spdlog/details/logger_impl.h"
+#include "details/logger_impl.h"

@@ -83,6 +83,22 @@ std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str, const
   return result;
 }
 
+ 
+  std::vector<extension> getExts(uint8_t edgeVec){
+    std::vector<extension> ext ;
+    uint8_t mask = 1 ;
+    std::vector<char> nuclmap = {'C','G','T','A','C','G','T','A'} ;
+    for(uint8_t i=0;i<8;i++){
+      if(edgeVec & (mask << i)){
+        if(i<4)
+          ext.push_back({nuclmap[i], Direction::FORWARD}) ;
+        else
+          ext.push_back({nuclmap[i], Direction::BACKWORD}) ;
+      }
+    }
+    return ext ;
+
+  }
 
 /*std::vector<std::pair<std::string, bool>> explode(const stx::string_view str,
                                                   const char& ch) {
@@ -118,9 +134,23 @@ bool is_number(const std::string& s) {
                        }) == s.end();
 }
 
+// tokenize the file names
+// later TODO: replace string streams with string_view 
+std::vector<std::string> tokenize(const std::string &s, char delim) {
+  std::stringstream ss(s);
+  std::string item;
+  std::vector<std::string> elems;
+  while (std::getline(ss, item, delim)) {
+    elems.push_back(item);
+  }
+  return elems;
+}
+
+
 // Avoiding un-necessary stream creation + replacing strings with string view
 // is a bit > than a 2x win!
 // implementation from : https://marcoarena.wordpress.com/tag/string_view/
+
 std::vector<stx::string_view> split(stx::string_view str, char delims) {
   std::vector<stx::string_view> ret;
 

@@ -43,7 +43,7 @@ namespace jellyfish { namespace mer_dna_ns {
 #define C 1
 #define G 2
 #define T 3
-static const int codes[256] = {
+static const constexpr int codes[256] = {
   O, O, O, O, O, O, O, O, O, O, I, O, O, O, O, O,
   O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O,
   O, O, O, O, O, O, O, O, O, O, O, O, O, R, O, O,

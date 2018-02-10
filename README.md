@@ -1,4 +1,8 @@
-# What is pufferfish?
+# Index
+ * [What is pufferfish?](#whatis)
+ * [Using pufferfish?](#using)
+ 
+# What is pufferfish? <a name="whatis"></a>
 
 **short answer** : Pufferfish is a new time and memory-efficient data structure for indexing a compacted, colored de Bruijn graph (ccdBG).  You can read more about pufferfish in our [pre-print on bioRxiv](https://www.biorxiv.org/content/early/2017/09/21/191874).
 
@@ -10,16 +14,79 @@ While existing hash-based indices based on the cdBG (and ccdBG) are very efficie
 **about pufferfish development:**
 Currently, Pufferfish is the software implementing this efficient ccdBG index, and allowing point (i.e., k-mer) queries.  Pufferfish is under active development, but we want to be as open (and as useful to as many people) as possible early on. However, we are also in the process of building higher-level tools (e.g., read mappers and aligners) around this index, so stay tuned!
 
-**Dependency:** 
-Pufferfish depends on sdsl-lite, to install from the pufferfish root directory execute following, 
->git clone https://github.com/simongog/sdsl-lite.git
-
->cd sdsl-lite
-
->./install.sh ../
-
 
 **branches:**
 The **master** branch of pufferfish is _not_ necessarily stable, but it should, at any given time contain a working version of the index.  That is, breaking changes should not be pushed to master.  The **develop** branch of pufferfish is guaranteed to be neither stable nor working at any given point, but a best-faith effort will be made to not commit broken code to this branch.  For feature branches, all bets are off.
 
 For more details about pufferfish, please check out our [pre-print on bioRxiv](https://www.biorxiv.org/content/early/2017/09/21/191874), as well as the (updating) blog post [here](http://robpatro.com/blog/?p=494).
+
+# Building Pufferfish <a name="building"></a>
+**Dependency:** 
+Building pufferfish depends on `sdsl-lite`, which we explain how to install during the building process.
+
+To build the pufferfish do the following,
+
+```
+>git clone git@github.com:COMBINE-lab/pufferfish.git
+> cd pufferfish
+>git clone https://github.com/simongog/sdsl-lite.git
+>cd sdsl-lite
+>./install.sh ../
+> cd ..
+> mkdir build
+> cd build
+> cmake ../
+> make
+```
+
+# Using Pufferfish <a name="using"></a>
+
+**External Dependency:**
+
+In Pufferfish index building pipeline we use [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo) to build the compacted de Bruijn graph from the list of references.
+Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
+
+So before running the whole pipeline of index building, make sure you have already installed TwoPaCo.
+
+## Core Pipeline
+Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index setting the required arguments in `config.json` and running the command `bash index.sh` in pufferfish directory.
+
+The commands in the `index.sh` file go through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferize -> pufferfish index*" and perform the following steps:
+1. **FixFasta**
+```
+<Pufferfish Directory>/build/src/fixFasta -i <input_fasta> -o <output_fixed_fasta>
+```
+2. **TwoPaCo Junction Finding**
+```
+<TwoPaCo Directory>/graphconstructor/twopaco -k <ksize> -t <numOfThreads> -f <filterSize> <fixed_fasta> --outfile <deBruijnGraph.bin> --tmpdir <tmp directory>
+```
+3. **TwoPaCo Dumping**
+```
+<TwoPaCo Directory>/graphdump/graphdump -k <ksize> -s <fixed_fasta> -f gfa1 <deBruijnGraph.bin> > <gfa_file>
+```
+4. **Pufferize**
+```
+<Pufferfish Directory>/build/src/pufferize -k <ksize> -g <gfa_file> -f <fixed_fasta> -o <pufferized_gfa_file>
+```
+5. **Build Pufferfish Index**
+```
+<Pufferfish Directory>/build/src/pufferfish index -k <ksize> -g <pufferized_gfa_file> -r <fixed_fasta> -o <pufferfish index directory>
+```
+
+Good news is you can run the whole pipeline by just setting the required arguments in file `config.json` and then run `bash index.sh` in the root directory of this repository, pufferfish.
+
+## Using Pufferfish with BCALM2
+
+You can use pufferfish with the unitig file provided by [BCALM2](https://github.com/GATB/bcalm).  Once you have downloaded and built bcalm, you can run it on your reference sequence file to produce a list of compacted unitigs like so:
+
+```
+bcalm -abundance-min 1 -max-memory <mem_in_MB> -nb-cores <cores_to_use> -in reference.fa  -out out_prefix -k <k>
+```
+
+This will generate, in addition to some other files, a file called `out_prefix.unitigs.fa`.  These are, unfortunately, not quite in the format required by pufferfish yet (unitigs can span reference boundaries).  To fix this, we must `pufferize` the file.  We can do that as such:
+
+```
+bcalm_pufferizer -k <k> -r reference.fa -u out_prefix.unitigs.fa
+```
+
+This will create a file called `out_prefix.unitigs.fa.pufferized.gfa`, on which you can then build the pufferfish index.
