@@ -35,6 +35,8 @@ To build the pufferfish do the following,
 
 >./install.sh ../
 
+> cd ..
+
 > mkdir build
 
 > cd build
