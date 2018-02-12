@@ -141,6 +141,22 @@ int pufferfishTest(TestOptions& testOpts) {
   return 1;
 }
 
+void computeSampledPositionsLossy(size_t tlen, uint32_t k, int32_t sampleSize, std::vector<size_t>& sampledInds){
+  // Let's start out simple, we always keep the first & last k-mers in a unipath.
+  // If the unipath is longer than sampleSize, we keep intermediate samples as well.
+  sampledInds.clear();
+  auto numOfKmers = tlen - k;
+  size_t lastSampled = 0;
+  while (lastSampled < numOfKmers) {
+    sampledInds.push_back(lastSampled) ;
+    auto next_samp = std::min(lastSampled + sampleSize, numOfKmers) ;
+    lastSampled = next_samp;
+  }
+  if (lastSampled ==  numOfKmers) {
+    sampledInds.push_back(numOfKmers);
+  }
+}
+
 void computeSampledPositions(size_t tlen, uint32_t k, int sampleSize, std::vector<size_t>& sampledInds){
   sampledInds.clear() ;
   auto numOfKmers = tlen - k;
@@ -291,7 +307,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
   //uint32_t hashBits = 4;
-  if (!indexOpts.isSparse) {  
+  if (!indexOpts.isSparse and !indexOpts.lossySampling) {  
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
     // sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
     sdsl::int_vector<> posVec(nkeys, 0, w);
@@ -348,7 +364,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
 
 
-  } else { // sparse index; it's GO time!
+  } else if (indexOpts.isSparse) { // sparse index; it's GO time!
     int extensionSize = indexOpts.extensionSize;
     int sampleSize = 2 * extensionSize + 1;
     sdsl::bit_vector presenceVec(nkeys);
@@ -553,6 +569,103 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   bphf->save(hstream);
   hstream.close();
 
-  } 
+  } else { // lossy sampling index
+    int32_t sampleSize = static_cast<int32_t>(indexOpts.lossy_rate);
+    sdsl::bit_vector presenceVec(nkeys);
+    size_t sampledKmers{0};
+    std::vector<size_t> sampledInds;
+    std::vector<size_t> contigLengths;
+    //fill up optimal positions
+    {
+      auto& cnmap = pf.getContigNameMap() ;
+      std::vector<size_t> sampledInds ;
+      for(auto& kv : cnmap){
+        auto& r1 = kv.second ;
+        sampledInds.clear();
+        computeSampledPositionsLossy(r1.length, k, sampleSize, sampledInds) ;
+        sampledKmers += sampledInds.size() ;
+        contigLengths.push_back(r1.length) ;
+      }
+      console->info("# sampled kmers = {}", sampledKmers) ;
+      console->info("# skipped kmers = {}", numKmers - sampledKmers) ;
+    }
+
+    sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
+
+    // new presence Vec
+    {
+      std::cerr << "\nFilling presence Vector \n" ;
+
+      size_t i = 0 ;
+      ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
+      ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+      size_t contigId{0};
+      int loopCounter = 0;
+      while(kb1 != ke1){
+        sampledInds.clear();
+        auto clen = contigLengths[contigId];
+        computeSampledPositionsLossy(clen, k, sampleSize, sampledInds) ;
+        contigId++;
+        loopCounter++ ;
+
+        my_mer r;
+        auto zeroPos = kb1.pos();
+        auto skipLen = kb1.pos() - zeroPos;
+        auto nextSampIter = sampledInds.begin();
+        bool done = false;
+        
+        for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
+          skipLen = kb1.pos() - zeroPos;
+          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
+            auto idx = bphf->lookup(*kb1);
+            presenceVec[idx] = 1 ;
+            i++;
+            samplePosVec[i] = kb1.pos();
+            ++nextSampIter;
+            if (nextSampIter == sampledInds.end()) {
+              done = true;
+            }
+          }
+        }
+        if (nextSampIter != sampledInds.end()) {
+          std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
+          std::cerr << "last sample is " << sampledInds.back() << "\n";
+          std::cerr << "contig length is " << contigLengths[contigId-1] << "\n";
+        }
+      }
+
+      std::cerr << " i = " << i
+                << " sampledKmers = " << sampledKmers
+                << " Loops = "<< loopCounter
+                << " Contig array = "<<contigLengths.size()
+                << "\n" ;
+
+    }
+
+    sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
+    std::cerr << " num ones in presenceVec = " << realPresenceRank(presenceVec.size()-1) << "\n" ;
+
+    /** Write the index **/
+    std::ofstream descStream(outdir + "/info.json");
+    {
+      cereal::JSONOutputArchive indexDesc(descStream);
+      std::string sampStr = "lossy";
+      indexDesc(cereal::make_nvp("sampling_type", sampStr));
+      indexDesc(cereal::make_nvp("sample_size", sampleSize));
+      indexDesc(cereal::make_nvp("k", k));
+      indexDesc(cereal::make_nvp("num_kmers", nkeys));
+      indexDesc(cereal::make_nvp("num_sampled_kmers",sampledKmers));
+      indexDesc(cereal::make_nvp("num_contigs", numContigs));
+      indexDesc(cereal::make_nvp("seq_length", tlen));
+    }
+    descStream.close();
+
+    //sdsl::store_to_file(posVec, outdir + "/pos.bin");
+    std::ofstream hstream(outdir + "/mphf.bin");
+    sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
+    sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
+    bphf->save(hstream);
+    hstream.close();
+  }
   return 0;
 }
