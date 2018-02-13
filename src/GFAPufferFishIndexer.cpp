@@ -594,8 +594,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
     // new presence Vec
     {
-      std::cerr << "\nFilling presence Vector \n" ;
-
+      {
+      std::cerr << "\nFilling presence vector \n" ;
       size_t i = 0 ;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
       ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -619,8 +619,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
             auto idx = bphf->lookup(*kb1);
             presenceVec[idx] = 1 ;
-            i++;
             samplePosVec[i] = kb1.pos();
+            i++;
             ++nextSampIter;
             if (nextSampIter == sampledInds.end()) {
               done = true;
@@ -633,7 +633,48 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           std::cerr << "contig length is " << contigLengths[contigId-1] << "\n";
         }
       }
+      }
 
+      {
+      std::cerr << "\nFilling sampled position vector \n" ;
+      size_t i = 0 ;
+      ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
+      ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+      size_t contigId{0};
+      int loopCounter = 0;
+      sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
+      while(kb1 != ke1){
+        sampledInds.clear();
+        auto clen = contigLengths[contigId];
+        computeSampledPositionsLossy(clen, k, sampleSize, sampledInds) ;
+        contigId++;
+        loopCounter++ ;
+
+        my_mer r;
+        auto zeroPos = kb1.pos();
+        auto skipLen = kb1.pos() - zeroPos;
+        auto nextSampIter = sampledInds.begin();
+        bool done = false;
+        
+        for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
+          skipLen = kb1.pos() - zeroPos;
+          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
+            auto idx = bphf->lookup(*kb1);
+            auto rank = (idx == 0) ? 0 : realPresenceRank(idx);
+            samplePosVec[rank] = kb1.pos();
+            ++i;
+            ++nextSampIter;
+            if (nextSampIter == sampledInds.end()) {
+              done = true;
+            }
+          }
+        }
+        if (nextSampIter != sampledInds.end()) {
+          std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
+          std::cerr << "last sample is " << sampledInds.back() << "\n";
+          std::cerr << "contig length is " << contigLengths[contigId-1] << "\n";
+        }
+      }
       std::cerr << " i = " << i
                 << " sampledKmers = " << sampledKmers
                 << " Loops = "<< loopCounter
@@ -641,9 +682,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
                 << "\n" ;
 
     }
-
-    sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
-    std::cerr << " num ones in presenceVec = " << realPresenceRank(presenceVec.size()-1) << "\n" ;
+    }
 
     /** Write the index **/
     std::ofstream descStream(outdir + "/info.json");
