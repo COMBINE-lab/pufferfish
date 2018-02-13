@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <set> // std::set
+#include "iostream"
 
 #define NO_PARENT -1
 
@@ -72,7 +73,6 @@ class TaxaNode {
         std::vector<Interval>& getIntervals(bool left) {return left?lintervals:rintervals;}
         void reset();
         static Rank str2rank(std::string rankstr) {
-            std::cout << "rank is : " << rankstr << "\n";
             if (rankstr == "no rank") return Rank::STRAIN;
             else if (rankstr == "varietas") return Rank::VARIETAS;
             else if (rankstr == "subspecies") return Rank::SUBSPECIES;
