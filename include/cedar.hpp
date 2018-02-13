@@ -10,7 +10,7 @@ class Cedar {
     public:
         Cedar(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn);
         void loadMappingInfo(std::string mapperOutput_filename);
-        bool basicEM();
+        bool basicEM(size_t maxIter, double eps);
         void serialize(std::string& output_filename);
     private:
         bool readHeader(std::ifstream& mfile);
@@ -20,8 +20,8 @@ class Cedar {
         std::set<uint64_t> activeTaxa;
         uint64_t rootId = 1;
         double filteringThreshold = 0;
-        spp::sparse_hash_map<uint64_t, std::pair<float, uint64_t>> strain;
-        uint64_t readCntr = 0;
+        spp::sparse_hash_map<uint64_t, float> strain;
+        float readCnt = 0;
         bool isPaired = true;
         std::vector<std::vector<std::pair<uint64_t, float>>> readPerStrainProb;
 };

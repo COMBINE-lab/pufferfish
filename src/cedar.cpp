@@ -1,12 +1,14 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <algorithm> // std::sort
+#include <cstdlib> // std::abs
+#include <cmath> // std::abs
 #include "CLI/CLI.hpp"
 #include "cedar.hpp"
 
 #define LEFT true
 #define RIGHT true
+#define SCALE_FACTOR 1000000
 
 struct CedarOpts {
     std::string taxonomyTree_filename;
@@ -15,6 +17,8 @@ struct CedarOpts {
     std::string output_filename;
     std::string level = "species";
     double filterThreshold = 0;
+    double eps = 0.001;
+    size_t maxIter = 100;
 };
 
 Cedar::Cedar(std::string& taxonomyTree_filename, 
@@ -132,8 +136,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     taxaPtr.cleanIntervals(LEFT);
                     taxaPtr.cleanIntervals(RIGHT);
                     taxaPtr.updateScore();
-                    readPerStrainProbInst.emplace_back(tid, taxaPtr.getScore());
-                    readMappingsScoreSum += taxaPtr.getScore();
+                    readPerStrainProbInst.emplace_back(tid, static_cast<float>(taxaPtr.getScore()/tlen));
+                    readMappingsScoreSum += readPerStrainProbInst.back().second;
                 }
                 else { // otherwise we have to read till the end of the line and throw it away
                     std::getline(mfile, tmp);
@@ -143,17 +147,21 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 seqNotFound++;
             }
             else {
-                readPerStrainProb.push_back(readPerStrainProbInst);
+                readCnt++;
+                // it->first : strain id
+                // it->second : prob of current read comming from this strain id
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
+                    it->second = it->second/readMappingsScoreSum; // normalize the probabilities for each read
                     // strain[it->first].first : read count for strainCnt
                     // strain[it->first].second : strain length
                     if (strain.find(it->first) == strain.end()) {
-                        strain[it->first] = std::make_pair(it->second/readMappingsScoreSum, tlen);
+                        strain[it->first] = 1.0/static_cast<float>(readPerStrainProbInst.size());
                     }
                     else {
-                        strain[it->first].first += it->second/readMappingsScoreSum;
+                        strain[it->first] += 1.0/static_cast<float>(readPerStrainProbInst.size());
                     }
                 }
+                readPerStrainProb.push_back(readPerStrainProbInst);
             }
         } else {
             totalUnmappedReads++;
@@ -162,10 +170,40 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     }  
 }
 
-bool Cedar::basicEM() {
-    
-    return true;
+bool Cedar::basicEM(size_t maxIter, double eps) {
+    size_t cntr = 0;
+    bool converged = false;
+    while (cntr++ < maxIter && !converged) {
+        spp::sparse_hash_map<uint64_t, float> newStrainCnt;
+        // M step
+        // Find the best (most likely) count assignment
+        for (auto readIt = readPerStrainProb.begin(); readIt != readPerStrainProb.end(); readIt++) {
+            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++) {
+                if (newStrainCnt.find(strainIt->first) == newStrainCnt.end())
+                    newStrainCnt[strainIt->first] = strain[strainIt->first]*strainIt->second/readCnt;
+            }
+        }
+
+        // E step
+        // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
+        float readCntValidator = 0;
+        converged = true;   
+        for (auto it = strain.begin(); it != strain.end(); it++) {
+            readCntValidator += it->second;
+            if (std::abs(newStrainCnt[it->first] - it->second) > eps) {
+                converged = false;
+            }
+            it->second = newStrainCnt[it->first];
+        }
+        if (std::abs(readCntValidator - readCnt) > 0.001) {
+            std::cerr << "ERROR: Total read count changed during the EM process\n";
+            std::cerr << "original: " << readCnt << " current: " << readCntValidator << "\n";
+        }
+    }
+    std::cout << "iterator cnt: " << cntr << "\n";
+    return cntr < maxIter;
 }
+
 /**
  * "How to run" example:
  * make Pufferfish!
@@ -192,6 +230,10 @@ int main(int argc, char* argv[]) {
       ->required();
   app.add_option("-o,--output", kopts.output_filename, "path to the output file to write results")
       ->required();
+  app.add_option("-i,--maxIter", kopts.maxIter, "maximum allowed number of iterations for EM")
+      ->required(false);
+  app.add_option("-e,--eps", kopts.eps, "epsilon for EM convergence condition")
+      ->required(false);
   app.add_option("-l,--level", kopts.level, "choose between (species, genus, family, order, class, phylum). Default:species")
       ->required(false);
   app.add_option("-f,--filter", kopts.filterThreshold, "choose the threshold (0-1) to filter out mappings with a score below that. Default: no filter")
@@ -204,6 +246,6 @@ int main(int argc, char* argv[]) {
   }
   Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold);
   cedar.loadMappingInfo(kopts.mapperOutput_filename);
-  cedar.basicEM();
+  cedar.basicEM(kopts.maxIter, kopts.eps);
   return 0;
 }
