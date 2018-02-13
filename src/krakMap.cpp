@@ -1,7 +1,6 @@
-#include <fstream>
-#include <iostream>
-#include <string>
 #include <algorithm> // std::sort
+#include <iostream>
+#include <fstream>
 #include "CLI/CLI.hpp"
 #include "krakMap.h"
 
@@ -17,140 +16,6 @@ struct krakMapOpts {
     double filterThreshold = 0;
 };
 
-void TaxaNode::addInterval(uint64_t begin, uint64_t len, bool isLeft) {
-    if (isLeft)
-        lintervals.emplace_back(begin, begin+len);
-    else
-        rintervals.emplace_back(begin, begin+len);
-}
-
-void TaxaNode::updateScore() {
-    score = 0;
-    for (auto& it : lintervals) {
-        score += it.end - it.begin;
-    }
-    for (auto& it : rintervals) {
-        score += it.end - it.begin;
-    }
-    //std::cout << " score: " << score << "\n";
-}
-void TaxaNode::updateIntervals(TaxaNode* child, bool isLeft) {
-
-    std::vector<Interval>* intervals;
-    
-    // merge two sorted interval lists into parent
-    // update parent score
-    auto& childIntervals = child->getIntervals(isLeft);
-    if (isLeft)
-        intervals = &lintervals;
-    else
-        intervals = &rintervals;
-    std::vector<Interval> parentIntervals(intervals->size());
-    std::copy(intervals->begin(), intervals->end(), parentIntervals.begin());
-    intervals->clear();
-    intervals->reserve(parentIntervals.size()+childIntervals.size());
-    
-    std::vector<Interval>::iterator pit = parentIntervals.begin();
-    std::vector<Interval>::iterator cit = childIntervals.begin();
-    std::vector<Interval>::iterator fit = intervals->begin();
-
-    // add the smallest interval as the first interval
-    if (cit != childIntervals.end() && (pit == parentIntervals.end() || cit->begin < pit->begin)) {
-        intervals->emplace_back(cit->begin, cit->end);
-        cit++;
-    }
-    else if (pit != parentIntervals.end()) {
-        intervals->emplace_back(pit->begin, pit->end);
-        pit++;
-    }
-    else {
-        std::cerr << "ERROR!! Both parent an child intervals were empty.\n";
-        std::exit(1);
-    }
-    std::vector<Interval>::iterator cur;
-    while (pit != parentIntervals.end() || cit != childIntervals.end()) {
-        // find the smallest interval between the heads of the two lists
-        if (cit != childIntervals.end() && (pit == parentIntervals.end() || cit->begin < pit->begin) )  {
-            cur = cit;
-            cit++;
-        }
-        else if (pit != parentIntervals.end()) {
-            cur = pit;
-            pit++;  
-        }
-        else {
-            std::cerr << "ERROR!! Shouldn't even enter the loop.\n";
-            std::exit(1);
-        }
-        // merge the new interval
-        // Note: since both lists are sorted
-        // the new interval's begin is always >= the last inserted interval's
-        if (fit->end >= cur->begin) { // if the new interval has an overlap with the last inserted one
-            fit->end = std::max(cur->end, fit->end); // merge them
-        } else { // insert the interval as a separate one and move fit forward
-            intervals->emplace_back(cur->begin, cur->end);
-            fit++;
-        }
-    }
-}
-/**
- * Sorts intervals
- * Merge intervals if possible
- * Calculates score
-**/
-void TaxaNode::cleanIntervals(bool isLeft) {
-    // if we were writing intervals wrt read position we wouldn't need this part
-    std::vector<Interval>* intervals;
-    if (isLeft)
-        intervals = &lintervals;
-    else
-        intervals = &rintervals;
-    
-    std::sort(intervals->begin(), intervals->end(), 
-    [](Interval& i1, Interval& i2){
-        return i1.begin != i2.begin?i1.begin < i2.begin:i1.end < i2.end;
-    });
-    // merge intervals if necessary
-    // calculate score / coverage !! this whole process is repetition of mapping coverage calc!!
-    for (auto it=intervals->begin(); it != intervals->end();) {
-        // start from next item and merge (and erase) as much as possible
-        bool merged = true;
-        auto next = it+1;
-        while (next != intervals->end() && merged) {
-            // if they overlap, merge them
-            if (it->end >= next->begin) {
-                if (it->end < next->end)
-                    it->end = next->end;
-                intervals->erase(next); // erase next after merging with it
-                next = it+1; // it pointer and its next are always valid
-            }
-            else {// no overlap anymore and no merging. Update score and leave the loop
-                merged = false;
-            }
-        }
-        // there is nothing to merge with the current it, so increase it
-        it++;
-    }
-}
-
-bool TaxaNode::addChild(TaxaNode* child) { 
-    // if this child was not already added
-    if (activeChildren.find(child->getId()) == activeChildren.end()) {
-        activeChildren.insert(child->getId()); // add it
-        notIncorporatedChildrenCounter++; // increase not incorprated children counter
-        return true;
-    }
-    return false;
-}
-
-void TaxaNode::reset() {
-     lintervals.clear();
-     rintervals.clear();
-     activeChildren.clear();
-     notIncorporatedChildrenCounter = 0;
-     score = 0;
-}
-
 
 KrakMap::KrakMap(std::string& taxonomyTree_filename, 
                  std::string& refId2TaxId_filename, 
@@ -160,8 +25,7 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename,
     std::cerr << "KrakMap: Construct ..\n";
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
-    initializeRanks();
-    pruningLevel = str2Rank[pruneLevelIn];
+    pruningLevel = TaxaNode::str2rank(pruneLevelIn);
     std::ifstream tfile;
     uint32_t id, pid;
     std::string rank, name;
@@ -182,15 +46,19 @@ KrakMap::KrakMap(std::string& taxonomyTree_filename,
     std::string tmp;
     while (!tfile.eof()) {
         tfile >> id >> tmp >> pid >> tmp >> rank >> tmp;
-        if (tmp != "|") {
+        size_t i = 0;
+        //FIXME
+        while (i < tmp.size()-1 && isspace(tmp[i]))
+            i++;
+        if (tmp[i] != '|') {
             rank += " " + tmp;
         }
         /* if (taxaNodeMap.find(id) != taxaNodeMap.end()) {
             std::cerr << "MULTIPLE NODE IDs: " << id << " " << pid << " " << rank << " --> ";
-            std::cerr << taxaNodeMap[id].getId() << " " << taxaNodeMap[id].getParentId() << " " << rankToStr(taxaNodeMap[id].getRank()) << " " << taxaNodeMap.size() << "\n";
+            std::cerr << taxaNodeMap[id].getId() << " " << taxaNodeMap[id].getParentId() << " " << TaxaNode::rank2str(taxaNodeMap[id].getRank()) << " " << taxaNodeMap.size() << "\n";
             std::exit(1);
         } */
-        taxaNodeMap[id] = TaxaNode(id, pid, str2Rank[rank]);
+        taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
         if (taxaNodeMap[id].isRoot()) {
             rootId = id;
             std::cerr << "Root Id : " << id << "\n";
@@ -220,7 +88,7 @@ bool KrakMap::readHeader(std::ifstream& mfile) {
 void KrakMap::loadMappingInfo(std::ifstream& mfile) {
     std::string tname, tmp;
     uint64_t lcnt, rcnt, tid, ibeg, ilen;
-    mfile >> tname;
+    mfile >> tmp >> tname >> tmp; //txp_id, txp_name, txp_len
     // first condition: Ignore those references that we don't have a taxaId for
     // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
     if (refId2taxId.find(tname) != refId2taxId.end() &&
@@ -397,7 +265,7 @@ void KrakMap::serialize(std::string& output_filename) {
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\tsubTreeCount\n";
     for (auto& kv : mappedReadCntr) {
-        ofile << kv.first << "\t" << rankToStr(kv.second.rank) << "\t" << kv.second.cnt << "\t" << kv.second.subTreeCnt << "\n";
+        ofile << kv.first << "\t" << TaxaNode::rank2str(kv.second.rank) << "\t" << kv.second.cnt << "\t" << kv.second.subTreeCnt << "\n";
     }
     ofile.close();
 }

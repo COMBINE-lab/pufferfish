@@ -43,7 +43,7 @@ add_executable(myGFAtester MyGFATester.cpp FastxParser.cpp)
 #add_executable(myGraphtester MyGraphTester.cpp)
 add_executable(pufferize Pufferizer.cpp)
 add_executable(edgedensity EdgeDensity.cpp)
-add_executable(krakmap krakMap.cpp)
+add_executable(krakmap krakMap.cpp taxa.cpp)
 add_executable(edgedensity2 EdgeDensityCustom.cpp)
 
 #target_link_libraries(pufferfish-index-old z sdsl)
