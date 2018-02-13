@@ -22,28 +22,22 @@ For more details about pufferfish, please check out our [pre-print on bioRxiv](h
 
 # Building Pufferfish <a name="building"></a>
 **Dependency:** 
-Pufferfish depends on sdsl-lite which we explain how to install during the building process.
+Building pufferfish depends on `sdsl-lite`, which we explain how to install during the building process.
 
 To build the pufferfish do the following,
+
+```
 >git clone git@github.com:COMBINE-lab/pufferfish.git
-
 > cd pufferfish
-
 >git clone https://github.com/simongog/sdsl-lite.git
-
 >cd sdsl-lite
-
 >./install.sh ../
-
 > cd ..
-
 > mkdir build
-
 > cd build
-
 > cmake ../
-
 > make
+```
 
 # Using Pufferfish <a name="using"></a>
 
