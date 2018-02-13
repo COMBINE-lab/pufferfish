@@ -4,15 +4,13 @@
 #include "CLI/Timer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "PufferFS.hpp"
-#include "PufferfishIndex.hpp"
+#include "PufferfishLossyIndex.hpp"
 #include "cereal/archives/binary.hpp"
 #include "cereal/archives/json.hpp"
 
-#include "jellyfish/mer_dna.hpp"
+PufferfishLossyIndex::PufferfishLossyIndex() {}
 
-PufferfishIndex::PufferfishIndex() {}
-
-PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
+PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
   if (!puffer::fs::DirExists(indexDir.c_str())) {
     std::cerr << "The index directory " << indexDir << " does not exist!\n";
     std::exit(1);
@@ -78,14 +76,6 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
     contigSelect_ = decltype(contigBoundary_)::select_1_type(&contigBoundary_);
   }
-  /*
-  selectPrecomp_.reserve(numContigs_+1);
-  selectPrecomp_.push_back(0);
-  for (size_t i = 1; i < numContigs_; ++i) {
-    selectPrecomp_.push_back(contigSelect_(i));
-  }
-  selectPrecomp_.push_back(contigSelect_(numContigs_));
-  */
 
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
@@ -95,9 +85,17 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   }
 
   {
-    CLI::AutoTimer timer{"Loading positions", CLI::Timer::Big};
-    std::string pfile = indexDir + "/pos.bin";
-    sdsl::load_from_file(pos_, pfile);
+    CLI::AutoTimer timer{"Loading presence vector", CLI::Timer::Big};
+    std::string bfile = indexDir + "/presence.bin";
+    sdsl::load_from_file(presenceVec_, bfile);
+    presenceRank_ = decltype(presenceVec_)::rank_1_type(&presenceVec_);
+    presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
+  }
+
+  {
+    CLI::AutoTimer timer{"Loading sampled positions", CLI::Timer::Big};
+    std::string pfile = indexDir + "/sample_pos.bin";
+    sdsl::load_from_file(sampledPos_, pfile);
   }
 
   {
@@ -105,13 +103,6 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     std::string pfile = indexDir + "/edge.bin";
     sdsl::load_from_file(edge_, pfile);
   }
-  /*
-  {
-    CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
-    std::string pfile = indexDir + "/revedge.bin";
-    sdsl::load_from_file(revedge_, pfile);
-  }
-  */
 }
 
 /**
@@ -119,13 +110,16 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
  * provided Canonical kmer (including the oritentation of the match).  The provided
  * QueryCache argument will be used to avoid redundant rank / select operations if feasible.
  */
-auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
+auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
     -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
-  if (res < numKmers_) {
-    uint64_t pos = pos_[res];
+
+  if (res < numKmers_ and presenceVec_[res] == 1) {
+    uint64_t pos{0};
+    auto currRank = (res == 0) ? 0 : presenceRank_(res);
+    pos = sampledPos_[currRank];
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
     /* 
     uint64_t hashbits = pos & 0xF;
@@ -203,12 +197,16 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
           core::range<IterT>{}};
 }
 
-auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
+auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
-  if (res < numKmers_) {
-    uint64_t pos = pos_[res];
+
+  if (res < numKmers_ and presenceVec_[res] == 1) {
+    uint64_t pos{0};
+    auto currRank = (res == 0) ? 0 : presenceRank_(res);
+    pos = sampledPos_[currRank];
+
     uint64_t twopos = pos << 1;
     uint64_t fk = seq_.get_int(twopos, twok_);
     // say how the kmer fk matches mer; either

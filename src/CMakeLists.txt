@@ -17,8 +17,10 @@ add_library(ksw2 STATIC ${ksw2_lib_srcs})
 
 set(pufferfish_lib_srcs 
     GFAPufferFishIndexer.cpp 
+    PufferfishBaseIndex.cpp
     PufferfishIndex.cpp 
     PufferfishSparseIndex.cpp 
+    PufferfishLossyIndex.cpp
     Util.cpp 
     PufferfishValidate.cpp 
     PufferfishTestLookup.cpp 

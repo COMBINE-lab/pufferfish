@@ -13,13 +13,12 @@
 #include "CanonicalKmerIterator.hpp"
 #include "BooPHF.h"
 #include "Util.hpp"
+#include "PufferfishBaseIndex.hpp"
 
-class PufferfishSparseIndex {
-  using hasher_t = boomphf::SingleHashFunctor<uint64_t>;
-  using boophf_t = boomphf::mphf<uint64_t, hasher_t>;
-  using EqClassID = uint32_t;
-  using EqClassLabel = std::vector<uint32_t>;
-  using CanonicalKmerIterator = pufferfish::CanonicalKmerIterator ;
+class PufferfishSparseIndex : public PufferfishBaseIndex<PufferfishSparseIndex> {
+  friend PufferfishBaseIndex;
+  using hasher_t = pufferfish::types::hasher_t;
+  using boophf_t = pufferfish::types::boophf_t;
 
 private:
   uint32_t k_{0};
@@ -39,7 +38,6 @@ private:
   sdsl::bit_vector::select_1_type contigSelect_;
   sdsl::int_vector<2> seq_;
   sdsl::int_vector<8> edge_;
-  //sdsl::int_vector<8> revedge_;
   sdsl::int_vector<> pos_;
   //for sparse representation
   sdsl::bit_vector presenceVec_;
@@ -52,7 +50,6 @@ private:
   sdsl::int_vector<> sampledPos_;
 
   std::unique_ptr<boophf_t> hash_{nullptr};
-  //util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(), true, 0, k_, core::range<IterT>{}};
 
   static const constexpr uint64_t shiftTable_[] = {
     0x0, 0x7, 0x38, 0x1c0, 0xe00, 0x7000, 0x38000, 0x1c0000,
@@ -64,68 +61,15 @@ private:
 public:
   PufferfishSparseIndex();
   PufferfishSparseIndex(const std::string& indexPath);
-
-  // Get the equivalence class ID (i.e., rank of the equivalence class)
-  // for a given contig.
-  EqClassID getEqClassID(uint32_t contigID);
-
-  // Get the equivalence class label for a contig (i.e., the set of reference sequences containing
-  // the contig).
-  const EqClassLabel& getEqClassLabel(uint32_t contigID);
-
-  // Get the k value with which this index was built.
-  uint32_t k();
-  // Get the list of reference sequences & positiosn corresponding to a contig
-  const std::vector<util::Position>& refList(uint64_t contigRank);
-  // Get the name of a given reference sequence
-  const std::string& refName(uint64_t refRank);
-  uint32_t refLength (uint64_t refRank) const;
-
-  const std::vector<std::string>& getRefNames() ;
-  const std::vector<uint32_t>& getRefLengths() const;
-  // Returns true if the given k-mer appears in the dBG, false otherwise
-  bool contains(CanonicalKmer& mer);
-
-  uint32_t contigID(CanonicalKmer& mer);
-
-  // Returns the position in the compacted dBG sequence vector where the
-  // given k-mer occurs, or std::numeric_limits<uint32_t>::max() otherwise.
-  uint64_t getRawPos(CanonicalKmer& mer);
-
   //Returns the position in the compacted bBG sequence from the sparse
   //index the above routine can be replaced by this code in
   //future versions
-  uint64_t getSparseRawPos(CanonicalKmer& mer);
+  // uint64_t getSparseRawPos(CanonicalKmer& mer);
 
-  // Returns true if pos is a valid position in the compacted sequence array
-  // and false otherwise.
-  bool isValidPos(uint64_t pos);
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer mer) -> util::ProjectedHits;
   auto getRefPos(CanonicalKmer mer, util::QueryCache& qc) -> util::ProjectedHits;
-
-  // Returns the string value of contig sequence vector starting from position `globalPos` with `length` bases
-  // and reverse-complements the string if `isFw` is false
-  std::string getSeqStr(size_t globalPos, size_t length, bool isFw=true);
-
-  //
-  //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
-
-	sdsl::int_vector<2>& getSeq() {return seq_;}
-	sdsl::int_vector<8>& getEdge() {return edge_;}
-	//sdsl::int_vector<8>& getRevEdge() {return revedge_;}
-
-  uint8_t getEdgeEntry(uint64_t contigRank) {return edge_[contigRank];}
-  //uint8_t getRevEdgeEntry(uint64_t contigRank) {return revedge_[contigRank];}
-  std::vector<CanonicalKmer> getNextKmerOnGraph(uint64_t cid, util::Direction dir, bool isCurContigFwd);
-
-  CanonicalKmer getStartKmer(uint64_t cid) ;
-  CanonicalKmer getEndKmer(uint64_t cid) ;
-
-  uint32_t getContigLen(uint64_t cid) ;
-  uint64_t getGlobalPos(uint64_t cid) ;
-  auto  getContigBlock(uint64_t rank) -> util::ContigBlock ;
 
 private:
   auto getRefPosHelper_(CanonicalKmer& mer, uint64_t pos, bool didWalk = false) -> util::ProjectedHits;
