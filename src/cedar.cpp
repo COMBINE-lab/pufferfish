@@ -3,7 +3,8 @@
 #include <string>
 #include <cstdlib> // std::abs
 #include <cmath> // std::abs
-#include "CLI/CLI.hpp"
+#include <unordered_set>
+#include "clipp.h"
 #include "cedar.hpp"
 
 #define LEFT true
@@ -243,8 +244,56 @@ void Cedar::serialize(std::string& output_filename) {
  **/
 int main(int argc, char* argv[]) {
   (void)argc;
-
+  using namespace clipp;
   CedarOpts kopts;
+  bool showHelp{false};
+
+  auto checkLevel = [](const char* lin) -> void {
+    std::string l(lin);
+    std::unordered_set<std::string> valid{"species", "genus", "family", "order", "class", "phylum"};
+    if (valid.find(l) == valid.end()) {
+      std::string s = "The level " + l + " is not valid.";
+      throw std::range_error(s);
+    }
+  };
+
+  auto cli = (
+              required("--taxtree", "-t") & value("taxtree", kopts.taxonomyTree_filename) % "path to the taxonomy tree file",
+              required("--seq2taxa", "-s") & value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file ",
+              required("--mapperout", "-m") & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file",
+              required("--output", "-o") & value("output", kopts.output_filename) % "path to the output file to write results",
+              option("--maxIter", "-i") & value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 100)",
+              option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
+              option("--level", "-l") & value("level", kopts.level).call(checkLevel) % "choose between (species, genus, family, order, class, phylum). (default : species)",
+              option("--filter", "-f") & value("filter", kopts.filterThreshold) % "choose the threshold [0,1] below which to filter out mappings (default : no filter)",
+              option("--help", "-h").set(showHelp, true) % "show help",
+              option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version")
+              );
+  decltype(parse(argc, argv, cli)) res;
+  try {
+    res = parse(argc, argv, cli);
+    if (showHelp){
+      std::cout << make_man_page(cli, "cedar"); 
+      return 0;
+    }
+  } catch (std::exception& e) {
+    std::cout << "\n\nparsing command line failed with exception: " << e.what() << "\n";
+    std::cout << "\n\n";
+    std::cout << make_man_page(cli, "cedar");
+    return 1;
+  }
+
+  if(res) {
+    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold);
+    cedar.loadMappingInfo(kopts.mapperOutput_filename);
+    cedar.basicEM(kopts.maxIter, kopts.eps);
+    cedar.serialize(kopts.output_filename);
+    return 0;
+  } else {
+    std::cout << usage_lines(cli, "cedar") << '\n';
+    return 1;
+  }
+  /*
   CLI::App app{"krakMap : Taxonomy identification based on the output of Pufferfish mapper through the same process as Kraken."};
   app.add_option("-t,--taxtree", kopts.taxonomyTree_filename,
                  "path to the taxonomy tree file")
@@ -263,15 +312,10 @@ int main(int argc, char* argv[]) {
       ->required(false);
   app.add_option("-f,--filter", kopts.filterThreshold, "choose the threshold (0-1) to filter out mappings with a score below that. Default: no filter")
       ->required(false);
-
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& e) {
     return app.exit(e);
   }
-  Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold);
-  cedar.loadMappingInfo(kopts.mapperOutput_filename);
-  cedar.basicEM(kopts.maxIter, kopts.eps);
-  cedar.serialize(kopts.output_filename);
-  return 0;
+  */
 }
