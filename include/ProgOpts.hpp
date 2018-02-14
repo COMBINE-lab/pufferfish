@@ -12,6 +12,8 @@ public:
   bool isSparse{false};
   uint32_t extensionSize{4};
   uint32_t sampleSize{9};
+  bool lossySampling{false};
+  uint32_t lossy_rate{5};
 };
 
 class TestOptions {
