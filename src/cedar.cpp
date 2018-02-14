@@ -49,7 +49,7 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         size_t i = 0;
         while (i < tmp.size()-1 && isspace(tmp[i]))
             i++;
-        if (tmp != "|") {
+        if (tmp[i] != '|') {
             rank += " " + tmp;
         }
         taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
@@ -136,7 +136,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     taxaPtr.cleanIntervals(LEFT);
                     taxaPtr.cleanIntervals(RIGHT);
                     taxaPtr.updateScore();
-                    readPerStrainProbInst.emplace_back(tid, static_cast<float>(taxaPtr.getScore()/tlen));
+                    readPerStrainProbInst.emplace_back(tid, static_cast<float>(taxaPtr.getScore())/static_cast<float>(tlen));
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                 }
                 else { // otherwise we have to read till the end of the line and throw it away
@@ -178,9 +178,22 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         // M step
         // Find the best (most likely) count assignment
         for (auto readIt = readPerStrainProb.begin(); readIt != readPerStrainProb.end(); readIt++) {
-            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++) {
+            float denum = 0;
+            std::vector<float> tmpReadProb(readIt->size());
+            size_t readMappingCntr = 0;
+            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++, readMappingCntr++) {
+                tmpReadProb[readMappingCntr] = strainIt->second*strain[strainIt->first]/readCnt;
+                denum += tmpReadProb[readMappingCntr];
+            }
+            readMappingCntr = 0;
+            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++, readMappingCntr++) {
                 if (newStrainCnt.find(strainIt->first) == newStrainCnt.end())
-                    newStrainCnt[strainIt->first] = strain[strainIt->first]*strainIt->second/readCnt;
+                    newStrainCnt[strainIt->first] = tmpReadProb[readMappingCntr]/denum;
+                else
+                    newStrainCnt[strainIt->first] += tmpReadProb[readMappingCntr]/denum;
+                //std::cout << strain[strainIt->first] << "-" 
+                 //         << strainIt->second << "-" << readCnt << "-"
+                   //       << strain[strainIt->first]*strainIt->second/readCnt << " ";
             }
         }
 
@@ -195,13 +208,25 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
             }
             it->second = newStrainCnt[it->first];
         }
-        if (std::abs(readCntValidator - readCnt) > 0.001) {
+        if (std::abs(readCntValidator - readCnt) > 10) {
             std::cerr << "ERROR: Total read count changed during the EM process\n";
-            std::cerr << "original: " << readCnt << " current: " << readCntValidator << "\n";
+            std::cerr << "original: " << readCnt << " current: " << readCntValidator << " diff: " 
+                      << std::abs(readCntValidator - readCnt) << "\n";
+            std::exit(1);
         }
     }
     std::cout << "iterator cnt: " << cntr << "\n";
     return cntr < maxIter;
+}
+
+void Cedar::serialize(std::string& output_filename) {
+    std::cerr << "Write results in the file:\n" << output_filename << "\n";
+    std::ofstream ofile(output_filename);
+    ofile << "taxaId\ttaxaRank\tcount\n";
+    for (auto& kv : strain) {
+        ofile << kv.first << "\t" << TaxaNode::rank2str(taxaNodeMap[kv.first].getRank()) << "\t" << kv.second << "\n";
+    }
+    ofile.close();
 }
 
 /**
@@ -247,5 +272,6 @@ int main(int argc, char* argv[]) {
   Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold);
   cedar.loadMappingInfo(kopts.mapperOutput_filename);
   cedar.basicEM(kopts.maxIter, kopts.eps);
+  cedar.serialize(kopts.output_filename);
   return 0;
 }
