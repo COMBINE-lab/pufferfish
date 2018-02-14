@@ -190,9 +190,11 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 
   for (auto& qa : validJointHits) {
     auto& refName = formatter.index->refName(qa.tid);
+    uint32_t refLength = formatter.index->refLength(qa.tid);
     auto& clustLeft = qa.leftClust;
     auto& clustRight = qa.rightClust;
-    sstream << refName << '\t' << clustLeft->mems.size() << '\t' << clustRight->mems.size();
+    sstream << qa.tid << '\t' << refName << '\t' << refLength << '\t' <<
+     clustLeft->mems.size() << '\t' << clustRight->mems.size();
     for (auto& mem: clustLeft->mems){
       sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
     }
@@ -263,8 +265,9 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 
   for (auto& qa : validHits) {
     auto& refName = formatter.index->refName(qa.first);
+    uint32_t refLength = formatter.index->refLength(qa.first);
     auto& clust = qa.second;
-    sstream << refName << '\t' << clust->mems.size();
+    sstream << qa.first << '\t' << refName << '\t' << refLength << '\t' << clust->mems.size();
     for (auto& mem: clust->mems){
       sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
     }
