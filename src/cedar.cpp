@@ -195,6 +195,10 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 //readPerStrainProb.push_back(readPerStrainProbInst);
 
                 // construct the range factorized eq class here 
+                std::sort(readPerStrainProbInst.begin(), readPerStrainProbInst.end(), 
+                [](std::pair<uint64_t, float>& a, std::pair<uint64_t, float>& b) {
+                    return a.first < b.first;
+                });
                 std::vector<uint32_t> genomeIDs; genomeIDs.reserve(2*readPerStrainProbInst.size());
                 std::vector<double> probs; probs.reserve(readPerStrainProb.size());
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
