@@ -13,6 +13,7 @@ class Cedar {
     public:
         Cedar(std::string& taxonomyTree_filename, std::string& 
               refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn,
+              std::string& indexDir,
               std::shared_ptr<spdlog::logger> loggerIn);
         void loadMappingInfo(std::string mapperOutput_filename);
         bool basicEM(size_t maxIter, double eps);
@@ -31,5 +32,6 @@ class Cedar {
         bool isPaired = true;
         std::vector<std::vector<std::pair<uint64_t, float>>> readPerStrainProb;
         EquivalenceClassBuilder eqb;
+        std::vector<uint32_t> refLengths;
         std::shared_ptr<spdlog::logger> logger;
 };
