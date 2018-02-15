@@ -17,6 +17,7 @@ class Cedar {
         bool readHeader(std::ifstream& mfile);
         spp::sparse_hash_map<uint32_t, TaxaNode> taxaNodeMap;
         spp::sparse_hash_map<std::string, uint32_t> refId2taxId;
+        spp::sparse_hash_map<uint32_t, uint32_t> seqToTaxMap;
         Rank pruningLevel = Rank::SPECIES;
         std::set<uint64_t> activeTaxa;
         uint64_t rootId = 1;

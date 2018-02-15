@@ -83,7 +83,6 @@ bool Cedar::readHeader(std::ifstream& mfile) {
 
 void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     int32_t rangeFactorization{4};
-    int32_t maxTid = std::numeric_limits<int32_t>::min();
     std::string rid, tname, tmp;// read id, taxa name, temp
     uint64_t lcnt, rcnt, tid, puff_tid, tlen, ibeg, ilen;
     std::cerr << "Cedar: Load Mapping File ..\n";
@@ -122,8 +121,9 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
                 if (refId2taxId.find(tname) != refId2taxId.end() &&
                     activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
+
                     tid = refId2taxId[tname];
-                    maxTid = (static_cast<int32_t>(tid) > maxTid) ? static_cast<int32_t>(tid) : maxTid;
+                    seqToTaxMap[puff_tid] = tid;
                     activeTaxa.insert(tid);
                     
                     // fetch the taxon from the map
@@ -143,7 +143,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     taxaPtr.cleanIntervals(LEFT);
                     taxaPtr.cleanIntervals(RIGHT);
                     taxaPtr.updateScore();
-                    readPerStrainProbInst.emplace_back(tid, static_cast<float>(taxaPtr.getScore())/static_cast<float>(tlen));
+                    readPerStrainProbInst.emplace_back(puff_tid, static_cast<float>(taxaPtr.getScore())/static_cast<float>(tlen));
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                 }
                 else { // otherwise we have to read till the end of the line and throw it away
@@ -152,8 +152,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             } 
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
-            }
-            else {
+            } else {
                 readCnt++;
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
@@ -193,12 +192,22 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             std::getline(mfile, tmp);
         }
     }  
-    std::cerr << "max tid = " << maxTid << "\n";
 }
 
 bool Cedar::basicEM(size_t maxIter, double eps) {
     eqb.finish();
     auto& eqvec = eqb.eqVec();
+    int64_t maxSeqID{-1};
+    for (auto& kv : strain) { 
+        maxSeqID = (static_cast<int64_t>(kv.first) > maxSeqID) ? static_cast<int64_t>(kv.first) : maxSeqID;
+    }
+
+    std::vector<double> newStrainCnt(maxSeqID+1,0.0); 
+    std::vector<double> strainCnt(maxSeqID+1);
+    for (auto& kv : strain) { 
+        strainCnt[kv.first] = kv.second;
+    }
+    std::cerr << "maxSeqID : " << maxSeqID << "\n";
     std::cerr << "found : " << eqvec.size() << " equivalence classes\n";
     size_t cntr = 0;
     bool converged = false;
@@ -206,8 +215,8 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         // NOTE: I think we should avoid creating a new hash map in each EM iteration.
         // I think the way to do this is to do the EM in terms of the seqIDs, and then only convert to 
         // taxIDs at the end.
-        spp::sparse_hash_map<uint64_t, float> newStrainCnt;
-        newStrainCnt.reserve(eqvec.size());
+        //spp::sparse_hash_map<uint64_t, float> newStrainCnt;
+        //newStrainCnt.reserve(eqvec.size());
 
         // M step
         // Find the best (most likely) count assignment
@@ -219,7 +228,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
             double denom{0.0};
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                 auto tgt = tg.tgts[readMappingCntr];
-               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strain[tgt];
+               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strainCnt[tgt];
                denom += tmpReadProb[readMappingCntr];
             }
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
@@ -255,6 +264,20 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
         float readCntValidator = 0;
         converged = true;   
+        double maxDiff={0.0};
+        for (size_t i = 0; i < strainCnt.size(); ++i) {
+            readCntValidator += newStrainCnt[i];
+            auto adiff = std::abs(newStrainCnt[i] - strainCnt[i]);
+            if ( adiff > eps) {
+                converged = false;
+            }
+            maxDiff = (adiff > maxDiff) ? adiff : maxDiff;
+            strainCnt[i] = newStrainCnt[i];
+            newStrainCnt[i] = 0.0;
+        }
+        /*
+        float readCntValidator = 0;
+        converged = true;   
         for (auto it = strain.begin(); it != strain.end(); it++) {
             readCntValidator += it->second;
             if (std::abs(newStrainCnt[it->first] - it->second) > eps) {
@@ -262,14 +285,26 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
             }
             it->second = newStrainCnt[it->first];
         }
+        */
         if (std::abs(readCntValidator - readCnt) > 10) {
             std::cerr << "ERROR: Total read count changed during the EM process\n";
             std::cerr << "original: " << readCnt << " current: " << readCntValidator << " diff: " 
                       << std::abs(readCntValidator - readCnt) << "\n";
             std::exit(1);
         }
+        if (cntr > 0 and cntr % 100 == 0) {
+            std::cerr << "max diff : " << maxDiff << "\n";
+        }
     }
     std::cout << "iterator cnt: " << cntr << "\n";
+    decltype(strain) outputMap;
+    outputMap.reserve(strain.size());
+
+    for (auto& kv : strain) { 
+        outputMap[seqToTaxMap[kv.first]] = strainCnt[kv.first];
+    }
+    std::swap(strain, outputMap);
+
     return cntr < maxIter;
 }
 
