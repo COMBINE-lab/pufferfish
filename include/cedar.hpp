@@ -4,6 +4,7 @@
 //#include <queue> // std::priority_queue
 #include "sparsepp/spp.h"
 #include "taxa.h"
+#include "EquivalenceClassBuilder.hpp"
 
 
 class Cedar {
@@ -24,4 +25,5 @@ class Cedar {
         float readCnt = 0;
         bool isPaired = true;
         std::vector<std::vector<std::pair<uint64_t, float>>> readPerStrainProb;
+        EquivalenceClassBuilder eqb;
 };

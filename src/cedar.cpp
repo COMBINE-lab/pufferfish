@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include "clipp.h"
 #include "cedar.hpp"
+#include "EquivalenceClassBuilder.hpp"
 
 #define LEFT true
 #define RIGHT true
@@ -62,7 +63,7 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         
     }
 
-    tfile.close();  
+    tfile.close(); 
 }
 
 bool Cedar::readHeader(std::ifstream& mfile) {
@@ -81,6 +82,8 @@ bool Cedar::readHeader(std::ifstream& mfile) {
 }
 
 void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
+    int32_t rangeFactorization{4};
+    int32_t maxTid = std::numeric_limits<int32_t>::min();
     std::string rid, tname, tmp;// read id, taxa name, temp
     uint64_t lcnt, rcnt, tid, puff_tid, tlen, ibeg, ilen;
     std::cerr << "Cedar: Load Mapping File ..\n";
@@ -93,23 +96,25 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
         std::exit(1);
     }
     std::cout<< "is dataset paired end? " << isPaired << "\n";
-    while (!mfile.eof()) {
-        mfile >> rid >> mcnt;
+    while (mfile >> rid >> mcnt) { 
         totalReadCnt++;
+        if (totalReadCnt % 100000 == 0) {
+            std::cerr << "Processed " << totalReadCnt << " reads\n";
+        }
         activeTaxa.clear();
         float readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, float>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(10);
         //std::cout << "r" << rid << " " << mcnt << "\n";
+        if (isPaired) {
+          uint64_t rllen, rrlen;
+          mfile >> rllen >> rrlen;
+          rlen = rllen + rrlen;
+        } else {
+          mfile >> rlen;
+        }
+
         if (mcnt != 0) {
-            if (isPaired) {
-                uint64_t rllen, rrlen;
-                mfile >> rllen >> rrlen;
-                rlen = rllen + rrlen;
-            }
-            else {
-                mfile >> rlen;
-            }
             std::set<uint64_t> seen;
             for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
                 mfile >> puff_tid >> tname >> tlen; //txp_id, txp_name, txp_len
@@ -118,6 +123,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 if (refId2taxId.find(tname) != refId2taxId.end() &&
                     activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
                     tid = refId2taxId[tname];
+                    maxTid = (static_cast<int32_t>(tid) > maxTid) ? static_cast<int32_t>(tid) : maxTid;
                     activeTaxa.insert(tid);
                     
                     // fetch the taxon from the map
@@ -163,19 +169,65 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     }
                 }
                 readPerStrainProb.push_back(readPerStrainProbInst);
+                // construct the range factorized eq class here 
+                std::vector<uint32_t> genomeIDs; genomeIDs.reserve(2*readPerStrainProbInst.size());
+                std::vector<double> probs; probs.reserve(readPerStrainProb.size());
+                for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
+                    genomeIDs.push_back(it->first);
+                    probs.push_back(it->second);
+                } 
+                if (rangeFactorization > 0) {
+                    int genomeSize = genomeIDs.size();
+                    int rangeCount = std::sqrt(genomeSize) + rangeFactorization;
+                    for (int i = 0; i < genomeSize; i++) {
+                        int rangeNumber = probs[i] * rangeCount;
+                        genomeIDs.push_back(rangeNumber);
+                    }
+                }
+                // TODO: add class here 
+                TargetGroup tg(genomeIDs);
+                eqb.addGroup(std::move(tg), probs);
             }
         } else {
             totalUnmappedReads++;
             std::getline(mfile, tmp);
         }
     }  
+    std::cerr << "max tid = " << maxTid << "\n";
 }
 
 bool Cedar::basicEM(size_t maxIter, double eps) {
+    eqb.finish();
+    auto& eqvec = eqb.eqVec();
+    std::cerr << "found : " << eqvec.size() << " equivalence classes\n";
     size_t cntr = 0;
     bool converged = false;
     while (cntr++ < maxIter && !converged) {
+        // NOTE: I think we should avoid creating a new hash map in each EM iteration.
+        // I think the way to do this is to do the EM in terms of the seqIDs, and then only convert to 
+        // taxIDs at the end.
         spp::sparse_hash_map<uint64_t, float> newStrainCnt;
+        newStrainCnt.reserve(eqvec.size());
+
+        // M step
+        // Find the best (most likely) count assignment
+        for (auto& eqc : eqvec) {
+            auto& tg = eqc.first;
+            auto& v = eqc.second;
+            auto csize = v.weights.size();
+            std::vector<double> tmpReadProb(csize);
+            double denom{0.0};
+            for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                auto tgt = tg.tgts[readMappingCntr];
+               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strain[tgt];
+               denom += tmpReadProb[readMappingCntr];
+            }
+            for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                auto tgt = tg.tgts[readMappingCntr];
+                newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
+            }
+        }
+        /*
         // M step
         // Find the best (most likely) count assignment
         for (auto readIt = readPerStrainProb.begin(); readIt != readPerStrainProb.end(); readIt++) {
@@ -197,6 +249,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
                    //       << strain[strainIt->first]*strainIt->second/readCnt << " ";
             }
         }
+        */
 
         // E step
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
