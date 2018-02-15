@@ -3,7 +3,9 @@
 #include <string>
 #include <cstdlib> // std::abs
 #include <cmath> // std::abs
+#include <memory>
 #include <unordered_set>
+#include "spdlog/spdlog.h"
 #include "clipp.h"
 #include "cedar.hpp"
 #include "EquivalenceClassBuilder.hpp"
@@ -26,9 +28,10 @@ struct CedarOpts {
 Cedar::Cedar(std::string& taxonomyTree_filename, 
                  std::string& refId2TaxId_filename, 
                  std::string pruneLevelIn,
-                 double filteringThresholdIn) {
-
-    std::cerr << "KrakMap: Construct ..\n";
+                 double filteringThresholdIn,
+                 std::shared_ptr<spdlog::logger> loggerIn) {
+    logger = loggerIn;
+    logger->info("KrakMap: Construct ..");
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
     pruningLevel = TaxaNode::str2rank(pruneLevelIn);
@@ -57,7 +60,7 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
         if (taxaNodeMap[id].isRoot()) {
             rootId = id;
-            std::cerr << "Root Id : " << id << "\n";
+            logger->info("Root Id : {}", id);
         }
         std::getline(tfile, tmp);
         
@@ -85,20 +88,20 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     int32_t rangeFactorization{4};
     std::string rid, tname, tmp;// read id, taxa name, temp
     uint64_t lcnt, rcnt, tid, puff_tid, tlen, ibeg, ilen;
-    std::cerr << "Cedar: Load Mapping File ..\n";
-    std::cerr << "\tMapping Output File: " << mapperOutput_filename << "\n";
+    logger->info("Cedar: Load Mapping File ..");
+    logger->info("Mapping Output File: {}", mapperOutput_filename);
     std::ifstream mfile(mapperOutput_filename);
     uint64_t rlen, mcnt; // taxa id, read mapping count, # of interals, interval start, interval length
     uint64_t totalReadCnt = 0, totalUnmappedReads = 0, seqNotFound = 0;
     if (!readHeader(mfile)) {
-        std::cerr << "ERROR: Invalid header for mapping output file.\n";
+        logger->error("Invalid header for mapping output file.");
         std::exit(1);
     }
-    std::cout<< "is dataset paired end? " << isPaired << "\n";
+    logger->info("is dataset paired end? {}", isPaired);
     while (mfile >> rid >> mcnt) { 
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
-            std::cerr << "Processed " << totalReadCnt << " reads\n";
+            logger->info("Processed {} reads",totalReadCnt);
         }
         activeTaxa.clear();
         float readMappingsScoreSum = 0;
@@ -167,7 +170,10 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                         strain[it->first] += 1.0/static_cast<float>(readPerStrainProbInst.size());
                     }
                 }
-                readPerStrainProb.push_back(readPerStrainProbInst);
+                
+                // SAVE MEMORY, don't push this
+                //readPerStrainProb.push_back(readPerStrainProbInst);
+
                 // construct the range factorized eq class here 
                 std::vector<uint32_t> genomeIDs; genomeIDs.reserve(2*readPerStrainProbInst.size());
                 std::vector<double> probs; probs.reserve(readPerStrainProb.size());
@@ -208,8 +214,9 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         strainCnt[kv.first] = kv.second;
     }
 
-    std::cerr << "maxSeqID : " << maxSeqID << "\n";
-    std::cerr << "found : " << eqvec.size() << " equivalence classes\n";
+    logger->info("maxSeqID : {}", maxSeqID);
+    logger->info("found : {} equivalence classes",eqvec.size()); 
+
     size_t cntr = 0;
     bool converged = false;
     while (cntr++ < maxIter && !converged) {
@@ -249,16 +256,16 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         }
 
         if (std::abs(readCntValidator - readCnt) > 10) {
-            std::cerr << "ERROR: Total read count changed during the EM process\n";
-            std::cerr << "original: " << readCnt << " current: " << readCntValidator << " diff: " 
-                      << std::abs(readCntValidator - readCnt) << "\n";
+            logger->error("Total read count changed during the EM process");
+            logger->error("original: {}, current : {}, diff : {}", readCnt, 
+                           readCntValidator, std::abs(readCntValidator - readCnt));
             std::exit(1);
         }
         if (cntr > 0 and cntr % 100 == 0) {
-            std::cerr << "max diff : " << maxDiff << "\n";
+            logger->info("max diff : {}", maxDiff);
         }
     }
-    std::cout << "iterator cnt: " << cntr << "\n";
+    logger->info( "iterator cnt: {}", cntr); 
 
     // We have done the EM in the space of sequence / reference IDs
     // but we need to output results in terms of taxa IDs.  Here, we 
@@ -275,7 +282,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
 }
 
 void Cedar::serialize(std::string& output_filename) {
-    std::cerr << "Write results in the file:\n" << output_filename << "\n";
+    logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     for (auto& kv : strain) {
@@ -323,6 +330,10 @@ int main(int argc, char* argv[]) {
               option("--help", "-h").set(showHelp, true) % "show help",
               option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version")
               );
+
+  //Multithreaded console logger(with color support)
+  auto console = spdlog::stderr_color_mt("console");
+
   decltype(parse(argc, argv, cli)) res;
   try {
     res = parse(argc, argv, cli);
@@ -338,7 +349,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(res) {
-    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold);
+    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, console);
     cedar.loadMappingInfo(kopts.mapperOutput_filename);
     cedar.basicEM(kopts.maxIter, kopts.eps);
     cedar.serialize(kopts.output_filename);

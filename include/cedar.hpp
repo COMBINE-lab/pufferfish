@@ -2,6 +2,8 @@
 #include <set> // std::set
 #include <deque> // std::deque
 //#include <queue> // std::priority_queue
+#include <memory>
+#include "spdlog/spdlog.h"
 #include "sparsepp/spp.h"
 #include "taxa.h"
 #include "EquivalenceClassBuilder.hpp"
@@ -9,7 +11,9 @@
 
 class Cedar {
     public:
-        Cedar(std::string& taxonomyTree_filename, std::string& refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn);
+        Cedar(std::string& taxonomyTree_filename, std::string& 
+              refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn,
+              std::shared_ptr<spdlog::logger> loggerIn);
         void loadMappingInfo(std::string mapperOutput_filename);
         bool basicEM(size_t maxIter, double eps);
         void serialize(std::string& output_filename);
@@ -27,4 +31,5 @@ class Cedar {
         bool isPaired = true;
         std::vector<std::vector<std::pair<uint64_t, float>>> readPerStrainProb;
         EquivalenceClassBuilder eqb;
+        std::shared_ptr<spdlog::logger> logger;
 };
