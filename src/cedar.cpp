@@ -207,17 +207,12 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
     for (auto& kv : strain) { 
         strainCnt[kv.first] = kv.second;
     }
+
     std::cerr << "maxSeqID : " << maxSeqID << "\n";
     std::cerr << "found : " << eqvec.size() << " equivalence classes\n";
     size_t cntr = 0;
     bool converged = false;
     while (cntr++ < maxIter && !converged) {
-        // NOTE: I think we should avoid creating a new hash map in each EM iteration.
-        // I think the way to do this is to do the EM in terms of the seqIDs, and then only convert to 
-        // taxIDs at the end.
-        //spp::sparse_hash_map<uint64_t, float> newStrainCnt;
-        //newStrainCnt.reserve(eqvec.size());
-
         // M step
         // Find the best (most likely) count assignment
         for (auto& eqc : eqvec) {
@@ -236,29 +231,6 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
                 newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
             }
         }
-        /*
-        // M step
-        // Find the best (most likely) count assignment
-        for (auto readIt = readPerStrainProb.begin(); readIt != readPerStrainProb.end(); readIt++) {
-            float denum = 0;
-            std::vector<float> tmpReadProb(readIt->size());
-            size_t readMappingCntr = 0;
-            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++, readMappingCntr++) {
-                tmpReadProb[readMappingCntr] = strainIt->second*strain[strainIt->first]/readCnt;
-                denum += tmpReadProb[readMappingCntr];
-            }
-            readMappingCntr = 0;
-            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++, readMappingCntr++) {
-                if (newStrainCnt.find(strainIt->first) == newStrainCnt.end())
-                    newStrainCnt[strainIt->first] = tmpReadProb[readMappingCntr]/denum;
-                else
-                    newStrainCnt[strainIt->first] += tmpReadProb[readMappingCntr]/denum;
-                //std::cout << strain[strainIt->first] << "-" 
-                 //         << strainIt->second << "-" << readCnt << "-"
-                   //       << strain[strainIt->first]*strainIt->second/readCnt << " ";
-            }
-        }
-        */
 
         // E step
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
@@ -275,17 +247,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
             strainCnt[i] = newStrainCnt[i];
             newStrainCnt[i] = 0.0;
         }
-        /*
-        float readCntValidator = 0;
-        converged = true;   
-        for (auto it = strain.begin(); it != strain.end(); it++) {
-            readCntValidator += it->second;
-            if (std::abs(newStrainCnt[it->first] - it->second) > eps) {
-                converged = false;
-            }
-            it->second = newStrainCnt[it->first];
-        }
-        */
+
         if (std::abs(readCntValidator - readCnt) > 10) {
             std::cerr << "ERROR: Total read count changed during the EM process\n";
             std::cerr << "original: " << readCnt << " current: " << readCntValidator << " diff: " 
@@ -297,9 +259,13 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         }
     }
     std::cout << "iterator cnt: " << cntr << "\n";
+
+    // We have done the EM in the space of sequence / reference IDs
+    // but we need to output results in terms of taxa IDs.  Here, we 
+    // will map our reference IDs back to taxa IDs, and put the resulting
+    // computed abundances in the "strain" member variable.
     decltype(strain) outputMap;
     outputMap.reserve(strain.size());
-
     for (auto& kv : strain) { 
         outputMap[seqToTaxMap[kv.first]] = strainCnt[kv.first];
     }
