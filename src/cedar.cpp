@@ -166,7 +166,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     taxaPtr.cleanIntervals(LEFT);
                     taxaPtr.cleanIntervals(RIGHT);
                     taxaPtr.updateScore();
-                    readPerStrainProbInst.emplace_back(puff_tid, static_cast<float>(taxaPtr.getScore())/static_cast<float>(tlen));
+                    readPerStrainProbInst.emplace_back(puff_tid, static_cast<float>(taxaPtr.getScore())/* /static_cast<float>(tlen) */);
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                 }
                 else { // otherwise we have to read till the end of the line and throw it away
