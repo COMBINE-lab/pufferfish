@@ -19,7 +19,6 @@
 // along with RapMap.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "CLI/CLI.hpp"
 #include "clipp.h"
 #include <fstream>
 #include <iostream>
@@ -58,8 +57,9 @@ int main(int argc, char* argv[]) {
                     (required("-g", "--gfa").call([]{cout << "parsing --gfa\n\n";}) & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
                     (required("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
-                    (option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
-                    (option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)"
+                    (((option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
+                     (option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)") |
+                     (option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)")
                     );
 
   /*
@@ -165,135 +165,5 @@ int main(int argc, char* argv[]) {
     }
   }
 
-
-  /*
-  if (app.got_subcommand(indexApp)) {
-    return pufferfishIndex(indexOpt);
-  } else if (app.got_subcommand(testApp)) {
-    return pufferfishTest(testOpt);
-  } else if (app.got_subcommand(validateApp)) {
-    return pufferfishValidate(validateOpt);
-  } else if (app.got_subcommand(lookupApp)) {
-    return pufferfishTestLookup(lookupOpt);
-  } else if (app.got_subcommand(alignmentApp)) {
-    return pufferfishAligner(alignmentOpt);
-  }
-
-  AlignmentOpts alignmentOpt ;
-  alignmentApp
-    ->add_option("-i,--index", alignmentOpt.indexDir,
-                 "directory where the pufferfish index is stored")
-    ->required() ;
-  alignmentApp
-    ->add_option(",--mate1", alignmentOpt.read1,
-                 "path to left end of the read files")
-    ->required() ;
-  alignmentApp
-    ->add_option(",--mate2", alignmentOpt.read2,
-                 "path to right end of the read files")
-    ->required() ;
-  alignmentApp
-    ->add_flag("-m,--just-mapping", alignmentOpt.justMap,
-               "don't attempt alignment validation; just do mapping");
-  alignmentApp
-    ->add_option("-p,--threads", alignmentOpt.numThreads,
-                 "specfy number of threads") ;
-  alignmentApp
-    ->add_option("-o,--outdir", alignmentOpt.outname,
-                 "output directory where the alignment results would get stored")
-    ->required() ;
-
-  alignmentApp
-    ->add_option(",--maxSpliceGap", alignmentOpt.maxSpliceGap,
-               "specify maximum splice gap that two uni-mems should have");
-  alignmentApp
-    ->add_option(",--maxFragmentLength", alignmentOpt.maxFragmentLength,
-               "specify maximum distance between last uni-mem of the left end and first uni-mem of the right end of the read pairs");
-  alignmentApp
-    ->add_flag(",--writeOrphans", alignmentOpt.writeOrphans,
-                 "write Orphans flag");
-
-  alignmentApp
-    ->add_flag(",--noOutput", alignmentOpt.noOutput,
-                 "run without writing sam");
-
-
-  CLI::App app{"Pufferfish : An efficient dBG index."};
-  auto indexApp = app.add_subcommand("index", "build the pufferfish index");
-  auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
-  auto validateApp = app.add_subcommand(
-      "validate", "test k-mer lookup for reference sequences");
-  auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
-  auto alignmentApp = app.add_subcommand("align", "align paired end RNA-seq reads") ;
-
-  IndexOptions indexOpt;
-  indexApp
-      ->add_option("-k,--klen", indexOpt.k,
-                   "length of the k-mer with which the compacted dBG was built",
-                   static_cast<uint32_t>(31))
-      ->required();
-  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file")
-      ->required();
-  indexApp
-      ->add_option("-o,--output", indexOpt.outdir,
-                   "directory where index is written")
-      ->required();
-  indexApp
-    ->add_flag("-s,--sparse", indexOpt.isSparse,
-               "use the sparse pufferfish index (less space, but slower lookup)");
-  indexApp
-    ->add_option("-e,--extension", indexOpt.extensionSize,
-                 "length of the extension to store in the sparse index",
-                 static_cast<uint32_t>(4));
-  IndexOptions indexOpt;
-
-  TestOptions testOpt;
-
-  ValidateOptions validateOpt;
-  validateApp
-      ->add_option("-i,--index", validateOpt.indexDir,
-                   "directory where the pufferfish index is stored")
-      ->required();
-  validateApp
-      ->add_option("-r,--ref", validateOpt.refFile,
-                   "fasta file with reference sequences")
-      ->required();
-  validateApp
-    ->add_option("-g,--gfa", validateOpt.gfaFileName,
-                 "GFA file name needed for edge table validation") ;
-
-  ValidateOptions lookupOpt;
-  lookupApp
-      ->add_option("-i,--index", lookupOpt.indexDir,
-                   "directory where the pufferfish index is stored")
-      ->required();
-  lookupApp
-      ->add_option("-r,--ref", lookupOpt.refFile,
-                   "fasta file with reference sequences")
-      ->required();
-
-
-  try {
-    app.parse(argc, argv);
-  } catch (const CLI::ParseError& e) {
-    return app.exit(e);
-  }
-
-  if (app.got_subcommand(indexApp)) {
-    return pufferfishIndex(indexOpt);
-  } else if (app.got_subcommand(testApp)) {
-    return pufferfishTest(testOpt);
-  } else if (app.got_subcommand(validateApp)) {
-    return pufferfishValidate(validateOpt);
-  } else if (app.got_subcommand(lookupApp)) {
-    return pufferfishTestLookup(lookupOpt);
-  } else if (app.got_subcommand(alignmentApp)) {
-    return pufferfishAligner(alignmentOpt);
-  }
-  else {
-    std::cerr << "I don't know the requested sub-command\n";
-    return 1;
-  }
-  */
   return 0;
 }

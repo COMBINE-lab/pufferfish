@@ -17,8 +17,10 @@ add_library(ksw2 STATIC ${ksw2_lib_srcs})
 
 set(pufferfish_lib_srcs 
     GFAPufferFishIndexer.cpp 
+    PufferfishBaseIndex.cpp
     PufferfishIndex.cpp 
     PufferfishSparseIndex.cpp 
+    PufferfishLossyIndex.cpp
     Util.cpp 
     PufferfishValidate.cpp 
     PufferfishTestLookup.cpp 
@@ -45,7 +47,7 @@ add_executable(pufferize Pufferizer.cpp)
 add_executable(edgedensity EdgeDensity.cpp)
 add_executable(edgedensity2 EdgeDensityCustom.cpp)
 add_executable(krakmap krakMap.cpp taxa.cpp)
-add_executable(cedar cedar.cpp taxa.cpp)
+add_executable(cedar TargetGroup.cpp cedar.cpp taxa.cpp)
 
 #target_link_libraries(pufferfish-index-old z sdsl)
 target_link_libraries(pufferfish puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)

@@ -48,6 +48,7 @@
 #include "ProgOpts.hpp"
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
+#include "PufferfishLossyIndex.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
 #include "SpinLock.hpp"
@@ -1151,6 +1152,9 @@ int pufferfishAligner(AlignmentOpts& alnargs){
 
   }else if(indexType == "sparse"){
     PufferfishSparseIndex pfi(indexDir) ;
+    success = alignReads(pfi, consoleLog, &alnargs) ;
+  }else if(indexType == "lossy"){
+    PufferfishLossyIndex pfi(indexDir);
     success = alignReads(pfi, consoleLog, &alnargs) ;
   }
 

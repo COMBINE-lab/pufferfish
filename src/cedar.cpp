@@ -3,8 +3,16 @@
 #include <string>
 #include <cstdlib> // std::abs
 #include <cmath> // std::abs
-#include "CLI/CLI.hpp"
+#include <memory>
+#include <unordered_set>
+#include "spdlog/spdlog.h"
+#include "clipp.h"
 #include "cedar.hpp"
+#include "EquivalenceClassBuilder.hpp"
+#include "CLI/Timer.hpp"
+#include "PufferFS.hpp"
+#include "cereal/archives/binary.hpp"
+#include "cereal/types/vector.hpp"
 
 #define LEFT true
 #define RIGHT true
@@ -15,6 +23,7 @@ struct CedarOpts {
     std::string refId2TaxId_filename;
     std::string mapperOutput_filename;
     std::string output_filename;
+    std::string indexDir;
     std::string level = "species";
     double filterThreshold = 0;
     double eps = 0.001;
@@ -24,9 +33,25 @@ struct CedarOpts {
 Cedar::Cedar(std::string& taxonomyTree_filename, 
                  std::string& refId2TaxId_filename, 
                  std::string pruneLevelIn,
-                 double filteringThresholdIn) {
+                 double filteringThresholdIn,
+                 std::string& indexDir,
+                 std::shared_ptr<spdlog::logger> loggerIn) {
+    logger = loggerIn;
+    logger->info("KrakMap: Construct ..");
 
-    std::cerr << "KrakMap: Construct ..\n";
+    {
+      std::string rlPath = indexDir + "/reflengths.bin";
+      if (puffer::fs::FileExists(rlPath.c_str())) {
+        CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
+        std::ifstream refLengthStream(rlPath);
+        cereal::BinaryInputArchive refLengthArchive(refLengthStream);
+        refLengthArchive(refLengths);
+      } else {
+        logger->error("Could not find reference genome lengths");
+        std::exit(1);
+      }
+    }
+
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
     pruningLevel = TaxaNode::str2rank(pruneLevelIn);
@@ -55,13 +80,13 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
         if (taxaNodeMap[id].isRoot()) {
             rootId = id;
-            std::cerr << "Root Id : " << id << "\n";
+            logger->info("Root Id : {}", id);
         }
         std::getline(tfile, tmp);
         
     }
 
-    tfile.close();  
+    tfile.close(); 
 }
 
 bool Cedar::readHeader(std::ifstream& mfile) {
@@ -80,35 +105,38 @@ bool Cedar::readHeader(std::ifstream& mfile) {
 }
 
 void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
+    int32_t rangeFactorization{4};
     std::string rid, tname, tmp;// read id, taxa name, temp
     uint64_t lcnt, rcnt, tid, puff_tid, tlen, ibeg, ilen;
-    std::cerr << "Cedar: Load Mapping File ..\n";
-    std::cerr << "\tMapping Output File: " << mapperOutput_filename << "\n";
+    logger->info("Cedar: Load Mapping File ..");
+    logger->info("Mapping Output File: {}", mapperOutput_filename);
     std::ifstream mfile(mapperOutput_filename);
     uint64_t rlen, mcnt; // taxa id, read mapping count, # of interals, interval start, interval length
     uint64_t totalReadCnt = 0, totalUnmappedReads = 0, seqNotFound = 0;
     if (!readHeader(mfile)) {
-        std::cerr << "ERROR: Invalid header for mapping output file.\n";
+        logger->error("Invalid header for mapping output file.");
         std::exit(1);
     }
-    std::cout<< "is dataset paired end? " << isPaired << "\n";
-    while (!mfile.eof()) {
-        mfile >> rid >> mcnt;
+    logger->info("is dataset paired end? {}", isPaired);
+    while (mfile >> rid >> mcnt) { 
         totalReadCnt++;
+        if (totalReadCnt % 100000 == 0) {
+            logger->info("Processed {} reads",totalReadCnt);
+        }
         activeTaxa.clear();
         float readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, float>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(10);
         //std::cout << "r" << rid << " " << mcnt << "\n";
+        if (isPaired) {
+          uint64_t rllen, rrlen;
+          mfile >> rllen >> rrlen;
+          rlen = rllen + rrlen;
+        } else {
+          mfile >> rlen;
+        }
+
         if (mcnt != 0) {
-            if (isPaired) {
-                uint64_t rllen, rrlen;
-                mfile >> rllen >> rrlen;
-                rlen = rllen + rrlen;
-            }
-            else {
-                mfile >> rlen;
-            }
             std::set<uint64_t> seen;
             for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
                 mfile >> puff_tid >> tname >> tlen; //txp_id, txp_name, txp_len
@@ -116,7 +144,9 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
                 if (refId2taxId.find(tname) != refId2taxId.end() &&
                     activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
+
                     tid = refId2taxId[tname];
+                    seqToTaxMap[puff_tid] = tid;
                     activeTaxa.insert(tid);
                     
                     // fetch the taxon from the map
@@ -136,7 +166,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     taxaPtr.cleanIntervals(LEFT);
                     taxaPtr.cleanIntervals(RIGHT);
                     taxaPtr.updateScore();
-                    readPerStrainProbInst.emplace_back(tid, static_cast<float>(taxaPtr.getScore())/static_cast<float>(tlen));
+                    readPerStrainProbInst.emplace_back(puff_tid, static_cast<float>(taxaPtr.getScore())/static_cast<float>(tlen));
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                 }
                 else { // otherwise we have to read till the end of the line and throw it away
@@ -145,8 +175,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             } 
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
-            }
-            else {
+            } else {
                 readCnt++;
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
@@ -161,7 +190,28 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                         strain[it->first] += 1.0/static_cast<float>(readPerStrainProbInst.size());
                     }
                 }
-                readPerStrainProb.push_back(readPerStrainProbInst);
+
+                // SAVE MEMORY, don't push this
+                //readPerStrainProb.push_back(readPerStrainProbInst);
+
+                // construct the range factorized eq class here 
+                std::vector<uint32_t> genomeIDs; genomeIDs.reserve(2*readPerStrainProbInst.size());
+                std::vector<double> probs; probs.reserve(readPerStrainProb.size());
+                for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
+                    genomeIDs.push_back(it->first);
+                    probs.push_back(it->second);
+                } 
+                if (rangeFactorization > 0) {
+                    int genomeSize = genomeIDs.size();
+                    int rangeCount = std::sqrt(genomeSize) + rangeFactorization;
+                    for (int i = 0; i < genomeSize; i++) {
+                        int rangeNumber = probs[i] * rangeCount;
+                        genomeIDs.push_back(rangeNumber);
+                    }
+                }
+                // TODO: add class here 
+                TargetGroup tg(genomeIDs);
+                eqb.addGroup(std::move(tg), probs);
             }
         } else {
             totalUnmappedReads++;
@@ -171,29 +221,41 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
 }
 
 bool Cedar::basicEM(size_t maxIter, double eps) {
+    eqb.finish();
+    auto& eqvec = eqb.eqVec();
+    int64_t maxSeqID{-1};
+    for (auto& kv : strain) { 
+        maxSeqID = (static_cast<int64_t>(kv.first) > maxSeqID) ? static_cast<int64_t>(kv.first) : maxSeqID;
+    }
+
+    std::vector<double> newStrainCnt(maxSeqID+1,0.0); 
+    std::vector<double> strainCnt(maxSeqID+1);
+    for (auto& kv : strain) { 
+        strainCnt[kv.first] = kv.second;
+    }
+
+    logger->info("maxSeqID : {}", maxSeqID);
+    logger->info("found : {} equivalence classes",eqvec.size()); 
+
     size_t cntr = 0;
     bool converged = false;
     while (cntr++ < maxIter && !converged) {
-        spp::sparse_hash_map<uint64_t, float> newStrainCnt;
         // M step
         // Find the best (most likely) count assignment
-        for (auto readIt = readPerStrainProb.begin(); readIt != readPerStrainProb.end(); readIt++) {
-            float denum = 0;
-            std::vector<float> tmpReadProb(readIt->size());
-            size_t readMappingCntr = 0;
-            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++, readMappingCntr++) {
-                tmpReadProb[readMappingCntr] = strainIt->second*strain[strainIt->first]/readCnt;
-                denum += tmpReadProb[readMappingCntr];
+        for (auto& eqc : eqvec) {
+            auto& tg = eqc.first;
+            auto& v = eqc.second;
+            auto csize = v.weights.size();
+            std::vector<double> tmpReadProb(csize);
+            double denom{0.0};
+            for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                auto tgt = tg.tgts[readMappingCntr];
+               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strainCnt[tgt] * (1.0/refLengths[tgt]);
+               denom += tmpReadProb[readMappingCntr];
             }
-            readMappingCntr = 0;
-            for (auto strainIt = readIt->begin(); strainIt != readIt->end(); strainIt++, readMappingCntr++) {
-                if (newStrainCnt.find(strainIt->first) == newStrainCnt.end())
-                    newStrainCnt[strainIt->first] = tmpReadProb[readMappingCntr]/denum;
-                else
-                    newStrainCnt[strainIt->first] += tmpReadProb[readMappingCntr]/denum;
-                //std::cout << strain[strainIt->first] << "-" 
-                 //         << strainIt->second << "-" << readCnt << "-"
-                   //       << strain[strainIt->first]*strainIt->second/readCnt << " ";
+            for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                auto tgt = tg.tgts[readMappingCntr];
+                newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
             }
         }
 
@@ -201,26 +263,46 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
         float readCntValidator = 0;
         converged = true;   
-        for (auto it = strain.begin(); it != strain.end(); it++) {
-            readCntValidator += it->second;
-            if (std::abs(newStrainCnt[it->first] - it->second) > eps) {
+        double maxDiff={0.0};
+        for (size_t i = 0; i < strainCnt.size(); ++i) {
+            readCntValidator += newStrainCnt[i];
+            auto adiff = std::abs(newStrainCnt[i] - strainCnt[i]);
+            if ( adiff > eps) {
                 converged = false;
             }
-            it->second = newStrainCnt[it->first];
+            maxDiff = (adiff > maxDiff) ? adiff : maxDiff;
+            strainCnt[i] = newStrainCnt[i];
+            newStrainCnt[i] = 0.0;
         }
+
         if (std::abs(readCntValidator - readCnt) > 10) {
-            std::cerr << "ERROR: Total read count changed during the EM process\n";
-            std::cerr << "original: " << readCnt << " current: " << readCntValidator << " diff: " 
-                      << std::abs(readCntValidator - readCnt) << "\n";
+            logger->error("Total read count changed during the EM process");
+            logger->error("original: {}, current : {}, diff : {}", readCnt, 
+                           readCntValidator, std::abs(readCntValidator - readCnt));
             std::exit(1);
         }
+        if (cntr > 0 and cntr % 100 == 0) {
+            logger->info("max diff : {}", maxDiff);
+        }
     }
-    std::cout << "iterator cnt: " << cntr << "\n";
+    logger->info( "iterator cnt: {}", cntr); 
+
+    // We have done the EM in the space of sequence / reference IDs
+    // but we need to output results in terms of taxa IDs.  Here, we 
+    // will map our reference IDs back to taxa IDs, and put the resulting
+    // computed abundances in the "strain" member variable.
+    decltype(strain) outputMap;
+    outputMap.reserve(strain.size());
+    for (auto& kv : strain) { 
+        outputMap[seqToTaxMap[kv.first]] = strainCnt[kv.first];
+    }
+    std::swap(strain, outputMap);
+
     return cntr < maxIter;
 }
 
 void Cedar::serialize(std::string& output_filename) {
-    std::cerr << "Write results in the file:\n" << output_filename << "\n";
+    logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     spp::sparse_hash_map<uint64_t, double> validTaxa;
@@ -260,8 +342,61 @@ void Cedar::serialize(std::string& output_filename) {
  **/
 int main(int argc, char* argv[]) {
   (void)argc;
-
+  using namespace clipp;
   CedarOpts kopts;
+  bool showHelp{false};
+
+  auto checkLevel = [](const char* lin) -> void {
+    std::string l(lin);
+    std::unordered_set<std::string> valid{"species", "genus", "family", "order", "class", "phylum"};
+    if (valid.find(l) == valid.end()) {
+      std::string s = "The level " + l + " is not valid.";
+      throw std::range_error(s);
+    }
+  };
+
+  auto cli = (
+              required("--taxtree", "-t") & value("taxtree", kopts.taxonomyTree_filename) % "path to the taxonomy tree file",
+              required("--seq2taxa", "-s") & value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file ",
+              required("--mapperout", "-m") & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file",
+              required("--output", "-o") & value("output", kopts.output_filename) % "path to the output file to write results",
+              required("--index") & value("index", kopts.indexDir) % "pufferfish index directory",
+              option("--maxIter", "-i") & value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 100)",
+              option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
+              option("--level", "-l") & value("level", kopts.level).call(checkLevel) % "choose between (species, genus, family, order, class, phylum). (default : species)",
+              option("--filter", "-f") & value("filter", kopts.filterThreshold) % "choose the threshold [0,1] below which to filter out mappings (default : no filter)",
+              option("--help", "-h").set(showHelp, true) % "show help",
+              option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version")
+              );
+
+  //Multithreaded console logger(with color support)
+  auto console = spdlog::stderr_color_mt("console");
+
+  decltype(parse(argc, argv, cli)) res;
+  try {
+    res = parse(argc, argv, cli);
+    if (showHelp){
+      std::cout << make_man_page(cli, "cedar"); 
+      return 0;
+    }
+  } catch (std::exception& e) {
+    std::cout << "\n\nparsing command line failed with exception: " << e.what() << "\n";
+    std::cout << "\n\n";
+    std::cout << make_man_page(cli, "cedar");
+    return 1;
+  }
+
+  if(res) {
+    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.indexDir, console);
+    cedar.loadMappingInfo(kopts.mapperOutput_filename);
+    cedar.basicEM(kopts.maxIter, kopts.eps);
+    cedar.serialize(kopts.output_filename);
+    return 0;
+  } else {
+    std::cout << usage_lines(cli, "cedar") << '\n';
+    return 1;
+  }
+  /*
   CLI::App app{"krakMap : Taxonomy identification based on the output of Pufferfish mapper through the same process as Kraken."};
   app.add_option("-t,--taxtree", kopts.taxonomyTree_filename,
                  "path to the taxonomy tree file")
@@ -280,15 +415,10 @@ int main(int argc, char* argv[]) {
       ->required(false);
   app.add_option("-f,--filter", kopts.filterThreshold, "choose the threshold (0-1) to filter out mappings with a score below that. Default: no filter")
       ->required(false);
-
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& e) {
     return app.exit(e);
   }
-  Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold);
-  cedar.loadMappingInfo(kopts.mapperOutput_filename);
-  cedar.basicEM(kopts.maxIter, kopts.eps);
-  cedar.serialize(kopts.output_filename);
-  return 0;
+  */
 }
