@@ -223,8 +223,25 @@ void Cedar::serialize(std::string& output_filename) {
     std::cerr << "Write results in the file:\n" << output_filename << "\n";
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
+    spp::sparse_hash_map<uint64_t, double> validTaxa;
     for (auto& kv : strain) {
-        ofile << kv.first << "\t" << TaxaNode::rank2str(taxaNodeMap[kv.first].getRank()) << "\t" << kv.second << "\n";
+        TaxaNode * walker = &taxaNodeMap[kv.first];
+        while (!walker->isRoot() && walker->getRank() != pruningLevel) {
+            walker = &taxaNodeMap[walker->getParentId()];
+        }
+        if (!walker->isRoot()) {
+            if (validTaxa.find(walker->getId()) == validTaxa.end()) {
+                validTaxa[walker->getId()] = kv.second;
+            }
+            else {
+                validTaxa[walker->getId()] += kv.second;
+            }
+        }
+    }
+    for (auto& kv : validTaxa) { 
+        ofile << kv.first << "\t" 
+              << TaxaNode::rank2str(taxaNodeMap[kv.first].getRank()) 
+              << "\t" << kv.second << "\n";
     }
     ofile.close();
 }
