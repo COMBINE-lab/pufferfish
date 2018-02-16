@@ -15,7 +15,7 @@
 #include "cereal/types/vector.hpp"
 
 #define LEFT true
-#define RIGHT true
+#define RIGHT false
 #define SCALE_FACTOR 1000000
 
 struct CedarOpts {
@@ -129,7 +129,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
         readPerStrainProbInst.reserve(mcnt);
 
         if (mcnt != 0) {
-          if (isPaired) {
+            if (isPaired) {
             uint64_t rllen, rrlen;
             mfile >> rllen >> rrlen;
             rlen = rllen + rrlen;
@@ -144,11 +144,11 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             // taxaId for secon condition: Ignore repeated exactly identical
             // mappings (FIXME thing)
             if (refId2taxId.find(tname) != refId2taxId.end() &&
-                activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) {
+                activeTaxa.find(puff_tid) == activeTaxa.end()) {
 
               tid = refId2taxId[tname];
               seqToTaxMap[puff_tid] = tid;
-              activeTaxa.insert(tid);
+              activeTaxa.insert(puff_tid);
 
               // fetch the taxon from the map
               TaxaNode taxaPtr;
