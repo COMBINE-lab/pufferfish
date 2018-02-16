@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <vector>
+#include "xxhash.h"
 
 class TargetGroup {
 public:

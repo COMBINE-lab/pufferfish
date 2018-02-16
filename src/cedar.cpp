@@ -27,7 +27,7 @@ struct CedarOpts {
     std::string level = "species";
     double filterThreshold = 0;
     double eps = 0.001;
-    size_t maxIter = 100;
+    size_t maxIter = 1000;
 };
 
 Cedar::Cedar(std::string& taxonomyTree_filename, 
@@ -124,54 +124,54 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             logger->info("Processed {} reads",totalReadCnt);
         }
         activeTaxa.clear();
-        float readMappingsScoreSum = 0;
+        double readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, float>> readPerStrainProbInst;
-        readPerStrainProbInst.reserve(10);
-        //std::cout << "r" << rid << " " << mcnt << "\n";
-        if (isPaired) {
-          uint64_t rllen, rrlen;
-          mfile >> rllen >> rrlen;
-          rlen = rllen + rrlen;
-        } else {
-          mfile >> rlen;
-        }
+        readPerStrainProbInst.reserve(mcnt);
 
         if (mcnt != 0) {
-            std::set<uint64_t> seen;
-            for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
-                mfile >> puff_tid >> tname >> tlen; //txp_id, txp_name, txp_len
-                // first condition: Ignore those references that we don't have a taxaId for
-                // secon condition: Ignore repeated exactly identical mappings (FIXME thing)
-                if (refId2taxId.find(tname) != refId2taxId.end() &&
-                    activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) { 
+          if (isPaired) {
+            uint64_t rllen, rrlen;
+            mfile >> rllen >> rrlen;
+            rlen = rllen + rrlen;
+          } else {
+            mfile >> rlen;
+          }
 
-                    tid = refId2taxId[tname];
-                    seqToTaxMap[puff_tid] = tid;
-                    activeTaxa.insert(tid);
-                    
-                    // fetch the taxon from the map
-                    TaxaNode taxaPtr;
-                    mfile >> lcnt;
-                    if (isPaired)
-                        mfile >> rcnt;
-                    for (size_t i = 0; i < lcnt; ++i) {
-                        mfile >> ibeg >> ilen;
-                        taxaPtr.addInterval(ibeg, ilen, LEFT);
-                    }
-                    if (isPaired)
-                        for (size_t i = 0; i < rcnt; ++i) {
-                            mfile >> ibeg >> ilen;
-                            taxaPtr.addInterval(ibeg, ilen, RIGHT);
-                        }
-                    taxaPtr.cleanIntervals(LEFT);
-                    taxaPtr.cleanIntervals(RIGHT);
-                    taxaPtr.updateScore();
-                    readPerStrainProbInst.emplace_back(puff_tid, static_cast<float>(taxaPtr.getScore())/* /static_cast<float>(tlen) */);
-                    readMappingsScoreSum += readPerStrainProbInst.back().second;
+          std::set<uint64_t> seen;
+          for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
+            mfile >> puff_tid >> tname >> tlen; // txp_id, txp_name, txp_len
+            // first condition: Ignore those references that we don't have a
+            // taxaId for secon condition: Ignore repeated exactly identical
+            // mappings (FIXME thing)
+            if (refId2taxId.find(tname) != refId2taxId.end() &&
+                activeTaxa.find(refId2taxId[tname]) == activeTaxa.end()) {
+
+              tid = refId2taxId[tname];
+              seqToTaxMap[puff_tid] = tid;
+              activeTaxa.insert(tid);
+
+              // fetch the taxon from the map
+              TaxaNode taxaPtr;
+              mfile >> lcnt;
+              if (isPaired)
+                mfile >> rcnt;
+              for (size_t i = 0; i < lcnt; ++i) {
+                mfile >> ibeg >> ilen;
+                taxaPtr.addInterval(ibeg, ilen, LEFT);
+              }
+              if (isPaired)
+                for (size_t i = 0; i < rcnt; ++i) {
+                  mfile >> ibeg >> ilen;
+                  taxaPtr.addInterval(ibeg, ilen, RIGHT);
                 }
-                else { // otherwise we have to read till the end of the line and throw it away
-                    std::getline(mfile, tmp);
-                }
+              taxaPtr.cleanIntervals(LEFT);
+              taxaPtr.cleanIntervals(RIGHT);
+              taxaPtr.updateScore();
+              readPerStrainProbInst.emplace_back(puff_tid, static_cast<float>( taxaPtr.getScore()) / static_cast<float>(refLengths[puff_tid]) /* / static_cast<float>(tlen) */);
+              readMappingsScoreSum += readPerStrainProbInst.back().second;
+            } else { // otherwise we have to read till the end of the line and // throw it away
+              std::getline(mfile, tmp);
+            }
             } 
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
@@ -190,7 +190,6 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                         strain[it->first] += 1.0/static_cast<float>(readPerStrainProbInst.size());
                     }
                 }
-
                 // SAVE MEMORY, don't push this
                 //readPerStrainProb.push_back(readPerStrainProbInst);
 
@@ -200,9 +199,9 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     return a.first < b.first;
                 });
                 std::vector<uint32_t> genomeIDs; genomeIDs.reserve(2*readPerStrainProbInst.size());
-                std::vector<double> probs; probs.reserve(readPerStrainProb.size());
+                std::vector<double> probs; probs.reserve(readPerStrainProbInst.size());
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
-                    genomeIDs.push_back(it->first);
+                    genomeIDs.push_back(static_cast<uint32_t>(it->first));
                     probs.push_back(it->second);
                 } 
                 if (rangeFactorization > 0) {
@@ -210,10 +209,9 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     int rangeCount = std::sqrt(genomeSize) + rangeFactorization;
                     for (int i = 0; i < genomeSize; i++) {
                         int rangeNumber = probs[i] * rangeCount;
-                        genomeIDs.push_back(rangeNumber);
+                        genomeIDs.push_back(static_cast<uint32_t>(rangeNumber));
                     }
                 }
-                // TODO: add class here 
                 TargetGroup tg(genomeIDs);
                 eqb.addGroup(std::move(tg), probs);
             }
@@ -250,19 +248,19 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
             auto& tg = eqc.first;
             auto& v = eqc.second;
             auto csize = v.weights.size();
-            std::vector<double> tmpReadProb(csize);
+            std::vector<double> tmpReadProb(csize, 0.0);
             double denom{0.0};
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
-                auto tgt = tg.tgts[readMappingCntr];
-               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strainCnt[tgt] * (1.0/refLengths[tgt]);
+                auto& tgt = tg.tgts[readMappingCntr];
+               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strainCnt[tgt];// * (1.0/refLengths[tgt]);
                denom += tmpReadProb[readMappingCntr];
             }
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
-                auto tgt = tg.tgts[readMappingCntr];
+                auto& tgt = tg.tgts[readMappingCntr];
                 newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
             }
         }
-
+    
         // E step
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
         float readCntValidator = 0;
@@ -285,6 +283,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
                            readCntValidator, std::abs(readCntValidator - readCnt));
             std::exit(1);
         }
+        
         if (cntr > 0 and cntr % 100 == 0) {
             logger->info("max diff : {}", maxDiff);
         }
@@ -298,10 +297,10 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
     decltype(strain) outputMap;
     outputMap.reserve(strain.size());
     for (auto& kv : strain) { 
-        outputMap[seqToTaxMap[kv.first]] = strainCnt[kv.first];
+        outputMap[seqToTaxMap[kv.first]] += strainCnt[kv.first];
     }
     std::swap(strain, outputMap);
-
+    
     return cntr < maxIter;
 }
 

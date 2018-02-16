@@ -56,6 +56,7 @@ public:
   bool finish() {
     active_ = false;
     size_t totalCount{0};
+    countVec_.reserve(countMap_.size());
     //auto lt = countMap_.lock_table();
     for (auto& kv : countMap_) {
       kv.second.normalizeAux();
@@ -89,7 +90,9 @@ public:
   std::vector<std::pair<const TargetGroup, TGValue>>& eqVec() {
     return countVec_;
   }
-
+  std::unordered_map<TargetGroup, TGValue, TargetGroupHasher>& eqMap() {
+    return countMap_;
+  } 
 private:
   std::atomic<bool> active_;
   std::unordered_map<TargetGroup, TGValue, TargetGroupHasher> countMap_;
