@@ -14,10 +14,12 @@ class Cedar {
         Cedar(std::string& taxonomyTree_filename, std::string& 
               refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn,
               std::string& indexDir,
+              bool flatAbund,
               std::shared_ptr<spdlog::logger> loggerIn);
         void loadMappingInfo(std::string mapperOutput_filename);
         bool basicEM(size_t maxIter, double eps);
         void serialize(std::string& output_filename);
+        void serializeFlat(std::string& output_filename);
     private:
         bool readHeader(std::ifstream& mfile);
         spp::sparse_hash_map<uint32_t, TaxaNode> taxaNodeMap;
@@ -30,8 +32,10 @@ class Cedar {
         spp::sparse_hash_map<uint64_t, float> strain;
         float readCnt = 0;
         bool isPaired = true;
+        bool flatAbund = false;
         std::vector<std::vector<std::pair<uint64_t, float>>> readPerStrainProb;
         EquivalenceClassBuilder eqb;
         std::vector<uint32_t> refLengths;
+        std::vector<std::string> refNames;
         std::shared_ptr<spdlog::logger> logger;
 };

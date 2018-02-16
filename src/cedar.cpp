@@ -13,6 +13,7 @@
 #include "PufferFS.hpp"
 #include "cereal/archives/binary.hpp"
 #include "cereal/types/vector.hpp"
+#include "cereal/types/string.hpp"
 
 #define LEFT true
 #define RIGHT false
@@ -25,6 +26,7 @@ struct CedarOpts {
     std::string output_filename;
     std::string indexDir;
     std::string level = "species";
+    bool flatAbund{false};
     double filterThreshold = 0;
     double eps = 0.001;
     size_t maxIter = 1000;
@@ -35,7 +37,9 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
                  std::string pruneLevelIn,
                  double filteringThresholdIn,
                  std::string& indexDir,
+                 bool flatAbundIn,
                  std::shared_ptr<spdlog::logger> loggerIn) {
+    flatAbund = flatAbundIn;
     logger = loggerIn;
     logger->info("KrakMap: Construct ..");
 
@@ -51,9 +55,9 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         std::exit(1);
       }
     }
-
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
+    if (!flatAbund) {
     pruningLevel = TaxaNode::str2rank(pruneLevelIn);
     std::ifstream tfile;
     uint32_t id, pid;
@@ -87,6 +91,22 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
     }
 
     tfile.close(); 
+    } else {
+            {
+      std::string rlPath = indexDir + "/ctable.bin";
+      if (puffer::fs::FileExists(rlPath.c_str())) {
+        CLI::AutoTimer timer{"Loading reference names", CLI::Timer::Big};
+        std::ifstream refNameStream(rlPath);
+        cereal::BinaryInputArchive refNameArchive(refNameStream);
+        refNameArchive(refNames);
+      } else {
+        logger->error("Could not find reference genome names");
+        std::exit(1);
+      }
+    }
+
+
+    }
 }
 
 bool Cedar::readHeader(std::ifstream& mfile) {
@@ -143,10 +163,11 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             // first condition: Ignore those references that we don't have a
             // taxaId for secon condition: Ignore repeated exactly identical
             // mappings (FIXME thing)
-            if (refId2taxId.find(tname) != refId2taxId.end() &&
-                activeTaxa.find(puff_tid) == activeTaxa.end()) {
+            if (flatAbund or 
+                (refId2taxId.find(tname) != refId2taxId.end() and
+                 activeTaxa.find(puff_tid) == activeTaxa.end())) {
 
-              tid = refId2taxId[tname];
+              tid = flatAbund ? puff_tid : refId2taxId[tname];
               seqToTaxMap[puff_tid] = tid;
               activeTaxa.insert(puff_tid);
 
@@ -238,6 +259,11 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
 
     logger->info("maxSeqID : {}", maxSeqID);
     logger->info("found : {} equivalence classes",eqvec.size()); 
+    size_t totCount{0};
+    for (auto& eqc : eqvec) {
+        totCount += eqc.second.count;
+    }
+    logger->info("total staring count {}", totCount);
 
     size_t cntr = 0;
     bool converged = false;
@@ -331,6 +357,17 @@ void Cedar::serialize(std::string& output_filename) {
     ofile.close();
 }
 
+void Cedar::serializeFlat(std::string& output_filename) {
+    logger->info("Write results in the file: {}", output_filename);
+    std::ofstream ofile(output_filename);
+    ofile << "taxaId\ttaxaRank\tcount\n";
+    for (auto& kv : strain) {
+        ofile << refNames[kv.first] << "\t" 
+              << "flat" 
+              << "\t" << kv.second << "\n";
+    }
+    ofile.close();
+}
 /**
  * "How to run" example:
  * make Pufferfish!
@@ -359,8 +396,11 @@ int main(int argc, char* argv[]) {
   };
 
   auto cli = (
+            (required("--flat").set(kopts.flatAbund, true) % "estimate flat abundance (i.e. there is no taxonomy given)"
+            | (
               required("--taxtree", "-t") & value("taxtree", kopts.taxonomyTree_filename) % "path to the taxonomy tree file",
-              required("--seq2taxa", "-s") & value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file ",
+              required("--seq2taxa", "-s") & value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file "
+            )),
               required("--mapperout", "-m") & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file",
               required("--output", "-o") & value("output", kopts.output_filename) % "path to the output file to write results",
               required("--index") & value("index", kopts.indexDir) % "pufferfish index directory",
@@ -390,10 +430,14 @@ int main(int argc, char* argv[]) {
   }
 
   if(res) {
-    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.indexDir, console);
+    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.indexDir, kopts.flatAbund, console);
     cedar.loadMappingInfo(kopts.mapperOutput_filename);
     cedar.basicEM(kopts.maxIter, kopts.eps);
-    cedar.serialize(kopts.output_filename);
+    if (!kopts.flatAbund) {
+        cedar.serialize(kopts.output_filename);
+    } else {
+        cedar.serializeFlat(kopts.output_filename);
+    }
     return 0;
   } else {
     std::cout << usage_lines(cli, "cedar") << '\n';

@@ -7,29 +7,35 @@ echo "Building Pufferfish Index"
 echo "Pipeline is fixFasta -> twoPaco -> twoPaCo dump -> pufferize -> pufferfish index"
 echo ""
 
-PUFFERFISH=$(jq -r '.pufferfish' config.json)/build/src
-TWOPACO=$(jq -r '.twopaco' config.json)/build/graphconstructor/twopaco
-TWOPACO_DUMP=$(jq -r '.twopaco' config.json)/build/graphdump/graphdump
+config='config.json'
+
+if [[ $# -eq 1 ]]; then
+  config=$1
+fi
+
+PUFFERFISH=$(jq -r '.pufferfish' ${config})/build/src
+TWOPACO=$(jq -r '.twopaco' ${config})/build/graphconstructor/twopaco
+TWOPACO_DUMP=$(jq -r '.twopaco' ${config})/build/graphdump/graphdump
 
 echo "pufferfish: $PUFFERFISH"
 echo "twopaco: $TWOPACO"
 
-K=$(jq -r '.ksize' config.json)
-OUTPUT_DIR=$(jq -r '.output_dir' config.json)
-INPUT_FILES=$(jq -r '.input.input_fasta' config.json)
-TMP=$(jq -r '.tmp_dir' config.json)
+K=$(jq -r '.ksize' ${config})
+OUTPUT_DIR=$(jq -r '.output_dir' ${config})
+INPUT_FILES=$(jq -r '.input.input_fasta' ${config})
+TMP=$(jq -r '.tmp_dir' ${config})
 
 echo "k: $K"
 echo "output directory: $OUTPUT_DIR"
 echo "input directory/file: $INPUT_FILES"
 echo "tmp directory: $TMP"
 
-THREAD=$(jq -r '.num_of_threads' config.json)
+THREAD=$(jq -r '.num_of_threads' ${config})
 echo "num of threads: $THREAD"
 
-IS_INPUT_DIRECTORY=$(jq -r '.input.is_input_a_directory_to_fasta_files' config.json)
+IS_INPUT_DIRECTORY=$(jq -r '.input.is_input_a_directory_to_fasta_files' ${config})
 
-FILTER_SIZE=$(jq -r '.twopaco_filter_size' config.json)
+FILTER_SIZE=$(jq -r '.twopaco_filter_size' ${config})
 echo "$FILTER_SIZE"
 re='^[0-9]+$'
 #if  [[ $FILTER_SIZE != "estimate" && ! $FILTER_SIZE =~ $re ]]; then
@@ -79,7 +85,7 @@ elif [ $IS_INPUT_DIRECTORY = false ]; then
 	echo "$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa"
 	$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa
 else
-	echo "ERROR: Wrong format for a boolean value in json file config.json"
+	echo "ERROR: Wrong format for a boolean value in json file ${config}"
 	exit 1
 fi
 
