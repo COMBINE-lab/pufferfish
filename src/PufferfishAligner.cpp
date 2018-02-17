@@ -702,7 +702,7 @@ void processReadsPair(paired_parser* parser,
       hctr.totAlignment += jointAlignments.size();
 
       if(mopts->krakOut){
-        writeAlignmentsToKrakenDump(rpair, formatter, jointHits, sstream);
+        writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, sstream);
       } else if(jointAlignments.size() > 0 and !mopts->noOutput){
         writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
       } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
@@ -926,7 +926,7 @@ void processReadsSingle(single_parser* parser,
 
       // write puffkrak format output
       if(mopts->krakOut){
-        writeAlignmentsToKrakenDump(read, formatter, validHits, sstream);
+        writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, sstream);
       } else if (validHits.size() > 0 and !mopts->noOutput) {
         // write sam output for mapped reads
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,

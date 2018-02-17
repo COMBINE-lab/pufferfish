@@ -177,9 +177,9 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
   }
 }
 
-template <typename ReadT, typename IndexT>
+template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
-                                   PairedAlignmentFormatter<IndexT>& formatter,
+                                   //PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<util::JointMems>& validJointHits,
                                    fmt::MemoryWriter& sstream) {
   auto& readName = r.first.name;
@@ -217,9 +217,9 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   return 0;
 }
 
-template <typename ReadT, typename IndexT>
+template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
-                                   PairedAlignmentFormatter<IndexT>& formatter,
+                                   //PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
                                    fmt::MemoryWriter& sstream) {
   auto& readName = r.name;
