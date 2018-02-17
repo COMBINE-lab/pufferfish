@@ -24,7 +24,6 @@ struct CedarOpts {
     std::string refId2TaxId_filename;
     std::string mapperOutput_filename;
     std::string output_filename;
-    std::string indexDir;
     std::string level = "species";
     bool flatAbund{false};
     double filterThreshold = 0;
@@ -36,25 +35,13 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
                  std::string& refId2TaxId_filename, 
                  std::string pruneLevelIn,
                  double filteringThresholdIn,
-                 std::string& indexDir,
                  bool flatAbundIn,
                  std::shared_ptr<spdlog::logger> loggerIn) {
     flatAbund = flatAbundIn;
     logger = loggerIn;
     logger->info("Cedar: Construct ..");
 
-    /* {
-      std::string rlPath = indexDir + "/reflengths.bin";
-      if (puffer::fs::FileExists(rlPath.c_str())) {
-        CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
-        std::ifstream refLengthStream(rlPath);
-        cereal::BinaryInputArchive refLengthArchive(refLengthStream);
-        refLengthArchive(refLengths);
-      } else {
-        logger->error("Could not find reference genome lengths");
-        std::exit(1);
-      }
-    } */
+    
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
     if (!flatAbund) {
@@ -91,22 +78,7 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         }
 
         tfile.close(); 
-    } else {
-            /* {
-      std::string rlPath = indexDir + "/ctable.bin";
-      if (puffer::fs::FileExists(rlPath.c_str())) {
-        CLI::AutoTimer timer{"Loading reference names", CLI::Timer::Big};
-        std::ifstream refNameStream(rlPath);
-        cereal::BinaryInputArchive refNameArchive(refNameStream);
-        refNameArchive(refNames);
-      } else {
-        logger->error("Could not find reference genome names");
-        std::exit(1);
-      }
-    } */
-
-
-    }
+    } 
 }
 
 bool Cedar::readHeader(std::ifstream& mfile) {
@@ -419,7 +391,6 @@ int main(int argc, char* argv[]) {
             )),
               required("--mapperout", "-m") & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file",
               required("--output", "-o") & value("output", kopts.output_filename) % "path to the output file to write results",
-              required("--index") & value("index", kopts.indexDir) % "pufferfish index directory",
               option("--maxIter", "-i") & value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 100)",
               option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
               option("--level", "-l") & value("level", kopts.level).call(checkLevel) % "choose between (species, genus, family, order, class, phylum). (default : species)",
@@ -446,7 +417,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(res) {
-    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.indexDir, kopts.flatAbund, console);
+    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
     cedar.loadMappingInfo(kopts.mapperOutput_filename);
     cedar.basicEM(kopts.maxIter, kopts.eps);
     if (!kopts.flatAbund) {

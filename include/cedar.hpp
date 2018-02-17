@@ -13,7 +13,6 @@ class Cedar {
     public:
         Cedar(std::string& taxonomyTree_filename, std::string& 
               refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn,
-              std::string& indexDir,
               bool flatAbund,
               std::shared_ptr<spdlog::logger> loggerIn);
         void loadMappingInfo(std::string mapperOutput_filename);
