@@ -41,9 +41,9 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
                  std::shared_ptr<spdlog::logger> loggerIn) {
     flatAbund = flatAbundIn;
     logger = loggerIn;
-    logger->info("KrakMap: Construct ..");
+    logger->info("Cedar: Construct ..");
 
-    {
+    /* {
       std::string rlPath = indexDir + "/reflengths.bin";
       if (puffer::fs::FileExists(rlPath.c_str())) {
         CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
@@ -54,45 +54,45 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         logger->error("Could not find reference genome lengths");
         std::exit(1);
       }
-    }
+    } */
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
     if (!flatAbund) {
-    pruningLevel = TaxaNode::str2rank(pruneLevelIn);
-    std::ifstream tfile;
-    uint32_t id, pid;
-    std::string rank, name;
-    // load the reference id (name) to its corresponding taxonomy id
-    tfile.open(refId2TaxId_filename);
-    while(!tfile.eof()) {
-        tfile >> name >> id;
-        refId2taxId[name] = id;
-    }
-    tfile.close();
-
-    // load the taxonomy child-parent tree and the rank of each node
-    tfile.open(taxonomyTree_filename);
-    std::string tmp;
-    while (!tfile.eof()) {
-        tfile >> id >> tmp >> pid >> tmp >> rank >> tmp;
-        size_t i = 0;
-        while (i < tmp.size()-1 && isspace(tmp[i]))
-            i++;
-        if (tmp[i] != '|') {
-            rank += " " + tmp;
+        pruningLevel = TaxaNode::str2rank(pruneLevelIn);
+        std::ifstream tfile;
+        uint32_t id, pid;
+        std::string rank, name;
+        // load the reference id (name) to its corresponding taxonomy id
+        tfile.open(refId2TaxId_filename);
+        while(!tfile.eof()) {
+            tfile >> name >> id;
+            refId2taxId[name] = id;
         }
-        taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
-        if (taxaNodeMap[id].isRoot()) {
-            rootId = id;
-            logger->info("Root Id : {}", id);
-        }
-        std::getline(tfile, tmp);
-        
-    }
+        tfile.close();
 
-    tfile.close(); 
+        // load the taxonomy child-parent tree and the rank of each node
+        tfile.open(taxonomyTree_filename);
+        std::string tmp;
+        while (!tfile.eof()) {
+            tfile >> id >> tmp >> pid >> tmp >> rank >> tmp;
+            size_t i = 0;
+            while (i < tmp.size()-1 && isspace(tmp[i]))
+                i++;
+            if (tmp[i] != '|') {
+                rank += " " + tmp;
+            }
+            taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
+            if (taxaNodeMap[id].isRoot()) {
+                rootId = id;
+                logger->info("Root Id : {}", id);
+            }
+            std::getline(tfile, tmp);
+            
+        }
+
+        tfile.close(); 
     } else {
-            {
+            /* {
       std::string rlPath = indexDir + "/ctable.bin";
       if (puffer::fs::FileExists(rlPath.c_str())) {
         CLI::AutoTimer timer{"Loading reference names", CLI::Timer::Big};
@@ -103,15 +103,15 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
         logger->error("Could not find reference genome names");
         std::exit(1);
       }
-    }
+    } */
 
 
     }
 }
 
 bool Cedar::readHeader(std::ifstream& mfile) {
-    std::string tmp, readType;
-    mfile >> tmp >> readType;
+    std::string tmp, readType, refInfo;
+    mfile >> tmp >> readType >> refInfo;
     if (tmp != "#")
         return false;
     if (readType == "LT:S") 
@@ -120,14 +120,28 @@ bool Cedar::readHeader(std::ifstream& mfile) {
         isPaired = true;
     else
         return false;
-    std::getline(mfile, tmp);
+
+    if (refInfo.size() < 3 or refInfo.substr(0, 3) != "NT:")
+        return false;
+    
+    size_t refCount = stoull(refInfo.substr(3));
+    logger->info("Total # of References: {}", refCount);
+    refLengths.reserve(refCount);
+    refNames.reserve(refCount);
+    size_t refLen;
+    std::string refName;
+    for (size_t i = 0; i < refCount; i++) {
+        mfile >> refName >> refLen;
+        refNames.push_back(refName);
+        refLengths.push_back(refLen);
+    }
     return true;
 }
 
 void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     int32_t rangeFactorization{4};
     std::string rid, tname, tmp;// read id, taxa name, temp
-    uint64_t lcnt, rcnt, tid, puff_tid, tlen, ibeg, ilen;
+    uint64_t lcnt, rcnt, tid, puff_tid, ibeg, ilen;
     logger->info("Cedar: Load Mapping File ..");
     logger->info("Mapping Output File: {}", mapperOutput_filename);
     std::ifstream mfile(mapperOutput_filename);
@@ -145,59 +159,59 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
         }
         activeTaxa.clear();
         double readMappingsScoreSum = 0;
-        std::vector<std::pair<uint64_t, float>> readPerStrainProbInst;
+        std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(mcnt);
 
         if (mcnt != 0) {
             if (isPaired) {
-            uint64_t rllen, rrlen;
-            mfile >> rllen >> rrlen;
-            rlen = rllen + rrlen;
-          } else {
-            mfile >> rlen;
-          }
-
-          std::set<uint64_t> seen;
-          for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
-            mfile >> puff_tid >> tname >> tlen; // txp_id, txp_name, txp_len
-            // first condition: Ignore those references that we don't have a
-            // taxaId for secon condition: Ignore repeated exactly identical
-            // mappings (FIXME thing)
-            if (flatAbund or 
-                (refId2taxId.find(tname) != refId2taxId.end() and
-                 activeTaxa.find(puff_tid) == activeTaxa.end())) {
-
-              tid = flatAbund ? puff_tid : refId2taxId[tname];
-              seqToTaxMap[puff_tid] = tid;
-              activeTaxa.insert(puff_tid);
-
-              // fetch the taxon from the map
-              TaxaNode taxaPtr;
-              mfile >> lcnt;
-              if (isPaired)
-                mfile >> rcnt;
-              for (size_t i = 0; i < lcnt; ++i) {
-                mfile >> ibeg >> ilen;
-                taxaPtr.addInterval(ibeg, ilen, LEFT);
-              }
-              if (isPaired)
-                for (size_t i = 0; i < rcnt; ++i) {
-                  mfile >> ibeg >> ilen;
-                  taxaPtr.addInterval(ibeg, ilen, RIGHT);
-                }
-              taxaPtr.cleanIntervals(LEFT);
-              taxaPtr.cleanIntervals(RIGHT);
-              taxaPtr.updateScore();
-              readPerStrainProbInst.emplace_back(puff_tid, static_cast<float>( taxaPtr.getScore()) / static_cast<float>(refLengths[puff_tid]) /* / static_cast<float>(tlen) */);
-              readMappingsScoreSum += readPerStrainProbInst.back().second;
-            } else { // otherwise we have to read till the end of the line and // throw it away
-              std::getline(mfile, tmp);
+                uint64_t rllen, rrlen;
+                mfile >> rllen >> rrlen;
+                rlen = rllen + rrlen;
+            } else {
+                mfile >> rlen;
             }
+
+            std::set<uint64_t> seen;
+            for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
+                mfile >> puff_tid; // txp_id, txp_name, txp_len
+                // first condition: Ignore those references that we don't have a
+                // taxaId for secon condition: Ignore repeated exactly identical
+                // mappings (FIXME thing)
+                if (flatAbund or 
+                    (refId2taxId.find(refNames[puff_tid]) != refId2taxId.end() and
+                    activeTaxa.find(puff_tid) == activeTaxa.end())) {
+
+                tid = flatAbund ? puff_tid : refId2taxId[refNames[puff_tid]];
+                seqToTaxMap[puff_tid] = tid;
+                activeTaxa.insert(puff_tid);
+
+                // fetch the taxon from the map
+                TaxaNode taxaPtr;
+                mfile >> lcnt;
+                if (isPaired)
+                    mfile >> rcnt;
+                for (size_t i = 0; i < lcnt; ++i) {
+                    mfile >> ibeg >> ilen;
+                    taxaPtr.addInterval(ibeg, ilen, LEFT);
+                }
+                if (isPaired)
+                    for (size_t i = 0; i < rcnt; ++i) {
+                    mfile >> ibeg >> ilen;
+                    taxaPtr.addInterval(ibeg, ilen, RIGHT);
+                    }
+                taxaPtr.cleanIntervals(LEFT);
+                taxaPtr.cleanIntervals(RIGHT);
+                taxaPtr.updateScore();
+                readPerStrainProbInst.emplace_back(puff_tid, static_cast<double>( taxaPtr.getScore()) / static_cast<double>(refLengths[puff_tid]) /* / static_cast<double>(tlen) */);
+                readMappingsScoreSum += readPerStrainProbInst.back().second;
+                } else { // otherwise we have to read till the end of the line and // throw it away
+                std::getline(mfile, tmp);
+                }
             } 
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
             } else {
-                readCnt++;
+                
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
@@ -205,10 +219,10 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     // strain[it->first].first : read count for strainCnt
                     // strain[it->first].second : strain length
                     if (strain.find(it->first) == strain.end()) {
-                        strain[it->first] = 1.0/static_cast<float>(readPerStrainProbInst.size());
+                        strain[it->first] = 1.0/static_cast<double>(readPerStrainProbInst.size());
                     }
                     else {
-                        strain[it->first] += 1.0/static_cast<float>(readPerStrainProbInst.size());
+                        strain[it->first] += 1.0/static_cast<double>(readPerStrainProbInst.size());
                     }
                 }
                 // SAVE MEMORY, don't push this
@@ -216,7 +230,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
 
                 // construct the range factorized eq class here 
                 std::sort(readPerStrainProbInst.begin(), readPerStrainProbInst.end(), 
-                [](std::pair<uint64_t, float>& a, std::pair<uint64_t, float>& b) {
+                [](std::pair<uint64_t, double>& a, std::pair<uint64_t, double>& b) {
                     return a.first < b.first;
                 });
                 std::vector<uint32_t> genomeIDs; genomeIDs.reserve(2*readPerStrainProbInst.size());
@@ -233,6 +247,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                         genomeIDs.push_back(static_cast<uint32_t>(rangeNumber));
                     }
                 }
+                readCnt++;
                 TargetGroup tg(genomeIDs);
                 eqb.addGroup(std::move(tg), probs);
             }
@@ -264,6 +279,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
         totCount += eqc.second.count;
     }
     logger->info("total staring count {}", totCount);
+    logger->info("readCnt {}", readCnt);
 
     size_t cntr = 0;
     bool converged = false;
@@ -289,7 +305,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
     
         // E step
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
-        float readCntValidator = 0;
+        double readCntValidator = 0;
         converged = true;   
         double maxDiff={0.0};
         for (size_t i = 0; i < strainCnt.size(); ++i) {

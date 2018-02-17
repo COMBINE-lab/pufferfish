@@ -88,7 +88,17 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   } else {
     hd.write("LT:P");
   }
-  hd.write("\tNT:{}", pfi.getRefLengths().size());
+  
+
+  auto& txpNames = pfi.getRefNames();
+  auto& txpLens = pfi.getRefLengths();
+
+  size_t numRef = txpNames.size();
+  hd.write("\tNT:{}\n", numRef);
+  for (size_t i = 0; i < numRef; ++i) {
+    hd.write("{}\t{:d}\n", txpNames[i], txpLens[i]);
+  }
+
   std::string headerStr(hd.str());
   out->info(headerStr);
 }
@@ -189,11 +199,12 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   sstream << readName.c_str() << "\t" << validJointHits.size() << "\t" << r.first.seq.length() << "\t" << r.second.seq.length() << "\n";
 
   for (auto& qa : validJointHits) {
-    auto& refName = formatter.index->refName(qa.tid);
+    /* auto& refName = formatter.index->refName(qa.tid);
     uint32_t refLength = formatter.index->refLength(qa.tid);
+     */
     auto& clustLeft = qa.leftClust;
     auto& clustRight = qa.rightClust;
-    sstream << qa.tid << '\t' << refName << '\t' << refLength << '\t' <<
+    sstream << qa.tid /* << '\t' << refName << '\t' << refLength */ << '\t' <<
      clustLeft->mems.size() << '\t' << clustRight->mems.size();
     for (auto& mem: clustLeft->mems){
       sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
@@ -263,11 +274,12 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   }  */
   sstream << readName.c_str() << "\t" << validHits.size() << "\t" << r.seq.length() << "\n";
 
+  
   for (auto& qa : validHits) {
-    auto& refName = formatter.index->refName(qa.first);
-    uint32_t refLength = formatter.index->refLength(qa.first);
+    // auto& refName = formatter.index->refName(qa.first);
+    // uint32_t refLength = formatter.index->refLength(qa.first);
     auto& clust = qa.second;
-    sstream << qa.first << '\t' << refName << '\t' << refLength << '\t' << clust->mems.size();
+    sstream << qa.first /* << '\t' << refName << '\t' << refLength  */<< '\t' << clust->mems.size();
     for (auto& mem: clust->mems){
       sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
     }

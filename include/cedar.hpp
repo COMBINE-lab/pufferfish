@@ -29,11 +29,11 @@ class Cedar {
         std::set<uint64_t> activeTaxa;
         uint64_t rootId = 1;
         double filteringThreshold = 0;
-        spp::sparse_hash_map<uint64_t, float> strain;
-        float readCnt = 0;
+        spp::sparse_hash_map<uint64_t, double> strain;
+        uint64_t readCnt = 0;
         bool isPaired = true;
         bool flatAbund = false;
-        std::vector<std::vector<std::pair<uint64_t, float>>> readPerStrainProb;
+        std::vector<std::vector<std::pair<uint64_t, double>>> readPerStrainProb;
         EquivalenceClassBuilder eqb;
         std::vector<uint32_t> refLengths;
         std::vector<std::string> refNames;
