@@ -607,7 +607,7 @@ void processReadsPair(paired_parser* parser,
 
       //std::cout << "\n going inside hit collector \n" ;
       //readLen = rpair.first.seq.length() ;
-      /* bool lh =  */memCollector(rpair.first.seq,
+      bool lh =  memCollector(rpair.first.seq,
                              leftHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_LEFT,
@@ -616,7 +616,7 @@ void processReadsPair(paired_parser* parser,
                              /*
                              mopts->consistentHits,
                              refBlocks*/) ;
-      /* bool rh =  */memCollector(rpair.second.seq,
+      bool rh =  memCollector(rpair.second.seq,
                              rightHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_RIGHT,
@@ -726,7 +726,10 @@ void processReadsPair(paired_parser* parser,
       hctr.totHits += jointHits.size();
       hctr.peHits += jointHits.size();
       hctr.numMapped += !jointHits.empty() ? 1 : 0;
-      hctr.numOfOrphans += !jointHits.empty() && (jointHits.back().isOrphan()) ? 1 : 0;
+      if (mopts->noOrphan)
+        hctr.numOfOrphans += jointHits.empty() && (lh || rh);
+      else
+        hctr.numOfOrphans += !jointHits.empty() && (jointHits.back().isOrphan()) ? 1 : 0;
 
       if (jointHits.size() > hctr.maxMultimapping) {
         hctr.maxMultimapping = jointHits.size();

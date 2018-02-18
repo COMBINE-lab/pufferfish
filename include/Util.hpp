@@ -308,8 +308,10 @@ enum class MateStatus : uint8_t {
     std::vector<util::MemCluster>::iterator rightClust;
     size_t fragmentLen;
     MateStatus mateStatus;
-    bool isLeftAvailable() { return mateStatus == MateStatus::PAIRED_END_LEFT;}
-    bool isRightAvailable() { return mateStatus == MateStatus::PAIRED_END_RIGHT;}
+    bool isLeftAvailable() { return mateStatus == MateStatus::PAIRED_END_PAIRED ||
+                                    mateStatus == MateStatus::PAIRED_END_LEFT;}
+    bool isRightAvailable() { return mateStatus == MateStatus::PAIRED_END_PAIRED ||
+                                     mateStatus == MateStatus::PAIRED_END_RIGHT;}
     bool isOrphan() {return !isLeftAvailable() || !isRightAvailable();}
 
     JointMems(uint32_t tidIn,
