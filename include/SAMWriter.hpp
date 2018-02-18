@@ -204,14 +204,24 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
      */
     auto& clustLeft = qa.leftClust;
     auto& clustRight = qa.rightClust;
-    sstream << qa.tid /* << '\t' << refName << '\t' << refLength */ << '\t' <<
-     clustLeft->mems.size() << '\t' << clustRight->mems.size();
-    for (auto& mem: clustLeft->mems){
-      sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+    size_t leftNumOfIntervals = 0;
+    size_t rightNumOfIntervals = 0;
+    if (qa.isLeftAvailable()) {
+      leftNumOfIntervals = clustLeft->mems.size();
     }
-    for (auto& mem: clustRight->mems){
-      sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+    if (qa.isRightAvailable()) {
+      rightNumOfIntervals = clustRight->mems.size();
     }
+    sstream << qa.tid /* << '\t' << refName << '\t' << refLength */ << '\t' 
+            << leftNumOfIntervals << '\t' << rightNumOfIntervals;
+    if (qa.isLeftAvailable())
+      for (auto& mem: clustLeft->mems) {
+        sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+      }
+    if (qa.isRightAvailable())
+      for (auto& mem: clustRight->mems) {
+        sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+      }
     sstream << "\n";
   }
   return 0;

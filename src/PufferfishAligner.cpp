@@ -82,74 +82,110 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
                         double coverageRatio,
+                        bool noDiscordant,
+                        bool noOrphans,
                         bool verbose=false) {
   //orphan reads should be taken care of maybe with a flag!
   //uint32_t perfectCoverage{2*readLen};
   uint32_t maxCoverage{0};
+  short round{0};
   //std::cout << "txp count:" << leftMemClusters.size() << "\n";
-  for (auto& leftClustItr : leftMemClusters) {
-    // reference id
-    size_t tid = leftClustItr.first;
-    // left mem clusters
-    auto& lClusts = leftClustItr.second;
-    // right mem clusters for the same reference id
-    auto& rClusts = rightMemClusters[tid];
-    //if ((lClusts.size() > 5 || rClusts.size() > 5) && (lClusts.size()>0 && rClusts.size()>0))
-    //std::cout << "\t" << tid << ": lClusts.size:" << lClusts.size() << " , rClusts.size:" << rClusts.size() << "\n";
-    // Compare the left clusters to the right clusters to filter by positional constraints
-    for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
-      for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
-        // if both the left and right clusters are oriented in the same direction, skip this pair
-        // NOTE: This should be optional as some libraries could allow this.
-        if (lclust->isFw == rclust->isFw) {
-          continue;
-        }
-
-        // FILTER 1
-        // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-        size_t fragmentLen = rclust->lastRefPos() + rclust->lastMemLen() - lclust->firstRefPos();
-        if (lclust->firstRefPos() > rclust->firstRefPos()) {
-          fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
-        }
-
-        if ( fragmentLen < maxFragmentLength) {
-          // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
-          // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
-          auto totalCoverage = lclust->coverage + rclust->coverage;
-          if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
-            jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
-            if (verbose) {
-              std::cout <<"\ntid:"<<tid<<"\n";
-              std::cout <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-              for (size_t i = 0; i < lclust->mems.size(); i++){
-                std::cout << "--- t" << lclust->mems[i].tpos << " r"
-                          << lclust->mems[i].memInfo->rpos << " cid:"
-                          << lclust->mems[i].memInfo->cid << " cpos: "
-                          << lclust->mems[i].memInfo->cpos << " len:"
-                          << lclust->mems[i].memInfo->memlen << " fw:"
-                          << lclust->mems[i].memInfo->cIsFw << "\n";
-              }
-              std::cout << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
-              for (size_t i = 0; i < rclust->mems.size(); i++){
-                std::cout << "--- t" << rclust->mems[i].tpos << " r"
-                          << rclust->mems[i].memInfo->rpos << " cid:"
-                          << rclust->mems[i].memInfo->cid << " cpos: "
-                          << rclust->mems[i].memInfo->cpos << " len:"
-                          << rclust->mems[i].memInfo->memlen << " fw:"
-                          << rclust->mems[i].memInfo->cIsFw << "\n";
-              }
-            }
-            uint32_t currCoverage =  jointMemsList.back().coverage();
-            if (maxCoverage < currCoverage) {
-              maxCoverage = currCoverage;
-            }
+  while (round == 0 || (round == 1 && !jointMemsList.size() && !noDiscordant)) {
+    for (auto& leftClustItr : leftMemClusters) {
+      // reference id
+      size_t tid = leftClustItr.first;
+      // left mem clusters
+      auto& lClusts = leftClustItr.second;
+      // right mem clusters for the same reference id
+      auto& rClusts = rightMemClusters[tid];
+      //if ((lClusts.size() > 5 || rClusts.size() > 5) && (lClusts.size()>0 && rClusts.size()>0))
+      //std::cout << "\t" << tid << ": lClusts.size:" << lClusts.size() << " , rClusts.size:" << rClusts.size() << "\n";
+      // Compare the left clusters to the right clusters to filter by positional constraints
+      for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
+        for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
+          // if both the left and right clusters are oriented in the same direction, skip this pair
+          // NOTE: This should be optional as some libraries could allow this.
+          if (round == 0 && lclust->isFw == rclust->isFw) { // if priority 0, ends should be concordant
+            continue;
           }
-        } else {
-          break;
+
+          // FILTER 1
+          // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
+          size_t fragmentLen = rclust->lastRefPos() + rclust->lastMemLen() - lclust->firstRefPos();
+          if (lclust->firstRefPos() > rclust->firstRefPos()) {
+            fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
+          }
+
+          // FILTERING fragments with size smaller than maxFragmentLength : default 100,000 
+          // FILTER just in case of priority 0 (round 0)
+          if (fragmentLen < maxFragmentLength || round > 0) {
+            // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
+            // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
+            auto totalCoverage = lclust->coverage + rclust->coverage;
+            if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
+              jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
+              if (verbose) {
+                std::cout <<"\ntid:"<<tid<<"\n";
+                std::cout <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
+                for (size_t i = 0; i < lclust->mems.size(); i++){
+                  std::cout << "--- t" << lclust->mems[i].tpos << " r"
+                            << lclust->mems[i].memInfo->rpos << " cid:"
+                            << lclust->mems[i].memInfo->cid << " cpos: "
+                            << lclust->mems[i].memInfo->cpos << " len:"
+                            << lclust->mems[i].memInfo->memlen << " fw:"
+                            << lclust->mems[i].memInfo->cIsFw << "\n";
+                }
+                std::cout << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
+                for (size_t i = 0; i < rclust->mems.size(); i++){
+                  std::cout << "--- t" << rclust->mems[i].tpos << " r"
+                            << rclust->mems[i].memInfo->rpos << " cid:"
+                            << rclust->mems[i].memInfo->cid << " cpos: "
+                            << rclust->mems[i].memInfo->cpos << " len:"
+                            << rclust->mems[i].memInfo->memlen << " fw:"
+                            << rclust->mems[i].memInfo->cIsFw << "\n";
+                }
+              }
+              uint32_t currCoverage =  jointMemsList.back().coverage();
+              if (maxCoverage < currCoverage) {
+                maxCoverage = currCoverage;
+              }
+            }
+          } else {
+            break;
+          }
         }
       }
     }
+    round++;
   }
+  // If couldn't find any pair and allowed to add orphans
+  if (!jointMemsList.size() && !noOrphans) {
+    //std::cout << "Orphans\n";
+    auto orphanFiller = [&jointMemsList, &maxCoverage]
+                        (spp::sparse_hash_map<size_t,std::vector<util::MemCluster>>& memClusters,
+                        bool isLeft) {
+      // fragmentLen is set to 0
+      std::vector<util::MemCluster> fake;
+      for (auto& clustItr : memClusters) {
+        // reference id
+        size_t tid = clustItr.first;
+        // left mem clusters
+        auto& Clusts = clustItr.second;
+        for (auto clust =  Clusts.begin(); clust != Clusts.end(); clust++) {
+          if (isLeft)
+            jointMemsList.emplace_back(tid, clust, fake.end(), 0, MateStatus::PAIRED_END_LEFT);
+          else
+            jointMemsList.emplace_back(tid, fake.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
+          uint32_t currCoverage =  jointMemsList.back().coverage();
+          if (maxCoverage < currCoverage) {
+            maxCoverage = currCoverage;
+          }    
+        }
+      }
+    };
+    orphanFiller(leftMemClusters, true);
+    orphanFiller(rightMemClusters, false);
+  } 
   if (verbose) {
     std::cout << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
     std::cout << "\n" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
@@ -480,18 +516,28 @@ void traverseGraph(ReadPairT& rpair,
   auto readLen = rpair.first.seq.length() ;
   if(verbose) std::cout << rpair.first.name << "\n" ;
 
-  if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, contigSeqCache, tid, aligner, verbose, naive);
-  else if (hit.leftClust->coverage == readLen) {
-    hit.leftClust->score += hit.leftClust->coverage * MATCH_SCORE;
-    hit.leftClust->cigar = std::to_string(hit.leftClust->coverage) + "M";
+  if (hit.isOrphan()) {
+    if(!hit.orphanClust()->isVisited && hit.orphanClust()->coverage < readLen)
+      createSeqPairs(&pfi, hit.orphanClust(), rpair.first, refSeqConstructor, contigSeqCache, tid, aligner, verbose, naive);
+    else if (hit.orphanClust()->coverage == readLen) {
+      hit.orphanClust()->score += hit.orphanClust()->coverage * MATCH_SCORE;
+      hit.orphanClust()->cigar = std::to_string(hit.orphanClust()->coverage) + "M";
+    }
   }
-    //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
-  if(!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
-    createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, contigSeqCache, tid, aligner, verbose, naive);
-  else if (hit.rightClust->coverage == readLen) {
-    hit.rightClust->score += hit.rightClust->coverage * MATCH_SCORE;
-    hit.rightClust->cigar = std::to_string(hit.rightClust->coverage) + "M";
+  else {
+    if(!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
+      createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, contigSeqCache, tid, aligner, verbose, naive);
+    else if (hit.leftClust->coverage == readLen) {
+      hit.leftClust->score += hit.leftClust->coverage * MATCH_SCORE;
+      hit.leftClust->cigar = std::to_string(hit.leftClust->coverage) + "M";
+    }
+      //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
+    if(!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
+      createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, contigSeqCache, tid, aligner, verbose, naive);
+    else if (hit.rightClust->coverage == readLen) {
+      hit.rightClust->score += hit.rightClust->coverage * MATCH_SCORE;
+      hit.rightClust->cigar = std::to_string(hit.rightClust->coverage) + "M";
+    }
   }
     //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
 }
@@ -561,7 +607,7 @@ void processReadsPair(paired_parser* parser,
 
       //std::cout << "\n going inside hit collector \n" ;
       //readLen = rpair.first.seq.length() ;
-      bool lh = memCollector(rpair.first.seq,
+      /* bool lh =  */memCollector(rpair.first.seq,
                              leftHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_LEFT,
@@ -570,7 +616,7 @@ void processReadsPair(paired_parser* parser,
                              /*
                              mopts->consistentHits,
                              refBlocks*/) ;
-      bool rh = memCollector(rpair.second.seq,
+      /* bool rh =  */memCollector(rpair.second.seq,
                              rightHits,
                              mopts->maxSpliceGap,
                              MateStatus::PAIRED_END_RIGHT,
@@ -579,6 +625,8 @@ void processReadsPair(paired_parser* parser,
                              /*,
                              mopts->consistentHits,
                              refBlocks*/) ;
+      
+      hctr.numMappedAtLeastAKmer += (leftHits.size() || rightHits.size()) ? 1 : 0;
       //do intersection on the basis of
       //performance, or going towards selective alignment
       //otherwise orphan
@@ -599,12 +647,20 @@ void processReadsPair(paired_parser* parser,
         }
       }
 
-      if(lh && rh){
-        joinReadsAndFilter(leftHits, rightHits, jointHits, mopts->maxFragmentLength, totLen, mopts->scoreRatio, verbose) ;
-      } else{
+      // We also handle orphans inside this function
+      //if(lh && rh){
+        joinReadsAndFilter(leftHits, rightHits, jointHits, 
+        mopts->maxFragmentLength, 
+        totLen, 
+        mopts->scoreRatio, 
+        mopts->noDiscordant,
+        mopts->noOrphan,
+        verbose) ;
+      /* } else{
         //ignore orphans for now
-      }
-
+      } */
+      
+      
       //jointHits is a vector
       //this can be used for BFS
       //NOTE sanity check
@@ -670,32 +726,55 @@ void processReadsPair(paired_parser* parser,
       hctr.totHits += jointHits.size();
       hctr.peHits += jointHits.size();
       hctr.numMapped += !jointHits.empty() ? 1 : 0;
+      hctr.numOfOrphans += !jointHits.empty() && (jointHits.back().isOrphan()) ? 1 : 0;
+
       if (jointHits.size() > hctr.maxMultimapping) {
         hctr.maxMultimapping = jointHits.size();
       }
       std::vector<QuasiAlignment> jointAlignments;
       for (auto& jointHit : jointHits) {
+        // FIXME : This part needs to be taken care of 
         // If graph returned failure for one of the ends --> should be investigated more.
-        if (!mopts->justMap and (jointHit.leftClust->score == std::numeric_limits<int>::min() or jointHit.rightClust->score == std::numeric_limits<int>::min())){
+        if (!mopts->justMap and 
+            ( (!jointHit.isOrphan() and (jointHit.leftClust->score == std::numeric_limits<int>::min()
+                                        or jointHit.rightClust->score == std::numeric_limits<int>::min()) )
+              or
+              (jointHit.isLeftAvailable() and jointHit.leftClust->score == std::numeric_limits<int>::min()) 
+              or 
+              (jointHit.isRightAvailable() and jointHit.rightClust->score == std::numeric_limits<int>::min()))
+        ) {
           //std::cerr << "Failed: " << rpair.first.name << "\n";
           continue;
         }
-        if(mopts->justMap or (jointHit.leftClust->score + jointHit.rightClust->score == maxScore)) {
-          //std::cerr << "Selected: " << rpair.first.name << "\n";
-          jointAlignments.emplace_back(jointHit.tid,           // reference id
-                                      jointHit.leftClust->getTrFirstHitPos(),     // reference pos
-                                      jointHit.leftClust->isFw ,     // fwd direction
+        if(mopts->justMap or (static_cast<int>(jointHit.coverage()) == maxScore)) {
+          if (jointHit.isOrphan()) {
+            jointAlignments.emplace_back(jointHit.tid,           // reference id
+                                      jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
+                                      jointHit.orphanClust()->isFw ,     // fwd direction
                                       readLen, // read length
-                                      jointHit.leftClust->cigar, // cigar string 
+                                      jointHit.orphanClust()->cigar, // cigar string 
                                       jointHit.fragmentLen,       // fragment length
-                                      true);         // properly paired
-          // Fill in the mate info		         // Fill in the mate info
-          auto& qaln = jointAlignments.back();
-          qaln.mateLen = readLen;
-          qaln.mateCigar = jointHit.rightClust->cigar ;
-          qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
-          qaln.mateIsFwd = jointHit.rightClust->isFw;
-          qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
+                                      false); 
+            auto& qaln = jointAlignments.back();
+            qaln.mateStatus = jointHit.mateStatus;
+          }
+          else {
+            //std::cerr << "Selected: " << rpair.first.name << "\n";
+            jointAlignments.emplace_back(jointHit.tid,           // reference id
+                                        jointHit.leftClust->getTrFirstHitPos(),     // reference pos
+                                        jointHit.leftClust->isFw ,     // fwd direction
+                                        readLen, // read length
+                                        jointHit.leftClust->cigar, // cigar string 
+                                        jointHit.fragmentLen,       // fragment length
+                                        true);         // properly paired
+            // Fill in the mate info		         // Fill in the mate info
+            auto& qaln = jointAlignments.back();
+            qaln.mateLen = readLen;
+            qaln.mateCigar = jointHit.rightClust->cigar ;
+            qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
+            qaln.mateIsFwd = jointHit.rightClust->isFw;
+            qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
+          }
         }
       }
 
@@ -1029,6 +1108,10 @@ void printAlignmentSummary(HitCounters& hctrs, std::shared_ptr<spdlog::logger> c
   consoleLog->info("\n\n");
   consoleLog->info("=====");
   consoleLog->info("Observed {} reads", hctrs.numReads);
+  consoleLog->info("Rate of Fragments with at least one found k-mer: {:03.2f}%", 
+    (100.0 * static_cast<float>(hctrs.numMappedAtLeastAKmer)) / hctrs.numReads);
+  consoleLog->info("Discordant Rate: {:03.2f}%", 
+    (100.0 * static_cast<float>(hctrs.numOfOrphans)) / hctrs.numReads);
   consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
   consoleLog->info("Average # hits per read : {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
   consoleLog->info("Total # of alignments : {}", hctrs.totAlignment);

@@ -52,6 +52,8 @@ public:
 	bool writeOrphans{false} ;
   bool justMap{false};
   bool krakOut{false};
+  bool noDiscordant{false};
+  bool noOrphan{false};
 };
 
 

@@ -115,7 +115,8 @@ int main(int argc, char* argv[]) {
                     ),
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
-                    (option("--writeOrphans").set(alignmentOpt.writeOrphans, true)) % "write Orphans flag",
+                    (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "write Orphans flag",
+                    (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "write Orphans flag",
                     (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
                     );
 

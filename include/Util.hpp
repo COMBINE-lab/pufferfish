@@ -307,12 +307,30 @@ enum class MateStatus : uint8_t {
     std::vector<util::MemCluster>::iterator leftClust;
     std::vector<util::MemCluster>::iterator rightClust;
     size_t fragmentLen;
+    MateStatus mateStatus;
+    bool isLeftAvailable() { return mateStatus == MateStatus::PAIRED_END_LEFT;}
+    bool isRightAvailable() { return mateStatus == MateStatus::PAIRED_END_RIGHT;}
+    bool isOrphan() {return !isLeftAvailable() || !isRightAvailable();}
+
     JointMems(uint32_t tidIn,
               std::vector<util::MemCluster>::iterator leftClustIn,
               std::vector<util::MemCluster>::iterator rightClustIn,
-              size_t fragmentLenIn) : tid(tidIn), leftClust(leftClustIn), rightClust(rightClustIn), fragmentLen(fragmentLenIn) {
+              size_t fragmentLenIn,
+              MateStatus mateStatusIn = MateStatus::PAIRED_END_PAIRED) : 
+              tid(tidIn), leftClust(leftClustIn), 
+              rightClust(rightClustIn), fragmentLen(fragmentLenIn),
+              mateStatus(mateStatusIn) {
     }
-    uint32_t coverage() {return leftClust->coverage+rightClust->coverage;}
+    uint32_t coverage() {
+      return (isLeftAvailable()?leftClust->coverage:0)+(isRightAvailable()?rightClust->coverage:0);}
+    
+    
+    // FIXME : what if the mapping is not orphan? who takes care of this function not being called from outside?
+    std::vector<util::MemCluster>::iterator orphanClust() {
+      if (isLeftAvailable()) return leftClust;
+      return rightClust;
+    }
+
   };
 
 
@@ -501,6 +519,8 @@ struct RefPos {
 
 struct HitCounters {
   std::atomic<uint64_t> numMapped{0};
+  std::atomic<uint64_t> numMappedAtLeastAKmer{0};
+  std::atomic<uint64_t> numOfOrphans{0};
   std::atomic<uint64_t> peHits{0};
   std::atomic<uint64_t> seHits{0};
   std::atomic<uint64_t> trueHits{0};
