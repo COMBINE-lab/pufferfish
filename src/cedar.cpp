@@ -349,10 +349,16 @@ void Cedar::serializeFlat(std::string& output_filename) {
     logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
-    for (auto& kv : strain) {
-        ofile << refNames[kv.first] << "\t" 
+    for (uint32_t i = 0; i < refNames.size(); ++i) { 
+    //for (auto& kv : strain) {
+        auto it = strain.find(i);
+	double abund = 0.0;
+	if (it != strain.end()){
+	  abund = it->second;
+	}
+        ofile << refNames[i] << "\t" 
               << "flat" 
-              << "\t" << kv.second << "\n";
+              << "\t" << abund << "\n";
     }
     ofile.close();
 }
