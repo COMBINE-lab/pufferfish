@@ -54,6 +54,7 @@ public:
   bool krakOut{false};
   bool noDiscordant{false};
   bool noOrphan{false};
+  bool compressedOutput{false};
 };
 
 

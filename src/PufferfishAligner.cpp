@@ -56,6 +56,7 @@
 #include "SAMWriter.hpp"
 #include "RefSeqConstructor.hpp"
 #include "KSW2Aligner.hpp"
+#include "zstr/zstr.hpp"
 
 #define START_CONTIG_ID ((uint32_t)-1) 
 #define END_CONTIG_ID ((uint32_t)-2)
@@ -1146,8 +1147,11 @@ bool alignReads(
 
     // out stream to the buffer
     // it can be std::cout or a file
-    outStream.reset(new std::ostream(outBuf));
-
+    if (mopts->compressedOutput) {
+	outStream.reset(new zstr::ostream(outBuf));
+    } else {
+    	outStream.reset(new std::ostream(outBuf));
+    }
     // the async queue size must be a power of 2
     size_t queueSize{268435456};
     spdlog::set_async_mode(queueSize);

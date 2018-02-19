@@ -58,8 +58,8 @@ int main(int argc, char* argv[]) {
                     (required("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
                     (((option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
-                     (option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)") |
-                     (option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)")
+                     ((option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)")) |
+                     ((option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)"))
                     );
 
   /*
@@ -117,6 +117,7 @@ int main(int argc, char* argv[]) {
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "write Orphans flag",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "write Orphans flag",
+		    (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "compress (gzip) the output file",
                     (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
                     );
 
