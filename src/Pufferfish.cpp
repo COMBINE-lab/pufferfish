@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
                      ) |
                      ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
                     ),
-                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
+                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=1.0)",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
                     (

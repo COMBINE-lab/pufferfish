@@ -39,7 +39,7 @@ public:
   uint32_t maxNumHits{200};
   uint32_t maxSpliceGap{100};
   uint32_t maxFragmentLength{100000};
-  double scoreRatio{0.5};
+  double scoreRatio{1.0};
   std::string outname;
   double quasiCov{0.0};
   bool pairedEnd{false};
