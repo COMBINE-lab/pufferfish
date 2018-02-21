@@ -6,10 +6,17 @@
 #include <iostream>
 #include "taxa.h"
 
+typedef uint16_t rLenType;
+typedef uint32_t refLenType;
+
 struct ReadInfo {
     std::string rid;
     uint32_t cnt;
     uint32_t len;
+    bool isLeftFw;
+    bool isRightFw;
+    refLenType refLeftPos;
+    refLenType refRightPos;
     std::vector<TaxaNode> mappings;
 };
 
@@ -35,7 +42,8 @@ class Mappings {
             rinf.mappings.clear();
 
             uint32_t puff_id, mcnt; 
-            uint8_t rlen, lcnt, rcnt, ibeg, ilen;
+            rLenType rlen, lcnt, rcnt, ibeg, ilen;
+            refLenType refPos;
             char strCharBuff[maxReadNameLen];
             uint8_t readNameLength;
             // read name
@@ -49,11 +57,11 @@ class Mappings {
 
             // mapping count
             inFile.read(reinterpret_cast<char*>(&mcnt), sizeof(uint32_t));
-            inFile.read(reinterpret_cast<char*>(&rlen), sizeof(uint8_t)); // left read len
+            inFile.read(reinterpret_cast<char*>(&rlen), sizeof(rLenType)); // left read len
             rinf.cnt = mcnt;
             rinf.len = rlen;
             if (isPaired) {
-                inFile.read(reinterpret_cast<char*>(&rlen), sizeof(uint8_t)); // right read len
+                inFile.read(reinterpret_cast<char*>(&rlen), sizeof(rLenType)); // right read len
                 rinf.len += rlen;
             }
             // std::cout << readInfo.rid << " " << readInfo.cnt << " " << readInfo.len << "\n";
@@ -63,20 +71,32 @@ class Mappings {
                 // fetch the taxon from the map
                 rinf.mappings.push_back(puff_id);
                 TaxaNode& taxaPtr = rinf.mappings.back();
-                inFile.read(reinterpret_cast<char*>(&lcnt), sizeof(lcnt));
+                inFile.read(reinterpret_cast<char*>(&lcnt), sizeof(rLenType));
                 if (isPaired)
-                    inFile.read(reinterpret_cast<char*>(&rcnt), sizeof(rcnt));
+                    inFile.read(reinterpret_cast<char*>(&rcnt), sizeof(rLenType));
+                if (lcnt) {
+                    inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
+                    rinf.isLeftFw = refPos & Mappings::HighBitMask;
+                    rinf.refLeftPos = refPos & Mappings::LowBitsMask;
+                }
                 for (size_t i = 0; i < lcnt; ++i) {
-                    inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(ibeg));
-                    inFile.read(reinterpret_cast<char*>(&ilen), sizeof(ilen));
+                    inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(rLenType));
+                    inFile.read(reinterpret_cast<char*>(&ilen), sizeof(rLenType));
                     taxaPtr.addInterval(ibeg, ilen, ReadEnd::LEFT);
                 }
-                if (isPaired)
+
+                if (isPaired) {
+                    if (rcnt) {
+                        inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
+                        rinf.isRightFw = refPos & Mappings::HighBitMask;
+                        rinf.refRightPos = refPos & Mappings::LowBitsMask;
+                    }
                     for (size_t i = 0; i < rcnt; ++i) {
-                        inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(ibeg));
-                        inFile.read(reinterpret_cast<char*>(&ilen), sizeof(ilen));
+                        inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(rLenType));
+                        inFile.read(reinterpret_cast<char*>(&ilen), sizeof(rLenType));
                         taxaPtr.addInterval(ibeg, ilen, ReadEnd::RIGHT);
                     }
+                }
                 taxaPtr.cleanIntervals(ReadEnd::LEFT);
                 taxaPtr.cleanIntervals(ReadEnd::RIGHT);
                 taxaPtr.updateScore();
@@ -96,14 +116,14 @@ class Mappings {
             refLengths.reserve(refCount);
             refNames.reserve(refCount);
             uint8_t refNameSize;
-            uint32_t refLen;
+            refLenType refLen;
             
             for (size_t i = 0; i < refCount; i++) {
                 inFile.read(reinterpret_cast<char*>(&refNameSize), sizeof(refNameSize));
                 char* strChar = new char[refNameSize];
                 inFile.read(strChar, refNameSize);
                 std::string refName(strChar, refNameSize);
-                inFile.read(reinterpret_cast<char*>(&refLen), sizeof(uint32_t));
+                inFile.read(reinterpret_cast<char*>(&refLen), sizeof(refLenType));
                 refNames.push_back(refName);
                 refLengths.push_back(refLen);
                 //std::cout << refName << " " << refLen << "\n";
@@ -113,9 +133,11 @@ class Mappings {
         
         std::ifstream inFile;
         bool isPaired = true;
-        std::vector<uint32_t> refLengths;
+        std::vector<refLenType> refLengths;
         std::vector<std::string> refNames;
-        std::shared_ptr<spdlog::logger> logger; 
+        std::shared_ptr<spdlog::logger> logger;
+        static constexpr const refLenType HighBitMask = 1 << (sizeof(refLenType)-1); 
+        static constexpr const refLenType LowBitsMask = HighBitMask -1;
   //ReadInfo readInfo;   
 };
 

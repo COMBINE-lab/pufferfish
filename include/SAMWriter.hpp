@@ -1,10 +1,15 @@
 #ifndef SAM_WRITER_HPP
 #define SAM_WRITER_HPP
+
 #include "PairedAlignmentFormatter.hpp"
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 #include "BinWriter.hpp"
+
+typedef uint16_t rLenType;
+typedef uint32_t refLenType;
+
 
 inline void getSamFlags(const util::QuasiAlignment& qaln, uint16_t& flags) {
   /*
@@ -189,8 +194,8 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   }
 
   bstream << readName << static_cast<uint32_t>(validJointHits.size())
-            << static_cast<uint8_t>(r.first.seq.length()) 
-            << static_cast<uint8_t>(r.second.seq.length());
+            << static_cast<rLenType>(r.first.seq.length()) 
+            << static_cast<rLenType>(r.second.seq.length());
   for (auto& qa : validJointHits) {
     /* auto& refName = formatter.index->refName(qa.tid);
     uint32_t refLength = formatter.index->refLength(qa.tid);
@@ -199,25 +204,34 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     auto& clustRight = qa.rightClust;
     size_t leftNumOfIntervals = 0;
     size_t rightNumOfIntervals = 0;
+    refLenType leftRefPos = 0;
+    refLenType rightRefPos = 0;
     if (qa.isLeftAvailable()) {
       leftNumOfIntervals = clustLeft->mems.size();
+      leftRefPos = clustLeft->getTrFirstHitPos() | (clustLeft->isFw << (sizeof(refLenType)-1));
     }
     if (qa.isRightAvailable()) {
       rightNumOfIntervals = clustRight->mems.size();
+      rightRefPos = clustRight->getTrFirstHitPos() | (clustRight->isFw << (sizeof(refLenType)-1));
     }
     bstream << static_cast<uint32_t>(qa.tid)
-            << static_cast<uint8_t>(leftNumOfIntervals) 
-            << static_cast<uint8_t>(rightNumOfIntervals);
-    if (qa.isLeftAvailable())
+            << static_cast<rLenType>(leftNumOfIntervals) 
+            << static_cast<rLenType>(rightNumOfIntervals);
+
+    if (qa.isLeftAvailable()) {
+      bstream << static_cast<refLenType>(leftRefPos);
       for (auto& mem: clustLeft->mems) {
-        bstream << static_cast<uint8_t>(mem.memInfo->rpos) 
-                << static_cast<uint8_t>(mem.memInfo->memlen);
+        bstream << static_cast<rLenType>(mem.memInfo->rpos) 
+                << static_cast<rLenType>(mem.memInfo->memlen);
       }
-    if (qa.isRightAvailable())
+    }
+    if (qa.isRightAvailable()) {
+      bstream << static_cast<refLenType>(rightRefPos);
       for (auto& mem: clustRight->mems) {
-        bstream << static_cast<uint8_t>(mem.memInfo->rpos) 
-                << static_cast<uint8_t>(mem.memInfo->memlen);
+        bstream << static_cast<rLenType>(mem.memInfo->rpos) 
+                << static_cast<rLenType>(mem.memInfo->memlen);
       }
+    }
   }
   return 0;
 }
@@ -245,13 +259,17 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 
   binStream << readName 
             << static_cast<uint32_t>(validHits.size()) 
-            << static_cast<uint8_t>(r.seq.length());
+            << static_cast<rLenType>(r.seq.length());
   
   for (auto& qa : validHits) {
     auto& clust = qa.second;
-    binStream << static_cast<uint32_t>(qa.first) << static_cast<uint8_t>(clust->mems.size());
+    binStream << static_cast<uint32_t>(qa.first) 
+              << static_cast<rLenType>(clust->mems.size())
+              << static_cast<refLenType>(clust->getTrFirstHitPos() | (clust->isFw << (sizeof(refLenType)-1)));
+
     for (auto& mem: clust->mems){
-      binStream << static_cast<uint8_t>(mem.memInfo->rpos) << static_cast<uint8_t>(mem.memInfo->memlen);
+      binStream << static_cast<rLenType>(mem.memInfo->rpos) 
+                << static_cast<rLenType>(mem.memInfo->memlen);
     }
   }   
   return 0;

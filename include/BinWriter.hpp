@@ -20,7 +20,7 @@ class BinWriter
 {
     private:
         std::vector<char> _bin_data;
-
+        
     public:
         BinWriter() {};
         BinWriter(size_t reserve_size) {_bin_data.reserve(reserve_size);}
@@ -45,13 +45,19 @@ class BinWriter
                     std::back_inserter(_bin_data));
             return *this;
         }
+        BinWriter& operator<<(const uint16_t &inval) {
+            char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
+            std::copy(inCharPtr, inCharPtr+sizeof(inval),
+                    std::back_inserter(_bin_data));
+            return *this;
+        }
         BinWriter& operator<<(const uint32_t &inval) {
             char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
             std::copy(inCharPtr, inCharPtr+sizeof(inval),
                     std::back_inserter(_bin_data));
             return *this;
         }
-        BinWriter& operator<<(const size_t &inval) {
+        BinWriter& operator<<(const uint64_t &inval) {
             char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
             std::copy(inCharPtr, inCharPtr+sizeof(inval),
                     std::back_inserter(_bin_data));
