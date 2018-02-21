@@ -104,6 +104,11 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 // first condition: Ignore those references that we don't have a
                 // taxaId for secon condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
+              /*
+              if(flatAbund or 
+                 (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end() and
+                  activeTaxa.find(mapping.getId()) == activeTaxa.end())){
+              */
                 if (activeTaxa.find(mapping.getId()) == activeTaxa.end() and
                     (flatAbund or 
                     refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
