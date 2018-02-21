@@ -8,7 +8,7 @@
 
 struct ReadInfo {
     std::string rid;
-    size_t cnt;
+    uint32_t cnt;
     uint32_t len;
     std::vector<TaxaNode> mappings;
 };
@@ -28,37 +28,44 @@ class Mappings {
         }
 
         bool hasNext() {return  inFile.is_open() && inFile.good();}
-        ReadInfo& nextRead() {
+
+        bool nextRead(ReadInfo& rinf, bool needReadName=false) {
+            if(!hasNext()) { return false; }
+            const constexpr uint32_t maxReadNameLen = 1000;
+            rinf.mappings.clear();
+
             uint32_t puff_id, mcnt; 
             uint8_t rlen, lcnt, rcnt, ibeg, ilen;
-                
+            char strCharBuff[maxReadNameLen];
             uint8_t readNameLength;
             // read name
             inFile.read(reinterpret_cast<char*>(&readNameLength), sizeof(readNameLength));
-            char* strChar = new char[readNameLength];
-            inFile.read(strChar, readNameLength);
-            readInfo.rid = std::string(strChar, readNameLength);
+            inFile.read(reinterpret_cast<char*>(&strCharBuff), readNameLength);
+
+            // NOTE: do we actually care about the read name?
+            if (needReadName) {
+              rinf.rid = std::string(strCharBuff, readNameLength);
+            }
+
             // mapping count
             inFile.read(reinterpret_cast<char*>(&mcnt), sizeof(uint32_t));
             inFile.read(reinterpret_cast<char*>(&rlen), sizeof(uint8_t)); // left read len
-            readInfo.cnt = mcnt;
-            readInfo.len = rlen;
+            rinf.cnt = mcnt;
+            rinf.len = rlen;
             if (isPaired) {
                 inFile.read(reinterpret_cast<char*>(&rlen), sizeof(uint8_t)); // right read len
-                readInfo.len += rlen;
+                rinf.len += rlen;
             }
             // std::cout << readInfo.rid << " " << readInfo.cnt << " " << readInfo.len << "\n";
-            readInfo.mappings.reserve(readInfo.cnt);
-            for (size_t mappingCntr = 0; mappingCntr < readInfo.cnt; mappingCntr++) {
+            rinf.mappings.reserve(rinf.cnt);
+            for (size_t mappingCntr = 0; mappingCntr < rinf.cnt; mappingCntr++) {
                 inFile.read(reinterpret_cast<char*>(&puff_id), sizeof(uint32_t));
                 // fetch the taxon from the map
-                readInfo.mappings.push_back(puff_id);
-                TaxaNode& taxaPtr = readInfo.mappings.back();
-                
+                rinf.mappings.push_back(puff_id);
+                TaxaNode& taxaPtr = rinf.mappings.back();
                 inFile.read(reinterpret_cast<char*>(&lcnt), sizeof(lcnt));
                 if (isPaired)
                     inFile.read(reinterpret_cast<char*>(&rcnt), sizeof(rcnt));
-                
                 for (size_t i = 0; i < lcnt; ++i) {
                     inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(ibeg));
                     inFile.read(reinterpret_cast<char*>(&ilen), sizeof(ilen));
@@ -74,7 +81,7 @@ class Mappings {
                 taxaPtr.cleanIntervals(ReadEnd::RIGHT);
                 taxaPtr.updateScore();
             }
-            return readInfo;
+            return true;
         }
 
         std::string refName(size_t id) {return refNames[id];}
@@ -109,7 +116,7 @@ class Mappings {
         std::vector<uint32_t> refLengths;
         std::vector<std::string> refNames;
         std::shared_ptr<spdlog::logger> logger; 
-        ReadInfo readInfo;   
+  //ReadInfo readInfo;   
 };
 
 #endif

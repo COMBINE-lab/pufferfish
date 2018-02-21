@@ -87,19 +87,18 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     logger->info("Mapping Output File: {}", mapperOutput_filename);
     mappings.load(mapperOutput_filename, logger);
     logger->info("is dataset paired end? {}", isPaired);
-    while (mappings.hasNext()) {
+    ReadInfo readInfo;
+    while(mappings.nextRead(readInfo)){
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
             logger->info("Processed {} reads",totalReadCnt);
         }
-        auto& readInfo = mappings.nextRead();
         activeTaxa.clear();
         double readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(readInfo.cnt);
 
         if (readInfo.cnt != 0) {
-            
             std::set<uint64_t> seen;
             for (auto& mapping : readInfo.mappings) {
                 // first condition: Ignore those references that we don't have a
