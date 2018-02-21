@@ -4,9 +4,6 @@
 #include "CLI/CLI.hpp"
 #include "krakMap.h"
 
-#define LEFT true
-#define RIGHT true
-
 struct krakMapOpts {
     std::string taxonomyTree_filename;
     std::string refId2TaxId_filename;
@@ -104,15 +101,15 @@ void KrakMap::loadMappingInfo(std::ifstream& mfile) {
             mfile >> rcnt;
         for (size_t i = 0; i < lcnt; ++i) {
             mfile >> ibeg >> ilen;
-            taxaPtr->addInterval(ibeg, ilen, LEFT);
+            taxaPtr->addInterval(ibeg, ilen, ReadEnd::LEFT);
         }
         if (isPaired)
             for (size_t i = 0; i < rcnt; ++i) {
                 mfile >> ibeg >> ilen;
-                taxaPtr->addInterval(ibeg, ilen, RIGHT);
+                taxaPtr->addInterval(ibeg, ilen, ReadEnd::RIGHT);
             }
-        taxaPtr->cleanIntervals(LEFT);
-        taxaPtr->cleanIntervals(RIGHT);
+        taxaPtr->cleanIntervals(ReadEnd::LEFT);
+        taxaPtr->cleanIntervals(ReadEnd::RIGHT);
         taxaPtr->updateScore();
         hits.push_front(taxaPtr);
     }
@@ -199,8 +196,8 @@ void KrakMap::propagateInfo() {
         // when it's the turn for one of the other hits, it'll get ripe and updated
         while (!taxaPtr->isRoot() && taxaPtr->isRipe()) {
             TaxaNode* parentPtr = &taxaNodeMap[taxaPtr->getParentId()];
-            parentPtr->updateIntervals(taxaPtr, LEFT);
-            parentPtr->updateIntervals(taxaPtr, RIGHT);
+            parentPtr->updateIntervals(taxaPtr, ReadEnd::LEFT);
+            parentPtr->updateIntervals(taxaPtr, ReadEnd::RIGHT);
             parentPtr->updateScore();
             parentPtr->setOneMoreChildAsProcessed();
             taxaPtr = parentPtr;

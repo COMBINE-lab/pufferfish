@@ -5,9 +5,8 @@
 #include <memory>
 #include "spdlog/spdlog.h"
 #include "sparsepp/spp.h"
-#include "taxa.h"
 #include "EquivalenceClassBuilder.hpp"
-
+#include "Mappings.hpp"
 
 class Cedar {
     public:
@@ -34,7 +33,6 @@ class Cedar {
         bool flatAbund = false;
         std::vector<std::vector<std::pair<uint64_t, double>>> readPerStrainProb;
         EquivalenceClassBuilder eqb;
-        std::vector<uint32_t> refLengths;
-        std::vector<std::string> refNames;
+        Mappings mappings;
         std::shared_ptr<spdlog::logger> logger;
 };

@@ -4,6 +4,7 @@
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
+#include "BinWriter.hpp"
 
 inline void getSamFlags(const util::QuasiAlignment& qaln, uint16_t& flags) {
   /*
@@ -81,26 +82,16 @@ inline void getSamFlags(const util::QuasiAlignment& qaln, bool peInput,
 
 template <typename IndexT>
 inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, AlignmentOpts* mopts) {
-  fmt::MemoryWriter hd;
-  hd.write("#\t");
-  if (mopts->singleEnd) {
-    hd.write("LT:S");
-  } else {
-    hd.write("LT:P");
-  }
-  
-
+  BinWriter bw(100000);
+  bw << !mopts->singleEnd; // isPaired (bool)
   auto& txpNames = pfi.getRefNames();
   auto& txpLens = pfi.getRefLengths();
-
-  size_t numRef = txpNames.size();
-  hd.write("\tNT:{}\n", numRef);
+  auto numRef = txpNames.size();
+  bw << numRef; // refCount (size_t)
   for (size_t i = 0; i < numRef; ++i) {
-    hd.write("{}\t{:d}\n", txpNames[i], txpLens[i]);
+    bw << txpNames[i] << txpLens[i]; //txpName (string) , txpLength (size_t)
   }
-
-  std::string headerStr(hd.str());
-  out->info(headerStr);
+  out->info("{}",bw);
 }
 
 template <typename IndexT>
@@ -181,7 +172,8 @@ template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<util::JointMems>& validJointHits,
-                                   fmt::MemoryWriter& sstream) {
+                                   BinWriter& bstream) {
+
   auto& readName = r.first.name;
   // If the read name contains multiple space-separated parts,
   // print only the first
@@ -190,14 +182,15 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     readName[splitPos] = '\0';
   } else {
     splitPos = readName.length();
-  }
+  } 
   
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
   }
 
-  sstream << readName.c_str() << "\t" << validJointHits.size() << "\t" << r.first.seq.length() << "\t" << r.second.seq.length() << "\n";
-
+  bstream << readName << static_cast<uint32_t>(validJointHits.size())
+            << static_cast<uint8_t>(r.first.seq.length()) 
+            << static_cast<uint8_t>(r.second.seq.length());
   for (auto& qa : validJointHits) {
     /* auto& refName = formatter.index->refName(qa.tid);
     uint32_t refLength = formatter.index->refLength(qa.tid);
@@ -212,17 +205,19 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     if (qa.isRightAvailable()) {
       rightNumOfIntervals = clustRight->mems.size();
     }
-    sstream << qa.tid /* << '\t' << refName << '\t' << refLength */ << '\t' 
-            << leftNumOfIntervals << '\t' << rightNumOfIntervals;
+    bstream << static_cast<uint32_t>(qa.tid)
+            << static_cast<uint8_t>(leftNumOfIntervals) 
+            << static_cast<uint8_t>(rightNumOfIntervals);
     if (qa.isLeftAvailable())
       for (auto& mem: clustLeft->mems) {
-        sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+        bstream << static_cast<uint8_t>(mem.memInfo->rpos) 
+                << static_cast<uint8_t>(mem.memInfo->memlen);
       }
     if (qa.isRightAvailable())
       for (auto& mem: clustRight->mems) {
-        sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+        bstream << static_cast<uint8_t>(mem.memInfo->rpos) 
+                << static_cast<uint8_t>(mem.memInfo->memlen);
       }
-    sstream << "\n";
   }
   return 0;
 }
@@ -231,7 +226,8 @@ template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
-                                   fmt::MemoryWriter& sstream) {
+                                   BinWriter& binStream) {
+  
   auto& readName = r.name;
   // If the read name contains multiple space-separated parts,
   // print only the first
@@ -246,54 +242,17 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     readName[splitPos - 2] = '\0';
   }
 
-  //uint32_t readLength{static_cast<uint32_t>(r.seq.length())};
-  //uint32_t effectiveLen{static_cast<uint32_t>(r.seq.length())};
 
-/*   // KMER SIZE HARD CODED
-  size_t rIdx, kSize{31}, left_boundary{kSize-1}, right_boundary{effectiveLen-kSize-1};
-  // Middle Region
-  for (rIdx=left_boundary+1; rIdx<right_boundary; rIdx++){
-    auto base = r.seq[rIdx];
-    if (base == 'n' or base == 'N'){
-      effectiveLen -= 1;
-    }
-  } 
-  // effective read length for each hit
-  std::vector<size_t> effReadLens(validHits.size(), effectiveLen);
-
-  // get max min position with each hit
-  for (size_t memIdx=0; memIdx<jointHits.size(); memIdx++) {
-    size_t minIdx{readLength};
-    int32_t maxIdx{-1};
-    for (auto& mem: mems[memIdx]){
-      auto startPos = mem.memInfo->rpos;
-      auto endPos = startPos + mem.memInfo->memlen-1;
-      if (startPos < minIdx){
-        minIdx = startPos;
-      } 
-      if (endPos > maxIdx){
-        maxIdx = endPos;
-      } 
-    } 
-    if (minIdx<kSize){
-      effReadLens[memIdx] -= minIdx;
-    } 
-    if (maxIdx>readLength-kSize+1){
-      effReadLens[memIdx] -= readLength-maxIdx;
-    } 
-  }  */
-  sstream << readName.c_str() << "\t" << validHits.size() << "\t" << r.seq.length() << "\n";
-
+  binStream << readName 
+            << static_cast<uint32_t>(validHits.size()) 
+            << static_cast<uint8_t>(r.seq.length());
   
   for (auto& qa : validHits) {
-    // auto& refName = formatter.index->refName(qa.first);
-    // uint32_t refLength = formatter.index->refLength(qa.first);
     auto& clust = qa.second;
-    sstream << qa.first /* << '\t' << refName << '\t' << refLength  */<< '\t' << clust->mems.size();
+    binStream << static_cast<uint32_t>(qa.first) << static_cast<uint8_t>(clust->mems.size());
     for (auto& mem: clust->mems){
-      sstream << "\t" << mem.memInfo->rpos << "\t" << mem.memInfo->memlen;
+      binStream << static_cast<uint8_t>(mem.memInfo->rpos) << static_cast<uint8_t>(mem.memInfo->memlen);
     }
-    sstream << "\n";
   }   
   return 0;
 

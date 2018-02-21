@@ -5,9 +5,10 @@
 #include <cmath> // std::abs
 #include <memory>
 #include <unordered_set>
-#include "spdlog/spdlog.h"
-#include "clipp.h"
+
 #include "cedar.hpp"
+
+#include "clipp.h"
 #include "EquivalenceClassBuilder.hpp"
 #include "CLI/Timer.hpp"
 #include "PufferFS.hpp"
@@ -15,8 +16,6 @@
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
 
-#define LEFT true
-#define RIGHT false
 #define SCALE_FACTOR 1000000
 
 struct CedarOpts {
@@ -81,103 +80,40 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
     } 
 }
 
-bool Cedar::readHeader(std::ifstream& mfile) {
-    std::string tmp, readType, refInfo;
-    mfile >> tmp >> readType >> refInfo;
-    if (tmp != "#")
-        return false;
-    if (readType == "LT:S") 
-        isPaired = false;
-    else if (readType == "LT:P")
-        isPaired = true;
-    else
-        return false;
-
-    if (refInfo.size() < 3 or refInfo.substr(0, 3) != "NT:")
-        return false;
-    
-    size_t refCount = stoull(refInfo.substr(3));
-    logger->info("Total # of References: {}", refCount);
-    refLengths.reserve(refCount);
-    refNames.reserve(refCount);
-    size_t refLen;
-    std::string refName;
-    for (size_t i = 0; i < refCount; i++) {
-        mfile >> refName >> refLen;
-        refNames.push_back(refName);
-        refLengths.push_back(refLen);
-    }
-    return true;
-}
-
 void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     int32_t rangeFactorization{4};
-    std::string rid, tname, tmp;// read id, taxa name, temp
-    uint64_t lcnt, rcnt, tid, puff_tid, ibeg, ilen;
+    uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid;
     logger->info("Cedar: Load Mapping File ..");
     logger->info("Mapping Output File: {}", mapperOutput_filename);
-    std::ifstream mfile(mapperOutput_filename);
-    uint64_t rlen, mcnt; // taxa id, read mapping count, # of interals, interval start, interval length
-    uint64_t totalReadCnt = 0, totalUnmappedReads = 0, seqNotFound = 0;
-    if (!readHeader(mfile)) {
-        logger->error("Invalid header for mapping output file.");
-        std::exit(1);
-    }
+    mappings.load(mapperOutput_filename, logger);
     logger->info("is dataset paired end? {}", isPaired);
-    while (mfile >> rid >> mcnt) { 
+    while (mappings.hasNext()) {
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
             logger->info("Processed {} reads",totalReadCnt);
         }
+        auto& readInfo = mappings.nextRead();
         activeTaxa.clear();
         double readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
-        readPerStrainProbInst.reserve(mcnt);
+        readPerStrainProbInst.reserve(readInfo.cnt);
 
-        if (mcnt != 0) {
-            if (isPaired) {
-                uint64_t rllen, rrlen;
-                mfile >> rllen >> rrlen;
-                rlen = rllen + rrlen;
-            } else {
-                mfile >> rlen;
-            }
-
+        if (readInfo.cnt != 0) {
+            
             std::set<uint64_t> seen;
-            for (size_t mappingCntr = 0; mappingCntr < mcnt; mappingCntr++) {
-                mfile >> puff_tid; // txp_id, txp_name, txp_len
+            for (auto& mapping : readInfo.mappings) {
                 // first condition: Ignore those references that we don't have a
                 // taxaId for secon condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
-                if (flatAbund or 
-                    (refId2taxId.find(refNames[puff_tid]) != refId2taxId.end() and
-                    activeTaxa.find(puff_tid) == activeTaxa.end())) {
+                if (activeTaxa.find(mapping.getId()) == activeTaxa.end() and
+                    (flatAbund or 
+                    refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
 
-                tid = flatAbund ? puff_tid : refId2taxId[refNames[puff_tid]];
-                seqToTaxMap[puff_tid] = tid;
-                activeTaxa.insert(puff_tid);
-
-                // fetch the taxon from the map
-                TaxaNode taxaPtr;
-                mfile >> lcnt;
-                if (isPaired)
-                    mfile >> rcnt;
-                for (size_t i = 0; i < lcnt; ++i) {
-                    mfile >> ibeg >> ilen;
-                    taxaPtr.addInterval(ibeg, ilen, LEFT);
-                }
-                if (isPaired)
-                    for (size_t i = 0; i < rcnt; ++i) {
-                    mfile >> ibeg >> ilen;
-                    taxaPtr.addInterval(ibeg, ilen, RIGHT);
-                    }
-                taxaPtr.cleanIntervals(LEFT);
-                taxaPtr.cleanIntervals(RIGHT);
-                taxaPtr.updateScore();
-                readPerStrainProbInst.emplace_back(puff_tid, static_cast<double>( taxaPtr.getScore()) / static_cast<double>(refLengths[puff_tid]) /* / static_cast<double>(tlen) */);
-                readMappingsScoreSum += readPerStrainProbInst.back().second;
-                } else { // otherwise we have to read till the end of the line and // throw it away
-                std::getline(mfile, tmp);
+                    tid = flatAbund ? mapping.getId() : refId2taxId[mappings.refName(mapping.getId())];
+                    seqToTaxMap[mapping.getId()] = tid;
+                    activeTaxa.insert(mapping.getId());
+                    readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
+                    readMappingsScoreSum += readPerStrainProbInst.back().second;
                 }
             } 
             if (activeTaxa.size() == 0) {
@@ -225,9 +161,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             }
         } else {
             totalUnmappedReads++;
-            std::getline(mfile, tmp);
         }
-    }  
+    } 
 }
 
 bool Cedar::basicEM(size_t maxIter, double eps) {
@@ -350,17 +285,19 @@ void Cedar::serializeFlat(std::string& output_filename) {
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     for (auto& kv : strain) {
-        ofile << refNames[kv.first] << "\t" 
+        ofile << mappings.refName(kv.first) << "\t" 
               << "flat" 
               << "\t" << kv.second << "\n";
     }
     ofile.close();
 }
+
+
 /**
  * "How to run" example:
  * make Pufferfish!
  * In the Pufferfish build directory run the following command:
- * /usr/bin/time src/krakmap 
+ * /usr/bin/time src/cedar 
  * -t /mnt/scratch2/avi/meta-map/kraken/KrakenDB/taxonomy/nodes.dmp  
  * -s /mnt/scratch2/avi/meta-map/kraken/KrakenDB/seqid2taxid.map 
  * -m /mnt/scratch2/avi/meta-map/kraken/puff/dmps/HC1.dmp 
@@ -398,7 +335,7 @@ int main(int argc, char* argv[]) {
               option("--help", "-h").set(showHelp, true) % "show help",
               option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version")
               );
-
+   
   //Multithreaded console logger(with color support)
   auto console = spdlog::stderr_color_mt("console");
 

@@ -8,6 +8,9 @@
 
 #define NO_PARENT -1
 
+enum class ReadEnd : uint8_t {
+    LEFT, RIGHT
+};
 // inclusive for begin 
 // exclusive for end
 struct Interval {
@@ -37,6 +40,7 @@ class TaxaNode {
             score = 0; 
             notIncorporatedChildrenCounter = 0;
         }
+        TaxaNode(uint64_t inId) : id(inId) {}
         TaxaNode(uint64_t inId, uint64_t inPid, Rank inRank) : 
             id(inId), parentId(inPid), rank(inRank),
             score(0), notIncorporatedChildrenCounter(0) 
@@ -52,15 +56,15 @@ class TaxaNode {
         bool isRipe() { 
             return !notIncorporatedChildrenCounter;
         } // ripe if zero
-        void addInterval(uint64_t begin, uint64_t len, bool isLeft);
-        void updateIntervals(TaxaNode* child, bool isLeft);
+        void addInterval(uint64_t begin, uint64_t len, ReadEnd readEnd);
+        void updateIntervals(TaxaNode* child, ReadEnd readEnd);
         void updateScore();
         /**
          * Sorts intervals
          * Merge intervals if possible
          * Calculates score
          **/
-        void cleanIntervals(bool isLeft);
+        void cleanIntervals(ReadEnd readEnd);
         bool addChild(TaxaNode* child);
         void setOneMoreChildAsProcessed() {
             notIncorporatedChildrenCounter--;
@@ -70,7 +74,7 @@ class TaxaNode {
         Rank getRank() {return rank;}
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
-        std::vector<Interval>& getIntervals(bool left) {return left?lintervals:rintervals;}
+        std::vector<Interval>& getIntervals(ReadEnd readEnd) {return readEnd == ReadEnd::LEFT?lintervals:rintervals;}
         void reset();
         static Rank str2rank(std::string rankstr) {
             if (rankstr == "no rank") return Rank::STRAIN;

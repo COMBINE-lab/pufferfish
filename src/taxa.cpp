@@ -4,8 +4,8 @@
 
 #include "taxa.h"
 
-void TaxaNode::addInterval(uint64_t begin, uint64_t len, bool isLeft) {
-    if (isLeft)
+void TaxaNode::addInterval(uint64_t begin, uint64_t len, ReadEnd readEnd) {
+    if (readEnd == ReadEnd::LEFT)
         lintervals.emplace_back(begin, begin+len);
     else
         rintervals.emplace_back(begin, begin+len);
@@ -21,14 +21,14 @@ void TaxaNode::updateScore() {
     }
     //std::cout << " score: " << score << "\n";
 }
-void TaxaNode::updateIntervals(TaxaNode* child, bool isLeft) {
+void TaxaNode::updateIntervals(TaxaNode* child, ReadEnd readEnd) {
 
     std::vector<Interval>* intervals;
     
     // merge two sorted interval lists into parent
     // update parent score
-    auto& childIntervals = child->getIntervals(isLeft);
-    if (isLeft)
+    auto& childIntervals = child->getIntervals(readEnd);
+    if (readEnd == ReadEnd::LEFT)
         intervals = &lintervals;
     else
         intervals = &rintervals;
@@ -85,10 +85,10 @@ void TaxaNode::updateIntervals(TaxaNode* child, bool isLeft) {
  * Merge intervals if possible
  * Calculates score
 **/
-void TaxaNode::cleanIntervals(bool isLeft) {
+void TaxaNode::cleanIntervals(ReadEnd readEnd) {
     // if we were writing intervals wrt read position we wouldn't need this part
     std::vector<Interval>* intervals;
-    if (isLeft)
+    if (readEnd == ReadEnd::LEFT)
         intervals = &lintervals;
     else
         intervals = &rintervals;

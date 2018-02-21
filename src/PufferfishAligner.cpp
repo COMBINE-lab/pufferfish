@@ -566,6 +566,7 @@ void processReadsPair(paired_parser* parser,
 
   auto logger = spdlog::get("stderrLog") ;
   fmt::MemoryWriter sstream ;
+  BinWriter bstream;
   //size_t batchSize{2500} ;
   size_t readLen{0};
   size_t totLen{0};
@@ -785,7 +786,7 @@ void processReadsPair(paired_parser* parser,
       hctr.totAlignment += jointAlignments.size();
 
       if(mopts->krakOut){
-        writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, sstream);
+        writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
       } else if(jointAlignments.size() > 0 and !mopts->noOutput){
         writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
       } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
@@ -814,13 +815,19 @@ void processReadsPair(paired_parser* parser,
 
     // dump output
     if (!mopts->noOutput) {
-      std::string outStr(sstream.str());
+      
       // Get rid of last newline
-      if (!outStr.empty()) {
-        outStr.pop_back();
-        outQueue->info(std::move(outStr));
+      if (mopts->krakOut)
+          outQueue->info("{}",bstream);
+      else {
+        std::string outStr(sstream.str());
+        if (!outStr.empty()) {
+          outStr.pop_back();
+          outQueue->info(std::move(outStr));
+        }
       }
       sstream.clear();
+      bstream.clear();
     }
 
   } // processed all reads
@@ -845,6 +852,7 @@ void processReadsSingle(single_parser* parser,
 
   auto logger = spdlog::get("stderrLog") ;
   fmt::MemoryWriter sstream ;
+  BinWriter bstream;
   //size_t batchSize{2500} ;
   size_t readLen{0};
   size_t totLen{0};
@@ -1009,7 +1017,7 @@ void processReadsSingle(single_parser* parser,
 
       // write puffkrak format output
       if(mopts->krakOut){
-        writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, sstream);
+        writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream);
       } else if (validHits.size() > 0 and !mopts->noOutput) {
         // write sam output for mapped reads
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
@@ -1041,13 +1049,18 @@ void processReadsSingle(single_parser* parser,
 
     // dump output
     if (!mopts->noOutput) {
-      std::string outStr(sstream.str());
-      // Get rid of last newline
-      if (!outStr.empty()) {
-        outStr.pop_back();
-        outQueue->info(std::move(outStr));
+      if (mopts->krakOut) {
+        outQueue->info("{}", bstream);
+        bstream.clear();
+      } else {
+        std::string outStr(sstream.str());
+        // Get rid of last newline
+        if (!outStr.empty()) {
+          outStr.pop_back();
+          outQueue->info(std::move(outStr));
+        }
+        sstream.clear();
       }
-      sstream.clear();
     }
 
   } // processed all reads
@@ -1148,7 +1161,7 @@ bool alignReads(
     // out stream to the buffer
     // it can be std::cout or a file
     if (mopts->compressedOutput) {
-	outStream.reset(new zstr::ostream(outBuf));
+	    outStream.reset(new zstr::ostream(outBuf));
     } else {
     	outStream.reset(new std::ostream(outBuf));
     }
@@ -1156,10 +1169,15 @@ bool alignReads(
     size_t queueSize{268435456};
     spdlog::set_async_mode(queueSize);
 
+  if (mopts->krakOut) {
+    auto outputSink = std::make_shared<ostream_bin_sink_mt>(*outStream);
+    outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
+    outLog->set_pattern("");
+  } else {
     auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(*outStream) ;
     outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
     outLog->set_pattern("%v");
-
+  }
     // write the SAM Header
     // If nothing gets printed by this time we are in trouble
     if (mopts->krakOut) {
