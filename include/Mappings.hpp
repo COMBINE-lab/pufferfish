@@ -84,9 +84,9 @@ class Mappings {
             return true;
         }
 
-        std::string refName(size_t id) {return refNames[id];}
+        const std::string& refName(size_t id) {return refNames[id];}
         size_t refLength(size_t id) {return refLengths[id];}
-        
+        size_t numRefs() const { return refNames.size(); }
     private:
         bool readHeader() {
             size_t refCount;

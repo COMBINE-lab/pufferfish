@@ -104,15 +104,14 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 // first condition: Ignore those references that we don't have a
                 // taxaId for secon condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
-              /*
               if(flatAbund or 
                  (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end() and
                   activeTaxa.find(mapping.getId()) == activeTaxa.end())){
-              */
+              /*
                 if (activeTaxa.find(mapping.getId()) == activeTaxa.end() and
                     (flatAbund or 
                     refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
-
+              */
                     tid = flatAbund ? mapping.getId() : refId2taxId[mappings.refName(mapping.getId())];
                     seqToTaxMap[mapping.getId()] = tid;
                     activeTaxa.insert(mapping.getId());
@@ -124,18 +123,14 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 seqNotFound++;
             } else {
                 
+                bool isUnique = (readPerStrainProbInst.size() == 1);
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
                     it->second = it->second/readMappingsScoreSum; // normalize the probabilities for each read
                     // strain[it->first].first : read count for strainCnt
                     // strain[it->first].second : strain length
-                    if (strain.find(it->first) == strain.end()) {
-                        strain[it->first] = 1.0/static_cast<double>(readPerStrainProbInst.size());
-                    }
-                    else {
-                        strain[it->first] += 1.0/static_cast<double>(readPerStrainProbInst.size());
-                    }
+                    strain[it->first] += 1.0/static_cast<double>(readPerStrainProbInst.size());
                 }
                 // SAVE MEMORY, don't push this
                 //readPerStrainProb.push_back(readPerStrainProbInst);
@@ -180,7 +175,7 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
     std::vector<double> newStrainCnt(maxSeqID+1,0.0); 
     std::vector<double> strainCnt(maxSeqID+1);
     for (auto& kv : strain) { 
-        strainCnt[kv.first] = kv.second;
+      strainCnt[kv.first] = kv.second;
     }
 
     logger->info("maxSeqID : {}", maxSeqID);
@@ -285,17 +280,22 @@ void Cedar::serialize(std::string& output_filename) {
 }
 
 void Cedar::serializeFlat(std::string& output_filename) {
-    logger->info("Write results in the file: {}", output_filename);
-    std::ofstream ofile(output_filename);
-    ofile << "taxaId\ttaxaRank\tcount\n";
-    for (auto& kv : strain) {
-        ofile << mappings.refName(kv.first) << "\t" 
-              << "flat" 
-              << "\t" << kv.second << "\n";
+  logger->info("Write results in the file: {}", output_filename);
+  std::ofstream ofile(output_filename);
+  ofile << "taxaId\ttaxaRank\tcount\n";
+  for (uint32_t i = 0; i < mappings.numRefs(); ++i) { 
+    //for (auto& kv : strain) {
+    auto it = strain.find(i);
+    double abund = 0.0;
+    if (it != strain.end()){
+      abund = it->second;
     }
-    ofile.close();
+    ofile << mappings.refName(i) << "\t" 
+          << "flat" 
+          << "\t" << abund << "\n";
+  }
+  ofile.close();
 }
-
 
 /**
  * "How to run" example:
