@@ -88,6 +88,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     mappings.load(mapperOutput_filename, logger);
     logger->info("is dataset paired end? {}", isPaired);
     ReadInfo readInfo;
+    TaxaNode* prevTaxa{nullptr};
+    size_t notReportedByKallisto{0};
     while(mappings.nextRead(readInfo)){
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
@@ -97,9 +99,10 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
         double readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(readInfo.cnt);
-
+        bool isAcceptedByKallisto = true;
         if (readInfo.cnt != 0) {
             std::set<uint64_t> seen;
+            prevTaxa = nullptr;
             for (auto& mapping : readInfo.mappings) {
                 // first condition: Ignore those references that we don't have a
                 // taxaId for secon condition: Ignore repeated exactly identical
@@ -107,6 +110,12 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
               if(flatAbund or 
                  (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end() and
                   activeTaxa.find(mapping.getId()) == activeTaxa.end())){
+                  if (prevTaxa != nullptr and 
+                      activeTaxa.find(mapping.getId()) == activeTaxa.end() and 
+                      !prevTaxa->compareIntervals(mapping)) {
+                      isAcceptedByKallisto = false;
+                  }
+                  prevTaxa = &mapping;
               /*
                 if (activeTaxa.find(mapping.getId()) == activeTaxa.end() and
                     (flatAbund or 
@@ -122,7 +131,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
             } else {
-                
+                if (!isAcceptedByKallisto) {notReportedByKallisto++;}
                 bool isUnique = (readPerStrainProbInst.size() == 1);
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
@@ -161,7 +170,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
         } else {
             totalUnmappedReads++;
         }
-    } 
+    }
+    logger->info("Total # of reads unique to pufferfish (Kallisto won't report): {}", notReportedByKallisto); 
 }
 
 bool Cedar::basicEM(size_t maxIter, double eps) {

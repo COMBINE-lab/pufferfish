@@ -18,6 +18,10 @@ struct Interval {
     uint32_t end;
     Interval() {}
     Interval(uint32_t inBegin, uint32_t inEnd) : begin(inBegin), end(inEnd) {}
+
+    bool operator==(const Interval& rhs) const {
+        return begin == rhs.begin and end == rhs.end;
+    }
 };
 
 enum class Rank : uint8_t {
@@ -75,6 +79,7 @@ class TaxaNode {
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
         std::vector<Interval>& getIntervals(ReadEnd readEnd) {return readEnd == ReadEnd::LEFT?lintervals:rintervals;}
+        bool compareIntervals(TaxaNode& other);
         void reset();
         static Rank str2rank(std::string rankstr) {
             if (rankstr == "no rank") return Rank::STRAIN;
@@ -197,6 +202,7 @@ class TaxaNode {
         std::set<uint64_t> activeChildren; //it's a set because, we might add the same child multiple times
         std::vector<Interval> lintervals;
         std::vector<Interval> rintervals;
+        bool isCleaned = false;
 };
 
 struct TaxaInfo {

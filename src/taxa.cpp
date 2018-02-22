@@ -118,6 +118,8 @@ void TaxaNode::cleanIntervals(ReadEnd readEnd) {
         // there is nothing to merge with the current it, so increase it
         it++;
     }
+
+    isCleaned = true;
 }
 
 bool TaxaNode::addChild(TaxaNode* child) { 
@@ -136,5 +138,18 @@ void TaxaNode::reset() {
      activeChildren.clear();
      notIncorporatedChildrenCounter = 0;
      score = 0;
+}
+
+bool TaxaNode::compareIntervals(TaxaNode& other) {
+    if (!isCleaned) {
+        cleanIntervals(ReadEnd::LEFT);
+        cleanIntervals(ReadEnd::RIGHT);
+    }
+    if (!other.isCleaned) {
+        other.cleanIntervals(ReadEnd::LEFT);
+        other.cleanIntervals(ReadEnd::RIGHT);
+    }
+
+    return lintervals == other.lintervals and rintervals == other.rintervals;
 }
 

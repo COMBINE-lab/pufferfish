@@ -64,6 +64,11 @@ class BinWriter
             return *this;
         }
         BinWriter& operator<<(const std::string &inval) {
+            if (inval.size() >= 0x100) {
+                std::cerr << "ERROR!! DOESN'T SUPPORT STRING LENGTH LONGER THAN 255. String length: " 
+                          << inval.size() << "\n";
+                std::exit(1);
+            }
             char tmp = static_cast<uint8_t>(inval.size());
             _bin_data.push_back(tmp);
             //(*this) << inval.size();
