@@ -93,10 +93,26 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
     TaxaNode* prevTaxa{nullptr};
     size_t conflicting{0};
     size_t discordantMappings{0};
-    while(mappings.nextRead(readInfo)){
+
+    constexpr const bool getReadName = true;
+    bool checkTruthExists = true;
+    size_t numCorrectHits{0};
+    size_t numMapped{0};
+    bool wasMapped = false;
+    size_t gid{0};
+    bool foundTruth = false;
+
+    while(mappings.nextRead(readInfo, getReadName)){
+      if (checkTruthExists) {
+        foundTruth = false;
+        wasMapped = false;
+        auto start = readInfo.rid.find_first_of('|');
+        auto finish = readInfo.rid.find_first_of('|', start+1);
+        gid = std::stoul(readInfo.rid.substr(start+1, finish-(start+1)));
+      }
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
-            logger->info("Processed {} reads",totalReadCnt);
+          logger->info("Processed {} reads, where {} contained the truth = {:.3f}% of mapped reads",totalReadCnt, numCorrectHits, 100.0*static_cast<double>(numCorrectHits)/numMapped);
         }
         activeTaxa.clear();
         double readMappingsScoreSum = 0;
@@ -104,6 +120,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
         readPerStrainProbInst.reserve(readInfo.cnt);
         bool isConflicting = true;
         if (readInfo.cnt != 0) {
+          if (!wasMapped) { wasMapped = true; ++numMapped; }
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
             for (auto& mapping : readInfo.mappings) {
@@ -113,7 +130,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
               if(flatAbund or 
                  (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end() and
                   activeTaxa.find(mapping.getId()) == activeTaxa.end())){
-                  if (prevTaxa != nullptr and 
+
+                if (prevTaxa != nullptr and
                       activeTaxa.find(mapping.getId()) == activeTaxa.end() and 
                       !prevTaxa->compareIntervals(mapping)) {
                       isConflicting = false;
@@ -128,11 +146,21 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
                         discordantMappings++;
                         continue;
                     }
+
                     tid = flatAbund ? mapping.getId() : refId2taxId[mappings.refName(mapping.getId())];
                     seqToTaxMap[mapping.getId()] = tid;
                     activeTaxa.insert(mapping.getId());
                     readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
+                    
+                    if (!foundTruth and checkTruthExists) {
+                      const auto& refName = mappings.refName(tid);
+                      auto start = refName.find_first_of('|');
+                      auto finish = refName.find_first_of('|', start+1);
+                      auto refId = std::stoul(refName.substr(start+1, finish-(start+1)));
+                      if (refId == gid) { ++numCorrectHits; foundTruth = true; }
+                    }
+
                 }
             } 
             if (activeTaxa.size() == 0) {

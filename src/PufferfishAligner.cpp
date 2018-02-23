@@ -76,6 +76,28 @@ using MateStatus = util::MateStatus ;
 
 using SpinLockT = std::mutex ;
 
+void printMemInfo(size_t tid, const std::vector<util::MemCluster>::iterator lclust, const std::vector<util::MemCluster>::iterator rclust) {
+  std::cout <<"\ntid:"<<tid<<"\n";
+  std::cout <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
+  for (size_t i = 0; i < lclust->mems.size(); i++){
+    std::cout << "--- t" << lclust->mems[i].tpos << " r"
+              << lclust->mems[i].memInfo->rpos << " cid:"
+              << lclust->mems[i].memInfo->cid << " cpos: "
+              << lclust->mems[i].memInfo->cpos << " len:"
+              << lclust->mems[i].memInfo->memlen << " fw:"
+              << lclust->mems[i].memInfo->cIsFw << "\n";
+  }
+  std::cout << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
+  for (size_t i = 0; i < rclust->mems.size(); i++){
+    std::cout << "--- t" << rclust->mems[i].tpos << " r"
+              << rclust->mems[i].memInfo->rpos << " cid:"
+              << rclust->mems[i].memInfo->cid << " cpos: "
+              << rclust->mems[i].memInfo->cpos << " len:"
+              << rclust->mems[i].memInfo->memlen << " fw:"
+              << rclust->mems[i].memInfo->cIsFw << "\n";
+  }
+}
+
 
 void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster>>& leftMemClusters,
                         spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& rightMemClusters,
@@ -90,7 +112,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   //uint32_t perfectCoverage{2*readLen};
   uint32_t maxCoverage{0};
   short round{0};
-  //std::cout << "txp count:" << leftMemClusters.size() << "\n";
+
   while (round == 0 || (round == 1 && !jointMemsList.size() && !noDiscordant)) {
     for (auto& leftClustItr : leftMemClusters) {
       // reference id
@@ -117,7 +139,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
             fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
           }
 
-          // FILTERING fragments with size smaller than maxFragmentLength : default 1,000 
+          // FILTERING fragments with size smaller than maxFragmentLength 
           // FILTER just in case of priority 0 (round 0)
           if (fragmentLen < maxFragmentLength || round > 0) {
             // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
@@ -126,25 +148,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
             if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
               jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
               if (verbose) {
-                std::cout <<"\ntid:"<<tid<<"\n";
-                std::cout <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-                for (size_t i = 0; i < lclust->mems.size(); i++){
-                  std::cout << "--- t" << lclust->mems[i].tpos << " r"
-                            << lclust->mems[i].memInfo->rpos << " cid:"
-                            << lclust->mems[i].memInfo->cid << " cpos: "
-                            << lclust->mems[i].memInfo->cpos << " len:"
-                            << lclust->mems[i].memInfo->memlen << " fw:"
-                            << lclust->mems[i].memInfo->cIsFw << "\n";
-                }
-                std::cout << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
-                for (size_t i = 0; i < rclust->mems.size(); i++){
-                  std::cout << "--- t" << rclust->mems[i].tpos << " r"
-                            << rclust->mems[i].memInfo->rpos << " cid:"
-                            << rclust->mems[i].memInfo->cid << " cpos: "
-                            << rclust->mems[i].memInfo->cpos << " len:"
-                            << rclust->mems[i].memInfo->memlen << " fw:"
-                            << rclust->mems[i].memInfo->cIsFw << "\n";
-                }
+                printMemInfo(tid, lclust, rclust);
               }
               uint32_t currCoverage =  jointMemsList.back().coverage();
               if (maxCoverage < currCoverage) {
@@ -159,7 +163,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
     }
     round++;
   }
-  // If couldn't find any pair and allowed to add orphans
+  // If we couldn't find any pair and we are allowed to add orphans
   if (!jointMemsList.size() && !noOrphans) {
     //std::cout << "Orphans\n";
     auto orphanFiller = [&jointMemsList, &maxCoverage]
@@ -173,27 +177,28 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
         // left mem clusters
         auto& Clusts = clustItr.second;
         for (auto clust =  Clusts.begin(); clust != Clusts.end(); clust++) {
-          if (isLeft)
+          if (isLeft) {
             jointMemsList.emplace_back(tid, clust, fake.end(), 0, MateStatus::PAIRED_END_LEFT);
-          else
+          } else {
             jointMemsList.emplace_back(tid, fake.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
+          }
           uint32_t currCoverage =  jointMemsList.back().coverage();
           if (maxCoverage < currCoverage) {
             maxCoverage = currCoverage;
-          }    
+          }
         }
       }
     };
     orphanFiller(leftMemClusters, true);
     orphanFiller(rightMemClusters, false);
-  } 
+  }
   if (verbose) {
     std::cout << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
     std::cout << "\n" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
   }
   // FILTER 2
-  // filter read pairs that don't have enough base coverage (i.e. their coverage is less than half of the maximum coverage for this read)
-  //double coverageRatio = 0.5;
+  // filter read pairs that don't have enough base coverage
+  // (i.e. their coverage is less than coverage ratio times the max coverage for this read)
   // if we've found a perfect match, we will erase any match that is not perfect
   if (maxCoverage == perfectCoverage) {
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
@@ -202,8 +207,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                                         }),
                          jointMemsList.end());
   }
-  else {// ow, we will go with the heuristic that just keep those mappings that have at least half of the maximum coverage
-    //std::cout << "no!\n";
+  else {// ow, we will go with the heuristic that just keep those mappings that have at least
+        // the required fraction of the best coverage.
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&maxCoverage, coverageRatio](util::JointMems& pairedReadMems) -> bool {
                                        return pairedReadMems.coverage() < coverageRatio*maxCoverage ;
@@ -544,7 +549,9 @@ void traverseGraph(ReadPairT& rpair,
 }
 
 
-
+/**
+ * Main function for processing paired-end reads.
+ **/
 template <typename PufferfishIndexT>
 void processReadsPair(paired_parser* parser,
                      PufferfishIndexT& pfi,
@@ -558,10 +565,6 @@ void processReadsPair(paired_parser* parser,
   spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache ;
   RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
-  //std::cout << "\n In process reads pair\n" ;
-    //TODO create a memory layout to store
-    //strings then will allocate alignment to them
-    //acco/rdingly
   std::vector<std::string> refBlocks ;
 
   auto logger = spdlog::get("stderrLog") ;
@@ -586,14 +589,13 @@ void processReadsPair(paired_parser* parser,
   config.bandwidth = -1 ;
   config.flag = KSW_EZ_RIGHT ;
   aligner.config() = config ;
-  
+
   auto rg = parser->getReadGroup() ;
   while(parser->refill(rg)){
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       totLen = readLen + rpair.second.seq.length();
-      //std::cout << readLen << "\n";
-      bool verbose = false;// rpair.second.name == "read30055083/ENST00000302182;mate1:504-603;mate2:582-680";// "fake2";
+      bool verbose = false;
       if(verbose) std::cerr << rpair.first.name << "\n";
 
       ++hctr.numReads ;
