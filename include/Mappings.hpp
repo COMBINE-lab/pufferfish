@@ -136,7 +136,7 @@ class Mappings {
         std::vector<refLenType> refLengths;
         std::vector<std::string> refNames;
         std::shared_ptr<spdlog::logger> logger;
-        static constexpr const refLenType HighBitMask = 1 << (sizeof(refLenType)-1); 
+        static constexpr const refLenType HighBitMask = 1 << (sizeof(refLenType)*8-1); 
         static constexpr const refLenType LowBitsMask = HighBitMask -1;
   //ReadInfo readInfo;   
 };

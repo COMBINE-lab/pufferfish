@@ -79,6 +79,9 @@ class TaxaNode {
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
         std::vector<Interval>& getIntervals(ReadEnd readEnd) {return readEnd == ReadEnd::LEFT?lintervals:rintervals;}
+        bool isConcordant() {
+            return lintervals.size() && rintervals.size();
+        }
         bool compareIntervals(TaxaNode& other);
         void reset();
         static Rank str2rank(std::string rankstr) {

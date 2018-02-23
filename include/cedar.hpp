@@ -14,7 +14,7 @@ class Cedar {
               refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn,
               bool flatAbund,
               std::shared_ptr<spdlog::logger> loggerIn);
-        void loadMappingInfo(std::string mapperOutput_filename);
+        void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance);
         bool basicEM(size_t maxIter, double eps);
         void serialize(std::string& output_filename);
         void serializeFlat(std::string& output_filename);

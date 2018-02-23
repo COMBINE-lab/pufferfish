@@ -25,6 +25,7 @@ struct CedarOpts {
     std::string output_filename;
     std::string level = "species";
     bool flatAbund{false};
+    bool requireConcordance{false};
     double filterThreshold = 0;
     double eps = 0.001;
     size_t maxIter = 1000;
@@ -80,7 +81,8 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
     } 
 }
 
-void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
+void Cedar::loadMappingInfo(std::string mapperOutput_filename,
+                            bool requireConcordance) {
     int32_t rangeFactorization{4};
     uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid;
     logger->info("Cedar: Load Mapping File ..");
@@ -90,6 +92,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
     ReadInfo readInfo;
     TaxaNode* prevTaxa{nullptr};
     size_t notReportedByKallisto{0};
+    size_t discordantMappings{0};
     while(mappings.nextRead(readInfo)){
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
@@ -121,6 +124,10 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                     (flatAbund or 
                     refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
               */
+                    if (requireConcordance && isPaired && (!mapping.isConcordant() || readInfo.isLeftFw == readInfo.isRightFw ) ) {
+                        discordantMappings++;
+                        continue;
+                    }
                     tid = flatAbund ? mapping.getId() : refId2taxId[mappings.refName(mapping.getId())];
                     seqToTaxMap[mapping.getId()] = tid;
                     activeTaxa.insert(mapping.getId());
@@ -132,7 +139,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
                 seqNotFound++;
             } else {
                 if (!isAcceptedByKallisto) {notReportedByKallisto++;}
-                bool isUnique = (readPerStrainProbInst.size() == 1);
+                // bool isUnique = (readPerStrainProbInst.size() == 1);
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
@@ -172,6 +179,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename) {
         }
     }
     logger->info("Total # of reads unique to pufferfish (Kallisto won't report): {}", notReportedByKallisto); 
+    if (requireConcordance)
+        logger->info("Discarded {} discordant mappings.", discordantMappings);
 }
 
 bool Cedar::basicEM(size_t maxIter, double eps) {
@@ -346,6 +355,7 @@ int main(int argc, char* argv[]) {
               option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
               option("--level", "-l") & value("level", kopts.level).call(checkLevel) % "choose between (species, genus, family, order, class, phylum). (default : species)",
               option("--filter", "-f") & value("filter", kopts.filterThreshold) % "choose the threshold [0,1] below which to filter out mappings (default : no filter)",
+              option("--noDiscordant").set(kopts.requireConcordance, true) % "ignore orphans for paired end reads",
               option("--help", "-h").set(showHelp, true) % "show help",
               option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version")
               );
@@ -369,7 +379,7 @@ int main(int argc, char* argv[]) {
 
   if(res) {
     Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
-    cedar.loadMappingInfo(kopts.mapperOutput_filename);
+    cedar.loadMappingInfo(kopts.mapperOutput_filename, kopts.requireConcordance);
     cedar.basicEM(kopts.maxIter, kopts.eps);
     if (!kopts.flatAbund) {
         cedar.serialize(kopts.output_filename);
