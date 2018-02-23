@@ -117,7 +117,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
             fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
           }
 
-          // FILTERING fragments with size smaller than maxFragmentLength : default 100,000 
+          // FILTERING fragments with size smaller than maxFragmentLength : default 1,000 
           // FILTER just in case of priority 0 (round 0)
           if (fragmentLen < maxFragmentLength || round > 0) {
             // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage

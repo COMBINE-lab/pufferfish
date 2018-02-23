@@ -91,7 +91,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
     logger->info("is dataset paired end? {}", isPaired);
     ReadInfo readInfo;
     TaxaNode* prevTaxa{nullptr};
-    size_t notReportedByKallisto{0};
+    size_t conflicting{0};
     size_t discordantMappings{0};
     while(mappings.nextRead(readInfo)){
         totalReadCnt++;
@@ -102,7 +102,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
         double readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(readInfo.cnt);
-        bool isAcceptedByKallisto = true;
+        bool isConflicting = true;
         if (readInfo.cnt != 0) {
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
@@ -116,7 +116,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
                   if (prevTaxa != nullptr and 
                       activeTaxa.find(mapping.getId()) == activeTaxa.end() and 
                       !prevTaxa->compareIntervals(mapping)) {
-                      isAcceptedByKallisto = false;
+                      isConflicting = false;
                   }
                   prevTaxa = &mapping;
               /*
@@ -138,7 +138,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
             } else {
-                if (!isAcceptedByKallisto) {notReportedByKallisto++;}
+                if (!isConflicting) {conflicting++;}
                 // bool isUnique = (readPerStrainProbInst.size() == 1);
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
@@ -178,7 +178,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
             totalUnmappedReads++;
         }
     }
-    logger->info("Total # of reads unique to pufferfish (Kallisto won't report): {}", notReportedByKallisto); 
+    logger->info("Total # of conflicting reads reported: {}", conflicting); 
     if (requireConcordance)
         logger->info("Discarded {} discordant mappings.", discordantMappings);
 }
