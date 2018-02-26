@@ -49,7 +49,7 @@ Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
 So before running the whole pipeline of index building, make sure you have already installed TwoPaCo.
 
 ## Core Pipeline
-Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index setting the required arguments in `config.json` and running the command `bash index.sh` in pufferfish directory.
+Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index setting the required arguments in `config.json` and running the command `bash index.sh` in pufferfish directory. If you are willing to have your own `<config.json>` file you can pass the file as an argument to index bash script and run the command `bash index.sh <my_config.json>`.
 
 The commands in the `index.sh` file go through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferize -> pufferfish index*" and perform the following steps:
 1. **FixFasta**
