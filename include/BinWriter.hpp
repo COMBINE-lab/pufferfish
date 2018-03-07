@@ -15,6 +15,7 @@
 #include "spdlog/sinks/ansicolor_sink.h"
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
+#include "string_view.hpp"
 
 class BinWriter
 {
@@ -72,7 +73,23 @@ class BinWriter
             char tmp = static_cast<uint8_t>(inval.size());
             _bin_data.push_back(tmp);
             //(*this) << inval.size();
+            //std::cout << inval.size() << " " << inval.c_str()  << " " << inval << "\n";
             char* inCharPtr = const_cast<char*>(inval.c_str());
+            std::copy(inCharPtr, inCharPtr+inval.size(),
+                    std::back_inserter(_bin_data));
+            return *this;
+        }
+        BinWriter& operator<<(const stx::string_view &inval) {
+            if (inval.size() >= 0x100) {
+                std::cerr << "ERROR!! DOESN'T SUPPORT STRING LENGTH LONGER THAN 255. String length: " 
+                          << inval.size() << "\n";
+                std::exit(1);
+            }
+            char tmp = static_cast<uint8_t>(inval.size());
+            _bin_data.push_back(tmp);
+            //(*this) << inval.size();
+            //std::cout << inval.size() << " " << inval.data()  << " " << inval << "\n";
+            char* inCharPtr = const_cast<char*>(inval.data());
             std::copy(inCharPtr, inCharPtr+inval.size(),
                     std::back_inserter(_bin_data));
             return *this;

@@ -91,6 +91,7 @@ void GFAConverter::processContigSeq(
    * ATTENTION : The order we insert these 3 pieces into the vector matters. So
    *keep it the way it is
   **/
+		std::cout << contigId << " " << contigSeq << "\n";
   std::vector<std::string> seqParts;
   if (util::isRevcomp(contigSeq)) {
     for (size_t i = 0; i <= contigSeq.size() - k; i++) {

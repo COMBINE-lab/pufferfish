@@ -88,7 +88,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
     logger->info("Cedar: Load Mapping File ..");
     logger->info("Mapping Output File: {}", mapperOutput_filename);
     mappings.load(mapperOutput_filename, logger);
-    logger->info("is dataset paired end? {}", isPaired);
+    logger->info("is dataset paired end? {}", mappings.isMappingPaired());
     ReadInfo readInfo;
     TaxaNode* prevTaxa{nullptr};
     size_t conflicting{0};
@@ -99,16 +99,21 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
     size_t numCorrectHits{0};
     size_t numMapped{0};
     bool wasMapped = false;
-    size_t gid{0};
-    bool foundTruth = false;
-
+    //size_t gid{0};
+    //bool foundTruth = false;
+    std::ofstream notMappedReadsFile("notMappedReadsInfo0_01.txt");
     while(mappings.nextRead(readInfo, getReadName)){
       if (checkTruthExists) {
-        foundTruth = false;
+        //foundTruth = false;
         wasMapped = false;
-        auto start = readInfo.rid.find_first_of('|');
-        auto finish = readInfo.rid.find_first_of('|', start+1);
+        /*
+        size_t start = readInfo.rid.find_first_of('|');
+        size_t finish = readInfo.rid.find_first_of('|', start+1);
+        std::cout <<readInfo.rid<< "\t";
+                      std::cout << start+1 << " " << finish-(start+1) << "\n";
+                      //std::cout << std::stoul(readInfo.rid.substr(start+1, finish-(start+1))) << "\n";
         gid = std::stoul(readInfo.rid.substr(start+1, finish-(start+1)));
+        */
       }
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
@@ -125,7 +130,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
             prevTaxa = nullptr;
             for (auto& mapping : readInfo.mappings) {
                 // first condition: Ignore those references that we don't have a
-                // taxaId for secon condition: Ignore repeated exactly identical
+                // taxaId for 
+                // second condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
               if(flatAbund or 
                  (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end() and
@@ -142,7 +148,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
                     (flatAbund or 
                     refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
               */
-                    if (requireConcordance && isPaired && (!mapping.isConcordant() || readInfo.isLeftFw == readInfo.isRightFw ) ) {
+                    if (requireConcordance && mappings.isMappingPaired() && (!mapping.isConcordant() || readInfo.isLeftFw == readInfo.isRightFw ) ) {
                         discordantMappings++;
                         continue;
                     }
@@ -153,13 +159,16 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
                     readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                     
-                    if (!foundTruth and checkTruthExists) {
+                    notMappedReadsFile  << readInfo.rid << "\t" 
+                                        << mappings.refName(mapping.getId()) 
+                                        << "\t" << mapping.getScore() << "\n";
+                    /* if (!foundTruth and checkTruthExists) {
                       const auto& refName = mappings.refName(tid);
                       auto start = refName.find_first_of('|');
                       auto finish = refName.find_first_of('|', start+1);
                       auto refId = std::stoul(refName.substr(start+1, finish-(start+1)));
                       if (refId == gid) { ++numCorrectHits; foundTruth = true; }
-                    }
+                    } */
 
                 }
             } 
@@ -167,6 +176,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
                 seqNotFound++;
             } else {
                 if (!isConflicting) {conflicting++;}
+                //if (!foundTruth) { notMappedReadsFile << readInfo.rid << "\n";}
                 // bool isUnique = (readPerStrainProbInst.size() == 1);
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id
@@ -206,6 +216,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
             totalUnmappedReads++;
         }
     }
+    notMappedReadsFile.close();
     logger->info("Total # of conflicting reads reported: {}", conflicting); 
     if (requireConcordance)
         logger->info("Discarded {} discordant mappings.", discordantMappings);

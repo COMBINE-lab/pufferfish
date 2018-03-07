@@ -29,7 +29,6 @@ class Cedar {
         double filteringThreshold = 0;
         spp::sparse_hash_map<uint64_t, double> strain;
         uint64_t readCnt = 0;
-        bool isPaired = true;
         bool flatAbund = false;
         std::vector<std::vector<std::pair<uint64_t, double>>> readPerStrainProb;
         EquivalenceClassBuilder eqb;

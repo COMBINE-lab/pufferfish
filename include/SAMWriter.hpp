@@ -93,6 +93,9 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   auto& txpLens = pfi.getRefLengths();
   auto numRef = txpNames.size();
   bw << numRef; // refCount (size_t)
+  std::cout << "is paired: " << !mopts->singleEnd << "\n";
+  std::cout << "numRef: " << numRef << "\n";
+            
   for (size_t i = 0; i < numRef; ++i) {
     bw << txpNames[i] << txpLens[i]; //txpName (string) , txpLength (size_t)
   }
@@ -173,6 +176,7 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
   }
 }
 
+// dump paired end read
 template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
@@ -180,20 +184,25 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    BinWriter& bstream) {
 
   auto& readName = r.first.name;
+  //std::cout << readName << " || ";
   // If the read name contains multiple space-separated parts,
   // print only the first
+  size_t nameLen = readName.length();
   size_t splitPos = readName.find(' ');
   if (splitPos < readName.length()) {
     readName[splitPos] = '\0';
+    nameLen = splitPos;
   } else {
     splitPos = readName.length();
   } 
   
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
+    nameLen = splitPos - 2;
   }
-
-  bstream << readName << static_cast<uint32_t>(validJointHits.size())
+  //std::cout << strlen(readName.c_str() << "\n";
+  bstream   << stx::string_view(readName.data(), nameLen) 
+            << static_cast<uint32_t>(validJointHits.size())
             << static_cast<rLenType>(r.first.seq.length()) 
             << static_cast<rLenType>(r.second.seq.length());
   for (auto& qa : validJointHits) {
@@ -236,6 +245,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   return 0;
 }
 
+// dump single end read
 template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
@@ -243,21 +253,24 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    BinWriter& binStream) {
   
   auto& readName = r.name;
+  size_t nameLen = readName.length();
+  
   // If the read name contains multiple space-separated parts,
   // print only the first
   size_t splitPos = readName.find(' ');
   if (splitPos < readName.length()) {
     readName[splitPos] = '\0';
+    nameLen = splitPos;
   } else {
     splitPos = readName.length();
   } 
   
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
+    nameLen = splitPos - 2;
   }
 
-
-  binStream << readName 
+  binStream << stx::string_view(readName.data(), nameLen) 
             << static_cast<uint32_t>(validHits.size()) 
             << static_cast<rLenType>(r.seq.length());
   
@@ -266,7 +279,6 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     binStream << static_cast<uint32_t>(qa.first) 
               << static_cast<rLenType>(clust->mems.size())
               << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
-
     for (auto& mem: clust->mems){
       binStream << static_cast<rLenType>(mem.memInfo->rpos) 
                 << static_cast<rLenType>(mem.memInfo->memlen);
