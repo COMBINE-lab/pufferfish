@@ -7,6 +7,8 @@
 #include "iostream"
 
 #define NO_PARENT -1
+typedef uint16_t rLenType;
+typedef uint32_t refLenType;
 
 enum class ReadEnd : uint8_t {
     LEFT, RIGHT
@@ -79,6 +81,10 @@ class TaxaNode {
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
         std::vector<Interval>& getIntervals(ReadEnd readEnd) {return readEnd == ReadEnd::LEFT?lintervals:rintervals;}
+        refLenType getpos(ReadEnd re) {if(re == ReadEnd::LEFT) return lPos; return rPos;}
+        bool isFw(ReadEnd re) {if (re == ReadEnd::LEFT) return leftFw; return rightFw;}
+        void setPos(refLenType pos, ReadEnd re) {re == ReadEnd::LEFT?lPos = pos:rPos = pos;}
+        void setFw(bool isFw, ReadEnd re) {re == ReadEnd::LEFT?leftFw = isFw:rightFw = isFw;}
         bool isConcordant() {
             return lintervals.size() && rintervals.size();
         }
@@ -203,6 +209,10 @@ class TaxaNode {
         uint32_t score;
         uint64_t notIncorporatedChildrenCounter;
         std::set<uint64_t> activeChildren; //it's a set because, we might add the same child multiple times
+        bool leftFw;
+        bool rightFw;
+        refLenType lPos;
+        refLenType rPos;
         std::vector<Interval> lintervals;
         std::vector<Interval> rintervals;
         bool isCleaned = false;

@@ -29,6 +29,8 @@ struct CedarOpts {
     double filterThreshold = 0;
     double eps = 0.001;
     size_t maxIter = 1000;
+    bool isPuffOut{false};
+    bool isSAM{false};
 };
 
 Cedar::Cedar(std::string& taxonomyTree_filename, 
@@ -148,7 +150,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
                     (flatAbund or 
                     refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
               */
-                    if (requireConcordance && mappings.isMappingPaired() && (!mapping.isConcordant() || readInfo.isLeftFw == readInfo.isRightFw ) ) {
+                    if (requireConcordance && mappings.isMappingPaired() && (!mapping.isConcordant() || mapping.isLfw() == mapping.isRfw() ) ) {
                         discordantMappings++;
                         continue;
                     }
@@ -388,7 +390,10 @@ int main(int argc, char* argv[]) {
               required("--taxtree", "-t") & value("taxtree", kopts.taxonomyTree_filename) % "path to the taxonomy tree file",
               required("--seq2taxa", "-s") & value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file "
             )),
-              required("--mapperout", "-m") & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file",
+              ( (required("--puffMapperOut", "-p").set(kopts.isPuffOut, true) & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file")
+              |
+              (required("--sam").set(kopts.isSAM, true) & value("mapout", kopts.mapperOutput_filename) % "path to the SAM file")
+              ),
               required("--output", "-o") & value("output", kopts.output_filename) % "path to the output file to write results",
               option("--maxIter", "-i") & value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 100)",
               option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
@@ -417,6 +422,10 @@ int main(int argc, char* argv[]) {
   }
 
   if(res) {
+      SAMReader sr;
+      
+      sr.load(kopts.mapperOutput_filename, console);
+      exit(1);
     Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
     cedar.loadMappingInfo(kopts.mapperOutput_filename, kopts.requireConcordance);
     cedar.basicEM(kopts.maxIter, kopts.eps);
@@ -430,29 +439,4 @@ int main(int argc, char* argv[]) {
     std::cout << usage_lines(cli, "cedar") << '\n';
     return 1;
   }
-  /*
-  CLI::App app{"krakMap : Taxonomy identification based on the output of Pufferfish mapper through the same process as Kraken."};
-  app.add_option("-t,--taxtree", kopts.taxonomyTree_filename,
-                 "path to the taxonomy tree file")
-      ->required();
-  app.add_option("-s,--seq2taxa", kopts.refId2TaxId_filename, "path to the refId 2 taxaId file")
-      ->required();
-  app.add_option("-m,--mapperout", kopts.mapperOutput_filename, "path to the pufferfish mapper output file")
-      ->required();
-  app.add_option("-o,--output", kopts.output_filename, "path to the output file to write results")
-      ->required();
-  app.add_option("-i,--maxIter", kopts.maxIter, "maximum allowed number of iterations for EM")
-      ->required(false);
-  app.add_option("-e,--eps", kopts.eps, "epsilon for EM convergence condition")
-      ->required(false);
-  app.add_option("-l,--level", kopts.level, "choose between (species, genus, family, order, class, phylum). Default:species")
-      ->required(false);
-  app.add_option("-f,--filter", kopts.filterThreshold, "choose the threshold (0-1) to filter out mappings with a score below that. Default: no filter")
-      ->required(false);
-  try {
-    app.parse(argc, argv);
-  } catch (const CLI::ParseError& e) {
-    return app.exit(e);
-  }
-  */
 }

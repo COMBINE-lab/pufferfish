@@ -6,20 +6,6 @@
 #include <iostream>
 #include "taxa.h"
 
-typedef uint16_t rLenType;
-typedef uint32_t refLenType;
-
-struct ReadInfo {
-    std::string rid;
-    uint32_t cnt;
-    uint32_t len;
-    bool isLeftFw;
-    bool isRightFw;
-    refLenType refLeftPos;
-    refLenType refRightPos;
-    std::vector<TaxaNode> mappings;
-};
-
 
 class Mappings {
     public:
@@ -78,8 +64,8 @@ class Mappings {
                     inFile.read(reinterpret_cast<char*>(&rcnt), sizeof(rLenType));
                 if (lcnt) {
                     inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
-                    rinf.isLeftFw = refPos & Mappings::HighBitMask;
-                    rinf.refLeftPos = refPos & Mappings::LowBitsMask;
+                    taxaPtr.setFw(refPos & Mappings::HighBitMask, ReadEnd::LEFT);
+                    taxaPtr.setPos(refPos & Mappings::LowBitsMask, ReadEnd::LEFT);
                     //std::cout << rinf.refLeftPos << " " << rinf.isLeftFw << "\n";
                 }
                 for (size_t i = 0; i < lcnt; ++i) {
@@ -92,8 +78,8 @@ class Mappings {
                 if (isPaired) {
                     if (rcnt) {
                         inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
-                        rinf.isRightFw = refPos & Mappings::HighBitMask;
-                        rinf.refRightPos = refPos & Mappings::LowBitsMask;
+                        taxaPtr.setFw(refPos & Mappings::HighBitMask, ReadEnd::RIGHT);
+                        taxaPtr.setPos(refPos & Mappings::LowBitsMask, ReadEnd::RIGHT);
                     }
                     for (size_t i = 0; i < rcnt; ++i) {
                         inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(rLenType));
