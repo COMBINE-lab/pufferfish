@@ -1,3 +1,6 @@
+INCLUDE_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/ /home/fatemeh/others_projects/SeqLib/htslib/ )
+LINK_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/bin)
+		SET(SEQLIB_DIR /home/fatemeh/others_projects/SeqLib/bin)
 #set(gfalib_srcs gfakluge.cpp)
 #add_library(gfakluge STATIC ${gfalib_srcs})
 set(ksw2_lib_srcs
@@ -59,7 +62,7 @@ target_link_libraries(edgedensity z puffer)
 target_link_libraries(edgedensity2 z puffer)
 target_link_libraries(kswcli z ksw2)
 target_link_libraries(krakmap puffer)
-target_link_libraries(cedar puffer)
+target_link_libraries(cedar puffer bz2 lzma z ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a )
 #target_link_libraries(myGraphtester puffer)
 
 
