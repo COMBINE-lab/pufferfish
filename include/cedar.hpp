@@ -11,8 +11,8 @@
 
 struct ReadInfo {
     std::string rid;
-    uint32_t cnt;
-    uint32_t len;
+    uint32_t cnt = 0;
+    uint32_t len = 0;
     std::vector<TaxaNode> mappings;
 };
 
@@ -38,7 +38,8 @@ class Cedar {
                     } else {
                         serializeFlat(output_filename);
                     }
-                 }
+                    std::cout << "I guess that's it\n";
+                 };
     private:
         bool readHeader(std::ifstream& mfile);
         void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance);

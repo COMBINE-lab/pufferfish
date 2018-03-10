@@ -82,7 +82,7 @@ class TaxaNode {
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
         std::vector<Interval>& getIntervals(ReadEnd readEnd) {return readEnd == ReadEnd::LEFT?lintervals:rintervals;}
-        refLenType getpos(ReadEnd re) {if(re == ReadEnd::LEFT) return lPos; return rPos;}
+        refLenType getPos(ReadEnd re) {if(re == ReadEnd::LEFT) return lPos; return rPos;}
         bool isFw(ReadEnd re) {if (re == ReadEnd::LEFT) return leftFw; return rightFw;}
         void setPos(refLenType pos, ReadEnd re) {re == ReadEnd::LEFT?lPos = pos:rPos = pos;}
         void setFw(bool isFw, ReadEnd re) {re == ReadEnd::LEFT?leftFw = isFw:rightFw = isFw;}

@@ -3,16 +3,10 @@
 
 #include "taxa.h"
 #include "spdlog/spdlog.h"
-//#include "htslib/sam.h"
-//#include "htslib/hts.h"
 #include "SeqLib/BamReader.h"
 #include "SeqLib/BamHeader.h"
 #include "SeqLib/BamRecord.h"
 //using namespace SeqLib;
-
-
-//#define SAM_GLOBAL_ARGS_INIT 
-
 
 class SAMReader {
 
@@ -31,7 +25,7 @@ class SAMReader {
         bool nextRead(ReadInfo& rinf, bool needReadName=false) {
             rinf.mappings.clear();
             TaxaNode dummyTaxa;
-            TaxaNode & taxa = dummyTaxa;
+            TaxaNode *taxa = &dummyTaxa;
             // we should either fill up a valid mapping record 
             // or return false if we go until the end of the file
             while (rinf.mappings.size() == 0) {
@@ -46,11 +40,20 @@ class SAMReader {
                     rinf.mappings.push_back(rec.ChrID());
                     rinf.len = rec.Length();
                     rinf.cnt = 1;
-                    taxa = rinf.mappings.back();
-                    taxa.setFw(!rec.ReverseFlag(), re);
-                    taxa.setPos(rec.Position(), re);
+                    taxa = &rinf.mappings.back();
+                    taxa->setFw(!rec.ReverseFlag(), re);
+                    taxa->setPos(rec.Position(), re);
                     //FIXME for now, add a fake interval, starting from pos "0" in read and end in pos "0+coverage"
-                    taxa.addInterval(0, rec.NumMatchBases(), re);
+                    taxa->addInterval(0, rec.NumMatchBases(), re);
+                   /*  std::cout   << "read name:" << rec.Qname() << " | "
+                        << "len:" << rec.Length() << " | "
+                        << "is paired:" << rec.PairedFlag() << " | "
+                        << "ref ID:" << rec.ChrID() << " | "
+                        << "ref name:" << bh.IDtoName(rec.ChrID()) << " | "
+                        << "coverage:" << rec.NumMatchBases() <<  " | "
+                        << "pos:" << rec.Position() << " | "
+                        << "ori:" << !rec.ReverseFlag() << " | "
+                        << "is considered left:" << static_cast<bool>(re == ReadEnd::LEFT) << "\n"; */
                 }
                 hasNext = br.GetNextRecord(rec);
                 // If it's paired end, we expect the next read should be right, 
@@ -64,18 +67,33 @@ class SAMReader {
                 
                 while (hasNext && rec.Qname() == readName) {
                     if (rec.MappedFlag()) {
-                        if (re == ReadEnd::RIGHT) {
-                            if (static_cast<uint64_t>(rec.ChrID()) != taxa.getId()) {
+                        if (re == ReadEnd::RIGHT) { // it's always false for single end reads
+                            if (static_cast<uint64_t>(rec.ChrID()) != taxa->getId()) {
                                 re = ReadEnd::LEFT;
                             }
                         } else {
+                            // first calc stat for previous read (pair) mapping
+                            taxa->cleanIntervals(ReadEnd::LEFT);
+                            taxa->cleanIntervals(ReadEnd::RIGHT);
+                            taxa->updateScore();
+
+                            // then create a new mapping and go on
                             rinf.mappings.push_back(rec.ChrID());
                             rinf.cnt++;
-                            taxa = rinf.mappings.back();
+                            taxa = &rinf.mappings.back();
                         }
-                        taxa.setFw(!rec.ReverseFlag(), re);
-                        taxa.setPos(rec.Position(), re);
-                        taxa.addInterval(0, rec.NumMatchBases(), re);
+                        taxa->setFw(!rec.ReverseFlag(), re);
+                        taxa->setPos(rec.Position(), re);
+                        taxa->addInterval(0, rec.NumMatchBases(), re);
+                        /* std::cout   << "read name:" << rec.Qname() << " | "
+                        << "len:" << rec.Length() << " | "
+                        << "is paired:" << rec.PairedFlag() << " | "
+                        << "ref ID:" << rec.ChrID() << " | "
+                        << "ref name:" << bh.IDtoName(rec.ChrID()) << " | "
+                        << "coverage:" << rec.NumMatchBases() <<  " | "
+                        << "pos:" << rec.Position() << " | "
+                        << "ori:" << !rec.ReverseFlag() << " | "
+                        << "is considered left:" << static_cast<bool>(re == ReadEnd::LEFT) << "\n"; */
                         if (isPaired)
                             re == ReadEnd::LEFT? re = ReadEnd::RIGHT: re = ReadEnd::LEFT;
                     }
@@ -86,12 +104,18 @@ class SAMReader {
                     }           
                     hasNext = br.GetNextRecord(rec);
                 }
+
+                // for the last read (pair) mapping record
+                taxa->cleanIntervals(ReadEnd::LEFT);
+                taxa->cleanIntervals(ReadEnd::RIGHT);
+                taxa->updateScore();
+                
             }
             return true;
         }
 
-        const std::string& refName(size_t id) {return bh.IDtoName(id);}
-        size_t refLength(size_t id) {return bh.GetSequenceLength(id);}
+        const std::string refName(size_t id) {/* std::cout << id << "\n"; */return bh.IDtoName(id);}
+        size_t refLength(size_t id) {/* std::cout << id << "\n"; */return bh.GetSequenceLength(id);}
         size_t numRefs() const { return bh.NumSequences(); }
         bool isMappingPaired() {return isPaired;}
     private:
@@ -107,13 +131,13 @@ class SAMReader {
                 }
                 isPaired = rec.PairedFlag();
             } while (!rec.MappedFlag());
-            std::cout   << "read name: " << rec.Qname() << " "
+            /* std::cout   << "read name: " << rec.Qname() << " "
                         << "len: " << rec.Length() << " "
                         << "is paired: " << rec.PairedFlag() << " "
                         << "ref ID: " << rec.ChrID() << " "
                         << "ref name: " << bh.IDtoName(rec.ChrID()) << " "
                         << "pos: " << rec.Position() << " "
-                        << "coverage: " << rec.NumMatchBases() << "\n";
+                        << "coverage: " << rec.NumMatchBases() << "\n"; */
             return true;
         }
         

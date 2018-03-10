@@ -105,7 +105,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     bool wasMapped = false;
     //size_t gid{0};
     //bool foundTruth = false;
-    std::ofstream notMappedReadsFile("notMappedReadsInfo0_01.txt");
+    //std::ofstream notMappedReadsFile("notMappedReadsInfo0_01.txt");
     while(mappings.nextRead(readInfo, getReadName)){
       if (checkTruthExists) {
         //foundTruth = false;
@@ -163,9 +163,14 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                     
-                    notMappedReadsFile  << readInfo.rid << "\t" 
+                    //std::cout << "id " << mapping.getId() << "\n";
+                    //std::cout << "name " << mappings.refName(mapping.getId()) << "\n";
+                    // std::cout << "len " << mappings.refLength(mapping.getId()) << "\n";
+                    // std::cout << "score " << mapping.getScore() << "\n";
+                    // std::cout << "prob: " << (static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) ) << "\n";
+                    /* notMappedReadsFile  << readInfo.rid << "\t" 
                                         << mappings.refName(mapping.getId()) 
-                                        << "\t" << mapping.getScore() << "\n";
+                                        << "\t" << mapping.getScore() << "\n"; */
                     /* if (!foundTruth and checkTruthExists) {
                       const auto& refName = mappings.refName(tid);
                       auto start = refName.find_first_of('|');
@@ -220,7 +225,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
             totalUnmappedReads++;
         }
     }
-    notMappedReadsFile.close();
+    //notMappedReadsFile.close();
     logger->info("Total # of conflicting reads reported: {}", conflicting); 
     if (requireConcordance)
         logger->info("Discarded {} discordant mappings.", discordantMappings);
@@ -348,6 +353,7 @@ void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
   logger->info("Write results in the file: {}", output_filename);
   std::ofstream ofile(output_filename);
   ofile << "taxaId\ttaxaRank\tcount\n";
+  std::cout << "NUMREFS: " << mappings.numRefs() << "\n";
   for (uint32_t i = 0; i < mappings.numRefs(); ++i) { 
     //for (auto& kv : strain) {
     auto it = strain.find(i);
@@ -446,7 +452,7 @@ int main(int argc, char* argv[]) {
             kopts.eps,
             kopts.output_filename);
     }
-    
+    std::cout << "We even got here!!\n";
     return 0;
   } else {
     std::cout << usage_lines(cli, "cedar") << '\n';

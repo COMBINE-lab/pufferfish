@@ -19,7 +19,7 @@ void TaxaNode::updateScore() {
     for (auto& it : rintervals) {
         score += it.end - it.begin;
     }
-    //std::cout << " score: " << score << "\n";
+    //std::cout << lintervals.size() << " " << rintervals.size() << " score: " << score << "\n";
 }
 void TaxaNode::updateIntervals(TaxaNode* child, ReadEnd readEnd) {
 
