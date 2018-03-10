@@ -42,6 +42,7 @@ enum class Rank : uint8_t {
 class TaxaNode {
     public:
         TaxaNode() { 
+            id = static_cast<uint64_t>(-1);
             rank = Rank::STRAIN; 
             score = 0; 
             notIncorporatedChildrenCounter = 0;

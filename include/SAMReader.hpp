@@ -30,72 +30,74 @@ class SAMReader {
 
         bool nextRead(ReadInfo& rinf, bool needReadName=false) {
             rinf.mappings.clear();
-            if (!hasNext) return false;
-            ReadEnd re = ReadEnd::LEFT;
-            std::string readName = rec.Qname();
-            if (needReadName) {
-                rinf.rid = readName;
-            }
-            rinf.mappings.push_back(rec.ChrID());
-            rinf.len = rec.Length();
-            rinf.cnt = 1;
-            TaxaNode& taxa = rinf.mappings.back();
-            taxa.setFw(!rec.ReverseFlag(), re);
-            taxa.setPos(rec.Position(), re);
-            taxa.addInterval(0, rec.NumMatchBases(), re);
-
-            hasNext = br.GetNextRecord(rec);
-// by default if it's paired end we assume that when we enter this function, we've already read the left pair
-            if (isPaired && static_cast<uint64_t>(rec.ChrID()) == taxa.getId()) {
-                re = ReadEnd::RIGHT;
-                rinf.len += rec.Length();
-            }
-            
-            while (hasNext && rec.Qname() == readName) {
-                if (rec.MappedFlag()) {
-                    if (re == ReadEnd::RIGHT) {
-                        if (static_cast<uint64_t>(rec.ChrID()) != taxa.getId()) {
-                            re = ReadEnd::LEFT;
-                        }
-                    } else {
-                        rinf.mappings.push_back(rec.ChrID());
-                        rinf.cnt++;
-                        taxa = rinf.mappings.back();
-                    }
+            TaxaNode dummyTaxa;
+            TaxaNode & taxa = dummyTaxa;
+            // we should either fill up a valid mapping record 
+            // or return false if we go until the end of the file
+            while (rinf.mappings.size() == 0) {
+                // if last record stored in rec (but not used yet) was the eof record, return false
+                if (!hasNext) return false;
+                ReadEnd re = ReadEnd::LEFT; // initial read is always assumed to be left
+                std::string readName = rec.Qname(); // assumption: in any case, readName is valid
+                if (needReadName) {
+                    rinf.rid = readName;
+                }
+                if (rec.MappedFlag()) {   
+                    rinf.mappings.push_back(rec.ChrID());
+                    rinf.len = rec.Length();
+                    rinf.cnt = 1;
+                    taxa = rinf.mappings.back();
                     taxa.setFw(!rec.ReverseFlag(), re);
                     taxa.setPos(rec.Position(), re);
+                    //FIXME for now, add a fake interval, starting from pos "0" in read and end in pos "0+coverage"
                     taxa.addInterval(0, rec.NumMatchBases(), re);
-                }                
+                }
                 hasNext = br.GetNextRecord(rec);
-                if (isPaired)
-                    re == ReadEnd::LEFT? re = ReadEnd::RIGHT: re = ReadEnd::LEFT;
+                // If it's paired end, we expect the next read should be right, 
+                // since we've already read the left pair
+                // in case of left read not being mapped, 
+                // the read end will switch to left again in the loop
+                if (isPaired) {
+                    re = ReadEnd::RIGHT;
+                    rinf.len += rec.Length();
+                }
+                
+                while (hasNext && rec.Qname() == readName) {
+                    if (rec.MappedFlag()) {
+                        if (re == ReadEnd::RIGHT) {
+                            if (static_cast<uint64_t>(rec.ChrID()) != taxa.getId()) {
+                                re = ReadEnd::LEFT;
+                            }
+                        } else {
+                            rinf.mappings.push_back(rec.ChrID());
+                            rinf.cnt++;
+                            taxa = rinf.mappings.back();
+                        }
+                        taxa.setFw(!rec.ReverseFlag(), re);
+                        taxa.setPos(rec.Position(), re);
+                        taxa.addInterval(0, rec.NumMatchBases(), re);
+                        if (isPaired)
+                            re == ReadEnd::LEFT? re = ReadEnd::RIGHT: re = ReadEnd::LEFT;
+                    }
+                    else { // orphans always appear in the left
+                        // if it was a not-mapped left-end and the right-end is gonna map,
+                        // we put the orphan mapping in the left
+                        re = ReadEnd::LEFT;
+                    }           
+                    hasNext = br.GetNextRecord(rec);
+                }
             }
-            
             return true;
         }
 
-        const std::string& refName(size_t id) {return refNames[id];}
-        size_t refLength(size_t id) {return refLengths[id];}
-        size_t numRefs() const { return refNames.size(); }
+        const std::string& refName(size_t id) {return bh.IDtoName(id);}
+        size_t refLength(size_t id) {return bh.GetSequenceLength(id);}
+        size_t numRefs() const { return bh.NumSequences(); }
         bool isMappingPaired() {return isPaired;}
     private:
         bool readHeader() {
-            bh = br.Header();
-            bam_hdr_t *header = bh.get_();
-            if (header == NULL) {
-                logger->error("Failed to read SAM file header");
-                std::exit(1);
-            }
-            // refNames
-            // refLength
-            std::cout << "# of targets: " << header->n_targets << "\n";
-            refLengths.resize(header->n_targets);
-            refNames.resize(header->n_targets);
-            for (auto i = 0; i < header->n_targets; i++) {
-                refNames[i] = std::string(header->target_name[i]);
-                refLengths[i] = header->target_len[i];
-                std::cout << refNames[i] << " " << refLengths[i] << "\n";
-            }
+            bh = br.Header();            
+            logger->info("# of targets: {}", bh.NumSequences());            
             // isPaired
             do {
                 hasNext = br.GetNextRecord(rec);
@@ -121,8 +123,6 @@ class SAMReader {
         SeqLib::BamRecord rec;
     
         bool isPaired = true;
-        std::vector<refLenType> refLengths;
-        std::vector<std::string> refNames;
         std::shared_ptr<spdlog::logger> logger;
         //std::vector<SeqLib::BamRecord> recs;
         bool hasNext = true;
