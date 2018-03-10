@@ -7,9 +7,9 @@
 #include "taxa.h"
 
 
-class Mappings {
+class PuffMappingReader {
     public:
-        Mappings() {}
+        PuffMappingReader() {}
         void load(std::string mfileName,
                 std::shared_ptr<spdlog::logger> loggerIn) {
             logger = loggerIn;
@@ -64,8 +64,8 @@ class Mappings {
                     inFile.read(reinterpret_cast<char*>(&rcnt), sizeof(rLenType));
                 if (lcnt) {
                     inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
-                    taxaPtr.setFw(refPos & Mappings::HighBitMask, ReadEnd::LEFT);
-                    taxaPtr.setPos(refPos & Mappings::LowBitsMask, ReadEnd::LEFT);
+                    taxaPtr.setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::LEFT);
+                    taxaPtr.setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::LEFT);
                     //std::cout << rinf.refLeftPos << " " << rinf.isLeftFw << "\n";
                 }
                 for (size_t i = 0; i < lcnt; ++i) {
@@ -78,8 +78,8 @@ class Mappings {
                 if (isPaired) {
                     if (rcnt) {
                         inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
-                        taxaPtr.setFw(refPos & Mappings::HighBitMask, ReadEnd::RIGHT);
-                        taxaPtr.setPos(refPos & Mappings::LowBitsMask, ReadEnd::RIGHT);
+                        taxaPtr.setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::RIGHT);
+                        taxaPtr.setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::RIGHT);
                     }
                     for (size_t i = 0; i < rcnt; ++i) {
                         inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(rLenType));

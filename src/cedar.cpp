@@ -33,7 +33,8 @@ struct CedarOpts {
     bool isSAM{false};
 };
 
-Cedar::Cedar(std::string& taxonomyTree_filename, 
+template<class ReaderType>
+Cedar<ReaderType>::Cedar(std::string& taxonomyTree_filename, 
                  std::string& refId2TaxId_filename, 
                  std::string pruneLevelIn,
                  double filteringThresholdIn,
@@ -83,7 +84,8 @@ Cedar::Cedar(std::string& taxonomyTree_filename,
     } 
 }
 
-void Cedar::loadMappingInfo(std::string mapperOutput_filename,
+template<class ReaderType>
+void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                             bool requireConcordance) {
     int32_t rangeFactorization{4};
     uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid;
@@ -150,7 +152,7 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
                     (flatAbund or 
                     refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
               */
-                    if (requireConcordance && mappings.isMappingPaired() && (!mapping.isConcordant() || mapping.isLfw() == mapping.isRfw() ) ) {
+                    if (requireConcordance && mappings.isMappingPaired() && (!mapping.isConcordant() || mapping.isFw(ReadEnd::LEFT) == mapping.isFw(ReadEnd::RIGHT) ) ) {
                         discordantMappings++;
                         continue;
                     }
@@ -224,7 +226,8 @@ void Cedar::loadMappingInfo(std::string mapperOutput_filename,
         logger->info("Discarded {} discordant mappings.", discordantMappings);
 }
 
-bool Cedar::basicEM(size_t maxIter, double eps) {
+template<class ReaderType>
+bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
     eqb.finish();
     auto& eqvec = eqb.eqVec();
     int64_t maxSeqID{-1};
@@ -312,7 +315,8 @@ bool Cedar::basicEM(size_t maxIter, double eps) {
     return cntr < maxIter;
 }
 
-void Cedar::serialize(std::string& output_filename) {
+template<class ReaderType>
+void Cedar<ReaderType>::serialize(std::string& output_filename) {
     logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
@@ -339,7 +343,8 @@ void Cedar::serialize(std::string& output_filename) {
     ofile.close();
 }
 
-void Cedar::serializeFlat(std::string& output_filename) {
+template<class ReaderType>
+void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
   logger->info("Write results in the file: {}", output_filename);
   std::ofstream ofile(output_filename);
   ofile << "taxaId\ttaxaRank\tcount\n";
@@ -356,6 +361,9 @@ void Cedar::serializeFlat(std::string& output_filename) {
   }
   ofile.close();
 }
+
+template class Cedar<PuffMappingReader>;
+template class Cedar<SAMReader>;
 
 /**
  * "How to run" example:
@@ -422,21 +430,27 @@ int main(int argc, char* argv[]) {
   }
 
   if(res) {
-      SAMReader sr;
-      
-      sr.load(kopts.mapperOutput_filename, console);
-      exit(1);
-    Cedar cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
-    cedar.loadMappingInfo(kopts.mapperOutput_filename, kopts.requireConcordance);
-    cedar.basicEM(kopts.maxIter, kopts.eps);
-    if (!kopts.flatAbund) {
-        cedar.serialize(kopts.output_filename);
-    } else {
-        cedar.serializeFlat(kopts.output_filename);
+    if (kopts.isSAM) {
+        Cedar<SAMReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
+        cedar.run(kopts.mapperOutput_filename, 
+                  kopts.requireConcordance,
+                  kopts.maxIter, 
+                  kopts.eps,
+                  kopts.output_filename);
     }
+    else {
+        Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
+        cedar.run(kopts.mapperOutput_filename, 
+            kopts.requireConcordance,
+            kopts.maxIter, 
+            kopts.eps,
+            kopts.output_filename);
+    }
+    
     return 0;
   } else {
     std::cout << usage_lines(cli, "cedar") << '\n';
     return 1;
   }
 }
+
