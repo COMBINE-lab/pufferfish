@@ -12,6 +12,7 @@ class SAMReader {
 
         public:
         SAMReader() {rec.init();}
+        ~SAMReader() { std::cout << "destructor is called\n"; br.Close();}
         void load(std::string mfileName,
                 std::shared_ptr<spdlog::logger> loggerIn) {
             logger = loggerIn;
@@ -24,10 +25,10 @@ class SAMReader {
 
         bool nextRead(ReadInfo& rinf, bool needReadName=false) {
             rinf.mappings.clear();
-            TaxaNode dummyTaxa;
-            TaxaNode *taxa = &dummyTaxa;
+            TaxaNode dummy;
+            TaxaNode *taxa = &dummy;
             // we should either fill up a valid mapping record 
-            // or return false if we go until the end of the file
+            // or return false (first line inside the while) if we go until the end of the file
             while (rinf.mappings.size() == 0) {
                 // if last record stored in rec (but not used yet) was the eof record, return false
                 if (!hasNext) return false;
@@ -71,16 +72,24 @@ class SAMReader {
                             if (static_cast<uint64_t>(rec.ChrID()) != taxa->getId()) {
                                 re = ReadEnd::LEFT;
                             }
-                        } else {
-                            // first calc stat for previous read (pair) mapping
-                            taxa->cleanIntervals(ReadEnd::LEFT);
-                            taxa->cleanIntervals(ReadEnd::RIGHT);
-                            taxa->updateScore();
+                        } 
+                        // If you're on a new mapping and the previous one was mapped at least on left end
+                        if (re == ReadEnd::LEFT) {
+                            if (taxa->getIntervals(ReadEnd::LEFT).size() == 0) {
+                                taxa->setId(rec.ChrID());
+                            } else {
+                                /*std::cout << "here: " << taxa->getIntervals(ReadEnd::LEFT).size()
+                                          << " " << taxa->getIntervals(ReadEnd::RIGHT).size() << "\n";*/
+                                // first calc stat for previous read (pair) mapping
+                                taxa->cleanIntervals(ReadEnd::LEFT);
+                                taxa->cleanIntervals(ReadEnd::RIGHT);
+                                taxa->updateScore();
 
-                            // then create a new mapping and go on
-                            rinf.mappings.push_back(rec.ChrID());
-                            rinf.cnt++;
-                            taxa = &rinf.mappings.back();
+                                // then create a new mapping and go on
+                                rinf.mappings.push_back(rec.ChrID());
+                                rinf.cnt++;
+                                taxa = &rinf.mappings.back();
+                            }
                         }
                         taxa->setFw(!rec.ReverseFlag(), re);
                         taxa->setPos(rec.Position(), re);
@@ -131,25 +140,16 @@ class SAMReader {
                 }
                 isPaired = rec.PairedFlag();
             } while (!rec.MappedFlag());
-            /* std::cout   << "read name: " << rec.Qname() << " "
-                        << "len: " << rec.Length() << " "
-                        << "is paired: " << rec.PairedFlag() << " "
-                        << "ref ID: " << rec.ChrID() << " "
-                        << "ref name: " << bh.IDtoName(rec.ChrID()) << " "
-                        << "pos: " << rec.Position() << " "
-                        << "coverage: " << rec.NumMatchBases() << "\n"; */
             return true;
         }
         
-        //samFile *fp;
         SeqLib::BamReader br;//(SeqLib::SAM);
         SeqLib::BamHeader bh;
         SeqLib::BamRecord rec;
-    
+        bool hasNext = true;
         bool isPaired = true;
         std::shared_ptr<spdlog::logger> logger;
-        //std::vector<SeqLib::BamRecord> recs;
-        bool hasNext = true;
+        
 
 };
 

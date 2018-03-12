@@ -107,18 +107,18 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     //bool foundTruth = false;
     //std::ofstream notMappedReadsFile("notMappedReadsInfo0_01.txt");
     while(mappings.nextRead(readInfo, getReadName)){
-      if (checkTruthExists) {
-        //foundTruth = false;
-        wasMapped = false;
-        /*
-        size_t start = readInfo.rid.find_first_of('|');
-        size_t finish = readInfo.rid.find_first_of('|', start+1);
-        std::cout <<readInfo.rid<< "\t";
-                      std::cout << start+1 << " " << finish-(start+1) << "\n";
-                      //std::cout << std::stoul(readInfo.rid.substr(start+1, finish-(start+1))) << "\n";
-        gid = std::stoul(readInfo.rid.substr(start+1, finish-(start+1)));
-        */
-      }
+        if (checkTruthExists) {
+            //foundTruth = false;
+            wasMapped = false;
+            /*
+            size_t start = readInfo.rid.find_first_of('|');
+            size_t finish = readInfo.rid.find_first_of('|', start+1);
+            std::cout <<readInfo.rid<< "\t";
+                        std::cout << start+1 << " " << finish-(start+1) << "\n";
+                        //std::cout << std::stoul(readInfo.rid.substr(start+1, finish-(start+1))) << "\n";
+            gid = std::stoul(readInfo.rid.substr(start+1, finish-(start+1)));
+            */
+        }
         totalReadCnt++;
         if (totalReadCnt % 100000 == 0) {
           logger->info("Processed {} reads, where {} contained the truth = {:.3f}% of mapped reads",totalReadCnt, numCorrectHits, 100.0*static_cast<double>(numCorrectHits)/numMapped);
@@ -129,7 +129,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
         readPerStrainProbInst.reserve(readInfo.cnt);
         bool isConflicting = true;
         if (readInfo.cnt != 0) {
-          if (!wasMapped) { wasMapped = true; ++numMapped; }
+            if (!wasMapped) { wasMapped = true; ++numMapped; }
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
             for (auto& mapping : readInfo.mappings) {
@@ -137,21 +137,21 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 // taxaId for 
                 // second condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
-              if(flatAbund or 
+                if(flatAbund or 
                  (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end() and
                   activeTaxa.find(mapping.getId()) == activeTaxa.end())){
 
-                if (prevTaxa != nullptr and
-                      activeTaxa.find(mapping.getId()) == activeTaxa.end() and 
-                      !prevTaxa->compareIntervals(mapping)) {
-                      isConflicting = false;
-                  }
-                  prevTaxa = &mapping;
-              /*
-                if (activeTaxa.find(mapping.getId()) == activeTaxa.end() and
-                    (flatAbund or 
-                    refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
-              */
+                    if (prevTaxa != nullptr and
+                        activeTaxa.find(mapping.getId()) == activeTaxa.end() and 
+                        !prevTaxa->compareIntervals(mapping)) {
+                        isConflicting = false;
+                    }
+                    prevTaxa = &mapping;
+                    /*
+                        if (activeTaxa.find(mapping.getId()) == activeTaxa.end() and
+                            (flatAbund or 
+                            refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
+                    */
                     if (requireConcordance && mappings.isMappingPaired() && (!mapping.isConcordant() || mapping.isFw(ReadEnd::LEFT) == mapping.isFw(ReadEnd::RIGHT) ) ) {
                         discordantMappings++;
                         continue;
@@ -163,11 +163,6 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                     
-                    //std::cout << "id " << mapping.getId() << "\n";
-                    //std::cout << "name " << mappings.refName(mapping.getId()) << "\n";
-                    // std::cout << "len " << mappings.refLength(mapping.getId()) << "\n";
-                    // std::cout << "score " << mapping.getScore() << "\n";
-                    // std::cout << "prob: " << (static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) ) << "\n";
                     /* notMappedReadsFile  << readInfo.rid << "\t" 
                                         << mappings.refName(mapping.getId()) 
                                         << "\t" << mapping.getScore() << "\n"; */
@@ -443,6 +438,7 @@ int main(int argc, char* argv[]) {
                   kopts.maxIter, 
                   kopts.eps,
                   kopts.output_filename);
+        std::cout << "inside the scope\n";
     }
     else {
         Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);

@@ -78,6 +78,7 @@ class TaxaNode {
         }
         uint64_t getParentId() {return parentId;}
         uint64_t getId() {return id;}
+        void setId(uint64_t inId) {id = inId;}
         Rank getRank() {return rank;}
         uint64_t getScore() {return score;}
         std::set<uint64_t>& getActiveChildren() {return activeChildren;}
