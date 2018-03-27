@@ -88,7 +88,7 @@ template<class ReaderType>
 void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                             bool requireConcordance) {
     int32_t rangeFactorization{4};
-    uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid;
+    uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid, totalMultiMappedReads{0};
     logger->info("Cedar: Load Mapping File ..");
     logger->info("Mapping Output File: {}", mapperOutput_filename);
     mappings.load(mapperOutput_filename, logger);
@@ -217,11 +217,16 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 eqb.addGroup(std::move(tg), probs);
             }
         } else {
-            totalUnmappedReads++;
+            if (readInfo.cnt > 0) {
+                totalMultiMappedReads++;
+            }
+            else
+                totalUnmappedReads++;
         }
     }
     //notMappedReadsFile.close();
     logger->info("Total # of conflicting reads reported: {}", conflicting); 
+    logger->info("Total # of multimapped reads: {}", totalMultiMappedReads);
     if (requireConcordance)
         logger->info("Discarded {} discordant mappings.", discordantMappings);
 }
