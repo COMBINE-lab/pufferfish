@@ -25,6 +25,105 @@ template <typename PufferfishIndexT> class MemCollector {
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
+  void recoverGaps(spp::sparse_hash_map<pufferfish::common_types::ReferenceID, 
+                                        std::vector<util::MemCluster>>& memClustersMap,
+                                        std::vector<util::UniMemInfo>& memCollection,
+                                        size_t rlen) {
+    // a sample for <readPos,memLen> if read is mapped in rc against the reference
+    // and the list is sorted based on reference pos
+    //read poses 20,47  9,41  4,35  0,34
+    //trns poses 100,47 117,41
+    for (auto& kv : memClustersMap) {
+      auto& refId = kv.first;
+      auto& memClusters = kv.second;
+      for (auto& memCluster : memClusters) {
+        // If we have reasonable coverage
+        // at least 4 kmers here
+        if (memCluster.coverage >= k + 3) { // 3 is a complete heuristic! 
+          uint32_t firstGap{0}, lastGap{0};
+          std::vector<util::UniMemInfo>::iterator rfirstMem, rlastMem;
+          rfirstMem = memCluster.mems[0].memInfo;
+          rlastMem = memCluster.mems.back().memInfo;
+          size_t tfirstpos = memCluster.mems[0].tpos;
+          size_t tlastpos = memCluster.mems.back().tpos;
+          if (!memCluster.isFw) {
+            auto tmp = rfirstMem;
+            rfirstMem = rlastMem;
+            rlastMem = tmp;
+
+            auto tmptpos = tfirstpos;
+            tfirstpos = tlastpos;
+            tlastpos = tfirstpos;
+          }
+          firstGap = rfirstMem->rpos;
+          lastGap = rlen - (rlastMem->rpos + rlastMem->memlen);
+
+          // also check that the read is not an overhang
+          // meaning that it hangs over the transcript. 
+          // In that case, we should add as many nucleotides as left in transcript's end
+          if (firstGap > 0 && firstGap <= k) {
+            memCollection.emplace_back(rfirstMem->cid, rfirstMem->cIsFw,
+                                   0, k, rfirstMem->cpos,
+                                   firstGap-1, rfirstMem->clen);
+            size_t tpos = memCluster.isFw?(tfirstpos - (firstGap-1-1) ): (tfirstpos + (firstGap+1)) ;
+            memCluster.addMem(std::prev(memCollection.end()),
+                                  tpos , 0);
+          }
+          if (lastGap > 0 && lastGap <= k) {
+            size_t tpos = memCluster.isFw?(tlastpos +  rlastMem->memlen + 1): (tlastpos - (lastGap-1-1) );
+            memCollection.emplace_back(rlastMem->cid, rlastMem->cIsFw,
+                                   rlen-lastGap+1, k, rlastMem->cpos,
+                                   lastGap-1, rlastMem->clen);
+            memCluster.addMem(std::prev(memCollection.end()),
+                                   tpos, memCluster.mems.size());
+          }
+          std::vector<util::MemInfo>::size_type siz = memCluster.mems.size();
+          if (memCluster.isFw) {
+            for (size_t i = 0; i < siz - 1; i++) {
+              auto& prev = memCluster.mems[i];
+              auto& next = memCluster.mems[i+1];
+              uint64_t middleGap = next.memInfo->rpos - (prev.memInfo->rpos+prev.memInfo->memlen);
+              //uint64_t refGap = next.tpos - (prev.tpos+prev.memInfo->memlen);
+              if ( middleGap > 2 && middleGap <= k+1) {
+                // first of all, since it's READ coverage, you should see what the gap is in read
+                // also, to make it closer to edit distance, 
+                // we can consider 2 + extra characters in either read or reference as the edit distance
+                uint64_t readPos = prev.memInfo->rpos + prev.memInfo->memlen + 1;
+                memCollection.emplace_back(prev.memInfo->cid, prev.memInfo->cIsFw,
+                                    readPos, k, prev.memInfo->cpos,
+                                    middleGap-2, prev.memInfo->clen);
+                memCluster.addMem(std::prev(memCollection.end()),
+                                    prev.tpos+prev.memInfo->memlen + 1, i+1);
+                siz++;
+                i++; 
+              }
+            }
+          } else {
+            for (size_t i = siz-1; i > 0; i--) {
+              auto& prev = memCluster.mems[i];
+              auto& next = memCluster.mems[i-1];
+              uint64_t middleGap = next.memInfo->rpos - (prev.memInfo->rpos+prev.memInfo->memlen);
+              //uint64_t refGap = prev.tpos - (next.tpos+next.memInfo->memlen);
+              if ( middleGap > 2 && middleGap <= k+1) {
+                // first of all, since it's READ coverage, you should see what the gap is in read
+                // also, to make it closer to edit distance, 
+                // we can consider 2 + extra characters in either read or reference as the edit distance
+                uint64_t readPos = prev.memInfo->rpos + prev.memInfo->memlen + 1;
+                memCollection.emplace_back(prev.memInfo->cid, prev.memInfo->cIsFw,
+                                    readPos, k, prev.memInfo->cpos,
+                                    middleGap-2, prev.memInfo->clen);
+                memCluster.addMem(std::prev(memCollection.end()),
+                                  prev.tpos + 1, i);
+                //size++;
+                //i++;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   bool clusterMems(std::vector<std::pair<int, util::ProjectedHits>>& hits,
                    spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>>& memClusters,
                    uint32_t maxSpliceGap, std::vector<util::UniMemInfo>& memCollection, bool verbose = false) {
@@ -330,6 +429,7 @@ public:
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
       clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+      //recoverGaps(memClusters, *memCollection, read.length());
       return true;
     }
     return false;
