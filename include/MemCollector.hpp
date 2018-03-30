@@ -28,7 +28,8 @@ public:
   void recoverGaps(spp::sparse_hash_map<pufferfish::common_types::ReferenceID, 
                                         std::vector<util::MemCluster>>& memClustersMap,
                                         std::vector<util::UniMemInfo>& memCollection,
-                                        size_t rlen) {
+                                        size_t rlen, 
+                                        bool verbose=false) {
     // a sample for <readPos,memLen> if read is mapped in rc against the reference
     // and the list is sorted based on reference pos
     //read poses 20,47  9,41  4,35  0,34
@@ -60,6 +61,15 @@ public:
                 firstGap = firstGap + potentialtpos;
                 tpos = 0;
               }
+              if (verbose) {
+
+                std::cerr << "\nbefore: " << memCluster.isFw << " " << memCluster.coverage <<"\n ";
+                for (auto mem : memCluster.mems) {              
+                        std::cerr << " r:" << mem.memInfo->rpos 
+                        << " t:" << mem.tpos
+                        << " len:" << mem.memInfo->memlen << " -- ";
+                }
+              }
               memCollection.emplace_back(rfirstMem->cid, rfirstMem->cIsFw,
                                     0, firstGap-1, rfirstMem->cpos,
                                     rfirstMem->cGlobalPos, rfirstMem->clen);
@@ -70,11 +80,30 @@ public:
               // FIXME -> what if it passes the transcript length?
               // we need transcript len for this!!
               size_t tpos = tlastpos +  rlastMem->memlen + 1;
+              if (verbose) {
+
+                std::cerr << "\nbefore: " << memCluster.isFw << " " << memCluster.coverage <<"\n ";
+                for (auto mem : memCluster.mems) {              
+                        std::cerr << " r:" << mem.memInfo->rpos 
+                        << " t:" << mem.tpos
+                        << " len:" << mem.memInfo->memlen << " -- ";
+                }
+              }
               memCollection.emplace_back(rlastMem->cid, rlastMem->cIsFw,
                                     rlastMem->rpos+rlastMem->memlen+1, lastGap-1, rlastMem->cpos,
                                     rlastMem->cGlobalPos, rlastMem->clen);
               memCluster.addMem(std::prev(memCollection.end()),
                                     tpos, memCluster.mems.size());  
+              if (verbose) {
+                std::cerr << "\nafter: " << memCluster.coverage << "\n ";
+                    for (auto mem : memCluster.mems) {
+                  
+                            std::cerr << " r:" << mem.memInfo->rpos 
+                            << " t:" << mem.tpos
+                            << " len:" << mem.memInfo->memlen << " -- ";
+                }
+                std::cerr << "\n";
+              }
             }  
             std::vector<util::MemInfo>::size_type siz = memCluster.mems.size();
             for (size_t i = 0; i < siz - 1; i++) {
@@ -111,38 +140,61 @@ public:
                 firstGap = firstGap + potentialtpos;
                 tpos = 0;
               }
-              // ): (tfirstpos + (firstGap+1)) ;
+              if (verbose) {
+
+                std::cerr << "\nbefore: " << memCluster.isFw << " " << memCluster.coverage <<"\n ";
+                for (auto mem : memCluster.mems) {              
+                        std::cerr << " r:" << mem.memInfo->rpos 
+                        << " t:" << mem.tpos
+                        << " len:" << mem.memInfo->memlen << " -- ";
+                }
+              }
+
               memCollection.emplace_back(rfirstMem->cid, rfirstMem->cIsFw,
                                     rfirstMem->rpos+rfirstMem->memlen+1, 
                                     firstGap-1, rfirstMem->cpos,
                                     rfirstMem->cGlobalPos, rfirstMem->clen);
               memCluster.addMem(std::prev(memCollection.end()),
                                     tpos, 0);  
+              if (verbose) {
+                std::cerr << "\nafter: " << memCluster.coverage << "\n ";
+                    for (auto mem : memCluster.mems) {
+                  
+                            std::cerr << " r:" << mem.memInfo->rpos 
+                            << " t:" << mem.tpos
+                            << " len:" << mem.memInfo->memlen << " -- ";
+                }
+                std::cerr << "\n";
+              }
             }
             if (lastGap > 0 && lastGap <= k) {
               // FIXME -> what if it passes the transcript length?
               // we need transcript len for this!!
-              /* std::cerr << "\nbefore: " << memCluster.isFw << " " << memCluster.coverage <<"\n ";
-              for (auto mem : memCluster.mems) {              
-                      std::cerr << " r:" << mem.memInfo->rpos 
-                      << " t:" << mem.tpos
-                      << " len:" << mem.memInfo->memlen << " -- ";
-              } */
+              if (verbose) {
+
+                std::cerr << "\nbefore: " << memCluster.isFw << " " << memCluster.coverage <<"\n ";
+                for (auto mem : memCluster.mems) {              
+                        std::cerr << " r:" << mem.memInfo->rpos 
+                        << " t:" << mem.tpos
+                        << " len:" << mem.memInfo->memlen << " -- ";
+                }
+              }
               size_t tpos = tlastpos +  rlastMem->memlen + 1;
               memCollection.emplace_back(rlastMem->cid, rlastMem->cIsFw,
                                     0, lastGap-1, rlastMem->cpos,
                                     rlastMem->cGlobalPos, rlastMem->clen);
               memCluster.addMem(std::prev(memCollection.end()),
                                     tpos, memCluster.mems.size());  
-              /* std::cerr << "\nafter: " << memCluster.coverage << "\n ";
-                  for (auto mem : memCluster.mems) {
-                
-                          std::cerr << " r:" << mem.memInfo->rpos 
-                          << " t:" << mem.tpos
-                          << " len:" << mem.memInfo->memlen << " -- ";
+              if (verbose) {
+                std::cerr << "\nafter: " << memCluster.coverage << "\n ";
+                    for (auto mem : memCluster.mems) {
+                  
+                            std::cerr << " r:" << mem.memInfo->rpos 
+                            << " t:" << mem.tpos
+                            << " len:" << mem.memInfo->memlen << " -- ";
+                }
+                std::cerr << "\n";
               }
-              std::cerr << "\n";
-              exit(1); */
             }  
 
             std::vector<util::MemInfo>::size_type siz = memCluster.mems.size();
@@ -474,7 +526,7 @@ public:
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
       clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
-      recoverGaps(memClusters, *memCollection, read.length());
+      recoverGaps(memClusters, *memCollection, read.length());//, read == "TAAGTTTCTTATGATTCCTCTGCTTTTTAGCACCTCAAGCATTCTCTCGGCTCTATGCCGATAGGAATCATTCTTTACAGCCTTTTTACCGTTTATCTGA");
       return true;
     }
     return false;

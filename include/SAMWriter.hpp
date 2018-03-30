@@ -526,7 +526,9 @@ inline uint32_t writeAlignmentsToStreamSingle(
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, 
+    bool writeOrphans, 
+    bool justMappings) {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
@@ -629,8 +631,8 @@ inline uint32_t writeAlignmentsToStream(
 
       // get the fragment length as a signed int
       const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
-
       sstream << readName.c_str() << '\t'                    // QNAME
+              //<< qa.numHits << '\t'
               << flags1 << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
@@ -645,6 +647,7 @@ inline uint32_t writeAlignmentsToStream(
               << numHitFlag << '\n';
 
       sstream << mateName.c_str() << '\t'                    // QNAME
+              //<< qa.numHits << '\t'
               << flags2 << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
               << qa.matePos + 1 << '\t'                      // POS (1-based)
