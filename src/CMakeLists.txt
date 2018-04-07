@@ -52,6 +52,7 @@ add_executable(edgedensity EdgeDensity.cpp)
 add_executable(edgedensity2 EdgeDensityCustom.cpp)
 add_executable(krakmap krakMap.cpp taxa.cpp)
 add_executable(cedar TargetGroup.cpp cedar.cpp taxa.cpp)
+add_executable(filtersam testing/SAMFilter.cpp)
 
 #target_link_libraries(pufferfish-index-old z sdsl)
 target_link_libraries(pufferfish puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)
@@ -64,6 +65,7 @@ target_link_libraries(edgedensity2 z puffer)
 target_link_libraries(kswcli z ksw2)
 target_link_libraries(krakmap puffer)
 target_link_libraries(cedar puffer bz2 lzma z ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a )
+target_link_libraries(filtersam puffer bz2 lzma z ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a )
 #target_link_libraries(myGraphtester puffer)
 
 
