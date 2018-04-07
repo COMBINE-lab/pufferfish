@@ -24,13 +24,15 @@ struct CedarOpts {
     std::string mapperOutput_filename;
     std::string output_filename;
     std::string level = "species";
+    size_t maxIter = 1000;
+    double eps = 0.001;
+    double filterThreshold = 0;
     bool flatAbund{false};
     bool requireConcordance{false};
-    double filterThreshold = 0;
-    double eps = 0.001;
-    size_t maxIter = 1000;
     bool isPuffOut{false};
     bool isSAM{false};
+    bool onlyUniq{false};
+    bool onlyPerfect{false};
 };
 
 template<class ReaderType>
@@ -86,7 +88,9 @@ Cedar<ReaderType>::Cedar(std::string& taxonomyTree_filename,
 
 template<class ReaderType>
 void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
-                            bool requireConcordance) {
+                            bool requireConcordance,
+                            bool onlyUniq,
+                            bool onlyPerfect) {
     int32_t rangeFactorization{4};
     uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid, totalMultiMappedReads{0};
     logger->info("Cedar: Load Mapping File ..");
@@ -105,8 +109,8 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     bool wasMapped = false;
     //size_t gid{0};
     //bool foundTruth = false;
-    //std::ofstream notMappedReadsFile("notMappedReadsInfo0_01.txt");
-    while(mappings.nextRead(readInfo, getReadName)){
+    // std::ofstream covDist("uniqCovDist.txt");
+    while(mappings.nextRead(readInfo, getReadName)) {
         if (checkTruthExists) {
             //foundTruth = false;
             wasMapped = false;
@@ -128,7 +132,8 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
         std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(readInfo.cnt);
         bool isConflicting = true;
-        if (readInfo.cnt != 0) {
+        if (readInfo.cnt == 1 /*&& readInfo.len == readInfo.mappings[0].getScore()*//*  != 0 */) {
+            //std::cout << "read len " << readInfo.len << "\n";
             if (!wasMapped) { wasMapped = true; ++numMapped; }
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
@@ -137,9 +142,9 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 // taxaId for 
                 // second condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
-                if(flatAbund or 
-                 (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end() and
-                  activeTaxa.find(mapping.getId()) == activeTaxa.end())){
+                if( (flatAbund or (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) 
+                  and
+                  activeTaxa.find(mapping.getId()) == activeTaxa.end()) {
 
                     if (prevTaxa != nullptr and
                         activeTaxa.find(mapping.getId()) == activeTaxa.end() and 
@@ -160,6 +165,12 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     tid = flatAbund ? mapping.getId() : refId2taxId[mappings.refName(mapping.getId())];
                     seqToTaxMap[mapping.getId()] = tid;
                     activeTaxa.insert(mapping.getId());
+                    if (cov.find(refId2taxId[mappings.refName(mapping.getId())]) != cov.end()) {
+                        cov[refId2taxId[mappings.refName(mapping.getId())]] += mapping.getScore();
+                    }
+                    else {
+                        cov[refId2taxId[mappings.refName(mapping.getId())]] = mapping.getScore();
+                    }
                     readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
                     
@@ -178,7 +189,11 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
             } 
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
-            } else {
+            } else if ( (!onlyUniq and !onlyPerfect) 
+                        or (onlyUniq and activeTaxa.size() == 1)
+                        or (onlyPerfect and activeTaxa.size() == 1 
+                            and 
+                            readInfo.mappings[0].getScore() == readInfo.len) ) {
                 if (!isConflicting) {conflicting++;}
                 //if (!foundTruth) { notMappedReadsFile << readInfo.rid << "\n";}
                 // bool isUnique = (readPerStrainProbInst.size() == 1);
@@ -346,6 +361,13 @@ void Cedar<ReaderType>::serialize(std::string& output_filename) {
               << "\t" << kv.second << "\n";
     }
     ofile.close();
+
+    std::ofstream covOfile(output_filename + ".coverage");
+    for (auto& kv: cov) {
+        covOfile << kv.first << "\t" << kv.second << "\n";
+    }
+    covOfile.close();
+    
 }
 
 template<class ReaderType>
@@ -414,6 +436,8 @@ int main(int argc, char* argv[]) {
               option("--level", "-l") & value("level", kopts.level).call(checkLevel) % "choose between (species, genus, family, order, class, phylum). (default : species)",
               option("--filter", "-f") & value("filter", kopts.filterThreshold) % "choose the threshold [0,1] below which to filter out mappings (default : no filter)",
               option("--noDiscordant").set(kopts.requireConcordance, true) % "ignore orphans for paired end reads",
+              option("--unique").set(kopts.onlyUniq, true) % "report abundance based on unique reads",
+              option("--perfect").set(kopts.onlyPerfect, true) % "report abundance based on perfect reads (unique and with complete coverage)",
               option("--help", "-h").set(showHelp, true) % "show help",
               option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version")
               );
@@ -442,7 +466,9 @@ int main(int argc, char* argv[]) {
                   kopts.requireConcordance,
                   kopts.maxIter, 
                   kopts.eps,
-                  kopts.output_filename);
+                  kopts.output_filename,
+                  kopts.onlyUniq,
+                  kopts.onlyPerfect);
         std::cout << "inside the scope\n";
     }
     else {
@@ -451,7 +477,9 @@ int main(int argc, char* argv[]) {
             kopts.requireConcordance,
             kopts.maxIter, 
             kopts.eps,
-            kopts.output_filename);
+            kopts.output_filename,
+            kopts.onlyUniq,
+            kopts.onlyPerfect);
     }
     std::cout << "We even got here!!\n";
     return 0;

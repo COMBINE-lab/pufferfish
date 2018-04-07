@@ -30,9 +30,13 @@ class Cedar {
                  bool requireConcordance,
                  size_t maxIter, 
                  double eps,
-                 std::string& output_filename) {
-                    loadMappingInfo(mapperOutput_filename, requireConcordance);
-                    basicEM(maxIter, eps);
+                 std::string& output_filename,
+                 bool onlyUniq,
+                 bool onlyPerf) {
+                    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf);
+                    if (!onlyUniq and !onlyPerf) {
+                        basicEM(maxIter, eps);
+                    }
                     if (!flatAbund) {
                         serialize(output_filename);
                     } else {
@@ -42,14 +46,14 @@ class Cedar {
                  };
     private:
         bool readHeader(std::ifstream& mfile);
-        void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance);
+        void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance, bool onlyUniq, bool onlyPerfect);
         bool basicEM(size_t maxIter, double eps);
         void serialize(std::string& output_filename);
         void serializeFlat(std::string& output_filename);
         
         spp::sparse_hash_map<uint32_t, TaxaNode> taxaNodeMap;
         spp::sparse_hash_map<std::string, uint32_t> refId2taxId;
-        spp::sparse_hash_map<uint32_t, uint32_t> seqToTaxMap;
+        spp::sparse_hash_map<uint32_t, uint32_t> seqToTaxMap;        
         Rank pruningLevel = Rank::SPECIES;
         std::set<uint64_t> activeTaxa;
         uint64_t rootId = 1;
@@ -61,5 +65,8 @@ class Cedar {
         EquivalenceClassBuilder eqb;
         ReaderType mappings;
         std::shared_ptr<spdlog::logger> logger;
+        
+        spp::sparse_hash_map<uint32_t, uint64_t> cov;
+
 };
 
