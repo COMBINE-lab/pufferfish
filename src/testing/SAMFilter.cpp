@@ -11,6 +11,11 @@
 
 int main(int argc, char* argv[]) {
     std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_mt("console");
+
+    if (argc < 4) {
+        logger->error("require at least 3 input arguments: input bam (str), output bam (str), filtering threshold (number between 0 and 1)");
+        exit(1);
+    }
     logger->info("input: {}", argv[1]);
     logger->info("output: {}", argv[2]);
     logger->info("filter thresh: {}", argv[3]);
@@ -28,6 +33,7 @@ int main(int argc, char* argv[]) {
     bw.WriteHeader();       
     logger->info("# of targets: {}", bh.NumSequences());            
     
+    uint64_t cntr = 0;
     while (br.GetNextRecord(rec)) {        
         if ( (rec.MappedFlag() or rec.PairMappedFlag()) ) {
             
@@ -47,9 +53,14 @@ int main(int argc, char* argv[]) {
             }
         }
         bw.WriteRecord(rec);
+        cntr++;
         if (rec.PairedFlag()) {
             br.GetNextRecord(rec2);
             bw.WriteRecord(rec2);
+            cntr++;
+        }
+        if (cntr % 1000000 == 0) {
+            logger->info("{} records processed.", cntr);
         }
     }
     bw.Close();
