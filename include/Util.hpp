@@ -333,6 +333,8 @@ enum class MateStatus : uint8_t {
     uint32_t coverage() {
       return (isLeftAvailable()?leftClust->coverage:0)+(isRightAvailable()?rightClust->coverage:0);}
     
+    uint32_t leftCoverage() {return isLeftAvailable()?leftClust->coverage:0;}
+    uint32_t rightCoverage() {return isRightAvailable()?rightClust->coverage:0;}
     
     // FIXME : what if the mapping is not orphan? who takes care of this function not being called from outside?
     std::vector<util::MemCluster>::iterator orphanClust() {

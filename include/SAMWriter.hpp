@@ -661,7 +661,9 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\n';
 
-    } else if(writeOrphans){
+    }
+
+    else if(writeOrphans) {
 		//added orphan support
 	  //std::cerr<<"orphans here";
 
@@ -670,52 +672,51 @@ inline uint32_t writeAlignmentsToStream(
         flags1 |= 0x100;
         flags2 |= 0x100;
       }
-
       /** NOTE : WHY IS txpLen 100 here --- we should store and read this from the index. **/
       adjustOverhang(qa, txpLen, cigarStr1, cigarStr2);
       // Reverse complement the read and reverse
       // the quality string if we need to
 
-	  std::string* readSeq{nullptr} ;
-	  std::string* unalignedSeq{nullptr} ;
+      std::string* readSeq{nullptr} ;
+      std::string* unalignedSeq{nullptr} ;
 
-	  uint32_t flags, unalignedFlags ;
+      uint32_t flags, unalignedFlags ;
 
-	  std::string* alignedName{nullptr} ;
-	  std::string* unalignedName{nullptr} ;
-	  std::string* readTemp{nullptr} ;
+      std::string* alignedName{nullptr} ;
+      std::string* unalignedName{nullptr} ;
+      std::string* readTemp{nullptr} ;
 
-	  auto& cigarStr = formatter.cigarStr1;
-  	  cigarStr.clear();
+      auto& cigarStr = formatter.cigarStr1;
+      cigarStr.clear();
       cigarStr.write("{}M", r.first.seq.length());
 
-	  //logic for assigning orphans
-	  if(qa.mateStatus == util::MateStatus::PAIRED_END_LEFT){ //left read
-		alignedName = &readName ;
-		unalignedName = &mateName ;
+      //logic for assigning orphans
+      if(qa.mateStatus == util::MateStatus::PAIRED_END_LEFT){ //left read
+        alignedName = &readName ;
+        unalignedName = &mateName ;
 
-		readSeq = &(r.first.seq) ;
-		unalignedSeq = &(r.second.seq) ;
+        readSeq = &(r.first.seq) ;
+        unalignedSeq = &(r.second.seq) ;
 
-		flags = flags1 ;
-		unalignedFlags = flags2 ;
+        flags = flags1 ;
+        unalignedFlags = flags2 ;
 
-		haveRev = &haveRev1 ;
-		readTemp = &read1Temp ;
-	  }else{
-		alignedName = &mateName ;
-		unalignedName = &readName ;
+        haveRev = &haveRev1 ;
+        readTemp = &read1Temp ;
+      } else {
+        alignedName = &mateName ;
+        unalignedName = &readName ;
 
-		readSeq = &(r.second.seq) ;
-		unalignedSeq = &(r.first.seq) ;
+        readSeq = &(r.second.seq) ;
+        unalignedSeq = &(r.first.seq) ;
 
-		flags = flags2 ;
-		unalignedFlags = flags2 ;
+        flags = flags2 ;
+        unalignedFlags = flags1 ;
 
-		haveRev = &haveRev2 ;
-		readTemp = &read2Temp ;
+        haveRev = &haveRev2 ;
+        readTemp = &read2Temp ;
 
-	  }
+      }
 
 
       // std::string* qstr1 = &(r.first.qual);
@@ -745,9 +746,9 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << cigarStr.c_str() << '\t'                   // CIGAR
+              << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
-              << qa.matePos + 1 << '\t'                      // PNEXT
+              << /* qa.matePos */ qa.pos + 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
               << *readSeq << '\t'                           // SEQ
               << "*\t"                                       // QUAL

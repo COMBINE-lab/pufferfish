@@ -114,11 +114,65 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                         bool noOrphans,
                         PufferfishIndexT& pfi,
                         bool verbose=false) {
+  if (verbose)
+    std::cerr << "\n[JOINREADSANDFILTER]\n";
+  
+  uint64_t maxLeft{0}, maxRight{0}, maxLeftCnt{0}, maxRightCnt{0};
+  bool isMaxLeftAndRight = false;      
+  /* if (!noOrphans) {
+    for (auto& kv : leftMemClusters) {
+      std::cerr <<"\ntid:"<<kv.first<< "\t" << pfi.refName(kv.first) << "\n";
+      auto& lClusts = kv.second;
+      for (auto clust =  lClusts.begin(); clust != lClusts.end(); clust++) {
+        std::cerr << "left: " << clust->isFw << " cov " << clust->coverage << "\n";
+        for (size_t i = 0; i < clust->mems.size(); i++){
+              std::cerr << "--- t" << clust->mems[i].tpos << " r"
+              << clust->mems[i].memInfo->rpos << " cid:"
+              << clust->mems[i].memInfo->cid << " cpos: "
+              << clust->mems[i].memInfo->cpos << " len:"
+              << clust->mems[i].memInfo->memlen << " fw:"
+              << clust->mems[i].memInfo->cIsFw << "\n";
+        }
+        if (maxLeft == clust->coverage) {
+          maxLeftCnt += 1;
+        }
+        else if (maxLeft < clust->coverage) {
+          maxLeft = clust->coverage;
+          maxLeftCnt = 1;
+        }      
+      }
+    }
+    for (auto& kv : rightMemClusters) {
+      std::cerr <<"\ntid:"<<kv.first<< "\t" << pfi.refName(kv.first) << "\n";
+      
+      auto& rClusts = kv.second;
+      for (auto clust =  rClusts.begin(); clust != rClusts.end(); clust++) {
+        std::cerr << "right: " << clust->isFw << " cov " << clust->coverage << "\n";
+        for (size_t i = 0; i < clust->mems.size(); i++){
+              std::cerr << "--- t" << clust->mems[i].tpos << " r"
+              << clust->mems[i].memInfo->rpos << " cid:"
+              << clust->mems[i].memInfo->cid << " cpos: "
+              << clust->mems[i].memInfo->cpos << " len:"
+              << clust->mems[i].memInfo->memlen << " fw:"
+              << clust->mems[i].memInfo->cIsFw << "\n";
+        }
+        if (maxRight == clust->coverage) {
+          maxRightCnt += 1;
+        }
+        else if (maxRight < clust->coverage) {
+          maxRight = clust->coverage;
+          maxRightCnt = 1;
+        }      
+      }
+    } 
+    std::cerr << "\nnow after joining " << round << "\n";
+   
+  } */
   //orphan reads should be taken care of maybe with a flag!
   //uint32_t perfectCoverage{2*readLen};
   uint32_t maxCoverage{0};
   short round{0};
-
+      
   while (round == 0 || (round == 1 && !jointMemsList.size() && !noDiscordant)) {
     for (auto& leftClustItr : leftMemClusters) {
       // reference id
@@ -159,9 +213,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
         //std::cerr << "\n\n\nNOW CROSS\n\n";
     
       }
-    
       for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
+         
         for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
+          
           // if both the left and right clusters are oriented in the same direction, skip this pair
           // NOTE: This should be optional as some libraries could allow this.
           if (round == 0 && lclust->isFw == rclust->isFw) { // if priority 0, ends should be concordant
@@ -185,14 +240,22 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
             // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
             // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
             auto totalCoverage = lclust->coverage + rclust->coverage;
+            
+           
             if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
               jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
+              //printMemInfo(tid, lclust, rclust, pfi);
               /* if (verbose) {
                 printMemInfo(tid, lclust, rclust, pfi);
               } */
               uint32_t currCoverage =  jointMemsList.back().coverage();
               if (maxCoverage < currCoverage) {
                 maxCoverage = currCoverage;
+                if (lclust->coverage < maxLeft || rclust->coverage < maxRight) {
+                  isMaxLeftAndRight = false;
+                } else {
+                  isMaxLeftAndRight = true;
+                }
               }
             }
           } /* else {
@@ -204,7 +267,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
     round++;
   }
   // If we couldn't find any pair and we are allowed to add orphans
-  if (!jointMemsList.size() && !noOrphans) {
+  if (!noOrphans && (!jointMemsList.size() || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1)) {
     //std::cerr << "Orphans\n";
     auto orphanFiller = [&jointMemsList, &maxCoverage]
                         (spp::sparse_hash_map<size_t,std::vector<util::MemCluster>>& memClusters,
@@ -254,11 +317,36 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                                        return pairedReadMems.coverage() < coverageRatio*maxCoverage ;
                                      }),
                       jointMemsList.end());
+
+    
+    uint64_t minCoverage = 80;
+    jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                     [&minCoverage](util::JointMems& pairedReadMems) -> bool {
+                                       return pairedReadMems.coverage() < minCoverage ;
+                                     }),
+                      jointMemsList.end());
+
+    // new heuristic
+    minCoverage = 70;
+    jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                     [&minCoverage](util::JointMems& pairedReadMems) -> bool {
+                                       return (pairedReadMems.leftCoverage() < minCoverage and 
+                                               pairedReadMems.rightCoverage() < minCoverage) ;
+                                     }),
+                      jointMemsList.end());
   }
   if (verbose) {
     std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio*maxCoverage <<"\n";
     std::cerr << jointMemsList.size() << "\n";
   }
+  if (verbose)
+    std::cerr << "\n[END OF JOINREADSANDFILTER]\n";
+
+  /* std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio*maxCoverage << "\n";
+  for (auto jointMems : jointMemsList) {
+    std::cerr << pfi.refName(jointMems.tid) << "\t";
+  }
+  std::cerr << "\n"; */
 }
 
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
@@ -627,7 +715,7 @@ void processReadsPair(paired_parser* parser,
 
   std::vector<std::string> refBlocks ;
 
-  auto logger = spdlog::get("stderrLog") ;
+  auto logger = spdlog::get("console") ;
   fmt::MemoryWriter sstream ;
   BinWriter bstream;
   //size_t batchSize{2500} ;
@@ -655,8 +743,12 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       totLen = readLen + rpair.second.seq.length();
+      //bool verbose = rpair.first.name == "gi|359330873|dbj|AP012306.1|-347909/1";
+      //bool verbose = rpair.first.name == "gi|459387757|gb|CP003329.1|-361328/1";
+      
       bool verbose = false;
       if(verbose) std::cerr << rpair.first.name << "\n";
+      //std::cerr << "\n\n\n" << "read: " << rpair.first.name << "\n";
 
       ++hctr.numReads ;
 
@@ -720,7 +812,7 @@ void processReadsPair(paired_parser* parser,
         mopts->noDiscordant,
         mopts->noOrphan,
         pfi,
-        /* rpair.first.name == "gi|459387757|gb|CP003329.1|-401560/1" */verbose) ;
+        verbose) ;
       /* } else{
         //ignore orphans for now
       } */
@@ -848,13 +940,22 @@ void processReadsPair(paired_parser* parser,
       }
 
       hctr.totAlignment += jointAlignments.size();
-
+      if (rpair.first.name == "gi|459387757|gb|CP003329.1|-421026/1") {
+        logger->info("we're here\n jointHit.size: {}",jointAlignments.size());
+      }
       if(mopts->krakOut){
         writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
       } else if(jointAlignments.size() > 0 and !mopts->noOutput){
-        writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
+        if (rpair.first.name == "gi|459387757|gb|CP003329.1|-421026/1") {
+        logger->info("writing it as mapped");
+
+      }
+        writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan/* mopts->writeOrphans */, mopts->justMap) ;
       } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
-        writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
+        if (rpair.first.name == "gi|459387757|gb|CP003329.1|-421026/1") {
+          logger->info("writing it as unmapped");
+        }
+        writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan/* mopts->writeOrphans */, mopts->justMap) ;
       }
 
       if (mopts->noOutput) {
@@ -863,6 +964,10 @@ void processReadsPair(paired_parser* parser,
           for (auto& qa : jointHits) {
             std::string refName = pfi.refName(qa.tid);
             std::string readName(rpair.first.name);
+            if (readName == "") {
+              std::cerr << "\nhappened!\n";
+              readName = rpair.second.name;
+            }
             if (foundTruth(refName, readName)) {
               notFound = false;
               break;
@@ -872,6 +977,9 @@ void processReadsPair(paired_parser* parser,
             for (auto& qa : jointHits) {
               std::string refName = pfi.refName(qa.tid);
               std::string readName(rpair.first.name);
+              if (readName == "") {
+                readName = rpair.second.name;
+              }
               auto& clustLeft = qa.leftClust;
               auto& clustRight = qa.rightClust;
               size_t leftNumOfIntervals{0},rightNumOfIntervals{0},leftRefPos{0},rightRefPos{0};
@@ -1069,7 +1177,7 @@ void processReadsSingle(single_parser* parser,
                     e1, std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e2) -> bool {
               return e1.second->coverage > e2.second->coverage;
             });
-        // remove those that don't achieve the threshold
+        // remove those that don't pass threshold
         validHits.erase(std::remove_if(validHits.begin(), validHits.end(),
           [thresh](std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>& e) -> bool {
             return static_cast<double>(e.second->coverage) < thresh;
@@ -1137,11 +1245,11 @@ void processReadsSingle(single_parser* parser,
       } else if (validHits.size() > 0 and !mopts->noOutput) {
         // write sam output for mapped reads
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
-                               mopts->writeOrphans, mopts->justMap);
+                               !mopts->noOrphan/* mopts->writeOrphans */, mopts->justMap);
       } else if (validHits.size() == 0 and !mopts->noOutput) {
         // write sam output for un-mapped reads
         writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
-                                        sstream, mopts->writeOrphans,
+                                        sstream, !mopts->noOrphan/* mopts->writeOrphans */,
                                         mopts->justMap);
       }
 
