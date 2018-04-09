@@ -193,7 +193,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                         or (onlyUniq and activeTaxa.size() == 1)
                         or (onlyPerfect and activeTaxa.size() == 1 
                             and 
-                            readInfo.mappings[0].getScore() == readInfo.len) ) {
+                            readInfo.mappings[0].getScore() >= readInfo.len) ) {
                 if (!isConflicting) {conflicting++;}
                 //if (!foundTruth) { notMappedReadsFile << readInfo.rid << "\n";}
                 // bool isUnique = (readPerStrainProbInst.size() == 1);
@@ -341,6 +341,7 @@ void Cedar<ReaderType>::serialize(std::string& output_filename) {
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     spp::sparse_hash_map<uint64_t, double> validTaxa;
+    std::cout << "strain size: " << strain.size() << "\n";
     for (auto& kv : strain) {
         TaxaNode * walker = &taxaNodeMap[kv.first];
         while (!walker->isRoot() && walker->getRank() != pruningLevel) {
@@ -469,7 +470,7 @@ int main(int argc, char* argv[]) {
                   kopts.output_filename,
                   kopts.onlyUniq,
                   kopts.onlyPerfect);
-        std::cout << "inside the scope\n";
+        //std::cout << "inside the scope\n";
     }
     else {
         Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
@@ -481,7 +482,7 @@ int main(int argc, char* argv[]) {
             kopts.onlyUniq,
             kopts.onlyPerfect);
     }
-    std::cout << "We even got here!!\n";
+    //std::cout << "We even got here!!\n";
     return 0;
   } else {
     std::cout << usage_lines(cli, "cedar") << '\n';
