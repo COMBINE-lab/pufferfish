@@ -32,6 +32,7 @@ public:
                                         bool verbose=false) {
     if (verbose)
       std::cerr << "\n[RECOVERGAPS]\n";
+    uint64_t thresh = k/2;
     // a sample for <readPos,memLen> if read is mapped in rc against the reference
     // and the list is sorted based on reference pos
     //read poses 20,47  9,41  4,35  0,34
@@ -56,7 +57,7 @@ public:
             // we also check that the read is not an overhang
             // meaning that it hangs over the transcript. 
             // In that case, we should add as many nucleotides as left in transcript's end
-            if (firstGap > 0 && firstGap <= k) {
+            if (firstGap > 0 && firstGap <= thresh) {
               size_t tpos = tfirstpos - firstGap;
               int potentialtpos = tfirstpos - firstGap;
               if (potentialtpos < 0) {
@@ -78,7 +79,7 @@ public:
               memCluster.addMem(std::prev(memCollection.end()),
                                     tpos , 0);
             }
-            if (lastGap > 0 && lastGap <= k) {
+            if (lastGap > 0 && lastGap <= thresh) {
               // FIXME -> what if it passes the transcript length?
               // we need transcript len for this!!
               size_t tpos = tlastpos +  rlastMem->memlen + 1;
@@ -113,7 +114,7 @@ public:
               auto& next = memCluster.mems[i+1];
               uint64_t middleGap = next.memInfo->rpos - (prev.memInfo->rpos+prev.memInfo->memlen);
               //uint64_t refGap = next.tpos - (prev.tpos+prev.memInfo->memlen);
-              if ( middleGap > 2 && middleGap <= k+1) {
+              if ( middleGap > 2 && middleGap <= thresh+1) {
                 // first of all, since it's READ coverage, you should see what the gap is in read
                 // also, to make it closer to edit distance, 
                 // we can consider 2 + extra characters in either read or reference as the edit distance
@@ -154,7 +155,7 @@ public:
             // also check that the read is not an overhang
             // meaning that it hangs over the transcript. 
             // In that case, we should add as many nucleotides as left in transcript's end
-            if (firstGap > 0 && firstGap <= k) {
+            if (firstGap > 0 && firstGap <= thresh) {
               size_t tpos = tfirstpos - firstGap;
               int potentialtpos = tfirstpos - firstGap;
               if (potentialtpos < 0) {
@@ -188,7 +189,7 @@ public:
                 std::cerr << "\n";
               }
             }
-            if (lastGap > 0 && lastGap <= k) {
+            if (lastGap > 0 && lastGap <= thresh) {
               // FIXME -> what if it passes the transcript length?
               // we need transcript len for this!!
               if (verbose) {
@@ -226,7 +227,7 @@ public:
               auto& next = memCluster.mems[i-1];
               uint64_t middleGap = next.memInfo->rpos - (prev.memInfo->rpos+prev.memInfo->memlen);
               //uint64_t refGap = prev.tpos - (next.tpos+next.memInfo->memlen);
-              if ( middleGap > 2 && middleGap <= k+1) {
+              if ( middleGap > 2 && middleGap <= thresh+1) {
               if (verbose) {
 
                 std::cerr << "\nbefore: " << memCluster.isFw << " " << memCluster.coverage <<"\n ";
@@ -607,7 +608,7 @@ public:
         std::cerr << "\n and now after recover gaps\n\n";
       
       }
-      recoverGaps(memClusters, *memCollection, read.length(), verbose );
+      //recoverGaps(memClusters, *memCollection, read.length(), verbose );
       
       if (verbose) {
         for (auto kv : memClusters) {

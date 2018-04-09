@@ -327,13 +327,13 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                       jointMemsList.end());
 
     // new heuristic
-    minCoverage = 70;
+    /* minCoverage = 95;
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&minCoverage](util::JointMems& pairedReadMems) -> bool {
                                        return (pairedReadMems.leftCoverage() < minCoverage and 
                                                pairedReadMems.rightCoverage() < minCoverage) ;
                                      }),
-                      jointMemsList.end());
+                      jointMemsList.end()); */
   }
   if (verbose) {
     std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio*maxCoverage <<"\n";
