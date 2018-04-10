@@ -34,12 +34,12 @@ class SAMReader {
                 if (!hasNext) return false;
                 ReadEnd re = ReadEnd::LEFT; // initial read is always assumed to be left
                 std::string readName = rec.Qname(); // assumption: in any case, readName is valid
+                rinf.len = rec.Length();
                 if (needReadName) {
                     rinf.rid = readName;
                 }
                 if (rec.MappedFlag()) {   
                     rinf.mappings.push_back(rec.ChrID());
-                    rinf.len = rec.Length();
                     rinf.cnt = 1;
                     taxa = &rinf.mappings.back();
                     taxa->setFw(!rec.ReverseFlag(), re);

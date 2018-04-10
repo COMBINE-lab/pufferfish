@@ -104,7 +104,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
 
     constexpr const bool getReadName = true;
     bool checkTruthExists = true;
-    size_t numCorrectHits{0};
+    //size_t numCorrectHits{0};
     size_t numMapped{0};
     bool wasMapped = false;
     //size_t gid{0};
@@ -124,8 +124,8 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
             */
         }
         totalReadCnt++;
-        if (totalReadCnt % 100000 == 0) {
-          logger->info("Processed {} reads, where {} contained the truth = {:.3f}% of mapped reads",totalReadCnt, numCorrectHits, 100.0*static_cast<double>(numCorrectHits)/numMapped);
+        if (totalReadCnt % 1000000 == 0) {
+          logger->info("Processed {} reads",totalReadCnt);
         }
         activeTaxa.clear();
         double readMappingsScoreSum = 0;
@@ -142,7 +142,10 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 // taxaId for 
                 // second condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
-                if( (flatAbund or (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) 
+                // note: Fatemeh!! don't change the or and and again!!
+                // if we are on flatAbund, we want to count for multiple occurence of a reference
+                if( (flatAbund or 
+                     (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) 
                   and
                   activeTaxa.find(mapping.getId()) == activeTaxa.end()) {
 
@@ -232,10 +235,6 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 eqb.addGroup(std::move(tg), probs);
             }
         } else {
-            if (readInfo.cnt > 0) {
-                totalMultiMappedReads++;
-            }
-            else
                 totalUnmappedReads++;
         }
     }
@@ -268,7 +267,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
         totCount += eqc.second.count;
     }
     logger->info("total staring count {}", totCount);
-    logger->info("readCnt {}", readCnt);
+    logger->info("mapped readCnt {}", readCnt);
 
     size_t cntr = 0;
     bool converged = false;
@@ -373,22 +372,29 @@ void Cedar<ReaderType>::serialize(std::string& output_filename) {
 
 template<class ReaderType>
 void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
-  logger->info("Write results in the file: {}", output_filename);
-  std::ofstream ofile(output_filename);
-  ofile << "taxaId\ttaxaRank\tcount\n";
-  std::cout << "NUMREFS: " << mappings.numRefs() << "\n";
-  for (uint32_t i = 0; i < mappings.numRefs(); ++i) { 
-    //for (auto& kv : strain) {
-    auto it = strain.find(i);
-    double abund = 0.0;
-    if (it != strain.end()){
-      abund = it->second;
+    logger->info("[FlatAbund]");
+    // validate final count:
+    uint64_t finalMappedReadCnt = 0;
+    for (auto &kv : strain) {
+        finalMappedReadCnt += kv.second;
     }
-    ofile << mappings.refName(i) << "\t" 
-          << "flat" 
-          << "\t" << abund << "\n";
-  }
-  ofile.close();
+    logger->info("Before writing results in the file, total # of mapped reads is {}", finalMappedReadCnt);
+    logger->info("Write results in the file: {}", output_filename);
+    std::ofstream ofile(output_filename);
+    ofile << "taxaId\ttaxaRank\tcount\n";
+    std::cout << "NUMREFS: " << mappings.numRefs() << "\n";
+    for (uint32_t i = 0; i < mappings.numRefs(); ++i) { 
+        //for (auto& kv : strain) {
+        auto it = strain.find(i);
+        double abund = 0.0;
+        if (it != strain.end()){
+        abund = it->second;
+        }
+        ofile << mappings.refName(i) << "\t" 
+            << "flat" 
+            << "\t" << abund << "\n";
+    }
+    ofile.close();
 }
 
 template class Cedar<PuffMappingReader>;

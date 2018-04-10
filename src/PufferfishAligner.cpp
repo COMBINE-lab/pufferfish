@@ -121,10 +121,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   bool isMaxLeftAndRight = false;      
   if (!noOrphans) {
     for (auto& kv : leftMemClusters) {
-      std::cerr <<"\ntid:"<<kv.first<< "\t" << pfi.refName(kv.first) << "\n";
+      //std::cerr <<"\ntid:"<<kv.first<< "\t" << pfi.refName(kv.first) << "\n";
       auto& lClusts = kv.second;
       for (auto clust =  lClusts.begin(); clust != lClusts.end(); clust++) {
-        std::cerr << "left: " << clust->isFw << " cov " << clust->coverage << "\n";
+        /* std::cerr << "left: " << clust->isFw << " cov " << clust->coverage << "\n";
         for (size_t i = 0; i < clust->mems.size(); i++){
               std::cerr << "--- t" << clust->mems[i].tpos << " r"
               << clust->mems[i].memInfo->rpos << " cid:"
@@ -132,7 +132,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
               << clust->mems[i].memInfo->cpos << " len:"
               << clust->mems[i].memInfo->memlen << " fw:"
               << clust->mems[i].memInfo->cIsFw << "\n";
-        }
+        } */
         if (maxLeft == clust->coverage) {
           maxLeftCnt += 1;
         }
@@ -143,11 +143,11 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
       }
     }
     for (auto& kv : rightMemClusters) {
-      std::cerr <<"\ntid:"<<kv.first<< "\t" << pfi.refName(kv.first) << "\n";
+      //std::cerr <<"\ntid:"<<kv.first<< "\t" << pfi.refName(kv.first) << "\n";
       
       auto& rClusts = kv.second;
       for (auto clust =  rClusts.begin(); clust != rClusts.end(); clust++) {
-        std::cerr << "right: " << clust->isFw << " cov " << clust->coverage << "\n";
+       /*  std::cerr << "right: " << clust->isFw << " cov " << clust->coverage << "\n";
         for (size_t i = 0; i < clust->mems.size(); i++){
               std::cerr << "--- t" << clust->mems[i].tpos << " r"
               << clust->mems[i].memInfo->rpos << " cid:"
@@ -155,7 +155,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
               << clust->mems[i].memInfo->cpos << " len:"
               << clust->mems[i].memInfo->memlen << " fw:"
               << clust->mems[i].memInfo->cIsFw << "\n";
-        }
+        } */
         if (maxRight == clust->coverage) {
           maxRightCnt += 1;
         }
@@ -165,7 +165,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
         }      
       }
     } 
-    std::cerr << "\nnow after joining " << round << "\n";
+    //std::cerr << "\nnow after joining " << round << "\n";
    
   }
   //orphan reads should be taken care of maybe with a flag!
@@ -244,7 +244,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
            
             if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
               jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
-              printMemInfo(tid, lclust, rclust, pfi);
+              //printMemInfo(tid, lclust, rclust, pfi);
               /* if (verbose) {
                 printMemInfo(tid, lclust, rclust, pfi);
               } */
@@ -333,11 +333,11 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   if (verbose)
     std::cerr << "\n[END OF JOINREADSANDFILTER]\n";
 
-  std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio*maxCoverage << "\n";
+  /* std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio*maxCoverage << "\n";
   for (auto jointMems : jointMemsList) {
     std::cerr << pfi.refName(jointMems.tid) << "\t";
   }
-  std::cerr << "\n";
+  std::cerr << "\n"; */
 }
 
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
@@ -739,7 +739,7 @@ void processReadsPair(paired_parser* parser,
       
       bool verbose = false;
       if(verbose) std::cerr << rpair.first.name << "\n";
-      std::cerr << "\n\n\n" << "read: " << rpair.first.name << "\n";
+      //std::cerr << "\n\n\n" << "read: " << rpair.first.name << "\n";
 
       ++hctr.numReads ;
 
