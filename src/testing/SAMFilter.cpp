@@ -23,7 +23,7 @@ bool isTruth(SeqLib::BamRecord& rec, SeqLib::BamHeader& bh) {
     }
     return false;
 }
-void filterPartfp(SeqLib::BamReader& br,
+void filterFractionOffp(SeqLib::BamReader& br,
                  SeqLib::BamWriter& bw,
                  SeqLib::BamHeader& bh,
                  float prob,
@@ -53,7 +53,7 @@ void filterPartfp(SeqLib::BamReader& br,
     }
 }
 
-void filterOnlytp(SeqLib::BamReader& br,
+void filterAllFp(SeqLib::BamReader& br,
                  SeqLib::BamWriter& bw,
                  SeqLib::BamHeader& bh,
                  std::shared_ptr<spdlog::logger>& logger) {
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
     logger->info("# of targets: {}", bh.NumSequences());            
     
     if (command == "all_fps") {
-        filterOnlytp(br, bw, bh, logger);    
+        filterAllFp(br, bw, bh, logger);    
     }
     else if (command == "part_fps") {
         if (argc < 5) {
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
         }
         float prob = std::stof(argv[4]);
         logger->info("filter thresh: {}", prob);    
-        filterPartfp(br, bw, bh, prob, logger); 
+        filterFractionOffp(br, bw, bh, prob, logger); 
     }
     
     br.Close();

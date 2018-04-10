@@ -12,7 +12,7 @@ class SAMReader {
 
         public:
         SAMReader() {rec.init();}
-        ~SAMReader() { std::cout << "destructor is called\n"; br.Close();}
+        ~SAMReader() { br.Close();}
         void load(std::string mfileName,
                 std::shared_ptr<spdlog::logger> loggerIn) {
             logger = loggerIn;

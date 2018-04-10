@@ -132,7 +132,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
         std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(readInfo.cnt);
         bool isConflicting = true;
-        if (readInfo.cnt == 1 /*&& readInfo.len == readInfo.mappings[0].getScore()*//*  != 0 */) {
+        if (readInfo.cnt != 0) {
             //std::cout << "read len " << readInfo.len << "\n";
             if (!wasMapped) { wasMapped = true; ++numMapped; }
             std::set<uint64_t> seen;
