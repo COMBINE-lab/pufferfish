@@ -319,12 +319,13 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                       jointMemsList.end());
 
     
-    uint64_t minCoverage = 80;
+    /*uint64_t minCoverage = 0.8 * (perfectCoverage / 2);
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                      [&minCoverage](util::JointMems& pairedReadMems) -> bool {
                                        return pairedReadMems.coverage() < minCoverage ;
                                      }),
                       jointMemsList.end());
+                      */
   }
   if (verbose) {
     std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio*maxCoverage <<"\n";
@@ -935,9 +936,9 @@ void processReadsPair(paired_parser* parser,
       if(mopts->krakOut){
         writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
       } else if(jointAlignments.size() > 0 and !mopts->noOutput){
-        writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
+        writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap) ;
       } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
-        writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, mopts->writeOrphans, mopts->justMap) ;
+        writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap) ;
       }
 
       if (mopts->noOutput) {
@@ -1227,11 +1228,11 @@ void processReadsSingle(single_parser* parser,
       } else if (validHits.size() > 0 and !mopts->noOutput) {
         // write sam output for mapped reads
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
-                               mopts->writeOrphans, mopts->justMap);
+                               !mopts->noOrphan, mopts->justMap);
       } else if (validHits.size() == 0 and !mopts->noOutput) {
         // write sam output for un-mapped reads
         writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
-                                        sstream, mopts->writeOrphans,
+                                        sstream, !mopts->noOrphan,
                                         mopts->justMap);
       }
 
