@@ -57,6 +57,7 @@ int main(int argc, char* argv[]) {
                     (required("-g", "--gfa").call([]{cout << "parsing --gfa\n\n";}) & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
                     (required("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
+                    (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
                     (((option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
                      ((option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)")) |
                      ((option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)"))

@@ -289,7 +289,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   auto keyIt = boomphf::range(kb, ke);
   boophf_t* bphf =
-      new boophf_t(nkeys, keyIt, 16, 3.5); // keys.size(), keys, 16);
+      new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
   std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
             << "\n";
 

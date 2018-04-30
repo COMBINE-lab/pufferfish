@@ -5,6 +5,7 @@
 class IndexOptions {
 public:
   uint32_t k{31};
+  uint32_t p{16};
   std::string gfa_file;
   std::string cfile;
   std::string rfile;
