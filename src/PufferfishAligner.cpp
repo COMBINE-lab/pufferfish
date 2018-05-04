@@ -295,10 +295,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
         }
       }
     };
-    //if (leftMemClusters.size() == 0 or rightMemClusters.size() == 0) {
+    if (leftMemClusters.size() == 0 or rightMemClusters.size() == 0) {
       orphanFiller(leftMemClusters, true);
       orphanFiller(rightMemClusters, false);
-    //} 
+    } 
     /* else {
       std::cerr << "discarded " << leftMemClusters.size() << "," << rightMemClusters.size() << "\n";
     } */
