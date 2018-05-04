@@ -299,6 +299,8 @@ public:
       // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
       // Maybe we want to change the interface (make these members public or provide accessors)?
       auto& refs = projHits.refRange;
+      if (verbose)
+        std::cerr << "total number of references found: " << refs.size() << "\n";
       if (refs.size() < 200) {
         memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                    readPos, projHits.k_, projHits.contigPos_,
@@ -309,6 +311,10 @@ public:
           trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
             .emplace_back(memItr, refPosOri.pos);
         }
+        
+        if (verbose)
+        std::cerr << "total number of mappings found: " << refs.size() << "\n";
+      
       }
     }
 

@@ -314,6 +314,7 @@ enum class MateStatus : uint8_t {
     std::vector<util::MemCluster>::iterator leftClust;
     std::vector<util::MemCluster>::iterator rightClust;
     size_t fragmentLen;
+    size_t rmemMaxLen{0}, lmemMaxLen{0};
     MateStatus mateStatus;
     bool isLeftAvailable() { return mateStatus == MateStatus::PAIRED_END_PAIRED ||
                                     mateStatus == MateStatus::PAIRED_END_LEFT;}

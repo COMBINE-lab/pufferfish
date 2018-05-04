@@ -93,8 +93,8 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   auto& txpLens = pfi.getRefLengths();
   auto numRef = txpNames.size();
   bw << numRef; // refCount (size_t)
-  std::cout << "is paired: " << !mopts->singleEnd << "\n";
-  std::cout << "numRef: " << numRef << "\n";
+  std::cerr << "is paired: " << !mopts->singleEnd << "\n";
+  std::cerr << "numRef: " << numRef << "\n";
             
   for (size_t i = 0; i < numRef; ++i) {
     bw << txpNames[i] << txpLens[i]; //txpName (string) , txpLength (size_t)
