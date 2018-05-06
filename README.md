@@ -77,11 +77,6 @@ The commands in the `index.sh` file go through the pipeline of "*fixFasta -> Two
 
 Good news is you can run the whole pipeline by just setting the required arguments in file `config.json` and then run `bash index.sh` in the root directory of this repository, pufferfish.
 
-## Mapping
-We can generate different types of output including sam. If you have samtools installed on your system you can run the first command in the puff_align.bash file to generate a bam file for mapping a set of reads to the pufferfish index. The rest of the commands do quantification on the bam file using Salmon and then validation of the results on reference set and taxonomic tree using two python scripts in scripts section.
-
-For the address of the reads, index, truth files, etc. you need to have a config file like `microbiome_config.json`.
-
 ## Using Pufferfish with BCALM2
 
 You can use pufferfish with the unitig file provided by [BCALM2](https://github.com/GATB/bcalm).  Once you have downloaded and built bcalm, you can run it on your reference sequence file to produce a list of compacted unitigs like so:
@@ -97,3 +92,9 @@ bcalm_pufferizer -k <k> -r reference.fa -u out_prefix.unitigs.fa
 ```
 
 This will create a file called `out_prefix.unitigs.fa.pufferized.gfa`, on which you can then build the pufferfish index.
+
+# Mapping using Pufferfish
+We can generate different types of output including sam. If you have samtools installed on your system you can run the first command in the puff_align.bash file to generate a bam file for mapping a set of reads to the pufferfish index. The rest of the commands do quantification on the bam file using Salmon and then validation of the results on reference set and taxonomic tree using two python scripts in scripts section.
+
+For the address of the reads, index, truth files, etc. you need to have a config file like `microbiome_config.json`.
+
