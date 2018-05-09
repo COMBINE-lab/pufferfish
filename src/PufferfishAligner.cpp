@@ -187,38 +187,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
       auto& lClusts = leftClustItr.second;
       // right mem clusters for the same reference id
       auto& rClusts = rightMemClusters[tid];
-      //if ((lClusts.size() > 5 || rClusts.size() > 5) && (lClusts.size()>0 && rClusts.size()>0))
-      //std::cerr << "\t" << tid << ": lClusts.size:" << lClusts.size() << " , rClusts.size:" << rClusts.size() << "\n";
       // Compare the left clusters to the right clusters to filter by positional constraints
-      if (verbose) {
-        std::cerr <<"\ntid:"<<tid<< "\t" << pfi.refName(tid) << "\n";
-      for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
-              std::cerr <<"left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-  
-                for (size_t i = 0; i < lclust->mems.size(); i++){
-              std::cerr << "--- t" << lclust->mems[i].tpos << " r"
-              << lclust->mems[i].memInfo->rpos << " cid:"
-              << lclust->mems[i].memInfo->cid << " cpos: "
-              << lclust->mems[i].memInfo->cpos << " len:"
-              << lclust->mems[i].memInfo->memlen << " fw:"
-              << lclust->mems[i].memInfo->cIsFw << "\n";
-              }
-      }
-      for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
-      std::cerr << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
-  
-      for (size_t i = 0; i < rclust->mems.size(); i++){
-              std::cerr << "--- t" << rclust->mems[i].tpos << " r"
-              << rclust->mems[i].memInfo->rpos << " cid:"
-              << rclust->mems[i].memInfo->cid << " cpos: "
-              << rclust->mems[i].memInfo->cpos << " len:"
-              << rclust->mems[i].memInfo->memlen << " fw:"
-              << rclust->mems[i].memInfo->cIsFw << "\n";
-      }
-      }
-        //std::cerr << "\n\n\nNOW CROSS\n\n";
-    
-      }
+      
       for (auto lclust =  lClusts.begin(); lclust != lClusts.end(); lclust++) {
          
         for (auto rclust =  rClusts.begin(); rclust != rClusts.end(); rclust++) {
@@ -243,8 +213,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
             // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
             // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
             auto totalCoverage = lclust->coverage + rclust->coverage;
-            
-           
             if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage ) {//}|| (lclust->coverage + rclust->coverage) == ) {
               jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
               /* if (verbose) {
@@ -270,7 +238,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
   if (verbose) {
     std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
   }
-  if (!noOrphans && (!jointMemsList.size() /* || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1 */)) {
+  if (!noOrphans && (!jointMemsList.size() || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1)) {
     //std::cerr << "Orphans\n";
     auto orphanFiller = [&jointMemsList, &maxCoverage]
                         (spp::sparse_hash_map<size_t,std::vector<util::MemCluster>>& memClusters,
@@ -295,10 +263,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
         }
       }
     };
-    if (leftMemClusters.size() == 0 or rightMemClusters.size() == 0) {
+    //if (leftMemClusters.size() == 0 or rightMemClusters.size() == 0) {
       orphanFiller(leftMemClusters, true);
       orphanFiller(rightMemClusters, false);
-    } 
+    //} 
     /* else {
       std::cerr << "discarded " << leftMemClusters.size() << "," << rightMemClusters.size() << "\n";
     } */
@@ -336,97 +304,40 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t,std::vector<util::MemCluster
                       jointMemsList.end()); */
                      
   }
-  // if (coverageRatio == 1) {
-  //   size_t curMem{0}, curMax{0}, maxMem{0}, lmax{0}, rmax{0};
-  //   int lastCovered{-1};
-  //   for (auto& jointMem : jointMemsList) {
-  //     curMax=0; curMem = 0;
-  //     maxMem = lmax; curMax = 0;
-
-  //     lastCovered = -1;
-  //     if (jointMem.isLeftAvailable()) {
-  //       for (auto& mem : jointMem.leftClust->mems) {
-  //         if (lastCovered < mem.tpos) {
-  //           if (curMem > curMax) {
-  //             curMax = curMem;
-  //           }
-  //           if (curMax > maxMem) {
-  //             maxMem = curMax;
-  //           }
-  //           curMem = 0;
-  //           lastCovered = -1;
-  //         }
-  //         if (lastCovered == -1)
-  //           curMem = mem.memInfo->memlen;
-  //         else
-  //           curMem += std::max((int)(((int)mem.tpos-lastCovered) + (int)mem.memInfo->memlen), 0);
-  //         lastCovered = mem.tpos + mem.memInfo->memlen;
-  //       }
-  //     }
-  //     if (curMem > curMax) {
-  //       curMax = curMem;
-  //     }
-  //     if (curMax > maxMem) {
-  //       maxMem = curMax;
-  //     }
-  //     jointMem.lmemMaxLen = curMax;
-  //     lmax = maxMem;
-      
-  //     maxMem = rmax; curMax = 0;
-
-  //     curMem = 0; lastCovered = -1;
-  //     if (jointMem.isRightAvailable()) {
-  //       for (auto& mem : jointMem.rightClust->mems) {
-  //         if (lastCovered < mem.tpos) {
-  //           if (curMem > curMax) {
-  //             curMax = curMem;
-  //           }
-  //           if (curMax > maxMem) {
-  //             maxMem = curMax;
-  //           }
-  //           curMem = 0;
-  //           lastCovered = -1;
-  //         }
-  //         if (lastCovered == -1)
-  //           curMem = mem.memInfo->memlen;
-  //         else
-  //           curMem += std::max((int)(((int)mem.tpos-lastCovered) + (int)mem.memInfo->memlen), 0);
-  //         lastCovered = mem.tpos + mem.memInfo->memlen;
-  //       }
-  //     }
-  //     if (curMem > curMax) {
-  //       curMax = curMem;
-  //     }
-  //     if (curMax > maxMem) {
-  //       maxMem = curMax;
-  //     }
-  //     jointMem.rmemMaxLen = curMax;
-  //     rmax = maxMem;
-      
-  //   }
-  //   if (verbose) {
-  //     std::cerr << "rmax: " << rmax << " lmax: " << lmax << "\n";
-  //     for (auto& jointMem : jointMemsList) {
-  //       std::cerr << "j rmax: " << jointMem.rmemMaxLen << " lmax: " << jointMem.lmemMaxLen << "\n";
-  //     }
-  //   }
-  //   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-  //                                    [&rmax, &lmax](util::JointMems& pairedReadMems) -> bool {
-  //                                      return pairedReadMems.rmemMaxLen < rmax 
-  //                                         or  pairedReadMems.lmemMaxLen < lmax;
-  //                                    }),
-  //                     jointMemsList.end()); 
-    
-  //   /* std::vector<util::JointMems> tmp = jointMemsList;
-  //   jointMemsList.clear();
-  //   std::set<uint32_t> refs;
-  //   for (auto& val : tmp) {
-  //     if (refs.find(val.tid) == refs.end()) {
-  //       jointMemsList.push_back(val);
-  //       refs.insert(val.tid);
-  //     }
-  //   } */
-  // }
+  if (coverageRatio == 1) {
+    std::set<std::vector<util::UniMemInfo>::iterator> lvalidUnimemSet,rvalidUnimemSet ;
+    if (jointMemsList.size() > 0) {
+      auto& first = jointMemsList[0];
+      if (first.isLeftAvailable()) {
+      for (auto& mem : first.leftClust->mems) {
+        lvalidUnimemSet.insert(mem.memInfo);
+      }
+      }
+      if (first.isRightAvailable()) {
+      for (auto& mem : first.rightClust->mems) {
+        rvalidUnimemSet.insert(mem.memInfo);
+      }
+        }
+      for (auto& jointMem : jointMemsList) {
+        if (jointMem.isLeftAvailable()) {
+          for (auto& mem : jointMem.leftClust->mems) {
+            if (lvalidUnimemSet.find(mem.memInfo) == lvalidUnimemSet.end()) {
+              jointMemsList.clear();
+              return;
+            } 
+          }
+        }
+        if (jointMem.isRightAvailable()) {
+          for (auto& mem : jointMem.rightClust->mems) {
+            if (rvalidUnimemSet.find(mem.memInfo) == rvalidUnimemSet.end()) {
+              jointMemsList.clear();
+              return;
+            } 
+          }
+        }
+      }
+    }
+  }
   if (verbose) {
     std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio*maxCoverage <<"\n";
     std::cerr << jointMemsList.size() << "\n";
@@ -835,13 +746,12 @@ void processReadsPair(paired_parser* parser,
     for(auto& rpair : rg){
       readLen = rpair.first.seq.length() ;
       totLen = readLen + rpair.second.seq.length();
-      //std::cerr << rpair.first.name << " ";
       //bool verbose = rpair.first.name == "NC_009667.fna:1:1:1703:6588#0/1";
       //bool verbose = rpair.first.name == "gi|459387757|gb|CP003329.1|-361328/1";
       
       bool verbose = false;
       if(verbose) std::cerr << rpair.first.name << "\n";
-      //std::cerr << "\n\n\n" << "read: " << rpair.first.name << "\n";
+      //std::cerr << "read: " << rpair.first.name << "\n\n";
 
       ++hctr.numReads ;
 
@@ -905,7 +815,8 @@ void processReadsPair(paired_parser* parser,
         mopts->noDiscordant,
         mopts->noOrphan,
         pfi,
-        /* rpair.first.name == "NC_009667.fna:1:1:1703:6588#0/1" */ verbose) ;
+        /* rpair.first.name == "NC_009641.fna:1:1:2066:284#0/1" */
+        verbose) ;
       /* } else{
         //ignore orphans for now
       } */
@@ -915,67 +826,13 @@ void processReadsPair(paired_parser* parser,
       //this can be used for BFS
       //NOTE sanity check
       //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
-      /*
-      for(auto& h: jointHits){
-        for(auto& m : h.leftClust->mems){
-          auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
-          auto tmp = rpair.first.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
-          auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
-          if(cSeq != rseq){
-            std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.leftClust->isFw<< " tpos: "<<m.tpos<<"\n" ;
-            std::cerr<<rpair.first.name << "\n" ;
-            std::cerr << cSeq << "\n" << rseq <<"\n" << tmp << "\n";
-            std::exit(1) ;
-          }
-        }
-        for(auto& m : h.rightClust->mems){
-          auto cSeq = pfi.getSeqStr(pfi.getGlobalPos(m.memInfo->cid)+m.memInfo->cpos, m.memInfo->memlen) ;
-          auto tmp = rpair.second.seq.substr(m.memInfo->rpos, m.memInfo->memlen) ;
-          auto rseq = m.memInfo->cIsFw?tmp:util::reverseComplement(tmp);
-          if(cSeq != rseq){
-            std::cerr <<"rpos:"<<m.memInfo->rpos<<"\t"<<"c "<<static_cast<int>(m.memInfo->cid)<<"\t"<<"cpos:"<<m.memInfo->cpos<<"\t"<<m.memInfo->memlen<<" cfw: "<<int(m.memInfo->cIsFw)<<" isFw "<<h.rightClust->isFw<<" tpos: "<<m.tpos<<"\n" ;
-            std::cerr<<rpair.second.name << "\n" ;
-            std::cerr << cSeq << "\n" << rseq <<"\n" << tmp << "\n" ;
-            std::exit(1) ;
-          }
-        }
-
-        }*/
-
       int maxScore = std::numeric_limits<int>::min();
-      /*
-      bool doTraverse = !mopts->justMap;
-      if (doTraverse) {
-        //TODO Have to make it per thread 
-        //have to make write access thread safe
-        //std::cerr << "traversing graph \n" ;
-
-        if(!jointHits.empty() && jointHits.front().coverage() < 2*readLen) {
-          for(auto& hit : jointHits){
-            traverseGraph(rpair, hit, pfi, refSeqConstructor, contigSeqCache, aligner, verbose) ;
-            // update minScore across all hits
-            if(hit.leftClust->score + hit.rightClust->score > maxScore) {
-              maxScore = hit.leftClust->score + hit.rightClust->score;
-            }
-          }
-        }
-        else if(!jointHits.empty()){
-          maxScore = 2 * readLen * MATCH_SCORE ;
-          for(auto& jointHit : jointHits){
-            jointHit.leftClust->score = jointHit.leftClust->coverage * MATCH_SCORE ;
-            jointHit.rightClust->score = jointHit.rightClust->coverage * MATCH_SCORE;
-            jointHit.leftClust->cigar = std::to_string(readLen)+"M" ;
-            jointHit.rightClust->cigar = std::to_string(readLen)+"M" ;
-          }
-
-        }
-      }
-      */
-
-
       hctr.totHits += jointHits.size();
       hctr.peHits += jointHits.size();
+      
+      
       hctr.numMapped += !jointHits.empty() ? 1 : 0;
+      
       if (mopts->noOrphan)
         hctr.numOfOrphans += jointHits.empty() && (lh || rh);
       else
@@ -1437,6 +1294,7 @@ void printAlignmentSummary(HitCounters& hctrs, std::shared_ptr<spdlog::logger> c
     (100.0 * static_cast<float>(hctrs.numMappedAtLeastAKmer)) / hctrs.numReads);
   consoleLog->info("Discordant Rate: {:03.2f}%", 
     (100.0 * static_cast<float>(hctrs.numOfOrphans)) / hctrs.numReads);
+  consoleLog->info("Total reads Mapped: {}", (hctrs.numMapped));
   consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
   consoleLog->info("Average # hits per read : {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
   consoleLog->info("Total # of alignments : {}", hctrs.totAlignment);
