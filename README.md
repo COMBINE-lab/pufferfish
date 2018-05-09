@@ -48,6 +48,8 @@ Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
 
 So before running the whole pipeline of index building, make sure you have already installed TwoPaCo.
 
+We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. So it is required to install these libraries on the system as well and also update the CMakeLists.txt file in `src` directory and change the line for setting variable `SEQLIBDIR` statistically.
+
 ## Core Pipeline
 Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index setting the required arguments in `config.json` and running the command `bash index.sh` in pufferfish directory.
 
@@ -90,3 +92,9 @@ bcalm_pufferizer -k <k> -r reference.fa -u out_prefix.unitigs.fa
 ```
 
 This will create a file called `out_prefix.unitigs.fa.pufferized.gfa`, on which you can then build the pufferfish index.
+
+# Mapping using Pufferfish
+We can generate different types of output including sam. If you have samtools installed on your system you can run the first command in the puff_align.bash file to generate a bam file for mapping a set of reads to the pufferfish index. The rest of the commands do quantification on the bam file using Salmon and then validation of the results on reference set and taxonomic tree using two python scripts in scripts section.
+
+For the address of the reads, index, truth files, etc. you need to have a config file like `microbiome_config.json`.
+
