@@ -53,6 +53,7 @@ public:
 	bool writeOrphans{false} ;
   bool justMap{false};
   bool krakOut{false};
+  bool salmonOut{false};
   bool noDiscordant{false};
   bool noOrphan{false};
   bool compressedOutput{false};

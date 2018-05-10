@@ -893,6 +893,8 @@ void processReadsPair(paired_parser* parser,
 
       if(mopts->krakOut){
         writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
+      } else if (mopts->salmonOut) {
+        writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
       } else if(jointAlignments.size() > 0 and !mopts->noOutput){
         writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap) ;
       } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
@@ -982,7 +984,7 @@ void processReadsPair(paired_parser* parser,
     if (!mopts->noOutput) {
       
       // Get rid of last newline
-      if (mopts->krakOut)
+      if (mopts->krakOut || mopts->salmonOut)
           outQueue->info("{}",bstream);
       else {
         std::string outStr(sstream.str());
@@ -1183,6 +1185,8 @@ void processReadsSingle(single_parser* parser,
       // write puffkrak format output
       if(mopts->krakOut){
         writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream);
+      } else if (mopts->salmonOut) {
+        writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream, false);
       } else if (validHits.size() > 0 and !mopts->noOutput) {
         // write sam output for mapped reads
         writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
@@ -1214,7 +1218,7 @@ void processReadsSingle(single_parser* parser,
 
     // dump output
     if (!mopts->noOutput) {
-      if (mopts->krakOut) {
+      if (mopts->krakOut || mopts->salmonOut) {
         outQueue->info("{}", bstream);
         bstream.clear();
       } else {
@@ -1335,7 +1339,7 @@ bool alignReads(
     size_t queueSize{268435456};
     spdlog::set_async_mode(queueSize);
 
-  if (mopts->krakOut) {
+  if (mopts->krakOut || mopts->salmonOut) {
     auto outputSink = std::make_shared<ostream_bin_sink_mt>(*outStream);
     outLog = std::make_shared<spdlog::logger>("puffer::outLog",outputSink) ;
     outLog->set_pattern("");
@@ -1346,7 +1350,7 @@ bool alignReads(
   }
     // write the SAM Header
     // If nothing gets printed by this time we are in trouble
-    if (mopts->krakOut) {
+    if (mopts->krakOut || mopts->salmonOut) {
       writeKrakOutHeader(pfi, outLog, mopts);
     } else {
       writeSAMHeader(pfi, outLog);

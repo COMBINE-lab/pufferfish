@@ -181,7 +181,8 @@ template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<util::JointMems>& validJointHits,
-                                   BinWriter& bstream) {
+                                   BinWriter& bstream,
+                                   bool wrtIntervals=true) {
 
   auto& readName = r.first.name;
   //std::cout << readName << " || ";
@@ -223,24 +224,30 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
       rightNumOfIntervals = clustRight->mems.size();
       rightRefPos = clustRight->getTrFirstHitPos() | (static_cast<refLenType>(clustRight->isFw) << (sizeof(refLenType)*8-1));
     }
-    bstream << static_cast<uint32_t>(qa.tid)
-            << static_cast<rLenType>(leftNumOfIntervals) 
-            << static_cast<rLenType>(rightNumOfIntervals);
+    bstream << static_cast<uint32_t>(qa.tid);
+	if (wrtIntervals) {
+		bstream << static_cast<rLenType>(leftNumOfIntervals) 
+            	<< static_cast<rLenType>(rightNumOfIntervals);
+	}
 
-    if (qa.isLeftAvailable()) {
-      bstream << static_cast<refLenType>(leftRefPos);
-      for (auto& mem: clustLeft->mems) {
-        bstream << static_cast<rLenType>(mem.memInfo->rpos) 
-                << static_cast<rLenType>(mem.memInfo->memlen);
+      if (qa.isLeftAvailable()) {
+        bstream << static_cast<refLenType>(leftRefPos);
+    	if (wrtIntervals) {
+        	for (auto& mem: clustLeft->mems) {
+         	   	bstream << static_cast<rLenType>(mem.memInfo->rpos) 
+                  		<< static_cast<rLenType>(mem.memInfo->memlen);
+        	}
+      	}
+	  }
+      if (qa.isRightAvailable()) {
+        bstream << static_cast<refLenType>(rightRefPos);
+    	if (wrtIntervals) {
+        	for (auto& mem: clustRight->mems) {
+          		bstream << static_cast<rLenType>(mem.memInfo->rpos) 
+                  		<< static_cast<rLenType>(mem.memInfo->memlen);
+        	}
+      	}
       }
-    }
-    if (qa.isRightAvailable()) {
-      bstream << static_cast<refLenType>(rightRefPos);
-      for (auto& mem: clustRight->mems) {
-        bstream << static_cast<rLenType>(mem.memInfo->rpos) 
-                << static_cast<rLenType>(mem.memInfo->memlen);
-      }
-    }
   }
   return 0;
 }
@@ -250,7 +257,8 @@ template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
-                                   BinWriter& binStream) {
+                                   BinWriter& binStream,
+                                   bool wrtIntervals=true) {
   
   auto& readName = r.name;
   size_t nameLen = readName.length();
@@ -276,12 +284,16 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   
   for (auto& qa : validHits) {
     auto& clust = qa.second;
-    binStream << static_cast<uint32_t>(qa.first) 
-              << static_cast<rLenType>(clust->mems.size())
-              << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
-    for (auto& mem: clust->mems){
-      binStream << static_cast<rLenType>(mem.memInfo->rpos) 
-                << static_cast<rLenType>(mem.memInfo->memlen);
+    binStream << static_cast<uint32_t>(qa.first);
+    if (wrtIntervals) {
+      binStream << static_cast<rLenType>(clust->mems.size());
+    }
+    binStream << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
+    if (wrtIntervals) {
+      for (auto& mem: clust->mems){
+        binStream << static_cast<rLenType>(mem.memInfo->rpos) 
+                  << static_cast<rLenType>(mem.memInfo->memlen);
+      }
     }
   }   
   return 0;

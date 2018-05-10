@@ -119,7 +119,11 @@ int main(int argc, char* argv[]) {
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "write Orphans flag",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "write Orphans flag",
 		    (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "compress (gzip) the output file",
+                    (
                     (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
+                    |
+                    (option("-s", "--salmon").set(alignmentOpt.salmonOut, true)) % "write output in the format required for salmon"
+                    )
                     );
 
   auto cli = (
