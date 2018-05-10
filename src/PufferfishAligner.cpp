@@ -1083,16 +1083,6 @@ void processReadsSingle(single_parser* parser,
       validHits.reserve(2*leftHits.size());
       for (auto& l : leftHits) {
         auto& lclust = l.second;
-        /* if (read.name == "spj_1622951_1623126_68819/2") {
-              std::cerr << "\ntid" << l.first << " " << pfi.refName(l.first) << " cluster size:" << lclust.size() << "\n";
-              for (auto& clus : lclust) {
-                std::cerr << "mem size: " << clus.mems.size() << "\n";
-                for (auto& mem : clus.mems) {
-                  std::cerr << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
-                }
-                std::cerr << "\n";
-              }
-        } */
         for (auto clustIt = lclust.begin(); clustIt != lclust.end(); ++clustIt) {
           if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage;}
           if (clustIt->coverage >= mopts->scoreRatio * maxCoverage or clustIt->coverage == perfectCoverage ) {
