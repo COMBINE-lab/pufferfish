@@ -1002,7 +1002,7 @@ void processReadsPair(paired_parser *parser,
             // Get rid of last newline
             if (mopts->salmonOut) {
                 //std::cerr << "bytes: " << bstream.getBytes() << "\n";
-                BinWriter sbw(8);
+                BinWriter sbw(sizeof(uint64_t));
                 sbw << bstream.getBytes();
                 outQueue->info("{}{}", sbw, bstream);
             } else if (mopts->krakOut) {
