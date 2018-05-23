@@ -94,6 +94,7 @@ class BinWriter
                     std::back_inserter(_bin_data));
             return *this;
         }
+        uint64_t getBytes() {return _bin_data.size();}
         //support for logging directly from spdlog
         template<typename OStream>
         friend OStream& operator<<(OStream& os, const BinWriter &bin_record)
@@ -119,6 +120,7 @@ protected:
     {
         //const char* bin_data = msg.raw.data();
         //size_t bin_size = msg.raw.size();
+        //std::cerr << "msg.size " << msg.raw.size() << " ";
         _ostream.write(msg.raw.data(), msg.raw.size());
         //_ostream.write(msg.formatted.data(), msg.formatted.size());
         if (_force_flush)
