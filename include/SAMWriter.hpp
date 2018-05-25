@@ -184,6 +184,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    BinWriter& bstream,
                                    bool wrtIntervals=true) {
 
+    if (validJointHits.size() == 0) return 0;
   auto& readName = r.first.name;
   //std::cout << readName << " || ";
   // If the read name contains multiple space-separated parts,
@@ -225,12 +226,15 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
       rightRefPos = clustRight->getTrFirstHitPos() | (static_cast<refLenType>(clustRight->isFw) << (sizeof(refLenType)*8-1));
     }
     bstream << static_cast<uint32_t>(qa.tid);
-	if (wrtIntervals) {
+      /*std::cerr << "r " << readName << " puffid: " << qa.tid << " lcnt:" << leftNumOfIntervals
+                << " rcnt:" << rightNumOfIntervals;*/
+//	if (wrtIntervals) {
 		bstream << static_cast<rLenType>(leftNumOfIntervals) 
             	<< static_cast<rLenType>(rightNumOfIntervals);
-	}
+//	}
 
       if (qa.isLeftAvailable()) {
+          //std::cerr << " lrefpos: " << leftRefPos;
         bstream << static_cast<refLenType>(leftRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustLeft->mems) {
@@ -240,6 +244,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
       	}
 	  }
       if (qa.isRightAvailable()) {
+          //std::cerr << " rrefpos: " << rightRefPos;
         bstream << static_cast<refLenType>(rightRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustRight->mems) {
@@ -248,6 +253,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
         	}
       	}
       }
+      //std::cerr << "\n";
   }
   return 0;
 }
@@ -259,7 +265,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
                                    BinWriter& binStream,
                                    bool wrtIntervals=true) {
-  
+    if (validHits.size() == 0) return 0;
   auto& readName = r.name;
   size_t nameLen = readName.length();
   
@@ -285,9 +291,9 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   for (auto& qa : validHits) {
     auto& clust = qa.second;
     binStream << static_cast<uint32_t>(qa.first);
-    if (wrtIntervals) {
+//    if (wrtIntervals) {
       binStream << static_cast<rLenType>(clust->mems.size());
-    }
+//    }
     binStream << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
     if (wrtIntervals) {
       for (auto& mem: clust->mems){
