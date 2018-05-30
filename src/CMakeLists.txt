@@ -2,8 +2,8 @@
 #INCLUDE_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/ /home/fatemeh/others_projects/SeqLib/htslib/ )
 #LINK_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/bin)
 #SET(SEQLIB_DIR /home/rob/nemo/external/SeqLib/bin)
-INCLUDE_DIRECTORIES(/home/SeqLib/ /home/SeqLib/htslib/)
-SET(SEQLIB_DIR /home/SeqLib/bin)
+INCLUDE_DIRECTORIES(../external_dependencies/SeqLib/ ../external_dependencies/SeqLib/htslib/)
+SET(SEQLIB_DIR ../external_dependencies/SeqLib/bin)
 #set(gfalib_srcs gfakluge.cpp)
 #add_library(gfakluge STATIC ${gfalib_srcs})
 set(ksw2_lib_srcs
