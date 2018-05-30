@@ -19,33 +19,49 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ${PACKAGES} && \
     apt-get clean
 
+
+RUN git clone https://github.com/COMBINE-lab/pufferfish.git
+
 # SeqLib, the c++ wrapper for htslib
-RUN git clone --recursive https://github.com/walaj/SeqLib.git && \
+RUN cd pufferfish && \
+	mkdir -p external_dependencies && \
+	cd external_dependencies && \
+	git clone --recursive https://github.com/walaj/SeqLib.git && \
 	cd SeqLib && \
 	./configure && \
 	make CXXFLAGS='-std=c++11' && \ 
 	make install && \
-	make seqtools 
+	make seqtools
 
-# Pufferfish
-RUN git clone https://github.com/COMBINE-lab/pufferfish.git && \
-	cd pufferfish && \
-	git checkout skoufos && \
+# sdsl-lite
+RUN	cd pufferfish && \
 	git clone https://github.com/simongog/sdsl-lite.git && \
 	cd sdsl-lite && \ 
-	./install.sh ../ && \
-	cd .. && \
+	./install.sh ../
+	
+# Pufferfish
+RUN cd pufferfish && \	
+	git checkout skoufos && \
 	mkdir build && \
 	cd build && \
 	cmake ../ && \
 	make
 
 # Salmon
-RUN curl -k -L https://github.com/COMBINE-lab/salmon/archive/v${SALMON_VERSION}.tar.gz -o salmon-v${SALMON_VERSION}.tar.gz && \
-    tar xzf salmon-v${SALMON_VERSION}.tar.gz && \
-    cd salmon-${SALMON_VERSION} && \
-    mkdir build && \
-    cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && make && make install
+RUN git clone https://github.com/fataltes/salmon.git && \
+	cd salmon && \
+	git checkout salpuf && \
+	mkdir build && \
+	cd build && \
+	cmake -DFETCH_BOOST=TRUE ../ && \
+	make && \
+	make install
+
+#RUN curl -k -L https://github.com/COMBINE-lab/salmon/archive/v${SALMON_VERSION}.tar.gz -o salmon-v${SALMON_VERSION}.tar.gz && \
+#    tar xzf salmon-v${SALMON_VERSION}.tar.gz && \
+#    cd salmon-${SALMON_VERSION} && \
+#    mkdir build && \
+#    cd build && \
+#    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && make && make install
 
 ENV PATH home/salmon-${SALMON_VERSION}/bin:${PATH}
