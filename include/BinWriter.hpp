@@ -94,7 +94,8 @@ class BinWriter
                     std::back_inserter(_bin_data));
             return *this;
         }
-        uint64_t getBytes() {return _bin_data.size();}
+
+    uint64_t getBytes() { return _bin_data.size(); }
         //support for logging directly from spdlog
         template<typename OStream>
         friend OStream& operator<<(OStream& os, const BinWriter &bin_record)

@@ -184,6 +184,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    BinWriter& bstream,
                                    bool wrtIntervals=true) {
 
+    if (validJointHits.size() == 0) return 0;
   auto& readName = r.first.name;
   //std::cout << readName << " || ";
   // If the read name contains multiple space-separated parts,
@@ -225,8 +226,8 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
       rightRefPos = clustRight->getTrFirstHitPos() | (static_cast<refLenType>(clustRight->isFw) << (sizeof(refLenType)*8-1));
     }
     bstream << static_cast<uint32_t>(qa.tid);
-    /*std::cerr << "r " << readName << " puffid: " << qa.tid << " lcnt:" << leftNumOfIntervals
-              << " rcnt:" << rightNumOfIntervals;*/
+      /*std::cerr << "r " << readName << " puffid: " << qa.tid << " lcnt:" << leftNumOfIntervals
+                << " rcnt:" << rightNumOfIntervals;*/
 //	if (wrtIntervals) {
 		bstream << static_cast<rLenType>(leftNumOfIntervals) 
             	<< static_cast<rLenType>(rightNumOfIntervals);
@@ -264,7 +265,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
                                    BinWriter& binStream,
                                    bool wrtIntervals=true) {
-  
+    if (validHits.size() == 0) return 0;
   auto& readName = r.name;
   size_t nameLen = readName.length();
   
