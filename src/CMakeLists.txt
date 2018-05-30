@@ -1,6 +1,6 @@
 
 #INCLUDE_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/ /home/fatemeh/others_projects/SeqLib/htslib/ )
-#LINK_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/bin)
+LINK_DIRECTORIES(../external_dependencies/SeqLib/bin)
 #SET(SEQLIB_DIR /home/rob/nemo/external/SeqLib/bin)
 INCLUDE_DIRECTORIES(../external_dependencies/SeqLib/ ../external_dependencies/SeqLib/htslib/)
 SET(SEQLIB_DIR ../external_dependencies/SeqLib/bin)
@@ -67,8 +67,8 @@ target_link_libraries(edgedensity z puffer)
 target_link_libraries(edgedensity2 z puffer)
 target_link_libraries(kswcli z ksw2)
 target_link_libraries(krakmap puffer)
-target_link_libraries(cedar ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a puffer bz2 lzma z )
-target_link_libraries(filtersam ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a puffer bz2 lzma z )
+target_link_libraries(cedar libseqlib.a libhts.a puffer bz2 lzma z )
+target_link_libraries(filtersam libseqlib.a libhts.a puffer bz2 lzma z )
 #target_link_libraries(readKrk puffer bz2 lzma z ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a)
 #target_link_libraries(myGraphtester puffer)
 
