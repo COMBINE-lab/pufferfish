@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <bitset>
+#include <cereal/archives/binary.hpp>
 
 #include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
@@ -220,7 +221,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   if (outdir.back() == '/') {
     outdir.pop_back();
   }
-  std::vector<std::string> read_file = {rfile};
+  std::vector<std::string> ref_files = {rfile};
+
 
   auto console = spdlog::stderr_color_mt("console");
 
@@ -236,7 +238,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   // std::exit(1);
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
-  pf.clearContigTable();
 
   {
     auto& cnmap = pf.getContigNameMap();
@@ -249,6 +250,47 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     console->info("# segments = {}", nread);
     console->info("total length = {}", tlen);
   }
+
+  // parse the reference list and store the strings in a 2bit-encoded vector
+  if (rfile.size() > 0) {
+    auto &refIds = pf.getRefIDs();
+    auto &refLengths = pf.getRefLengths();
+    std::vector<uint64_t> refAccumLengths(refLengths.size());
+    std::unordered_map<std::string, uint64_t> refIdMap;
+    uint64_t prev = 0;
+    for (uint64_t i = 0; i < refIds.size(); i++) {
+      refIdMap[refIds[i]] = i;
+      refAccumLengths[i] = prev + refLengths[i];
+      prev = refAccumLengths[i];
+    }
+    //sdsl 2bit vector
+    sdsl::int_vector<2> refseq = sdsl::int_vector<2>(refAccumLengths.back(), 0);
+    // go over all the reference files
+    std::cerr << "Read the reference files ...\n";
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(ref_files, 1, 1);
+    parser.start();
+    auto rg = parser.getReadGroup();
+    // read the reference sequences and encode them into the refseq int_vector
+    while (parser.refill(rg)) {
+      for (auto &rp : rg) {
+        stx::string_view seqv(rp.seq);
+        auto &refIdx = refIdMap[rp.name];
+        auto offset = refIdx == 0 ? 0 : refAccumLengths[refIdx - 1];
+        pf.encodeSeq(refseq, offset, seqv);
+      }
+    }
+
+    // store the 2bit-encoded references
+    // store reference accumulative lengths
+    std::string accumLengthsFilename = outdir + "/refAccumLengths.bin";
+    std::ofstream ral(accumLengthsFilename);
+    cereal::BinaryOutputArchive ralAr(ral);
+    ralAr(refAccumLengths);
+
+    // store reference sequences
+    sdsl::store_to_file(refseq, outdir + "/refseq.bin");
+  }
+  pf.clearContigTable();
 
   // now we know the size we need --- create our bitvectors and pack!
   size_t w = std::log2(tlen) + 1;

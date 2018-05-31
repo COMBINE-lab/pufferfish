@@ -67,8 +67,6 @@ private:
 
   size_t fillContigInfoMap_();
   bool is_number(const std::string& s);
-  void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
-                 stx::string_view str);
 
   // Avoiding un-necessary stream creation + replacing strings with string view
   // is a bit > than a 2x win!
@@ -78,12 +76,15 @@ private:
 public:
   spp::sparse_hash_map<uint64_t, std::vector<util::Position>> contig2pos;
   PosFinder(const char* gfaFileName, size_t input_k);
+  void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
+                 stx::string_view str);
   // spp::sparse_hash_map<uint64_t, std::string>& getContigNameMap();
   spp::sparse_hash_map<uint64_t, util::PackedContigInfo>& getContigNameMap();
 
   spp::sparse_hash_map<std::string, std::string>& getContigIDMap();
   // spp::sparse_hash_map<uint32_t, std::string>& getRefIDs();
   std::vector<std::string>& getRefIDs();
+  std::vector<uint32_t>& getRefLengths();
   std::map<std::pair<std::string, bool>, bool, util::cmpByPair>& getPathStart();
   std::map<std::pair<std::string, bool>, bool, util::cmpByPair>& getPathEnd();
   std::vector<std::pair<std::string, std::string>>& getNewSegments();

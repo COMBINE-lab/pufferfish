@@ -393,6 +393,8 @@ spp::sparse_hash_map<uint32_t, std::string>& PosFinder::getRefIDs() {
 */
 std::vector<std::string>& PosFinder::getRefIDs() { return refMap; }
 
+std::vector<uint32_t>& PosFinder::getRefLengths() { return refLengths;}
+
 std::map<std::pair<std::string, bool>, bool, util::cmpByPair>&
 PosFinder::getPathStart() {
   return pathStart;
