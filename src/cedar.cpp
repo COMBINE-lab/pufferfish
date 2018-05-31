@@ -393,7 +393,7 @@ void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
         ofile << mappings.refName(i) << "\t" 
             << "flat" 
             << "\t" << abund << "\n";
-    }
+   }
     ofile.close();
 }
 
