@@ -9,5 +9,9 @@
 	"output_dir":"/home/index",
 	"tmp_dir":"/home/tmp",
 	"num_of_threads":16,
-	"twopaco_filter_size":20
+	"twopaco_filter_size_microbiome":37,
+	"twopaco_filter_size_humangenome":36,
+	"twopaco_filter_size_humantxome":30,
+	"twopaco_filter_size":30
+
 }
