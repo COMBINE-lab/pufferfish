@@ -24,8 +24,12 @@ taxatruthfile=$(jq -r '.taxaTruthFile' ${config})
 
 echo "scoreratio = ${ratio1}"
 echo "pufferfish mapping .. "
-echo "/usr/bin/time samtools view -@ 8 -S -b -h <(${pufferfish} align -i ${puffidx} --mate1 ${read1} --mate2 ${read2}  -p 16 -m -o - --scoreRatio ${ratio1}) > ${outdir}/results/pufferfish/${outfile}.bam"
+#echo "/usr/bin/time samtools view -@ 8 -S -b -h <(${pufferfish} align -i ${puffidx} --mate1 ${read1} --mate2 ${read2}  -p 16 -m -o - --scoreRatio ${ratio1}) > ${outdir}/results/pufferfish/${outfile}.bam"
 #/usr/bin/time samtools view -@ 8 -S -b -h <(${pufferfish} align -i ${puffidx} --mate1 ${read1} --mate2 ${read2}  -p 16 -m -o - --scoreRatio ${ratio1} ) > ${outdir}/results/pufferfish/${outfile}.bam
+
+echo "/usr/bin/time ${pufferfish} align -i ${puffidx} --mate1 ${read1} --mate2 ${read2}  -p 16 -m -s  --scoreRatio ${ratio1} -o ${outdir}/results/pufferfish/${outfile}.pam"
+/usr/bin/time ${pufferfish} align -i ${puffidx} --mate1 ${read1} --mate2 ${read2}  -p 16 -m -s  --scoreRatio ${ratio1} -o ${outdir}/results/pufferfish/${outfile}.pam
+
 
 
 #/usr/bin/time ${pufferfish} align -i ${puffidx} --mate1 ${read1} --mate2 ${read2}  -p 16 -m -o - --scoreRatio ${ratio1} -k > ${outdir}/results/pufferfish/${outfile}.krkbin
@@ -35,8 +39,12 @@ echo "/usr/bin/time samtools view -@ 8 -S -b -h <(${pufferfish} align -i ${puffi
 #/usr/bin/time ${salmon} quant -p 16 -la -t ${fasta} -a ${outdir}/results/pufferfish/${outfile}.bam  -o ${outdir}/results/salmon/pufferfish/${outfile}_vb${priorr} --meta --useVBOpt --vbPrior 1e-${priorr}
 
 echo "salmon normal EM .."
-echo "/usr/bin/time ${salmon} quant -p 16 -la -t ${fasta} -a ${outdir}/results/pufferfish/${outfile}.bam  -o ${outdir}/results/salmon/pufferfish/${outfile} --meta"
+#echo "/usr/bin/time ${salmon} quant -p 16 -la -t ${fasta} -a ${outdir}/results/pufferfish/${outfile}.bam  -o ${outdir}/results/salmon/pufferfish/${outfile} --meta"
 #/usr/bin/time ${salmon} quant -p 16 -la -t ${fasta} -a ${outdir}/results/pufferfish/${outfile}.bam  -o ${outdir}/results/salmon/pufferfish/${outfile} --meta
+
+echo "/usr/bin/time ${salmon} quant -p 16 -i none -r ${outdir}/results/pufferfish/${outfile}.pam  -o ${outdir}/results/salmon/pufferfish/${outfile} -l IU --meta"
+/usr/bin/time ${salmon} quant -p 16 -i none -r ${outdir}/results/pufferfish/${outfile}.pam  -o ${outdir}/results/salmon/pufferfish/${outfile} -l IU --meta
+
 
 end=`date +%s`
 runtime=$((end-start))
