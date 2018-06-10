@@ -5,7 +5,7 @@
 FROM ubuntu:16.04
 
 ENV PACKAGES git gcc make g++ cmake libboost-all-dev liblzma-dev libbz2-dev \
-    ca-certificates zlib1g-dev curl unzip autoconf
+    ca-certificates zlib1g-dev curl unzip autoconf vim wget time bzip2
 ENV SALMON_VERSION 0.9.0
 
 # pufferfish executable will be available in /home/pufferfish/build/src
@@ -19,6 +19,38 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ${PACKAGES} && \
     apt-get clean
 
+RUN curl -o /usr/local/bin/jq http://stedolan.github.io/jq/download/linux64/jq && \
+	chmod +x /usr/local/bin/jq
+
+# python and required packages
+RUN yes | apt-get install software-properties-common && \
+	add-apt-repository ppa:deadsnakes/ppa && \
+	apt-get update
+RUN yes | apt-get install python3.6
+RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+	printf "\nyes\n\nyes\n" | bash Miniconda3-latest-Linux-x86_64.sh
+
+RUN yes | /root/miniconda3/bin/conda install scipy && \
+	yes | /root/miniconda3/bin/conda install pandas && \
+	yes | /root/miniconda3/bin/conda install scikit-learn
+
+# TwoPaCo
+RUN wget https://github.com/01org/tbb/releases/download/2018_U4/tbb2018_20180411oss_lin.tgz && \
+tar zxf tbb2018_20180411oss_lin.tgz && \
+rm tbb2018_20180411oss_lin.tgz && \
+cd tbb2018_20180411oss && \
+cp -r include /usr/local && \
+cp -r lib/intel64/gcc4.7/* /usr/local/lib && \
+cd .. && \
+rm -rf tbb2018_20180411oss
+
+RUN git clone https://github.com/medvedevgroup/TwoPaCo.git
+
+RUN cd TwoPaCo && \
+	mkdir build && \
+	cd build && \
+	cmake ../src && \
+	make
 
 RUN git clone https://github.com/COMBINE-lab/pufferfish.git
 
@@ -57,11 +89,4 @@ RUN git clone https://github.com/fataltes/salmon.git && \
 	make && \
 	make install
 
-#RUN curl -k -L https://github.com/COMBINE-lab/salmon/archive/v${SALMON_VERSION}.tar.gz -o salmon-v${SALMON_VERSION}.tar.gz && \
-#    tar xzf salmon-v${SALMON_VERSION}.tar.gz && \
-#    cd salmon-${SALMON_VERSION} && \
-#    mkdir build && \
-#    cd build && \
-#    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && make && make install
-
-ENV PATH home/salmon-${SALMON_VERSION}/bin:${PATH}
+RUN ldconfig
