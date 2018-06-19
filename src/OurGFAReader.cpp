@@ -80,9 +80,10 @@ std::vector<stx::string_view> PosFinder::split(stx::string_view str,
   return ret;
 }
 
-PosFinder::PosFinder(const char* gfaFileName, size_t input_k) {
+PosFinder::PosFinder(const char* gfaFileName, size_t input_k, std::shared_ptr<spdlog::logger> logger) {
+  logger_ = logger;
   filename_ = std::string(gfaFileName);
-  std::cerr << "Reading GFA file " << gfaFileName << "\n";
+  logger_->info("Reading GFA file {}", gfaFileName);
   file.reset(new zstr::ifstream(gfaFileName));
   k = input_k;
 }
@@ -161,8 +162,8 @@ sdsl::int_vector<8>& PosFinder::getEdgeVec() { return edgeVec_; }
 void PosFinder::parseFile() {
   size_t total_len = fillContigInfoMap_();
   file.reset(new zstr::ifstream(filename_));
-  std::cerr << "total contig length = " << total_len << "\n";
-  std::cerr << "packing contigs into contig vector\n";
+  logger_->info("total contig length = {} ", total_len);
+  logger_->info("packing contigs into contig vector");
   seqVec_ = sdsl::int_vector<2>(total_len, 0);
 
   std::string ln;
@@ -371,10 +372,8 @@ void PosFinder::parseFile() {
   }
 
   k = k - 1;
-
-  std::cerr << " Total # of Contigs : " << contig_cnt
-            << " Total # of numerical Contigs : " << contigid2seq.size()
-            << "\n\n";
+  logger_->info("Total # of Contigs : {}", contig_cnt);
+  logger_->info("Total # of numerical Contigs : {}", contigid2seq.size());
 }
 
 // spp::sparse_hash_map<uint64_t, std::string>& PosFinder::getContigNameMap() {
@@ -445,7 +444,7 @@ void PosFinder::mapContig2Pos() {
         total_output_lines += 1;
       }
       if (contigid2seq.find(contigs[i].first) == contigid2seq.end()) {
-        std::cerr << contigs[i].first << "\n";
+        logger_->info("{}", contigs[i].first);
       }
       pos = accumPos;
       currContigLength = contigid2seq[contigs[i].first].length;
@@ -454,8 +453,7 @@ void PosFinder::mapContig2Pos() {
           .push_back(util::Position(tr, pos, contigs[i].second));
     }
   }
-  std::cerr << "\nTotal # of segments we have position for : "
-            << total_output_lines << "\n";
+  logger_->info("\nTotal # of segments we have position for : {}", total_output_lines);
 }
 
 void PosFinder::clearContigTable() {
@@ -539,7 +537,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
       ct << '\n';
       */
     }
-    std::cerr << "there were " << eqMap.size() << " equivalence classes\n";
+    logger_->info("there were {}  equivalence classes", eqMap.size());
     eqAr(eqIDs);
     eqIDs.clear();
     eqIDs.shrink_to_fit();
