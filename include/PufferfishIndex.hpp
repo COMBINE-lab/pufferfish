@@ -28,7 +28,9 @@ private:
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
   std::vector<uint32_t> refLengths_;
-  std::vector<std::vector<util::Position>> contigTable_;
+  std::vector<util::Position> contigTable_;
+  std::vector<uint64_t> contigOffsets_;
+
   uint64_t numContigs_{0};
   sdsl::bit_vector contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
@@ -36,6 +38,7 @@ private:
   sdsl::int_vector<2> seq_;
   sdsl::int_vector<8> edge_;
   sdsl::int_vector<> pos_;
+
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
   size_t lastSeqPos_{std::numeric_limits<size_t>::max()};
@@ -51,7 +54,7 @@ public:
   // projected reference hits for the given kmer.  Uses the results
   // of the previous contig info (start, end) from qc if the same
   // contig contains the match.  For correlated searches (e.g., from a read)
-  //http://downloads.asperasoft.com/en/downloads/2 this can considerably speed up querying.
+  // this can considerably speed up querying.
   auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
 };
 

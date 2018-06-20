@@ -509,10 +509,28 @@ void PosFinder::serializeContigTable(const std::string& odir) {
 
     spp::sparse_hash_map<std::vector<uint32_t>, uint32_t, VecHasher> eqMap;
     std::vector<uint32_t> eqIDs;
-    std::vector<std::vector<util::Position>> cpos;
+    //std::vector<std::vector<util::Position>> cpos;
+
+    // Compute sizes to reserve
+    size_t contigVecSize{0};
+    size_t contigOffsetSize{1};
+    for (auto& kv : contigid2seq) {
+      contigOffsetSize++;
+      contigVecSize += contig2pos[kv.first].size();
+    }
+
+    logger_->info("total contig vec entries {}", contigVecSize);
+    std::vector<util::Position> cpos;
+    cpos.reserve(contigVecSize);
+    std::vector<uint64_t> cpos_offsets;
+    cpos_offsets.reserve(contigOffsetSize);
+    cpos_offsets.push_back(0);
 
     for (auto& kv : contigid2seq) {
-      cpos.push_back(contig2pos[kv.first]);
+      //cpos.push_back(contig2pos[kv.first]);
+      auto& b = contig2pos[kv.first];
+      cpos_offsets.push_back(cpos_offsets.back() + b.size());
+      cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
       std::vector<uint32_t> tlist;
       for (auto& p : contig2pos[kv.first]) {
         tlist.push_back(p.transcript_id());
@@ -553,6 +571,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
               });
     eqAr(eqLabels);
     ar(cpos);
+    ar(cpos_offsets);
   }
   /*
     ct << refIDs.size() << '\n';

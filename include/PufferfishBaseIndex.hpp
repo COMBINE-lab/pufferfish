@@ -2,6 +2,7 @@
 #define _PUFFERFISHBASE_INDEX_HPP_
 
 #include <vector>
+#include <iterator>
 
 #include "core/range.hpp"
 #include "sdsl/int_vector.hpp"
@@ -19,8 +20,17 @@ template <typename T>
 class PufferfishBaseIndex {
     private:
     // from : https://www.fluentcpp.com/2017/05/19/crtp-helper/
-    T& underlying(); 
+    T& underlying();
     T const& underlying() const;
+
+protected:
+  inline core::range<std::vector<util::Position>::iterator> contigRange(uint64_t contigRank) {
+      auto spos = underlying().contigOffsets_[contigRank];
+      auto epos = underlying().contigOffsets_[contigRank+1];
+      std::vector<util::Position>::iterator startIt = underlying().contigTable_.begin() + spos;
+      std::vector<util::Position>::iterator endIt = startIt + (epos - spos);
+      return core::range<std::vector<util::Position>::iterator>(startIt, endIt);
+    }
 
   public:
   // Get the equivalence class ID (i.e., rank of the equivalence class)
@@ -36,7 +46,7 @@ class PufferfishBaseIndex {
   uint32_t k();
 
   // Get the list of reference sequences & positiosn corresponding to a contig
-  const std::vector<util::Position>& refList(uint64_t contigRank);
+  const core::range<std::vector<util::Position>::iterator> refList(uint64_t contigRank);
   
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);

@@ -6,6 +6,8 @@
 #include <vector>
 #include <sstream>
 #include <bitset>
+#include <cerrno>
+#include <cstring>
 #include <cereal/archives/binary.hpp>
 
 #include "ProgOpts.hpp"
@@ -229,7 +231,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   size_t nread{0};
   CanonicalKmer::k(k);
 
-  puffer::fs::MakePath(outdir.c_str());
+  if (puffer::fs::MakePath(outdir.c_str()) != 0) {
+    console->error(std::strerror(errno));
+    std::exit(1);
+  }
 
   PosFinder pf(gfa_file.c_str(), k - 1, console);
   pf.parseFile();
@@ -337,13 +342,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
   sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
-  //sdsl::store_to_file(edgeVec2, outdir + "/revedge.bin");
-
-  // size_t slen = seqVec.size();
-  //#ifndef PUFFER_DEBUG
-  // seqVec.resize(0);
-  // rankVec.resize(0);
-  //#endif
 
   // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
   //uint32_t hashBits = 4;

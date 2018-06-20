@@ -30,7 +30,8 @@ private:
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
   std::vector<uint32_t> refLengths_;
-  std::vector<std::vector<util::Position>> contigTable_;
+  std::vector<util::Position> contigTable_;
+  std::vector<uint64_t> contigOffsets_;
   uint64_t numContigs_{0};
   sdsl::bit_vector contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;

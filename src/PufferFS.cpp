@@ -56,7 +56,7 @@ bool DirExists(const char* path) {
   return true;
 }
 
-void MakeDir(const char* path) { mkdir(path, ACCESSPERMS); }
+int MakeDir(const char* path) { return mkdir(path, ACCESSPERMS); }
 
   /**
    * from https://github.com/troglobit/libite/blob/02d9d9f8c111a3f3e18131494dbd1be2617a8420/src/makepath.c
