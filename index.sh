@@ -39,10 +39,6 @@ FILTER_SIZE=$(jq -r '.twopaco_filter_size' ${config})
 echo "$FILTER_SIZE"
 re='^[0-9]+$'
 #if  [[ $FILTER_SIZE != "estimate" && ! $FILTER_SIZE =~ $re ]]; then
-if [[ ! $FILTER_SIZE =~ $re ]]; then
-	echo "ERROR: Twopaco_filter_size should be a positive number" >&2; exit 1
-fi
-
 
 mkdir -p $OUTPUT_DIR
 mkdir -p $TMP
@@ -65,8 +61,16 @@ fi
 
 if [ ! -f $TWOPACO ]; then                                                        
     echo "ERROR: $TWOPACO does not exist. Make sure you've compiled TwoPaCo"                                               
-    exit 1                                 
-fi                                                                                      
+    exit 1
+fi
+
+if [[ $FILTER_SIZE == "estimate" ]]; then
+    command -v ntcard >/dev/null 2>&1 || { echo >&2 "ntcard seems not to be installed (or in the path).  Aborting."; exit 1; }
+else
+    if [[ ! $FILTER_SIZE =~ $re ]]; then
+	      echo "ERROR: Twopaco_filter_size should be a positive number" >&2; exit 1
+    fi
+fi
 
 printf "\nStarting the pipeline\n"
 
@@ -77,6 +81,7 @@ if [ $IS_INPUT_DIRECTORY = true ]; then
 	wc -l <(cat `ls -d $INPUT_FILES/*.*`)
 	bname="${bname}_${K}_fixed"
 	$PUFFERFISH/fixFasta --klen $K --input <(cat `ls -d $INPUT_FILES/*.*`) --output $OUTPUT_DIR/${bname}.fa
+  FIXED_FILE=$OUTPUT_DIR/${bname}.fa
 elif [ $IS_INPUT_DIRECTORY = false ]; then
 	echo "Input is the path to the concatenated fasta file"
 	bname=`basename ${INPUT_FILES} | sed 's/\.[^\.]*$//'`
@@ -84,11 +89,43 @@ elif [ $IS_INPUT_DIRECTORY = false ]; then
 	echo "$bname"
 	echo "$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa"
 	$PUFFERFISH/fixFasta --klen $K --input $INPUT_FILES --output $OUTPUT_DIR/${bname}.fa
+  FIXED_FILE=$OUTPUT_DIR/${bname}.fa
 else
 	echo "ERROR: Wrong format for a boolean value in json file ${config}"
 	exit 1
 fi
 
+if [[ $FILTER_SIZE == "estimate" ]]; then
+    k=5
+    p=0.001
+    KMERSIZE=${K}
+    command -v ntcard >/dev/null 2>&1 || { echo >&2 "ntcard seems not to be installed (or in the path).  Aborting."; exit 1; }
+    tfile=`mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir'`
+    echo "Running ntcard to estimate number of distinct k-mers"
+    ntcard -k ${KMERSIZE} -t 16 -p ${tfile}/card ${FIXED_FILE}
+    ofname="${tfile}/card_k${KMERSIZE}.hist"
+    n=`head -n2 ${ofname} | cut -f 2 | tail -n 1`
+    echo "Num distinct k-mers estimated as ${n}"
+    rm -fr ${tfile}
+
+    s="
+define ceil(x) {
+    auto os,xx;x=-x;os=scale;scale=0
+    xx=x/1;if(xx>x).=xx--
+    scale=os;return(-xx)
+}
+
+lgp_k = l($p) / $k
+r = (-$k) / l(1 - e(lgp_k))
+ceil(l(ceil($n * r))/l(2))
+"
+    FILTER_SIZE=$(echo "$s" | bc -l)
+    echo "Set TwoPaCo Bloom Filter size as 2^M where M=${FILTER_SIZE}"
+else
+    if [[ ! $FILTER_SIZE =~ $re ]]; then
+	      echo "ERROR: Twopaco_filter_size should be a positive number" >&2; exit 1
+    fi
+fi
 
 printf "\nTwoPaCo Junction Detection:\n"
 #if [ $FILTER_SIZE = "estimate" ]; then
