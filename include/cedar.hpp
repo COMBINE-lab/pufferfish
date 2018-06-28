@@ -66,5 +66,6 @@ class Cedar {
         
         spp::sparse_hash_map<uint32_t, uint64_t> cov;
 
+
 };
 

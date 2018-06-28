@@ -126,7 +126,7 @@ class TaxaNode {
             else if (rankstr == "superkingdom") return Rank::SUPERKINGDOM;
             else if (rankstr == "domain") return Rank::DOMAINE;
             else if (rankstr == "life") return Rank::LIFE; 
-            std::cerr << "ERROR: Not a valid rank.\n";
+            std::cerr << "ERROR: Not a valid rank: --" << rankstr << "--\n";
             std::exit(1);
         }
         static std::string rank2str(Rank r) {

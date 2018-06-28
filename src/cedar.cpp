@@ -16,7 +16,13 @@
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
 
-#define SCALE_FACTOR 1000000
+// trim from both ends (in place)
+static inline std::string& trim(std::string &s) {
+    std::string chars = "\t\n\v\f\r ";
+    s.erase(0, s.find_first_not_of(chars));
+    s.erase(s.find_last_not_of(chars) + 1);
+    return s;
+}
 
 struct CedarOpts {
     std::string taxonomyTree_filename;
@@ -64,25 +70,42 @@ Cedar<ReaderType>::Cedar(std::string& taxonomyTree_filename,
 
         // load the taxonomy child-parent tree and the rank of each node
         tfile.open(taxonomyTree_filename);
-        std::string tmp;
+        std::string tmp, line;
+        uint64_t lcntr{0};
+        //std::cerr << "\n\nreading taxonomy tree\n\n";
         while (!tfile.eof()) {
-            tfile >> id >> tmp >> pid >> tmp >> rank >> tmp;
-            size_t i = 0;
-            while (i < tmp.size()-1 && isspace(tmp[i]))
-                i++;
-            if (tmp[i] != '|') {
-                rank += " " + tmp;
+            try {
+                lcntr++;
+                std::getline(tfile, line);
+                uint64_t first = line.find_first_of('|');
+                std::string fstr = line.substr(0, first);
+                id = (uint32_t) std::stoul(trim(fstr));
+                uint64_t second = line.find_first_of('|', first + 1);
+                fstr = line.substr(first + 1, second - first - 1);
+                pid = (uint32_t) std::stoul(trim(fstr));
+                uint64_t third = line.find_first_of('|', second + 1);
+                fstr = line.substr(second + 1, third - second - 1);
+                rank = trim(fstr);
+                if (rank.find("HS") != std::string::npos)
+                    std::cerr << "here:" << id << " " << pid << " " << tmp << "\n";
+                //if (lcntr == 1369188) {
+                //std::cerr << lcntr << " " /*<< line << "\n"*/ << id << " " << pid << " " << rank << "\n";
+                //}
+
+                taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
+                if (taxaNodeMap[id].isRoot()) {
+                    rootId = id;
+                    logger->info("Root Id : {}", id);
+                }
+            } catch (const std::invalid_argument& ia) {
+                std::cerr << "Invalid argument: " << ia.what() << '\n';
+                continue;
             }
-            taxaNodeMap[id] = TaxaNode(id, pid, TaxaNode::str2rank(rank));
-            if (taxaNodeMap[id].isRoot()) {
-                rootId = id;
-                logger->info("Root Id : {}", id);
-            }
-            std::getline(tfile, tmp);
             
         }
 
-        tfile.close(); 
+        tfile.close();
+        //std::cerr << "\n\ndone reading taxonomy tree\n\n";
     } 
 }
 
@@ -188,6 +211,9 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                       if (refId == gid) { ++numCorrectHits; foundTruth = true; }
                     } */
 
+                }
+                else {
+                   // std::cerr << mappings.refName(mapping.getId()) << "\n";
                 }
             } 
             if (activeTaxa.size() == 0) {
@@ -336,23 +362,32 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
 
 template<class ReaderType>
 void Cedar<ReaderType>::serialize(std::string& output_filename) {
-    logger->info("Write results in the file: {}", output_filename);
+    logger->info("Write results into the file: {}", output_filename);
+    logger->info("# of strains: {}", strain.size());
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     spp::sparse_hash_map<uint64_t, double> validTaxa;
     std::cout << "strain size: " << strain.size() << "\n";
     for (auto& kv : strain) {
-        TaxaNode * walker = &taxaNodeMap[kv.first];
-        while (!walker->isRoot() && walker->getRank() != pruningLevel) {
-            walker = &taxaNodeMap[walker->getParentId()];
-        }
-        if (!walker->isRoot()) {
-            if (validTaxa.find(walker->getId()) == validTaxa.end()) {
-                validTaxa[walker->getId()] = kv.second;
+        if (taxaNodeMap.find(kv.first) != taxaNodeMap.end()) {
+            TaxaNode *walker = &taxaNodeMap[kv.first];
+            //std::cerr << "s" << walker->getId() << " ";
+            while (!walker->isRoot() && walker->getRank() != pruningLevel) {
+                //std::cerr << "p" << walker->getParentId() << " ";
+                walker = &taxaNodeMap[walker->getParentId()];
+                //std::cerr << walker->getId() << " ";
+                if (walker->getId() > 18000000000000) std::exit(1);
             }
-            else {
-                validTaxa[walker->getId()] += kv.second;
+            //std::cerr << "\n";
+            if (!walker->isRoot()) {
+                if (validTaxa.find(walker->getId()) == validTaxa.end()) {
+                    validTaxa[walker->getId()] = kv.second;
+                } else {
+                    validTaxa[walker->getId()] += kv.second;
+                }
             }
+        } else {
+            std::cerr << "taxa not found: " << kv.first << "\n";
         }
     }
     for (auto& kv : validTaxa) { 
@@ -393,7 +428,7 @@ void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
         ofile << mappings.refName(i) << "\t" 
             << "flat" 
             << "\t" << abund << "\n";
-   }
+    }
     ofile.close();
 }
 

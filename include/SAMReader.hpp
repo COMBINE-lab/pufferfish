@@ -132,22 +132,23 @@ class SAMReader {
             bh = br.Header();            
             logger->info("# of targets: {}", bh.NumSequences());            
             // isPaired
+            uint64_t cntr{0};
             do {
                 hasNext = br.GetNextRecord(rec);
-                /* std::cerr  << cntr++ << " " << rec.MappedFlag() << " | "
+                 std::cerr  << cntr++ << " " << rec.MappedFlag() << " | "
                         << rec.Qname() << " | "
                         << rec.Length() << " | "
                         << rec.PairedFlag() << " | "
                         << rec.ChrID() << " | "
                         << rec.Position() << " | "
-                        << rec.ReverseFlag() << "\n"; */
+                        << rec.ReverseFlag() << "\n";
                 if (!hasNext) {
-                    std::cerr << "here\n";
                     logger->error("SAM file has no mapped records");
                     exit(1);
                 }
                 isPaired = rec.PairedFlag();
             } while (!rec.MappedFlag());
+            //isPaired=true;
             return true;
         }
         
