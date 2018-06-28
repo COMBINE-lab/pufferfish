@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
                     command("index").set(selected, mode::index),
                     (required("-o", "--output").call([]{cout << "parsing --output\n\n";}) & value("output_dir", indexOpt.outdir)) % "directory where index is written",
                     (required("-g", "--gfa").call([]{cout << "parsing --gfa\n\n";}) & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
-                    (required("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
+                    (option("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
                     (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
                     (((option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",

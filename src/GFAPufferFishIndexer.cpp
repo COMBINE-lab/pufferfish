@@ -6,6 +6,8 @@
 #include <vector>
 #include <sstream>
 #include <bitset>
+#include <cerrno>
+#include <cstring>
 #include <cereal/archives/binary.hpp>
 
 #include "ProgOpts.hpp"
@@ -22,7 +24,7 @@
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "spdlog/spdlog.h"
-#include "Kmer.hpp" // currently requires need k <= 32
+#include "Kmer.hpp" // currently requires k <= 32
 //#include "gfakluge.hpp"
 
 
@@ -221,8 +223,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   if (outdir.back() == '/') {
     outdir.pop_back();
   }
-  std::vector<std::string> ref_files = {rfile};
-
 
   auto console = spdlog::stderr_color_mt("console");
 
@@ -231,9 +231,12 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   size_t nread{0};
   CanonicalKmer::k(k);
 
-  puffer::fs::MakeDir(outdir.c_str());
+  if (puffer::fs::MakePath(outdir.c_str()) != 0) {
+    console->error(std::strerror(errno));
+    std::exit(1);
+  }
 
-  PosFinder pf(gfa_file.c_str(), k - 1);
+  PosFinder pf(gfa_file.c_str(), k - 1, console);
   pf.parseFile();
   // std::exit(1);
   pf.mapContig2Pos();
@@ -252,7 +255,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   }
 
   // parse the reference list and store the strings in a 2bit-encoded vector
-  if (rfile.size() > 0) {
+  bool keepRef = (rfile.size() > 0);
+  if (keepRef) {
     auto &refIds = pf.getRefIDs();
     auto &refLengths = pf.getRefLengths();
     std::vector<uint64_t> refAccumLengths(refLengths.size());
@@ -266,7 +270,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     //sdsl 2bit vector
     sdsl::int_vector<2> refseq = sdsl::int_vector<2>(refAccumLengths.back(), 0);
     // go over all the reference files
-    std::cerr << "Read the reference files ...\n";
+    console->info("Reading the reference files ...");
+    std::vector<std::string> ref_files = {rfile};
     fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(ref_files, 1, 1);
     parser.start();
     auto rg = parser.getReadGroup();
@@ -279,7 +284,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         pf.encodeSeq(refseq, offset, seqv);
       }
     }
-
+    parser.stop();
     // store the 2bit-encoded references
     // store reference accumulative lengths
     std::string accumLengthsFilename = outdir + "/refAccumLengths.bin";
@@ -308,12 +313,12 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   size_t nkeys{numKmers};
   size_t numContigs{cnmap.size()};
 
-  std::cerr << "seqSize = " << sdsl::size_in_mega_bytes(seqVec) << "\n";
-  std::cerr << "rankSize = " << sdsl::size_in_mega_bytes(rankVec) << "\n";
-  std::cerr << "edgeVecSize = "<<sdsl::size_in_mega_bytes(edgeVec) << "\n";
+  console->info("seqSize = {}", sdsl::size_in_mega_bytes(seqVec));
+  console->info("rankSize = {}", sdsl::size_in_mega_bytes(rankVec));
+  console->info("edgeVecSize = {}", sdsl::size_in_mega_bytes(edgeVec));
   //std::cerr << "edgeVec2Size = "<<sdsl::size_in_mega_bytes(edgeVec2) << "\n";
   // std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
-  std::cerr << "num keys = " << nkeys << "\n";
+  console->info("num keys = {}", nkeys);
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
   ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
 
@@ -323,7 +328,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   for (; ks < ke; ++ks) {
     nkeyIt++;
   }
-  std::cerr << "num keys (iterator)= " << nkeyIt << "\n";
+  console->info("num keys (iterator)= {}", nkeyIt);
 #endif // PUFFER_DEBUG
  
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
@@ -332,20 +337,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   auto keyIt = boomphf::range(kb, ke);
   boophf_t* bphf =
       new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
-  std::cerr << "mphf size = " << (bphf->totalBitSize() / 8) / std::pow(2, 20)
-            << "\n";
-
+  console->info("mphf size = {}", (bphf->totalBitSize() / 8) / std::pow(2, 20));
 
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
   sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
-  //sdsl::store_to_file(edgeVec2, outdir + "/revedge.bin");
-
-  // size_t slen = seqVec.size();
-  //#ifndef PUFFER_DEBUG
-  // seqVec.resize(0);
-  // rankVec.resize(0);
-  //#endif
 
   // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
   //uint32_t hashBits = 4;
@@ -360,14 +356,13 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       for (; kb1 != ke1; ++kb1) {
         auto idx = bphf->lookup(*kb1); // fkm.word(0));
         if (idx >= posVec.size()) {
-          std::cerr << "i =  " << i << ", size = " << seqVec.size()
-                    << ", idx = " << idx << ", size = " << posVec.size() << "\n";
+          console->info("i =  {}, size = {}, idx = {}, size = {}",
+                        i, seqVec.size(), idx, posVec.size());
         }
         // ContigKmerIterator::value_type mer = *kb1;
         // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
         //posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
-        posVec[idx] = kb1.pos(); 
-        
+        posVec[idx] = kb1.pos();
         // validate
 #ifdef PUFFER_DEBUG
         uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
@@ -376,8 +371,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
           my_mer r;
           r.word__(0) = *kb1;
-          std::cerr << "I thought I saw " << sk.to_str() << ", but I saw "
-                    << r.toStr() << "\n";
+          console->error("I thought I saw {}, but I saw {}", sk.to_str(), r.toStr());
         }
 #endif
       }
@@ -388,14 +382,15 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     {
       cereal::JSONOutputArchive indexDesc(descStream);
       std::string sampStr = "dense";
-      std::vector<std::string> refFiles{gfa_file};
-      indexDesc(cereal::make_nvp("IndexVersion", pufferfish::indexVersion));
-      indexDesc(cereal::make_nvp("ReferenceFiles", refFiles));
+      std::vector<std::string> refGFA{gfa_file};
+      indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
+      indexDesc(cereal::make_nvp("reference_gfa", refGFA));
       indexDesc(cereal::make_nvp("sampling_type", sampStr));
       indexDesc(cereal::make_nvp("k", k));
       indexDesc(cereal::make_nvp("num_kmers", nkeys));
       indexDesc(cereal::make_nvp("num_contigs", numContigs));
       indexDesc(cereal::make_nvp("seq_length", tlen));
+      indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
     }
     descStream.close();
 
@@ -431,7 +426,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     //fill up the vectors
     uint32_t extSymbolWidth = 2;
     uint32_t extWidth = std::log2(extensionSize);
-    std::cerr << "extWidth = " << extWidth << "\n";
+    console->info("extWidth = {}", extWidth);
     sdsl::int_vector<> auxInfo((numKmers-sampledKmers), 0, extSymbolWidth*extensionSize) ;
     sdsl::int_vector<> extSize((numKmers-sampledKmers), 0, extWidth) ;
     //extSize[idx - rank] = extensionDist;
@@ -442,7 +437,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   // new presence Vec
   {
-    std::cerr << "\nFilling presence Vector \n" ;
+    console->info("\nFilling presence Vector");
 
     size_t i = 0 ;
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
@@ -483,22 +478,18 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           //didSample = false;
         }
         if (nextSampIter != sampledInds.end()) {
-          std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
-          std::cerr << "last sample is " << sampledInds.back() << "\n";
-          std::cerr << "contig length is " << contigLengths[contigId-1] << "\n";
+          console->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          console->info("last sample is " , sampledInds.back());
+          console->info("contig length is " , contigLengths[contigId-1]);
         }
     }
 
-    std::cerr << " i = " << i
-              << " sampledKmers = " << sampledKmers
-              << " Loops = "<< loopCounter
-              << " Contig array = "<<contigLengths.size()
-              << "\n" ;
-
+    console->info("i = {}, sampled kmers = {}, loops = {}, contig array = {}",
+                  i, sampledKmers, loopCounter, contigLengths.size());
   }
 
   sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
-  std::cerr << " num ones in presenceVec = " << realPresenceRank(presenceVec.size()-1) << "\n" ;
+  console->info("num ones in presenceVec = {}", realPresenceRank(presenceVec.size()-1));
 
   //bidirectional sampling
   {
@@ -538,7 +529,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
           if (distToNext == std::numeric_limits<uint64_t>::max() and
               distToPrev == std::numeric_limits<uint64_t>::max()) {
-            std::cerr << "Could not find valid sample position, should not happen!\n";
+            console->error("Could not find valid sample position, should not happen!");
             std::exit(1);
           }
 
@@ -589,6 +580,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   {
     cereal::JSONOutputArchive indexDesc(descStream);
     std::string sampStr = "sparse";
+    std::vector<std::string> refGFA{gfa_file};
+    indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
+    indexDesc(cereal::make_nvp("reference_gfa", refGFA));
     indexDesc(cereal::make_nvp("sampling_type", sampStr));
     indexDesc(cereal::make_nvp("sample_size", sampleSize));
     indexDesc(cereal::make_nvp("extension_size", extensionSize));
@@ -597,6 +591,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     indexDesc(cereal::make_nvp("num_sampled_kmers",sampledKmers));
     indexDesc(cereal::make_nvp("num_contigs", numContigs));
     indexDesc(cereal::make_nvp("seq_length", tlen));
+    indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
   }
   descStream.close();
 
@@ -637,7 +632,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     // new presence Vec
     {
       {
-      std::cerr << "\nFilling presence vector \n" ;
+      console->info("\nFilling presence vector");
       size_t i = 0 ;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
       ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -670,15 +665,15 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           }
         }
         if (nextSampIter != sampledInds.end()) {
-          std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
-          std::cerr << "last sample is " << sampledInds.back() << "\n";
-          std::cerr << "contig length is " << contigLengths[contigId-1] << "\n";
+          console->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          console->info("last sample is {}", sampledInds.back());
+          console->info("contig length is {}", contigLengths[contigId-1]);
         }
       }
       }
 
       {
-      std::cerr << "\nFilling sampled position vector \n" ;
+        console->info("\nFilling sampled position vector");
       size_t i = 0 ;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
       ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -712,16 +707,13 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           }
         }
         if (nextSampIter != sampledInds.end()) {
-          std::cerr << "I didn't sample " << std::distance(nextSampIter, sampledInds.end()) << " samples for contig " << contigId - 1 << "\n";
-          std::cerr << "last sample is " << sampledInds.back() << "\n";
-          std::cerr << "contig length is " << contigLengths[contigId-1] << "\n";
+          console->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          console->info("last sample is {}", sampledInds.back());
+          console->info("contig length is {}", contigLengths[contigId-1]);
         }
       }
-      std::cerr << " i = " << i
-                << " sampledKmers = " << sampledKmers
-                << " Loops = "<< loopCounter
-                << " Contig array = "<<contigLengths.size()
-                << "\n" ;
+      console->info("i = {}, sampled kmers = {}, loops = {}, contig array = {}",
+                    i, sampledKmers, loopCounter, contigLengths.size());
 
     }
     }
@@ -731,6 +723,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     {
       cereal::JSONOutputArchive indexDesc(descStream);
       std::string sampStr = "lossy";
+      std::vector<std::string> refGFA{gfa_file};
+      indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
+      indexDesc(cereal::make_nvp("reference_gfa", refGFA));
       indexDesc(cereal::make_nvp("sampling_type", sampStr));
       indexDesc(cereal::make_nvp("sample_size", sampleSize));
       indexDesc(cereal::make_nvp("k", k));
@@ -738,6 +733,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       indexDesc(cereal::make_nvp("num_sampled_kmers",sampledKmers));
       indexDesc(cereal::make_nvp("num_contigs", numContigs));
       indexDesc(cereal::make_nvp("seq_length", tlen));
+      indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
     }
     descStream.close();
 

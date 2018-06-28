@@ -30,8 +30,8 @@ bool FileExists(const char* path);
 // Taken from
 // http://stackoverflow.com/questions/12774207/fastest-way-to-check-if-a-file-exist-using-standard-c-c11-c
 bool DirExists(const char* path);
-void MakeDir(const char* path);
-}
-}
+int MakeDir(const char* path);
+int MakePath(const char *dir);
+}}
 
 #endif //__PUFFERFISH_FILESYSTEM_HPP__

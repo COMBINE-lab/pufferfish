@@ -8,8 +8,6 @@
 #include <type_traits>
 #include <vector>
 
-//#include "gfakluge.hpp"
-
 uint64_t swap_uint64(uint64_t val) {
   val = ((val << 8) & 0xFF00FF00FF00FF00ULL) |
         ((val >> 8) & 0x00FF00FF00FF00FFULL);
@@ -87,15 +85,6 @@ int main(int argc, char* argv[]) {
   size_t nread{0};
   my_mer::k(k);
 
-  /*
-      auto gg = gfak::GFAKluge();
-      gg.parse_gfa_file(contig_file[0]);
-      auto seqs = gg.get_name_to_seq();
-      for (auto& kv : seqs) {
-          std::cerr << "k = " << kv.first << ", " << kv.second.id << "\n";
-      }
-      std::exit(1);
-  */
   {
     fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(contig_file, 1, 1);
     parser.start();

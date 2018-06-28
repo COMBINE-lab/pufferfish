@@ -80,9 +80,10 @@ std::vector<stx::string_view> PosFinder::split(stx::string_view str,
   return ret;
 }
 
-PosFinder::PosFinder(const char* gfaFileName, size_t input_k) {
+PosFinder::PosFinder(const char* gfaFileName, size_t input_k, std::shared_ptr<spdlog::logger> logger) {
+  logger_ = logger;
   filename_ = std::string(gfaFileName);
-  std::cerr << "Reading GFA file " << gfaFileName << "\n";
+  logger_->info("Reading GFA file {}", gfaFileName);
   file.reset(new zstr::ifstream(gfaFileName));
   k = input_k;
 }
@@ -161,8 +162,8 @@ sdsl::int_vector<8>& PosFinder::getEdgeVec() { return edgeVec_; }
 void PosFinder::parseFile() {
   size_t total_len = fillContigInfoMap_();
   file.reset(new zstr::ifstream(filename_));
-  std::cerr << "total contig length = " << total_len << "\n";
-  std::cerr << "packing contigs into contig vector\n";
+  logger_->info("total contig length = {} ", total_len);
+  logger_->info("packing contigs into contig vector");
   seqVec_ = sdsl::int_vector<2>(total_len, 0);
 
   std::string ln;
@@ -371,10 +372,8 @@ void PosFinder::parseFile() {
   }
 
   k = k - 1;
-
-  std::cerr << " Total # of Contigs : " << contig_cnt
-            << " Total # of numerical Contigs : " << contigid2seq.size()
-            << "\n\n";
+  logger_->info("Total # of Contigs : {}", contig_cnt);
+  logger_->info("Total # of numerical Contigs : {}", contigid2seq.size());
 }
 
 // spp::sparse_hash_map<uint64_t, std::string>& PosFinder::getContigNameMap() {
@@ -445,7 +444,7 @@ void PosFinder::mapContig2Pos() {
         total_output_lines += 1;
       }
       if (contigid2seq.find(contigs[i].first) == contigid2seq.end()) {
-        std::cerr << contigs[i].first << "\n";
+        logger_->info("{}", contigs[i].first);
       }
       pos = accumPos;
       currContigLength = contigid2seq[contigs[i].first].length;
@@ -454,8 +453,7 @@ void PosFinder::mapContig2Pos() {
           .push_back(util::Position(tr, pos, contigs[i].second));
     }
   }
-  std::cerr << "\nTotal # of segments we have position for : "
-            << total_output_lines << "\n";
+  logger_->info("\nTotal # of segments we have position for : {}", total_output_lines);
 }
 
 void PosFinder::clearContigTable() {
@@ -511,10 +509,28 @@ void PosFinder::serializeContigTable(const std::string& odir) {
 
     spp::sparse_hash_map<std::vector<uint32_t>, uint32_t, VecHasher> eqMap;
     std::vector<uint32_t> eqIDs;
-    std::vector<std::vector<util::Position>> cpos;
+    //std::vector<std::vector<util::Position>> cpos;
+
+    // Compute sizes to reserve
+    size_t contigVecSize{0};
+    size_t contigOffsetSize{1};
+    for (auto& kv : contigid2seq) {
+      contigOffsetSize++;
+      contigVecSize += contig2pos[kv.first].size();
+    }
+
+    logger_->info("total contig vec entries {}", contigVecSize);
+    std::vector<util::Position> cpos;
+    cpos.reserve(contigVecSize);
+    std::vector<uint64_t> cpos_offsets;
+    cpos_offsets.reserve(contigOffsetSize);
+    cpos_offsets.push_back(0);
 
     for (auto& kv : contigid2seq) {
-      cpos.push_back(contig2pos[kv.first]);
+      //cpos.push_back(contig2pos[kv.first]);
+      auto& b = contig2pos[kv.first];
+      cpos_offsets.push_back(cpos_offsets.back() + b.size());
+      cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
       std::vector<uint32_t> tlist;
       for (auto& p : contig2pos[kv.first]) {
         tlist.push_back(p.transcript_id());
@@ -539,7 +555,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
       ct << '\n';
       */
     }
-    std::cerr << "there were " << eqMap.size() << " equivalence classes\n";
+    logger_->info("there were {}  equivalence classes", eqMap.size());
     eqAr(eqIDs);
     eqIDs.clear();
     eqIDs.shrink_to_fit();
@@ -555,6 +571,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
               });
     eqAr(eqLabels);
     ar(cpos);
+    ar(cpos_offsets);
   }
   /*
     ct << refIDs.size() << '\n';

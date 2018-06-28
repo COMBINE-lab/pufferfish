@@ -66,7 +66,8 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
   if(validateOpts.gfaFileName.length() != 0){
     int k = pi.k() ;
     ScopedTimer st ;
-    PosFinder pf(validateOpts.gfaFileName.c_str(), k-1) ;
+    auto console = spdlog::stderr_color_mt("console");
+    PosFinder pf(validateOpts.gfaFileName.c_str(), k-1, console);
     pf.parseFile() ;
 
     auto& seq = pi.getSeq() ;

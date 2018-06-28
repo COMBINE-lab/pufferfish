@@ -467,8 +467,8 @@ public:
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
-	    et = ExpansionTerminationType::MISMATCH;
-	    foundTermCondition = true;
+            et = ExpansionTerminationType::MISMATCH;
+            foundTermCondition = true;
             break;
           }
           hit.k_++;
@@ -486,8 +486,8 @@ public:
           int contigCode = (fk >> (2 * i)) & 0x3;
           if (fastNextReadCode != contigCode) {
             stillMatch = false;
-	    et = ExpansionTerminationType::MISMATCH;
-	    foundTermCondition = true;
+            et = ExpansionTerminationType::MISMATCH;
+            foundTermCondition = true;
             break;
           }
           hit.k_++;
@@ -503,16 +503,9 @@ public:
     }
 
     if (!hit.contigOrientation_) {
-      // if (verbose)
-      //   std::cerr << hit.k_ << " prev contig pos:" << hit.contigPos_ << "\n";
       hit.contigPos_ -= (hit.k_ - k);
       hit.globalPos_ -= (hit.k_ - k);
-      /* if (verbose){
-        std::cerr << "after updating: " << hit.contigPos_ << "\n";
-      } */
-      
     }
-    //std::cerr << "after updating coverage: " << hit.k_ << "\n";
     kit.jumpTo(readSeqStart);
     return currReadStart;
   }
@@ -540,10 +533,10 @@ public:
      *  Testing heuristic.  If we just succesfully matched a k-mer, and extended it to a uni-MEM, then
      *  the nucleotide after the end of the match is very likely to be a sequencing error (or a variant).
      *  In this case, the next "k" k-mers will still likely overlap that error and not match.  So, instead
-     *  of looking at each of them (or skipping all of them, which might decrease sensitivity), we will 
+     *  of looking at each of them (or skipping all of them, which might decrease sensitivity), we will
      *  skip (by a Mohsen number ;P) until we are at least k bases away from the end of the valid match.
      *  Then, so as to maintain high sensitivity, we will start skipping by only 1 k-mer at a time.
-     **/              
+     **/
 
     // Start off pretending we are at least k bases away from the last hit
     uint32_t skip{1};
@@ -558,18 +551,9 @@ public:
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
         // stamping the reasPos
+        // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
         size_t readPosOld = kit1->second ;
-        /* if(verbose){
-          std::cerr<< "Index "<< phits.contigID() << " ContigLen "<<phits.contigLen_<< " GlobalPos " << phits.globalPos_ << " ore " << phits.contigOrientation_ << " ref size " << phits.refRange.size() <<"\n\n\n" ;
-          std::cerr<<kit1->first.to_str() << "\n" ;
-          for(auto& posIt : phits.refRange){
-            auto refPosOri = phits.decodeHit(posIt);
-            std::cerr << posIt.transcript_id() << "\t" <<  refPosOri.isFW << "\t" << refPosOri.pos << "\n" ;
-          } 
-        } */
         expandHitEfficient(phits, kit1, et, verbose);
-        //if(verbose) std::cerr<<"len after expansion: "<<phits.k_<<"\n" ;
-        
         rawHits.push_back(std::make_pair(readPosOld, phits));
         basesSinceLastHit = 1;
         skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;

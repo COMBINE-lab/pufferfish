@@ -276,10 +276,11 @@ auto  PufferfishBaseIndex<T>::getContigBlock(uint64_t rank)->util::ContigBlock{
  * Return the position list (ref_id, pos) corresponding to a contig.
  */
 template <typename T>
-const std::vector<util::Position>&
+const core::range<std::vector<util::Position>::iterator>
 PufferfishBaseIndex<T>::refList(uint64_t contigRank) {
-  return underlying().contigTable_[contigRank];
+  return contigRange(contigRank);
 }
+
 
 
 template <typename T>

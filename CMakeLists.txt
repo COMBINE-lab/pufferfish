@@ -3,29 +3,33 @@ cmake_policy(SET CMP0015 NEW)
 
 project(pufferfish)
 
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
 # We require C++11
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(KSW_FLAGS "-march=native -DHAVE_KALLOC")
-set(RBF_CPP_FLAGS "-g -mbmi2 -msse4 -pthread -std=c++11 -W -Wall -Wextra -Wpointer-arith -Wunused -Wwrite-strings -openmp -Wno-unknown-pragmas -Wno-unused-function")
-set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast -Wno-unused-parameter") 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
+set(KSW_FLAGS "-march=native;-DHAVE_KALLOC")
+set(RBF_CPP_FLAGS "-g;-mbmi2;-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-Wconversion;-Wctor-dtor-privacy;-Wdisabled-optimization;-Wdouble-promotion;-Wextra;-Wformat=2;-Winit-self;-Wlogical-op;-Wmissing-declarations;-Wmissing-include-dirs;-Wno-sign-conversion;-Wnoexcept;-Wold-style-cast;-Woverloaded-virtual;-Wpedantic;-Wredundant-decls;-Wshadow;-Wstrict-aliasing=1;-Wstrict-null-sentinel;-Wstrict-overflow=5;-Wswitch-default;-Wundef;-Wno-unknown-pragmas;-Wuseless-cast;-Wno-unused-parameter")
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
 set(DEFINE_FLAGS "-DSTX_NO_STD_STRING_VIEW")
-set(OPT_FLAGS "-O3 -ffast-math -fPIC -DNDEBUG -funroll-loops -mmmx -msse -msse2 -msse3 -msse4 -msse4.2 -march=native -fno-strict-aliasing")
+set(OPT_FLAGS "-O3;-ffast-math;-fPIC;-DNDEBUG;-funroll-loops;-mmmx;-msse;-msse2;-msse3;-msse4;-msse4.2;-march=native;-fno-strict-aliasing")
 #set(OPT_FLAGS "-fprofile-generate -O3 -DNDEBUG -funroll-loops -mmmx -msse -msse2 -msse3 -msse4 -msse4.2 -march=native -fno-strict-aliasing")
 #set(OPT_FLAGS "-fprofile-use -fprofile-correction -O3 -DNDEBUG -funroll-loops -mmmx -msse -msse2 -msse3 -msse4 -msse4.2 -march=native -fno-strict-aliasing")
-set(DEBUG_FLAGS "-pg -g -gstabs")
+set(DEBUG_FLAGS "-pg;-g;-gstabs")
 
-set(RBF_CPP_FLAGS "${DEFINE_FLAGS} ${KSW_FLAGS} ${RBF_CPP_FLAGS} ${OPT_FLAGS}")
+set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
+set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")
 
-set(CMAKE_CXX_FLAGS ${RBF_CPP_FLAGS})
+#set(CMAKE_CXX_FLAGS ${RBF_CPP_FLAGS})
 
-find_package(JeMalloc)
+find_package(Jemalloc)
     if(JEMALLOC_FOUND)
       include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIRS})
 endif()
