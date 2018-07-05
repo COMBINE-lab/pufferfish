@@ -38,6 +38,7 @@ set(pufferfish_lib_srcs
     PufferfishAligner.cpp
     #edlib.cpp
 	RefSeqConstructor.cpp
+	Pufferize.cpp
 	)
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})
@@ -98,7 +99,7 @@ target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2 ${JEMALLOC_LI
 target_link_libraries(bcalm_pufferize Threads::Threads z)
 target_link_libraries(fixFasta Threads::Threads z)
 target_link_libraries(myGFAtester Threads::Threads z sdsl puffer)
-target_link_libraries(pufferize Threads::Threads puffer z)
+target_link_libraries(pufferize Threads::Threads puffer sdsl z)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
 #target_link_libraries(kswcli Threads::Threads z ksw2)
