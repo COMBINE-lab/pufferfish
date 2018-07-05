@@ -367,7 +367,7 @@ void Cedar<ReaderType>::serialize(std::string& output_filename) {
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     spp::sparse_hash_map<uint64_t, double> validTaxa;
-    std::cout << "strain size: " << strain.size() << "\n";
+    std::cerr << "strain size: " << strain.size() << "\n";
     for (auto& kv : strain) {
         if (taxaNodeMap.find(kv.first) != taxaNodeMap.end()) {
             TaxaNode *walker = &taxaNodeMap[kv.first];
@@ -417,7 +417,7 @@ void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
     logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
-    std::cout << "NUMREFS: " << mappings.numRefs() << "\n";
+    std::cerr << "NUMREFS: " << mappings.numRefs() << "\n";
     for (uint32_t i = 0; i < mappings.numRefs(); ++i) { 
         //for (auto& kv : strain) {
         auto it = strain.find(i);
