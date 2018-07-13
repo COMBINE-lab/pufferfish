@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 cmake_policy(SET CMP0015 NEW)
 
 project(pufferfish)
@@ -20,19 +20,34 @@ set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-
 
 set(DEFINE_FLAGS "-DSTX_NO_STD_STRING_VIEW")
 set(OPT_FLAGS "-O3;-ffast-math;-fPIC;-DNDEBUG;-funroll-loops;-mmmx;-msse;-msse2;-msse3;-msse4;-msse4.2;-march=native;-fno-strict-aliasing")
-#set(OPT_FLAGS "-fprofile-generate -O3 -DNDEBUG -funroll-loops -mmmx -msse -msse2 -msse3 -msse4 -msse4.2 -march=native -fno-strict-aliasing")
-#set(OPT_FLAGS "-fprofile-use -fprofile-correction -O3 -DNDEBUG -funroll-loops -mmmx -msse -msse2 -msse3 -msse4 -msse4.2 -march=native -fno-strict-aliasing")
 set(DEBUG_FLAGS "-pg;-g;-gstabs")
-
-set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
-set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")
-
-#set(CMAKE_CXX_FLAGS ${RBF_CPP_FLAGS})
 
 find_package(Jemalloc)
     if(JEMALLOC_FOUND)
       include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIRS})
 endif()
+
+include(ExternalProject)
+ExternalProject_Add(libseqlib
+GIT_REPOSITORY https://github.com/COMBINE-lab/SeqLib.git
+GIT_TAG        master
+UPDATE_DISCONNECTED 1
+BUILD_IN_SOURCE TRUE
+DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
+SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
+INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
+CONFIGURE_COMMAND ./configure 
+BUILD_COMMAND     make -j8 CXXFLAGS='-std=c++11'
+INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include && cp src/libseqlib.a <INSTALL_DIR>/lib && 
+                  cp htslib/libhts.a <INSTALL_DIR>/lib &&
+                  cp -r SeqLib <INSTALL_DIR>/include &&
+                  cp -r json <INSTALL_DIR>/include &&
+                  cp -r htslib <INSTALL_DIR>/include
+)
+
+set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
+set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
+set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")
 
 include_directories(include)
 link_directories(lib)

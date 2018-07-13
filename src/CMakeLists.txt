@@ -1,11 +1,19 @@
 
+####
+# Deprecated
+####
 #INCLUDE_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/ /home/fatemeh/others_projects/SeqLib/htslib/ )
-LINK_DIRECTORIES(../external_dependencies/SeqLib/bin)
 #SET(SEQLIB_DIR /home/rob/nemo/external/SeqLib/bin)
-INCLUDE_DIRECTORIES(../external_dependencies/SeqLib/ ../external_dependencies/SeqLib/htslib/)
-SET(SEQLIB_DIR ../external_dependencies/SeqLib/bin)
+#INCLUDE_DIRECTORIES(../external/include/SeqLib/)
+#SET(SEQLIB_DIR ../external_dependencies/SeqLib/bin)
 #set(gfalib_srcs gfakluge.cpp)
 #add_library(gfakluge STATIC ${gfalib_srcs})
+####
+# End Deprecated
+####
+
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../external/install/lib)
+
 set(ksw2_lib_srcs
     kalloc.c
     KSW2Aligner.cpp
@@ -84,17 +92,31 @@ target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}
 
 
 add_executable(cedar TargetGroup.cpp cedar.cpp taxa.cpp)
+target_include_directories(cedar PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include/htslib
+)
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-
+add_dependencies(cedar libseqlib)
 
 add_executable(filtersam testing/SAMFilter.cpp)
+target_include_directories(filtersam PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include/htslib
+    )
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+add_dependencies(filtersam libseqlib)
+
+get_target_property(dirs filtersam INCLUDE_DIRECTORIES)
+message(STATUS "HI")
+foreach(dir ${dirs})
+  message(STATUS "dir='${dir}'")
+endforeach()
 
 #add_executable(readKrk readKrk.cpp taxa.cpp)
 
-#target_link_libraries(pufferfish-index-old z sdsl)
 target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)
 target_link_libraries(bcalm_pufferize Threads::Threads z)
 target_link_libraries(fixFasta Threads::Threads z)
@@ -102,13 +124,13 @@ target_link_libraries(myGFAtester Threads::Threads z sdsl puffer)
 target_link_libraries(pufferize Threads::Threads puffer sdsl z)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
-#target_link_libraries(kswcli Threads::Threads z ksw2)
 target_link_libraries(krakmap Threads::Threads puffer)
-target_link_libraries(cedar Threads::Threads libseqlib.a libhts.a puffer bz2 lzma z )
-target_link_libraries(filtersam Threads::Threads libseqlib.a libhts.a puffer bz2 lzma z )
+target_link_libraries(cedar Threads::Threads seqlib hts puffer bz2 lzma z )
+target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z )
+
+#target_link_libraries(pufferfish-index-old z sdsl)
+#target_link_libraries(kswcli Threads::Threads z ksw2)
 #target_link_libraries(readKrk puffer bz2 lzma z ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a)
 #target_link_libraries(myGraphtester puffer)
-
-
 #add_executable(test-gfa OurGFAReader.cpp)
 
