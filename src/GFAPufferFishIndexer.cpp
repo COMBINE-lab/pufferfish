@@ -53,10 +53,16 @@ public:
                      uint8_t k, uint64_t startAt)
       : storage_(storage), rank_(rank), k_(k), curr_(startAt) {
     if (curr_ + k_ <= rank_->size()) {
+      //nextValidPosition_();
       mer_.fromNum(storage_->get_int(2 * curr_, 2 * k_));
       // mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
     }
     // rcMer_ = mer_.get_reverse_complement();
+  }
+
+  bool advanceToValid() {
+    nextValidPosition_();
+    return (curr_ + k_ <= rank_->size());
   }
 
   ContigKmerIterator&
@@ -114,7 +120,55 @@ public:
 
   bool operator<=(const self_type& rhs) { return curr_ <= rhs.curr_; }
 
+  inline bool isValid() {
+    size_t endPos = curr_ + k_ - 1;
+    return !(endPos + 1 >= rank_->size() or (*rank_)[endPos] == 1);
+  }
+
+  inline bool isInvalid() {
+    return !isValid();
+  }
+
 private:
+
+  void nextValidPosition_() {
+    size_t endPos = curr_ + k_ - 1;
+    if (endPos < rank_->size()) {
+      // See if we cross a rank boundary
+      bool crossesBoundary{false};
+      bool isNextValid{false};
+      size_t boundaryIndex{0};
+      for (size_t i = curr_; i < endPos; ++i) {
+        if ((*rank_)[i] == 1) {
+          crossesBoundary = true;
+          boundaryIndex = i;
+          isNextValid = (i + k_) < rank_->size();
+          break;
+        }
+      }
+
+      // If so, that's the start of the next valid k-mer
+      // if that position is valid
+      if (crossesBoundary) {
+        if (isNextValid) {
+          curr_ = boundaryIndex + 1;
+        } else {
+          // if that position is invalid, then go to the end.
+          goto endPos;
+        }
+      }
+      // At this point, either curr_ points to the next valid
+      // start position, or we have skipped over to the endPos label.
+      mer_.fromNum(storage_->get_int(2 * curr_, 2 * k_));
+      return;
+    }
+
+  endPos:
+    // Fallthrough if we couldn't find a valid position.
+    mer_.fromNum(storage_->get_int(2 * (rank_->size() - k_), 2 * k_));
+    curr_ = storage_->size() - k_ + 1;
+  }
+
   void advance_() {
     size_t endPos = curr_ + k_ - 1;
     if (endPos + 1 < rank_->size() and (*rank_)[endPos] == 1) {
@@ -124,10 +178,12 @@ private:
       if (curr_ + k_ < rank_->size()) {
         int c = (*storage_)[curr_ + k_];
         mer_.shiftFw(c);
+        ++curr_;
       } else {
         mer_.fromNum(storage_->get_int(2 * (rank_->size() - k_), 2 * k_));
+        curr_ = storage_->size() - k_ + 1;
+        //curr_ = rank_->size();
       }
-      ++curr_;
     }
   }
   sdsl::int_vector<2>* storage_{nullptr};
@@ -350,33 +406,85 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     // sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
     sdsl::int_vector<> posVec(nkeys, 0, w);
     {
-      size_t i = 0;
-      ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
-      ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
-      for (; kb1 != ke1; ++kb1) {
-        auto idx = bphf->lookup(*kb1); // fkm.word(0));
-        if (idx >= posVec.size()) {
-          console->info("i =  {}, size = {}, idx = {}, size = {}",
-                        i, seqVec.size(), idx, posVec.size());
-        }
-        // ContigKmerIterator::value_type mer = *kb1;
-        // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
-        //posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
-        posVec[idx] = kb1.pos();
-        // validate
-#ifdef PUFFER_DEBUG
-        uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
-        CanonicalKmer sk;
-        sk.fromNum(kn);
-        if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
-          my_mer r;
-          r.word__(0) = *kb1;
-          console->error("I thought I saw {}, but I saw {}", sk.to_str(), r.toStr());
-        }
-#endif
+
+      struct ContigVecChunk {
+        uint64_t s;
+        uint64_t e;
+      };
+
+      // Build position table in parallel. We have up to indexOpts.p threads
+      // so divide the contig array into even chunks.
+      auto nthread = indexOpts.p;
+      double chunkSizeFrac = seqVec.size() / static_cast<double>(nthread);
+      // reduce the number of threads until chunks are big enough;
+      while (chunkSizeFrac < 8192 and nthread > 1) {
+        nthread /= 2;
+        chunkSizeFrac = seqVec.size() / static_cast<double>(nthread);
       }
+
+      auto chunkSize = static_cast<uint64_t>(std::ceil(chunkSizeFrac));
+      console->info("chunk size = {}", chunkSize);
+
+      std::vector<ContigVecChunk> chunks;
+      chunks.reserve(nthread);
+      size_t itOffset{0};
+      for (size_t i = 0; i < nthread; ++i) {
+        ContigKmerIterator startIt(&seqVec, &rankVec, k, itOffset);
+        startIt.advanceToValid();
+        uint64_t s = startIt.pos();
+        if (i == nthread - 1) {
+          itOffset = seqVec.size() - k + 1;
+        } else {
+          itOffset = s + chunkSize;
+        }
+        ContigKmerIterator endIt(&seqVec, &rankVec, k, itOffset);
+        endIt.advanceToValid();
+        uint64_t e = endIt.pos();
+        chunks.push_back({s,e});
+        console->info("chunk {} = [{}, {})", i, s, e);
+      }
+
+      auto fillPos = [&seqVec, &rankVec, k, &bphf, &console, &posVec](ContigVecChunk chunk) -> void {
+
+        ContigKmerIterator kb1(&seqVec, &rankVec, k, chunk.s);
+        ContigKmerIterator ke1(&seqVec, &rankVec, k, chunk.e);
+        for (; kb1 < ke1; ++kb1) {
+          auto idx = bphf->lookup(*kb1); // fkm.word(0));
+          if (idx >= posVec.size()) {
+            console->info("seq size = {}, idx = {}, pos size = {}",
+                          seqVec.size(), idx, posVec.size());
+          }
+          // ContigKmerIterator::value_type mer = *kb1;
+          // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
+          //posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
+          posVec[idx] = kb1.pos();
+          // validate
+#ifdef PUFFER_DEBUG
+          uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
+          CanonicalKmer sk;
+          sk.fromNum(kn);
+          if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
+            my_mer r;
+            r.word__(0) = *kb1;
+            console->error("I thought I saw {}, but I saw {} --- pos {}", sk.to_str(), r.toStr(), kb1.pos());
+          }
+#endif
+        }
+      };
+
+      std::vector<std::thread> workers;
+      workers.reserve(chunks.size());
+      for (auto chunk : chunks) {
+        workers.push_back(std::thread(fillPos, chunk));
+      }
+      for (auto& w : workers) {
+        w.join();
+      }
+      console->info("finished populating pos vector");
+
     }
 
+    console->info("writing index components");
     /** Write the index **/
     std::ofstream descStream(outdir + "/info.json");
     {
@@ -398,8 +506,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     std::ofstream hstream(outdir + "/mphf.bin");
     bphf->save(hstream);
     hstream.close();
-
-
+    console->info("finished writing dense pufferfish index");
 
   } else if (indexOpts.isSparse) { // sparse index; it's GO time!
     int extensionSize = indexOpts.extensionSize;
