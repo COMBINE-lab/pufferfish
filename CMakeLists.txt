@@ -31,6 +31,7 @@ include(ExternalProject)
 ExternalProject_Add(libseqlib
 GIT_REPOSITORY https://github.com/COMBINE-lab/SeqLib.git
 GIT_TAG        master
+UPDATE_COMMAND ""
 UPDATE_DISCONNECTED 1
 BUILD_IN_SOURCE TRUE
 DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
