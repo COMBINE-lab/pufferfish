@@ -109,11 +109,10 @@ target_compile_options(filtersam PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>"
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 add_dependencies(filtersam libseqlib)
 
-get_target_property(dirs filtersam INCLUDE_DIRECTORIES)
-message(STATUS "HI")
-foreach(dir ${dirs})
-  message(STATUS "dir='${dir}'")
-endforeach()
+#get_target_property(dirs filtersam INCLUDE_DIRECTORIES)
+#foreach(dir ${dirs})
+#  message(STATUS "dir='${dir}'")
+#endforeach()
 
 #add_executable(readKrk readKrk.cpp taxa.cpp)
 
