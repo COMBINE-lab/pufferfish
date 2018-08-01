@@ -273,6 +273,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   std::string gfa_file = indexOpts.gfa_file;
   std::string rfile = indexOpts.rfile;
   std::string outdir = indexOpts.outdir;
+  bool buildEdgeVec = indexOpts.buildEdgeVec;
 
   // If the user included the '/' in the output directory path, remove
   // it here
@@ -292,7 +293,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     std::exit(1);
   }
 
-  PosFinder pf(gfa_file.c_str(), k - 1, console);
+  PosFinder pf(gfa_file.c_str(), k - 1, buildEdgeVec, console);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);

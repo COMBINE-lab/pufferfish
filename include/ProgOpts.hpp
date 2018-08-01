@@ -15,6 +15,7 @@ public:
   uint32_t sampleSize{9};
   bool lossySampling{false};
   uint32_t lossy_rate{5};
+  bool buildEdgeVec{false};
 };
 
 class TestOptions {

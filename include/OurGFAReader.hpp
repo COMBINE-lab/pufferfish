@@ -74,11 +74,15 @@ private:
   // implementation from : https://marcoarena.wordpress.com/tag/string_view/
   std::vector<stx::string_view> split(stx::string_view str, char delims);
 
+  bool buildEdgeVec_{false};
   std::shared_ptr<spdlog::logger> logger_{nullptr};
 
 public:
   spp::sparse_hash_map<uint64_t, std::vector<util::Position>> contig2pos;
-  PosFinder(const char* gfaFileName, size_t input_k, std::shared_ptr<spdlog::logger> logger);
+
+  PosFinder(const char* gfaFileName, size_t input_k,
+            bool buildEdgeVEc, std::shared_ptr<spdlog::logger> logger);
+
   void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
                  stx::string_view str);
   // spp::sparse_hash_map<uint64_t, std::string>& getContigNameMap();
