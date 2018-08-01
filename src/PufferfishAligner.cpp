@@ -39,10 +39,7 @@
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
 
-
-//jellyfish 2 include
 #include "FastxParser.hpp"
-#include "jellyfish/mer_dna.hpp"
 
 //index header
 #include "ProgOpts.hpp"
@@ -74,7 +71,7 @@ using HitCounters = util::HitCounters;
 using QuasiAlignment = util::QuasiAlignment;
 using MateStatus = util::MateStatus;
 
-using SpinLockT = std::mutex;
+using MutexT = std::mutex;
 
 template<typename PufferfishIndexT>
 void printMemInfo(size_t tid,
@@ -721,7 +718,7 @@ bool foundTruth(std::string &refName, std::string &readName) {
 template<typename PufferfishIndexT>
 void processReadsPair(paired_parser *parser,
                       PufferfishIndexT &pfi,
-                      SpinLockT *iomutex,
+                      MutexT *iomutex,
                       std::shared_ptr<spdlog::logger> outQueue,
                       HitCounters &hctr,
                       AlignmentOpts *mopts) {
@@ -1027,7 +1024,7 @@ void processReadsPair(paired_parser *parser,
 template<typename PufferfishIndexT>
 void processReadsSingle(single_parser *parser,
                         PufferfishIndexT &pfi,
-                        SpinLockT *iomutex,
+                        MutexT *iomutex,
                         std::shared_ptr<spdlog::logger> outQueue,
                         HitCounters &hctr,
                         AlignmentOpts *mopts) {
@@ -1257,7 +1254,7 @@ bool spawnProcessReadsthreads(
         uint32_t nthread,
         paired_parser *parser,
         PufferfishIndexT &pfi,
-        SpinLockT &iomutex,
+        MutexT &iomutex,
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
         AlignmentOpts *mopts) {
@@ -1284,7 +1281,7 @@ bool spawnProcessReadsthreads(
         uint32_t nthread,
         single_parser *parser,
         PufferfishIndexT &pfi,
-        SpinLockT &iomutex,
+        MutexT &iomutex,
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
         AlignmentOpts *mopts) {
@@ -1378,7 +1375,7 @@ bool alignReads(
     std::unique_ptr<single_parser> singleParserPtr{nullptr};
 
     size_t chunkSize{10000};
-    SpinLockT iomutex;
+    MutexT iomutex;
 
     if (!mopts->singleEnd) {
         ScopedTimer timer(!mopts->quiet);
