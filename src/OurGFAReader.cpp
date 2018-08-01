@@ -3,6 +3,7 @@
 #include "cereal/archives/binary.hpp"
 #include "xxhash.h"
 #include "Kmer.hpp"
+#include <chrono>
 #include <algorithm>
 #include <string>
 #include <bitset>
@@ -12,13 +13,44 @@ namespace kmers = combinelib::kmers;
 enum class Direction : bool { PREPEND, APPEND } ;
 
 
+namespace gfa_reader {
+  namespace detail {
+#define R -1
+#define I -2
+#define O -3
+#define A 3
+#define C 0
+#define G 1
+#define T 2
+    static constexpr int shift_table[256] = {
+      O, O, O, O, O, O, O, O, O, O, I, O, O, O, O, O, O, O, O, O, O, O, O, O,
+      O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, R, O, O,
+      O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, A, R, C, R, O, O, G,
+      R, O, O, R, O, R, R, O, O, O, R, R, T, O, R, R, R, R, O, O, O, O, O, O,
+      O, A, R, C, R, O, O, G, R, O, O, R, O, R, R, O, O, O, R, R, T, O, R, R,
+      R, R, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O,
+      O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O,
+      O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O,
+      O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O,
+      O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O,
+      O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O};
+#undef R
+#undef I
+#undef O
+#undef A
+#undef C
+#undef G
+#undef T
+  }
+}
+
 uint8_t encodeEdge(char c, Direction dir){
-  std::map<char,uint8_t> shift_table = {{'A',3}, {'T',2}, {'G',1}, {'C',0}};
+  //std::map<char,uint8_t> shift_table = {{'A',3}, {'T',2}, {'G',1}, {'C',0}};
   uint8_t val{1} ;
   if(dir == Direction::APPEND)
-    return (val << shift_table[c]) ;
+    return (val << gfa_reader::detail::shift_table[c]) ;
   else
-    return (val << (shift_table[c]+4));
+    return (val << (gfa_reader::detail::shift_table[c]+4));
 }
 
 
@@ -160,7 +192,10 @@ sdsl::int_vector<8>& PosFinder::getEdgeVec() { return edgeVec_; }
 
 
 void PosFinder::parseFile() {
+  auto startTime = std::chrono::system_clock::now();
   size_t total_len = fillContigInfoMap_();
+  auto now = std::chrono::system_clock::now();
+  logger_->info("filling the contig map tool {} seconds.", std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count());
   file.reset(new zstr::ifstream(filename_));
   logger_->info("total contig length = {} ", total_len);
   logger_->info("packing contigs into contig vector");
@@ -178,7 +213,6 @@ void PosFinder::parseFile() {
   // start and end kmer-hash over the contigs
   // might get deprecated later
   uint64_t maxnid{0} ;
-
   while (std::getline(*file, ln)) {
     char firstC = ln[0];
     if (firstC != 'S' and firstC != 'P')
@@ -195,7 +229,6 @@ void PosFinder::parseFile() {
         if(nid > maxnid)
           maxnid = nid ;
         encodeSeq(seqVec_, contigid2seq[nid].offset, splited[2]);
-
         // contigid2seq[nid] = value;
       } catch (std::exception& e) {
         // not a numeric contig id
@@ -206,7 +239,6 @@ void PosFinder::parseFile() {
 
     // A path line
     if (tag == "P") {
-
       auto pvalue = splited[2];
       std::vector<std::pair<uint64_t, bool>> contigVec = explode(pvalue, ',');
       //go over the contigVec
@@ -235,10 +267,8 @@ void PosFinder::parseFile() {
 
   //Initialize edgeVec_
   //bad way, have to re-think
-  edgeVec_ = sdsl::int_vector<8>(contig_cnt, 0) ;
-  //edgeVec2_ = sdsl::int_vector<8>(contig_cnt, 0) ;
-  
-
+ /*
+   edgeVec_ = sdsl::int_vector<8>(contig_cnt, 0) ;
   std::map<char, char> cMap = {{'A','T'}, {'T','A'}, {'C','G'}, {'G','C'}} ;
   
   for(auto const& ent: path){
@@ -256,13 +286,10 @@ void PosFinder::parseFile() {
       // a+,b- end kmer of a , rc(end kmer of b)
       // a-,b+ rc(start kmer of a) , start kmer of b
       // a-,b- rc(start kmer of a) , rc(end kmer of b)
-      /*
-        1. `a+,(*)` we need to append a nucl to the `end-kmer`
-        2. `a-,(*)` we need to prepend rc(nucl) to the `start-kmer`
-        3. `(*),a+` we need to prepend a nucl to `start-kmer`
-        4. `(*),a-` we need to append a rc(nucl) to `end-kmer`
-       */
-        
+      //  1. `a+,(*)` we need to append a nucl to the `end-kmer`
+      //  2. `a-,(*)` we need to prepend rc(nucl) to the `start-kmer`
+      //  3. `(*),a+` we need to prepend a nucl to `start-kmer`
+      //  4. `(*),a-` we need to append a rc(nucl) to `end-kmer`
 
       CanonicalKmer lastKmerInContig;
       CanonicalKmer firstKmerInNextContig;
@@ -295,82 +322,9 @@ void PosFinder::parseFile() {
 
       edgeVec_[forder] |= encodeEdge(contigChar, contigDirection);
       edgeVec_[nextForder] |= encodeEdge(nextContigChar, nextContigDirection);
-
-      //////////// ========== Old implementation
-      /*
-      uint64_t kn = (!ore)? (seqVec_.get_int(2 * contigid2seq[cid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k)) ;
-      uint64_t knn = (nextore)? (seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2*k)) : (seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k), 2 * k)) ;
-
-
-      CanonicalKmer sk ;
-      CanonicalKmer skk ;
-      sk.fromNum(kn) ;
-      skk.fromNum(knn) ;
-
-      //validation, to be deprecated later
-      std::string nkmer;
-      std::string ckmer;
-      //kmer = (ore)?sk.to_str():sk.rcMer() ;
-      nkmer = skk.to_str();
-      ckmer = sk.to_str();
-
-      if(!ore and !nextore){
-        edgeVec_[forder] |=  encodeEdge(nkmer[0], Direction::PREPEND);
-        edgeVec2_[nextForder] |= encodeEdge(ckmer[k-1], Direction::APPEND) ;
-      }else if(!ore and nextore){
-        edgeVec_[forder] |=  encodeEdge(cMap[nkmer[k-1]], Direction::PREPEND);
-        edgeVec2_[nextForder] |=  encodeEdge(cMap[ckmer[k-1]], Direction::PREPEND);
-      }else if(ore and nextore){
-        edgeVec_[forder] |=  encodeEdge(nkmer[k-1], Direction::APPEND);
-        edgeVec2_[nextForder] |=  encodeEdge(ckmer[0], Direction::PREPEND);
-      }else if(ore and !nextore){
-        edgeVec_[forder] |=  encodeEdge(cMap[nkmer[0]], Direction::APPEND);
-        edgeVec2_[nextForder] |=  encodeEdge(cMap[ckmer[0]], Direction::APPEND);
-      } 
-      */
-      // ====================== End of Old Implementation ///////////////
-      
-
-      /*
-      if(ore){
-        kmer = sk.to_str() ;
-      }else{
-        kmer = sk.rcMer().to_str() ;
-      }
-
-      if(nextore){
-        nkmer = skk.to_str() ;
-      }else{
-        nkmer = skk.rcMer().to_str() ;
-      }
-
-      if( ore != nextore){
-        if(!ore)
-          std::reverse(kmer.begin(),kmer.end());
-        else if(!nextore)
-          std::reverse(nkmer.begin(),nkmer.end());
-      }
-
-      k_1mer = kmer.substr(1,k-1) ;
-      nk_1mer = nkmer.substr(0,k-1) ;
-
-      if(ore == nextore and !ore){
-        k_1mer = kmer.substr(0,k-1) ;
-        nk_1mer = nkmer.substr(1,k-1) ;
-      }
-      */
-
-      //std::bitset<8> b1 = edgeVec_[forder] ;
-      //std::cerr << ore << "\t" << kmer << "\t" << nextore << "\t" << nkmer << "\t" << b1 << "\n" ;
-      //{ std::cerr << "bingo\n" ;}
-      //end validation
-
     }
-
-   
-
-  }
-
+    }
+ */
   k = k - 1;
   logger_->info("Total # of Contigs : {}", contig_cnt);
   logger_->info("Total # of numerical Contigs : {}", contigid2seq.size());

@@ -23,11 +23,10 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     cereal::JSONInputArchive infoArchive(infoStream);
     infoArchive(cereal::make_nvp("k", k_));
     infoArchive(cereal::make_nvp("num_kmers", numKmers_));
-    std::cerr << "k = " << k_ << '\n';
-    std::cerr << "num kmers = " << numKmers_ << '\n';
+    infoArchive(cereal::make_nvp("have_edge_vec", haveEdges_));
     infoStream.close();
     twok_ = 2 * k_;
-  } 
+  }
 
   {
     CLI::AutoTimer timer{"Loading contig table", CLI::Timer::Big};
@@ -100,7 +99,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     sdsl::load_from_file(pos_, pfile);
   }
 
-  {
+  if (haveEdges_) {
     CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
     std::string pfile = indexDir + "/edge.bin";
     sdsl::load_from_file(edge_, pfile);

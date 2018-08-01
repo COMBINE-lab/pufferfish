@@ -294,7 +294,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   PosFinder pf(gfa_file.c_str(), k - 1, console);
   pf.parseFile();
-  // std::exit(1);
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
 
@@ -357,9 +356,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   size_t w = std::log2(tlen) + 1;
   console->info("positional integer width = {}", w);
   // sdsl::int_vector<> seqVec(tlen, 0, 2);
+
   auto& seqVec = pf.getContigSeqVec();
   auto& edgeVec = pf.getEdgeVec() ;
-  //auto& edgeVec2 = pf.getEdgeVec2() ;
 
   sdsl::bit_vector rankVec(tlen);
   auto& cnmap = pf.getContigNameMap();
@@ -372,8 +371,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   console->info("seqSize = {}", sdsl::size_in_mega_bytes(seqVec));
   console->info("rankSize = {}", sdsl::size_in_mega_bytes(rankVec));
   console->info("edgeVecSize = {}", sdsl::size_in_mega_bytes(edgeVec));
-  //std::cerr << "edgeVec2Size = "<<sdsl::size_in_mega_bytes(edgeVec2) << "\n";
-  // std::cerr << "posSize = " << sdsl::size_in_mega_bytes(posVec) << "\n";
+
   console->info("num keys = {}", nkeys);
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
   ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -397,7 +395,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   sdsl::store_to_file(seqVec, outdir + "/seq.bin");
   sdsl::store_to_file(rankVec, outdir + "/rank.bin");
-  sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
+
+  bool haveEdgeVec = edgeVec.size() > 0;
+  if (haveEdgeVec) {
+    sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
+  }
 
   // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
   //uint32_t hashBits = 4;
@@ -499,6 +501,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       indexDesc(cereal::make_nvp("num_contigs", numContigs));
       indexDesc(cereal::make_nvp("seq_length", tlen));
       indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
+      indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
     }
     descStream.close();
 
@@ -699,6 +702,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     indexDesc(cereal::make_nvp("num_contigs", numContigs));
     indexDesc(cereal::make_nvp("seq_length", tlen));
     indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
+    indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
   }
   descStream.close();
 
@@ -841,6 +845,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       indexDesc(cereal::make_nvp("num_contigs", numContigs));
       indexDesc(cereal::make_nvp("seq_length", tlen));
       indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
+      indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
     }
     descStream.close();
 

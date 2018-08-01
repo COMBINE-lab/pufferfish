@@ -27,6 +27,7 @@ private:
   uint64_t numKmers_{0};
   uint64_t lastSeqPos_{0};
   uint64_t numSampledKmers_{0};
+  bool haveEdges_{false};
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
