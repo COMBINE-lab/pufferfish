@@ -21,7 +21,9 @@
 #include <sstream>
 #include <vector>
 
-class PosFinder {
+namespace pufferfish {
+
+class GFAReader {
 private:
   std::string filename_;
   std::unique_ptr<zstr::ifstream> file;
@@ -80,7 +82,7 @@ private:
 public:
   spp::sparse_hash_map<uint64_t, std::vector<util::Position>> contig2pos;
 
-  PosFinder(const char* gfaFileName, size_t input_k,
+  GFAReader(const char* gfaFileName, size_t input_k,
             bool buildEdgeVEc, std::shared_ptr<spdlog::logger> logger);
 
   void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
@@ -113,4 +115,5 @@ public:
   // void writeFile(std::string fileName);
 };
 
+} // end namespace pufferfish
 #endif

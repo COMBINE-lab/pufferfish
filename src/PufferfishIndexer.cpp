@@ -12,7 +12,7 @@
 
 #include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
-#include "OurGFAReader.hpp"
+#include "PufferfishGFAReader.hpp"
 #include "PufferFS.hpp"
 #include "PufferfishIndex.hpp"
 #include "ScopedTimer.hpp"
@@ -293,7 +293,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     std::exit(1);
   }
 
-  PosFinder pf(gfa_file.c_str(), k - 1, buildEdgeVec, console);
+  pufferfish::GFAReader pf(gfa_file.c_str(), k - 1, buildEdgeVec, console);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);

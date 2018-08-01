@@ -30,7 +30,7 @@ set(ksw2_lib_srcs
 add_library(ksw2 STATIC ${ksw2_lib_srcs})
 
 set(pufferfish_lib_srcs 
-    GFAPufferFishIndexer.cpp 
+    PufferfishIndexer.cpp 
     PufferfishBaseIndex.cpp
     PufferfishIndex.cpp 
     PufferfishSparseIndex.cpp 
@@ -39,7 +39,7 @@ set(pufferfish_lib_srcs
     PufferfishValidate.cpp 
     PufferfishTestLookup.cpp 
     FastxParser.cpp 
-    OurGFAReader.cpp 
+    PufferfishGFAReader.cpp 
     PufferFS.cpp 
     xxhash.c 
     GFAConverter.cpp

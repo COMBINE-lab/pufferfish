@@ -1,4 +1,4 @@
-#include "OurGFAReader.hpp"
+#include "PufferfishGFAReader.hpp"
 #include "CanonicalKmer.hpp"
 #include "cereal/archives/binary.hpp"
 #include "xxhash.h"
@@ -10,6 +10,9 @@
 
 
 namespace kmers = combinelib::kmers;
+
+namespace pufferfish {
+
 enum class Direction : bool { PREPEND, APPEND } ;
 
 
@@ -48,15 +51,15 @@ uint8_t encodeEdge(char c, Direction dir){
   //std::map<char,uint8_t> shift_table = {{'A',3}, {'T',2}, {'G',1}, {'C',0}};
   uint8_t val{1} ;
   if(dir == Direction::APPEND)
-    return (val << gfa_reader::detail::shift_table[c]) ;
+    return (val << gfa_reader::detail::shift_table[static_cast<uint8_t>(c)]) ;
   else
-    return (val << (gfa_reader::detail::shift_table[c]+4));
+    return (val << (gfa_reader::detail::shift_table[static_cast<uint8_t>(c)]+4));
 }
 
 
 
 std::vector<std::pair<uint64_t, bool>>
-PosFinder::explode(const stx::string_view str, const char& ch) {
+GFAReader::explode(const stx::string_view str, const char& ch) {
   std::string next;
   std::vector<std::pair<uint64_t, bool>> result;
   // For each character in the string
@@ -84,7 +87,7 @@ PosFinder::explode(const stx::string_view str, const char& ch) {
   return result;
 }
 
-bool PosFinder::is_number(const std::string& s) {
+bool GFAReader::is_number(const std::string& s) {
   return !s.empty() && std::find_if(s.begin(), s.end(), [](char c) {
                          return !std::isdigit(c);
                        }) == s.end();
@@ -93,7 +96,7 @@ bool PosFinder::is_number(const std::string& s) {
 // Avoiding un-necessary stream creation + replacing strings with string view
 // is a bit > than a 2x win!
 // implementation from : https://marcoarena.wordpress.com/tag/string_view/
-std::vector<stx::string_view> PosFinder::split(stx::string_view str,
+std::vector<stx::string_view> GFAReader::split(stx::string_view str,
                                                char delims) {
   std::vector<stx::string_view> ret;
 
@@ -112,7 +115,7 @@ std::vector<stx::string_view> PosFinder::split(stx::string_view str,
   return ret;
 }
 
-PosFinder::PosFinder(const char* gfaFileName, size_t input_k, bool buildEdgeVec, std::shared_ptr<spdlog::logger> logger) {
+GFAReader::GFAReader(const char* gfaFileName, size_t input_k, bool buildEdgeVec, std::shared_ptr<spdlog::logger> logger) {
   logger_ = logger;
   filename_ = std::string(gfaFileName);
   logger_->info("Reading GFA file {}", gfaFileName);
@@ -122,7 +125,7 @@ PosFinder::PosFinder(const char* gfaFileName, size_t input_k, bool buildEdgeVec,
 }
 
 /*
-void PosFinder::scanContigLengths() {
+void GFAReader::scanContigLengths() {
   std::string ln;
   std::string tag, id, value;
   size_t contig_cnt{0};
@@ -145,7 +148,7 @@ void PosFinder::scanContigLengths() {
 }
 */
 
-size_t PosFinder::fillContigInfoMap_() {
+size_t GFAReader::fillContigInfoMap_() {
   std::string ln;
   std::string tag, id, value;
   size_t contig_ctr{0};
@@ -179,7 +182,7 @@ size_t PosFinder::fillContigInfoMap_() {
   return total_len;
 }
 
-void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
+void GFAReader::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
                           stx::string_view str) {
   for (size_t i = 0; i < str.length(); ++i) {
     auto c = kmers::codeForChar(str[i]);
@@ -187,12 +190,12 @@ void PosFinder::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
   }
 }
 
-sdsl::int_vector<2>& PosFinder::getContigSeqVec() { return seqVec_; }
-sdsl::int_vector<8>& PosFinder::getEdgeVec() { return edgeVec_; }
-//sdsl::int_vector<8>& PosFinder::getEdgeVec2() { return edgeVec2_; }
+sdsl::int_vector<2>& GFAReader::getContigSeqVec() { return seqVec_; }
+sdsl::int_vector<8>& GFAReader::getEdgeVec() { return edgeVec_; }
+//sdsl::int_vector<8>& GFAReader::getEdgeVec2() { return edgeVec2_; }
 
 
-void PosFinder::parseFile() {
+void GFAReader::parseFile() {
   auto startTime = std::chrono::system_clock::now();
   size_t total_len = fillContigInfoMap_();
   auto now = std::chrono::system_clock::now();
@@ -330,41 +333,41 @@ void PosFinder::parseFile() {
   logger_->info("Total # of numerical Contigs : {}", contigid2seq.size());
 }
 
-// spp::sparse_hash_map<uint64_t, std::string>& PosFinder::getContigNameMap() {
+// spp::sparse_hash_map<uint64_t, std::string>& GFAReader::getContigNameMap() {
 spp::sparse_hash_map<uint64_t, util::PackedContigInfo>&
-PosFinder::getContigNameMap() {
+GFAReader::getContigNameMap() {
   return contigid2seq;
 }
-spp::sparse_hash_map<std::string, std::string>& PosFinder::getContigIDMap() {
+spp::sparse_hash_map<std::string, std::string>& GFAReader::getContigIDMap() {
   return seq2contigid;
 }
 
 /*
-spp::sparse_hash_map<uint32_t, std::string>& PosFinder::getRefIDs() {
+spp::sparse_hash_map<uint32_t, std::string>& GFAReader::getRefIDs() {
   return refMap;
 }
 */
-std::vector<std::string>& PosFinder::getRefIDs() { return refMap; }
+std::vector<std::string>& GFAReader::getRefIDs() { return refMap; }
 
-std::vector<uint32_t>& PosFinder::getRefLengths() { return refLengths;}
+std::vector<uint32_t>& GFAReader::getRefLengths() { return refLengths;}
 
 std::map<std::pair<std::string, bool>, bool, util::cmpByPair>&
-PosFinder::getPathStart() {
+GFAReader::getPathStart() {
   return pathStart;
 }
 std::map<std::pair<std::string, bool>, bool, util::cmpByPair>&
-PosFinder::getPathEnd() {
+GFAReader::getPathEnd() {
   return pathEnd;
 }
 
-std::vector<std::pair<std::string, std::string>>& PosFinder::getNewSegments() {
+std::vector<std::pair<std::string, std::string>>& GFAReader::getNewSegments() {
   return newSegments;
 }
 
-pufg::Graph& PosFinder::getSemiCG() { return semiCG; }
+pufg::Graph& GFAReader::getSemiCG() { return semiCG; }
 
 /*
-void PosFinder::writeFile(std::string fileName){
+void GFAReader::writeFile(std::string fileName){
     std::ofstream gfa_file(fileName) ;
     for(auto& cseq : contigid2seq){
         gfa_file << "S" << "\t" << cseq.first <<"\t" << cseq.second << "\n" ;
@@ -383,7 +386,7 @@ void PosFinder::writeFile(std::string fileName){
 }
 */
 
-void PosFinder::mapContig2Pos() {
+void GFAReader::mapContig2Pos() {
   uint64_t pos = 0;
   uint64_t accumPos;
   uint64_t currContigLength = 0;
@@ -410,14 +413,14 @@ void PosFinder::mapContig2Pos() {
   logger_->info("\nTotal # of segments we have position for : {}", total_output_lines);
 }
 
-void PosFinder::clearContigTable() {
+void GFAReader::clearContigTable() {
   refMap.clear();
   refLengths.clear();
   contig2pos.clear();
 }
 
 // Note : We assume that odir is the name of a valid (i.e., existing) directory.
-void PosFinder::serializeContigTable(const std::string& odir) {
+void GFAReader::serializeContigTable(const std::string& odir) {
   std::string ofile = odir + "/ctable.bin";
   std::string eqfile = odir + "/eqtable.bin";
   std::string rlfile = odir + "/reflengths.bin";
@@ -543,7 +546,7 @@ void PosFinder::serializeContigTable(const std::string& odir) {
   */
 }
 
-void PosFinder::deserializeContigTable() {
+void GFAReader::deserializeContigTable() {
   // TODO read the file in the same order as you've written it down.
 }
 /*
@@ -551,7 +554,7 @@ int main(int argc, char* argv[]) {
     //std::vector<std::string> gfa_file = {argv[1]};
     //std::vector<std::string> read_file = {argv[2]};
     std::cerr<<" Starting ... \n";
-    PosFinder pf(argv[1], 30);
+    GFAReader pf(argv[1], 30);
     pf.parseFile();
 
     pf.mapContig2Pos();
@@ -568,3 +571,5 @@ ent2.orien;
     ct.close();
 }
 */
+
+} // namespace pufferfish
