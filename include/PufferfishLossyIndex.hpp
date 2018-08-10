@@ -19,6 +19,7 @@ class PufferfishLossyIndex : public PufferfishBaseIndex<PufferfishLossyIndex> {
   friend PufferfishBaseIndex;
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
+  using pos_vector_t = PufferfishBaseIndex<PufferfishLossyIndex>::pos_vector_t;
 
 private:
   uint32_t k_{0};
@@ -44,7 +45,7 @@ private:
   sdsl::bit_vector presenceVec_;
   sdsl::bit_vector::rank_1_type presenceRank_;
   sdsl::bit_vector::select_1_type presenceSelect_;
-  sdsl::int_vector<> sampledPos_;
+  pos_vector_t sampledPos_;
 
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};

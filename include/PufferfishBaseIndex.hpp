@@ -32,7 +32,10 @@ protected:
       return core::range<std::vector<util::Position>::iterator>(startIt, endIt);
     }
 
+  using pos_vector_t = sdsl::int_vector<>;
+
   public:
+
   // Get the equivalence class ID (i.e., rank of the equivalence class)
   // for a given contig.
   pufferfish::types::EqClassID getEqClassID(uint32_t contigID);

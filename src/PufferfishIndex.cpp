@@ -124,7 +124,7 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
-    uint64_t pos = pos_[res];
+    uint64_t pos = const_cast<const pos_vector_t&>(pos_)[res];
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
     /* 
     uint64_t hashbits = pos & 0xF;
@@ -208,7 +208,7 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
-    uint64_t pos = pos_[res];
+    uint64_t pos = const_cast<const pos_vector_t&>(pos_)[res];
     uint64_t twopos = pos << 1;
     uint64_t fk = seq_.get_int(twopos, twok_);
     // say how the kmer fk matches mer; either

@@ -19,6 +19,7 @@ class PufferfishIndex : public PufferfishBaseIndex<PufferfishIndex> {
   friend PufferfishBaseIndex;
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
+  using pos_vector_t = typename PufferfishBaseIndex<PufferfishIndex>::pos_vector_t;
 
 private:
   uint32_t k_{0};
@@ -38,7 +39,7 @@ private:
   sdsl::bit_vector::select_1_type contigSelect_;
   sdsl::int_vector<2> seq_;
   sdsl::int_vector<8> edge_;
-  sdsl::int_vector<> pos_;
+  pos_vector_t pos_;
 
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};

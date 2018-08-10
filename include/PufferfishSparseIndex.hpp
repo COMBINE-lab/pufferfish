@@ -19,6 +19,7 @@ class PufferfishSparseIndex : public PufferfishBaseIndex<PufferfishSparseIndex> 
   friend PufferfishBaseIndex;
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
+  using pos_vector_t = PufferfishBaseIndex<PufferfishSparseIndex>::pos_vector_t;
 
 private:
   uint32_t k_{0};
@@ -40,7 +41,7 @@ private:
   sdsl::bit_vector::select_1_type contigSelect_;
   sdsl::int_vector<2> seq_;
   sdsl::int_vector<8> edge_;
-  sdsl::int_vector<> pos_;
+  pos_vector_t pos_;
   //for sparse representation
   sdsl::bit_vector presenceVec_;
   sdsl::bit_vector canonicalNess_;
@@ -49,7 +50,7 @@ private:
   sdsl::bit_vector::rank_1_type presenceRank_;
   sdsl::bit_vector::select_1_type presenceSelect_;
   sdsl::int_vector<> auxInfo_ ;
-  sdsl::int_vector<> sampledPos_;
+  pos_vector_t sampledPos_;
 
   std::unique_ptr<boophf_t> hash_{nullptr};
 
