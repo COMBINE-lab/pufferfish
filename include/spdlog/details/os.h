@@ -363,6 +363,17 @@ inline size_t thread_id()
 }
 
 
+// This is avoid msvc issue in sleep_for that happens if the clock changes.
+// See https://github.com/gabime/spdlog/issues/609
+inline void sleep_for_millis(int milliseconds)
+{
+#if defined(_WIN32)
+    Sleep(milliseconds);
+#else
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+#endif
+}
+
 // wchar support for windows file names (SPDLOG_WCHAR_FILENAMES must be defined)
 #if defined(_WIN32) && defined(SPDLOG_WCHAR_FILENAMES)
 #define SPDLOG_FILENAME_T(s) L ## s

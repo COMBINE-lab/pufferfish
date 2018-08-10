@@ -25,6 +25,7 @@
 #include <vector>
 #include <string>
 #include <cstdlib>
+#include <clocale>
 //#include <cereal/archives/json.hpp>
 
 #include "PufferfishConfig.hpp"
@@ -43,6 +44,8 @@ int pufferfishAligner(AlignmentOpts& alignmentOpts) ;
 int main(int argc, char* argv[]) {
   using namespace clipp;
   using std::cout;
+  std::setlocale(LC_ALL, "en_US.UTF-8");
+
   enum class mode {help, index, validate, lookup, align};
   mode selected = mode::help;
   AlignmentOpts alignmentOpt ;
@@ -53,9 +56,9 @@ int main(int argc, char* argv[]) {
 
   auto indexMode = (
                     command("index").set(selected, mode::index),
-                    (required("-o", "--output").call([]{cout << "parsing --output\n\n";}) & value("output_dir", indexOpt.outdir)) % "directory where index is written",
-                    (required("-g", "--gfa").call([]{cout << "parsing --gfa\n\n";}) & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
-                    (option("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
+                    (required("-o", "--output") & value("output_dir", indexOpt.outdir)) % "directory where index is written",
+                    (required("-g", "--gfa") & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
+                    (option("-r", "--ref") & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
                     (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
                     (option("-l", "--build-edges").set(indexOpt.buildEdgeVec, true) % "build and record explicit edge table for the contaigs of the ccdBG (default = false)"),

@@ -304,8 +304,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       numKmers += r1.length - k + 1;
       ++nread;
     }
-    console->info("# segments = {}", nread);
-    console->info("total length = {}", tlen);
+    console->info("# segments = {:n}", nread);
+    console->info("total length = {:n}", tlen);
   }
 
   // parse the reference list and store the strings in a 2bit-encoded vector
@@ -353,7 +353,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   // now we know the size we need --- create our bitvectors and pack!
   size_t w = std::log2(tlen) + 1;
-  console->info("positional integer width = {}", w);
+  console->info("positional integer width = {:n}", w);
   // sdsl::int_vector<> seqVec(tlen, 0, 2);
 
   auto& seqVec = pf.getContigSeqVec();
@@ -371,7 +371,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   console->info("rankSize = {}", sdsl::size_in_mega_bytes(rankVec));
   console->info("edgeVecSize = {}", sdsl::size_in_mega_bytes(edgeVec));
 
-  console->info("num keys = {}", nkeys);
+  console->info("num keys = {:n}", nkeys);
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
   ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
 
@@ -381,7 +381,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   for (; ks < ke; ++ks) {
     nkeyIt++;
   }
-  console->info("num keys (iterator)= {}", nkeyIt);
+  console->info("num keys (iterator)= {:n}", nkeyIt);
 #endif // PUFFER_DEBUG
  
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
@@ -442,7 +442,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         endIt.advanceToValid();
         uint64_t e = endIt.pos();
         chunks.push_back({s,e});
-        console->info("chunk {} = [{}, {})", i, s, e);
+        console->info("chunk {} = [{:n}, {:n})", i, s, e);
       }
 
       auto fillPos = [&seqVec, &rankVec, k, &bphf, &console, &posVec](ContigVecChunk chunk) -> void {
@@ -452,7 +452,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         for (; kb1 < ke1; ++kb1) {
           auto idx = bphf->lookup(*kb1); // fkm.word(0));
           if (idx >= posVec.size()) {
-            console->info("seq size = {}, idx = {}, pos size = {}",
+            console->info("seq size = {:n}, idx = {:n}, pos size = {:n}",
                           seqVec.size(), idx, posVec.size());
           }
           // ContigKmerIterator::value_type mer = *kb1;
@@ -528,8 +528,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         sampledKmers += sampledInds.size() ;
         contigLengths.push_back(r1.length) ;
       }
-      console->info("# sampled kmers = {}", sampledKmers) ;
-      console->info("# skipped kmers = {}", numKmers - sampledKmers) ;
+      console->info("# sampled kmers = {:n}", sampledKmers) ;
+      console->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
    }
 
     //fill up the vectors
@@ -593,12 +593,12 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         }
     }
 
-    console->info("i = {}, sampled kmers = {}, loops = {}, contig array = {}",
+    console->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
                   i, sampledKmers, loopCounter, contigLengths.size());
   }
 
   sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
-  console->info("num ones in presenceVec = {}", realPresenceRank(presenceVec.size()-1));
+  console->info("num ones in presenceVec = {:n}", realPresenceRank(presenceVec.size()-1));
 
   //bidirectional sampling
   {
@@ -733,8 +733,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         sampledKmers += sampledInds.size() ;
         contigLengths.push_back(r1.length) ;
       }
-      console->info("# sampled kmers = {}", sampledKmers) ;
-      console->info("# skipped kmers = {}", numKmers - sampledKmers) ;
+      console->info("# sampled kmers = {:n}", sampledKmers) ;
+      console->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
     }
 
     sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
@@ -775,9 +775,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           }
         }
         if (nextSampIter != sampledInds.end()) {
-          console->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          console->info("last sample is {}", sampledInds.back());
-          console->info("contig length is {}", contigLengths[contigId-1]);
+          console->info("I didn't sample {:n}, samples for contig {:n}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          console->info("last sample is {:n}", sampledInds.back());
+          console->info("contig length is {:n}", contigLengths[contigId-1]);
         }
       }
       }
@@ -817,12 +817,12 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           }
         }
         if (nextSampIter != sampledInds.end()) {
-          console->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          console->info("last sample is {}", sampledInds.back());
-          console->info("contig length is {}", contigLengths[contigId-1]);
+          console->info("I didn't sample {:n}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          console->info("last sample is {:n}", sampledInds.back());
+          console->info("contig length is {:n}", contigLengths[contigId-1]);
         }
       }
-      console->info("i = {}, sampled kmers = {}, loops = {}, contig array = {}",
+      console->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
                     i, sampledKmers, loopCounter, contigLengths.size());
 
     }

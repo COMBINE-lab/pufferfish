@@ -51,12 +51,12 @@ protected:
   // Get the k value with which this index was built.
   uint32_t k();
 
-  // Get the list of reference sequences & positiosn corresponding to a contig
+  // Get the list of reference sequences & positions corresponding to a contig
   const core::range<std::vector<util::Position>::iterator> refList(uint64_t contigRank);
-  
+
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
-  
+
   // Get the length of a reference sequence
   uint32_t refLength(uint64_t refRank) const;
 
@@ -68,7 +68,7 @@ protected:
   // Returns true if pos is a valid position in the compacted sequence array
   // and false otherwise.
   bool isValidPos(uint64_t pos);
-  
+
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
