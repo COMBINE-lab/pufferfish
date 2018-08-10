@@ -84,8 +84,8 @@ protected:
   // this can considerably speed up querying.
   auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
 
-  sdsl::int_vector<2>& getSeq(); 
-  sdsl::int_vector<8>& getEdge(); 
+  typename PufferfishBaseIndex<T>::seq_vector_t& getSeq(); 
+  typename PufferfishBaseIndex<T>::edge_vector_t& getEdge(); 
 
   uint8_t getEdgeEntry(uint64_t contigRank) const;
   //uint8_t getRevEdgeEntry(uint64_t contigRank) {return revedge_[contigRank];}
