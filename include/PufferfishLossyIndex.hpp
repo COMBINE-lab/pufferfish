@@ -20,6 +20,9 @@ class PufferfishLossyIndex : public PufferfishBaseIndex<PufferfishLossyIndex> {
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
   using pos_vector_t = PufferfishBaseIndex<PufferfishLossyIndex>::pos_vector_t;
+  using seq_vector_t = PufferfishBaseIndex<PufferfishLossyIndex>::seq_vector_t;
+  using edge_vector_t = PufferfishBaseIndex<PufferfishLossyIndex>::edge_vector_t;
+  using bit_vector_t = PufferfishBaseIndex<PufferfishLossyIndex>::bit_vector_t;
 
 private:
   uint32_t k_{0};
@@ -35,14 +38,14 @@ private:
   std::vector<util::Position> contigTable_;
   std::vector<uint64_t> contigOffsets_;
   uint64_t numContigs_{0};
-  sdsl::bit_vector contigBoundary_;
+  bit_vector_t contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;
-  sdsl::int_vector<2> seq_;
-  sdsl::int_vector<8> edge_;
+  seq_vector_t seq_;
+  edge_vector_t edge_;
 
   //for lossy representation
-  sdsl::bit_vector presenceVec_;
+  bit_vector_t presenceVec_;
   sdsl::bit_vector::rank_1_type presenceRank_;
   sdsl::bit_vector::select_1_type presenceSelect_;
   pos_vector_t sampledPos_;

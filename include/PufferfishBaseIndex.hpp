@@ -33,6 +33,9 @@ protected:
     }
 
   using pos_vector_t = sdsl::int_vector<>;
+  using seq_vector_t = sdsl::int_vector<2>;
+  using edge_vector_t = sdsl::int_vector<8>;
+  using bit_vector_t = sdsl::bit_vector;
 
   public:
 
