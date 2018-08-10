@@ -27,6 +27,7 @@ public:
 
     bool nextRead(ReadInfo &rinf, bool needReadName = false) {
         bool hasBean = false;
+        (void)hasBean;
         rinf.mappings.clear();
         TaxaNode dummy;
         TaxaNode *taxa = &dummy;

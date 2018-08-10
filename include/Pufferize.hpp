@@ -60,7 +60,7 @@ struct ContigOri {
 
     ContigOri(uint64_t wrdIn) : wrd(wrdIn) {}
 
-    bool const operator<(const ContigOri &o) {
+    bool operator<(const ContigOri &o) const {
         return wrd < o.wrd;
     }
 };

@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.5)
-cmake_policy(SET CMP0015 NEW)
+cmake_minimum_required(VERSION 3.9)
+#cmake_policy(SET CMP0015 NEW)
 
 project(pufferfish)
 
@@ -9,8 +9,8 @@ if (NOT CMAKE_BUILD_TYPE)
    set (CMAKE_BUILD_TYPE "Release")
 endif()
 
-# We require C++11
-set(CMAKE_CXX_STANDARD 11)
+# We require C++14
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -22,7 +22,6 @@ set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
-set(DEFINE_FLAGS "-DSTX_NO_STD_STRING_VIEW")
 set(OPT_FLAGS "-O3;-ffast-math;-fPIC;-DNDEBUG;-funroll-loops;-mmmx;-msse;-msse2;-msse3;-msse4;-msse4.2;-march=native;-fno-strict-aliasing")
 set(DEBUG_FLAGS "-pg;-g;-gstabs")
 
@@ -42,7 +41,7 @@ DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
 CONFIGURE_COMMAND ./configure 
-BUILD_COMMAND     make -j8 CXXFLAGS='-std=c++11'
+BUILD_COMMAND     make -j8 CXXFLAGS='-std=c++14'
 INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include && cp src/libseqlib.a <INSTALL_DIR>/lib && 
                   cp htslib/libhts.a <INSTALL_DIR>/lib &&
                   cp -r SeqLib <INSTALL_DIR>/include &&

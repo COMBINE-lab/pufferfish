@@ -522,12 +522,12 @@ void Pufferize::reconstructPathAndWrite(const char *gfaOutFileName, const char *
                     if (succ.baseSign() == ori) {
                         assert(contig.size() > (neighborSeq.startp + k - 1));
                         if (succ.neighborSign() and
-                            contig[neighborSeq.startp + k - 1] == combinelib::kmers::codeForChar(seq[i])) {
+                            static_cast<int>(contig[neighborSeq.startp + k - 1]) == combinelib::kmers::codeForChar(seq[i])) {
                             isFound = true;
                         } else if (!succ.neighborSign()) {
                             uint64_t idx = neighborSeq.startp + neighborSeq.len - k;
                             assert(contig.size() > idx);
-                            if (contig[idx] == combinelib::kmers::codeForChar(combinelib::kmers::complement(seq[i])))
+                            if (static_cast<int>(contig[idx]) == combinelib::kmers::codeForChar(combinelib::kmers::complement(seq[i])))
                                 /*if ((neighborSeq[idx] == 'T' and seq[i] == 'A')
                                     or (neighborSeq[idx] == 'A' and seq[i] == 'T')
                                     or (neighborSeq[idx] == 'C' and seq[i] == 'G')
