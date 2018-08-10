@@ -3,9 +3,12 @@
 
 #include <memory>
 #include <vector>
+#include <cstdlib>
 
+extern "C" {
 #include "ksw2pp/kalloc.h"
 #include "ksw2pp/ksw2.h"
+}
 
 namespace ksw2pp {
 
@@ -35,6 +38,7 @@ struct KSW2Config {
   int dropoff = -1;
   int flag = 0;
   int alphabetSize = 5;
+  int end_bonus = 10;
   KSW2AlignmentType atype = KSW2AlignmentType::GLOBAL;
 };
 
@@ -44,6 +48,13 @@ public:
   KSW2Aligner(int8_t match = 2, int8_t mismatch = -4);
   KSW2Aligner(std::vector<int8_t> mat);
 
+  int transformSequenceKSW2(const char* const queryOriginal, const int queryLength,
+                            std::vector<unsigned char>& queryTransformed);
+
+  int transformSequencesKSW2(const char* const queryOriginal, const int queryLength,
+                             const char* const targetOriginal, const int targetLength,
+                             std::vector<unsigned char>& queryTransformed,
+                             std::vector<unsigned char>& targetTransformed);
   /**
    * Variants of the operator that require both an explicit type tag to
    * determine the type of alignment to perform, as well as a pointer to
@@ -108,12 +119,6 @@ public:
     }
   }
 
-  void freeCIGAR() {
-    if (result_.cigar and kalloc_allocator_) {
-      kfree(kalloc_allocator_.get(), result_.cigar);
-    }
-  }
-
 private:
   std::vector<uint8_t> query_;
   std::vector<uint8_t> target_;
@@ -122,6 +127,8 @@ private:
                                                          KallocDeleter()};
   std::vector<int8_t> mat_;
   KSW2Config config_;
+  bool haveSSE41{false};
+  bool haveSSE2{false};
 };
 } // namespace ksw2pp
 #endif //__KSW2_ALIGNER_HPP__

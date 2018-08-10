@@ -12,22 +12,47 @@
 # End Deprecated
 ####
 
+# check if we know how to do IPO
+include(CheckIPOSupported)
+check_ipo_supported(RESULT HAS_IPOHAS_IPO)
+
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../external/install/lib)
 
-set(ksw2_lib_srcs
-    kalloc.c
-    KSW2Aligner.cpp
-    ksw2_extd.c
-    ksw2_extd2_sse.c
-    ksw2_extf2_sse.c
-    ksw2_exts2_sse.c
-    ksw2_extz.c
-    ksw2_extz2_sse.c
-    ksw2_gg.c
-    ksw2_gg2.c
-    ksw2_gg2_sse.c
-    )
-add_library(ksw2 STATIC ${ksw2_lib_srcs})
+set (KSW2PP_BASIC_LIB_SRCS
+ksw2pp/kalloc.c
+ksw2pp/ksw2_extd.c
+ksw2pp/ksw2_extz.c
+ksw2pp/ksw2_gg.c
+ksw2pp/ksw2_gg2.c
+ksw2pp/ksw2_gg2_sse.c
+ksw2pp/KSW2Aligner.cpp
+)
+
+set (KSW2PP_ADVANCED_LIB_SRCS
+ksw2pp/ksw2_extd2_sse.c
+ksw2pp/ksw2_extf2_sse.c
+ksw2pp/ksw2_extz2_sse.c
+)
+
+add_library(ksw2pp_sse2 OBJECT ${KSW2PP_ADVANCED_LIB_SRCS})
+add_library(ksw2pp_sse4 OBJECT ${KSW2PP_ADVANCED_LIB_SRCS})
+add_library(ksw2pp_basic OBJECT ${KSW2PP_BASIC_LIB_SRCS})
+
+set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_FLAGS "-O3 -msse2 -mno-sse4.1")
+set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;KSW_SSE2_ONLY;HAVE_KALLOC")
+set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_FLAGS "-O3 -msse4.1")
+set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
+set_target_properties(ksw2pp_basic PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
+
+set_target_properties(ksw2pp_basic PROPERTIES INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include)
+set_target_properties(ksw2pp_sse4 PROPERTIES INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include) 
+
+# Build the ksw2pp library
+add_library(ksw2pp STATIC $<TARGET_OBJECTS:ksw2pp_sse2> $<TARGET_OBJECTS:ksw2pp_sse4> $<TARGET_OBJECTS:ksw2pp_basic>)
+set_target_properties(ksw2pp PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
+if(HAS_IPO)
+  set_property(TARGET ksw2pp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+endif()
 
 set(pufferfish_lib_srcs 
     PufferfishIndexer.cpp 
@@ -116,7 +141,7 @@ add_dependencies(filtersam libseqlib)
 
 #add_executable(readKrk readKrk.cpp taxa.cpp)
 
-target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2 ${JEMALLOC_LIBRARIES} z)
+target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2pp ${JEMALLOC_LIBRARIES} z)
 target_link_libraries(bcalm_pufferize Threads::Threads z)
 target_link_libraries(fixFasta Threads::Threads z)
 target_link_libraries(myGFAtester Threads::Threads z sdsl puffer)
@@ -128,7 +153,7 @@ target_link_libraries(cedar Threads::Threads seqlib hts puffer bz2 lzma z )
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z )
 
 #target_link_libraries(pufferfish-index-old z sdsl)
-#target_link_libraries(kswcli Threads::Threads z ksw2)
+#target_link_libraries(kswcli Threads::Threads z ksw2pp)
 #target_link_libraries(readKrk puffer bz2 lzma z ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a)
 #target_link_libraries(myGraphtester puffer)
 #add_executable(test-gfa OurGFAReader.cpp)
