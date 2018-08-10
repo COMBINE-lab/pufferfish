@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
 
   auto cli = (
               (indexMode | validateMode | lookupMode | alignMode | command("help").set(selected,mode::help) ),
-              option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version"));
+              option("-v", "--version").call([]{std::cout << "version " << pufferfish::version << "\n"; std::exit(0);}).doc("show version"));
 
   decltype(parse(argc, argv, cli)) res;
   try {
