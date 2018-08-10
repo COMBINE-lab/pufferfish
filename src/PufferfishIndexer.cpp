@@ -25,8 +25,6 @@
 #include "sdsl/select_support.hpp"
 #include "spdlog/spdlog.h"
 #include "Kmer.hpp" // currently requires k <= 32
-//#include "gfakluge.hpp"
-
 
 namespace kmers = combinelib::kmers;
 
@@ -42,12 +40,12 @@ uint64_t swap_uint64(uint64_t val) {
 // http://stackoverflow.com/questions/34875315/implementation-my-own-list-and-iterator-stl-c
 class ContigKmerIterator {
 public:
-  typedef ContigKmerIterator self_type;
-  typedef uint64_t value_type;
-  typedef value_type& reference;
-  typedef value_type* pointer;
-  typedef std::forward_iterator_tag iterator_category;
-  typedef int64_t difference_type;
+  using self_type = ContigKmerIterator;
+  using value_type = uint64_t;
+  using reference = value_type&;
+  using pointer = value_type*;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = int64_t;
 
   ContigKmerIterator(sdsl::int_vector<2>* storage, sdsl::bit_vector* rank,
                      uint8_t k, uint64_t startAt)
@@ -850,7 +848,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     }
     descStream.close();
 
-    //sdsl::store_to_file(posVec, outdir + "/pos.bin");
     std::ofstream hstream(outdir + "/mphf.bin");
     sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
     sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
