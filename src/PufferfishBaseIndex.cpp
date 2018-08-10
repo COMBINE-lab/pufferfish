@@ -309,12 +309,12 @@ uint8_t PufferfishBaseIndex<T>::getEdgeEntry(uint64_t contigRank) const {
 }
 
 template <typename T>
-sdsl::int_vector<2>& PufferfishBaseIndex<T>::getSeq() {
+typename PufferfishBaseIndex<T>::seq_vector_t& PufferfishBaseIndex<T>::getSeq() {
   return underlying().seq_;
 }
 
 template <typename T>
-sdsl::int_vector<8>& PufferfishBaseIndex<T>::getEdge() {
+typename PufferfishBaseIndex<T>::edge_vector_t& PufferfishBaseIndex<T>::getEdge() {
   return underlying().edge_;
 }
 
