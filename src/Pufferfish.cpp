@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
   } catch (std::exception& e) {
     std::cout << "\n\nParsing command line failed with exception: " << e.what() << "\n";
     std::cout << "\n\n";
-    std::cout << make_man_page(cli, "pufferfish");
+    std::cout << make_man_page(cli, pufferfish::progname);
     return 1;
   }
 
@@ -148,27 +148,27 @@ int main(int argc, char* argv[]) {
     case mode::validate: pufferfishValidate(validateOpt);  break;
     case mode::lookup: pufferfishTestLookup(lookupOpt); break;
     case mode::align: pufferfishAligner(alignmentOpt); break;
-    case mode::help: std::cout << make_man_page(cli, "pufferfish"); break;
+    case mode::help: std::cout << make_man_page(cli, pufferfish::progname); break;
     }
   } else {
     auto b = res.begin();
     auto e = res.end();
     if (std::distance(b,e) > 0) {
       if (b->arg() == "index") {
-        std::cout << make_man_page(indexMode, "pufferfish");
+        std::cout << make_man_page(indexMode, pufferfish::progname);
       } else if (b->arg() == "validate") {
-        std::cout << make_man_page(validateMode, "pufferfish");
+        std::cout << make_man_page(validateMode, pufferfish::progname);
       } else if (b->arg() == "lookup") {
-        std::cout << make_man_page(lookupMode, "pufferfish");
+        std::cout << make_man_page(lookupMode, pufferfish::progname);
       } else if (b->arg() == "align") {
-        std::cout << make_man_page(alignMode, "pufferfish");
+        std::cout << make_man_page(alignMode, pufferfish::progname);
       } else {
         std::cout << "There is no command \"" << b->arg() << "\"\n";
-        std::cout << usage_lines(cli, "pufferfish") << '\n';
+        std::cout << usage_lines(cli, pufferfish::progname) << '\n';
         return 1;
       }
     } else {
-      std::cout << usage_lines(cli, "pufferfish") << '\n';
+      std::cout << usage_lines(cli, pufferfish::progname) << '\n';
       return 1;
     }
   }
