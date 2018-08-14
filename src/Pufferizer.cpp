@@ -2,8 +2,8 @@
 //#include "OurGFAReader.hpp"
 //#include "semiCompactedCompactor.hpp"
 #include "CLI/CLI.hpp"
-//#include "GFAConverter.hpp"
-#include "Pufferize.hpp"
+#include "GFAConverter.hpp"
+//#include "Pufferize.hpp"
 
 struct PufferizeOpts {
   uint32_t k = 31;
@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
     return app.exit(e);
   }
 
-  //GFAConverter gc(popts.gfaFile.c_str(), popts.k);
-  Pufferize gc(popts.gfaFile.c_str(), popts.k);
+    GFAConverter gc(popts.gfaFile.c_str(), popts.k);
+    //Pufferize gc(popts.gfaFile.c_str(), popts.k);
   gc.parseFile();
   gc.randomWalk();
   gc.reconstructPathAndWrite(popts.outFile.c_str(), popts.fastaFile.c_str());
