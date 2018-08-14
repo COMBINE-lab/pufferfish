@@ -18,7 +18,7 @@ Currently, Pufferfish is the software implementing this efficient ccdBG index, a
 **branches:**
 The **master** branch of pufferfish is _not_ necessarily stable, but it should, at any given time contain a working version of the index.  That is, breaking changes should not be pushed to master.  The **develop** branch of pufferfish is guaranteed to be neither stable nor working at any given point, but a best-faith effort will be made to not commit broken code to this branch.  For feature branches, all bets are off.
 
-For more details about pufferfish, please check out our [pre-print on bioRxiv](https://www.biorxiv.org/content/early/2017/09/21/191874), as well as the (updating) blog post [here](http://robpatro.com/blog/?p=494).
+For more details about pufferfish, please check out our [paper]((https://academic.oup.com/bioinformatics/article/34/13/i169/5045749), as well as the blog post [here](http://robpatro.com/blog/?p=494).
 
 # Building Pufferfish <a name="building"></a>
 **Dependency:** 
