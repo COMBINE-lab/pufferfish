@@ -134,23 +134,23 @@ printf "\nTwoPaCo Junction Detection:\n"
 #	exit 1
 #fi
 echo "$TWOPACO -k $K -t $THREAD -f $FILTER_SIZE "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP"
-/usr/bin/time $TWOPACO -k $K -t $THREAD -f $FILTER_SIZE "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP 
+/usr/bin/time $TWOPACO -k $K -t $THREAD -f $FILTER_SIZE "$OUTPUT_DIR/$bname.fa" --outfile $OUTPUT_DIR/$bname"_dbg.bin" --tmpdir $TMP
 
 printf "\nTwoPaCo Dump:\n"
-echo "$TWOPACO_DUMP -k $K -s "$OUTPUT_DIR/$bname.fa" -f gfa1 $OUTPUT_DIR/$bname"_dbg.bin" > $OUTPUT_DIR/$bname.gfa"
-/usr/bin/time $TWOPACO_DUMP -k $K -s "$OUTPUT_DIR/$bname.fa" -f gfa1 $OUTPUT_DIR/$bname"_dbg.bin" > $OUTPUT_DIR/$bname.gfa
+echo "$TWOPACO_DUMP -k $K -s "$OUTPUT_DIR/$bname.fa" -f pufferized $OUTPUT_DIR/$bname"_dbg.bin" > $OUTPUT_DIR/${bname}_pufferized.gfa"
+/usr/bin/time $TWOPACO_DUMP -k $K -s "$OUTPUT_DIR/$bname.fa" -f pufferized $OUTPUT_DIR/$bname"_dbg.bin" > ${OUTPUT_DIR}/${bname}_pufferized.gfa
 rm -rf $TMP
-rm $OUTPUT_DIR/$bname"_dbg.bin"
+rm ${OUTPUT_DIR}/${bname}_dbg.bin
 
-printf "\nPufferfish Puffferize:\n"
-printf "$PUFFERFISH/pufferize -k $K -g $OUTPUT_DIR/$bname.gfa -f $OUTPUT_DIR/$bname.fa -o $OUTPUT_DIR/$bname\_pufferized.gfa" 
-/usr/bin/time $PUFFERFISH/pufferize -k $K -g "$OUTPUT_DIR/$bname.gfa" -f "$OUTPUT_DIR/$bname.fa" -o $OUTPUT_DIR/$bname"_pufferized.gfa"
+#printf "\nPufferfish Puffferize:\n"
+#printf "$PUFFERFISH/pufferize -k $K -g $OUTPUT_DIR/$bname.gfa -f $OUTPUT_DIR/$bname.fa -o $OUTPUT_DIR/${bname}_pufferized.gfa"
+#/usr/bin/time $PUFFERFISH/pufferize -k $K -g "$OUTPUT_DIR/$bname.gfa" -f "$OUTPUT_DIR/$bname.fa" -o $OUTPUT_DIR/$bname"_pufferized.gfa"
 
 printf "\n\nPufferfish Build Index:\n"
-PUFFERFISH_INDEX="$OUTPUT_DIR/$bname.puffidx"
+PUFFERFISH_INDEX="${OUTPUT_DIR}/${bname}.puffidx"
 mkdir -p $PUFFERFISH_INDEX
-echo "$PUFFERFISH/pufferfish index -k $K -g $OUTPUT_DIR/$bname"_pufferized.gfa" -r "$OUTPUT_DIR/$bname.fa" -o $PUFFERFISH_INDEX"
-/usr/bin/time $PUFFERFISH/pufferfish index -k $K -g $OUTPUT_DIR/$bname"_pufferized.gfa" -r "$OUTPUT_DIR/$bname.fa" -o $PUFFERFISH_INDEX
+echo "$PUFFERFISH/pufferfish index -k $K -g ${OUTPUT_DIR}/${bname}"_pufferized.gfa" -r "${OUTPUT_DIR}/${bname}.fa" -o ${PUFFERFISH_INDEX}"
+/usr/bin/time ${PUFFERFISH}/pufferfish index -k $K -g ${OUTPUT_DIR}/${bname}"_pufferized.gfa" -r "${OUTPUT_DIR}/${bname}.fa" -o ${PUFFERFISH_INDEX}
 
 end=`date +%s`
 runtime=$((end-start))

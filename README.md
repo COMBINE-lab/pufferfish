@@ -43,17 +43,17 @@ To build the pufferfish do the following,
 
 **External Dependency:**
 
-In Pufferfish index building pipeline we use [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo) to build the compacted de Bruijn graph from the list of references.
+In Pufferfish index building pipeline we use a variant of [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo) which you can clone from [here](https://github.com/fataltes/TwoPaCo) to build the compacted de Bruijn graph from the list of references.
 Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
 
-So before running the whole pipeline of index building, make sure you have already installed TwoPaCo.
+So before running the whole pipeline of index building, make sure you have already installed the forked repo of TwoPaCo that provides a command that outputs a slightly modified gfa file with overlaps of `k-1` between the contigs.
 
 We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. So it is required to install these libraries on the system as well and also update the CMakeLists.txt file in `src` directory and change the line for setting variable `SEQLIBDIR` statistically.
 
 ## Core Pipeline
 Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index setting the required arguments in `config.json` and running the command `bash index.sh` in pufferfish directory.
 
-The commands in the `index.sh` file go through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferize -> pufferfish index*" and perform the following steps:
+The commands in the `index.sh` file go through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferfish index*" and perform the following steps:
 1. **FixFasta**
 ```
 <Pufferfish Directory>/build/src/fixFasta -i <input_fasta> -o <output_fixed_fasta>
@@ -64,13 +64,9 @@ The commands in the `index.sh` file go through the pipeline of "*fixFasta -> Two
 ```
 3. **TwoPaCo Dumping**
 ```
-<TwoPaCo Directory>/graphdump/graphdump -k <ksize> -s <fixed_fasta> -f gfa1 <deBruijnGraph.bin> > <gfa_file>
+<TwoPaCo Directory>/graphdump/graphdump -k <ksize> -s <fixed_fasta> -f pufferize <deBruijnGraph.bin> > <gfa_file>
 ```
-4. **Pufferize**
-```
-<Pufferfish Directory>/build/src/pufferize -k <ksize> -g <gfa_file> -f <fixed_fasta> -o <pufferized_gfa_file>
-```
-5. **Build Pufferfish Index**
+4. **Build Pufferfish Index**
 ```
 <Pufferfish Directory>/build/src/pufferfish index -k <ksize> -g <pufferized_gfa_file> -r <fixed_fasta> -o <pufferfish index directory>
 ```
