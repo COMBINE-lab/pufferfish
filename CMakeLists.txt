@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
-#cmake_policy(SET CMP0015 NEW)
+#cmake_policy(SET CMP0069 NEW)
 
 project(pufferfish)
 

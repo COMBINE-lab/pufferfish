@@ -5,7 +5,6 @@
 //#include "OurGFAReader.hpp"
 //#include "semiCompactedCompactor.hpp"
 #include "CLI/CLI.hpp"
-//#include "GFAConverter.hpp"
 #include "Util.hpp"
 #include "sparsepp/spp.h"
 

@@ -14,7 +14,7 @@
 
 # check if we know how to do IPO
 include(CheckIPOSupported)
-check_ipo_supported(RESULT HAS_IPOHAS_IPO)
+check_ipo_supported(RESULT HAS_IPO)
 
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../external/install/lib)
 
@@ -65,14 +65,12 @@ set(pufferfish_lib_srcs
     PufferfishTestLookup.cpp 
     FastxParser.cpp 
     PufferfishGFAReader.cpp 
-    PufferFS.cpp 
-    xxhash.c 
-    GFAConverter.cpp
-    PufferfishAligner.cpp
+    PufferFS.cpp
+		xxhash.c
+		PufferfishAligner.cpp
     #edlib.cpp
 	RefSeqConstructor.cpp
-	Pufferize.cpp
-	)
+		)
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 
@@ -99,10 +97,6 @@ target_compile_options(myGFAtester PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}
 target_compile_options(myGFAtester PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
 #add_executable(myGraphtester MyGraphTester.cpp)
-add_executable(pufferize Pufferizer.cpp)
-target_compile_options(pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-
 add_executable(edgedensity EdgeDensity.cpp)
 target_compile_options(edgedensity PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(edgedensity PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
@@ -145,7 +139,6 @@ target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2pp ${JEMALLOC_
 target_link_libraries(bcalm_pufferize Threads::Threads z)
 target_link_libraries(fixFasta Threads::Threads z)
 target_link_libraries(myGFAtester Threads::Threads z sdsl puffer)
-target_link_libraries(pufferize Threads::Threads puffer sdsl z)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
 target_link_libraries(krakmap Threads::Threads puffer)
