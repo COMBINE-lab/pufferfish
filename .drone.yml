@@ -1,10 +1,10 @@
 pipeline:
-	build:
-	image: hbb:build_pufferfish
+    build:
+        image: hbb:build_pufferfish
     commands:
-      - echo "Hello"
+        - echo "Hello"
 
-	notify_gitter:
-    image: plugins/gitter
+    notify_gitter:
+        image: plugins/gitter
     commands:
-     - echo "[Notifying gitter]"
+        - echo "[Notifying gitter]"
