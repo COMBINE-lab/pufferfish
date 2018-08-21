@@ -1,10 +1,9 @@
-pipeline:
-    build:
-        image: hbb:build_pufferfish
+ pipeline:
+  setup:
+   image: hbb:pufferfish_build
+   commands:
+    - echo "Starting build"
+  notify_gitter:
+    image: plugins/gitter
     commands:
-        - echo "Hello"
-
-    notify_gitter:
-        image: plugins/gitter
-    commands:
-        - echo "[Notifying gitter]"
+     - echo "[Notifying gitter]"
