@@ -16,6 +16,7 @@ echo "[Drone build] making build directory"
 mkdir build
 cd build
 
+yum install zlib-devel
 echo "[Drone build] cmake configuration"
 cmake ..
 
