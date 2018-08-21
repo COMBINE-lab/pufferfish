@@ -17,7 +17,7 @@ mkdir build
 cd build
 
 echo "[Drone build] cmake configuration"
-cmake -DDO_QUIET_MAKE=TRUE ..
+cmake ..
 
 echo "[Drone build] making pufferfish and installing locally (this could take a while)"
 make install
