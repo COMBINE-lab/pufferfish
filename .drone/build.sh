@@ -1,7 +1,9 @@
 #!/bin/bash
+set -e
+
 source /hbb_exe/activate
 
-set -e
+set -x
 
 CPATH=`pwd`
 echo "[Drone build] current path : ${CPATH}"
