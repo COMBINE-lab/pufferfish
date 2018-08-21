@@ -1,9 +1,5 @@
  pipeline:
   setup:
-   image: hbb:pufferfish_build
+   image: hbb:salmon_build
    commands:
     - echo "Starting build"
-  notify_gitter:
-    image: plugins/gitter
-    commands:
-     - echo "[Notifying gitter]"
