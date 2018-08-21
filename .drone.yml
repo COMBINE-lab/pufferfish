@@ -3,3 +3,4 @@
    image: hbb:salmon_build
    commands:
     - echo "Starting build"
+    - ./.drone/build.sh
