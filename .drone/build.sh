@@ -20,4 +20,4 @@ echo "[Drone build] cmake configuration"
 cmake ..
 
 echo "[Drone build] making pufferfish and installing locally (this could take a while)"
-make install
+make
