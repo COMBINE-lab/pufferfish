@@ -426,7 +426,8 @@ public:
     auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
-      mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+      mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+//      mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
       if (verbose) {
         std::cerr << "lets see what we have\n";
         for (auto kv : memClusters) {
