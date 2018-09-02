@@ -435,43 +435,43 @@ public:
         std::cerr <<"tid:" <<  kv.first << "\n";
           for (auto clust : kv.second) {
             auto lclust = &clust;
-          
-          std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-          for (size_t i = 0; i < lclust->mems.size(); i++){
+
+            std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
+            for (size_t i = 0; i < lclust->mems.size(); i++) {
               std::cerr << "--- t" << lclust->mems[i].tpos << " r"
-              << lclust->mems[i].memInfo->rpos << " cid:"
-              << lclust->mems[i].memInfo->cid << " cpos: "
-              << lclust->mems[i].memInfo->cpos << " len:"
-              << lclust->mems[i].memInfo->memlen << " fw:"
-              << lclust->mems[i].memInfo->cIsFw << "\n";
+                        << lclust->mems[i].memInfo->rpos << " cid:"
+                        << lclust->mems[i].memInfo->cid << " cpos: "
+                        << lclust->mems[i].memInfo->cpos << " len:"
+                        << lclust->mems[i].memInfo->memlen << " fw:"
+                        << lclust->mems[i].memInfo->cIsFw << "\n";
+            }
           }
-  }
         }
-        std::cerr << "\n and now after recover gaps\n\n";
-      
+
       }
-      //recoverGaps(memClusters, *memCollection, read.length(), verbose );
+      /*recoverGaps(memClusters, *memCollection, read.length(), verbose );
       
       if (verbose) {
+        std::cerr << "\n and now after recover gaps\n\n";
         for (auto kv : memClusters) {
           
         std::cerr <<"tid:" <<  kv.first << "\n";
           for (auto clust : kv.second) {
             auto lclust = &clust;
           
-          std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-          for (size_t i = 0; i < lclust->mems.size(); i++){
-              std::cerr << "--- t" << lclust->mems[i].tpos << " r"
-              << lclust->mems[i].memInfo->rpos << " cid:"
-              << lclust->mems[i].memInfo->cid << " cpos: "
-              << lclust->mems[i].memInfo->cpos << " len:"
-              << lclust->mems[i].memInfo->memlen << " fw:"
-              << lclust->mems[i].memInfo->cIsFw << "\n";
-          }
-  }
+              std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
+              for (size_t i = 0; i < lclust->mems.size(); i++){
+                  std::cerr << "--- t" << lclust->mems[i].tpos << " r"
+                  << lclust->mems[i].memInfo->rpos << " cid:"
+                  << lclust->mems[i].memInfo->cid << " cpos: "
+                  << lclust->mems[i].memInfo->cpos << " len:"
+                  << lclust->mems[i].memInfo->memlen << " fw:"
+                  << lclust->mems[i].memInfo->cIsFw << "\n";
+              }
+            }
         }
       
-      }
+      }*/
       
       return true;
     }

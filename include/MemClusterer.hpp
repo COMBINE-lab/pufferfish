@@ -198,7 +198,7 @@ public:
                       uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, bool verbose = false) {
 
         if (verbose)
-            std::cerr << "\n[CLUSTERMEMS]\n";
+            std::cerr << "\n[FIND_OPT_CHAIN]\n";
 
         using namespace pufferfish::common_types;
         //(void)verbose;
@@ -250,20 +250,15 @@ public:
             auto &isFw = trOri.second;
             auto &memList = trMem.second;
             // sort memList according to mem reference positions
-            // sort memList according to mem reference positions
-            if (isFw)
-                std::sort(memList.begin(), memList.end(),
-                          [](util::MemInfo &q1, util::MemInfo &q2) -> bool {
-                              return q1.tpos == q2.tpos ? q1.memInfo->rpos < q2.memInfo->rpos : q1.tpos <
-                                                                                                q2.tpos; // sort based on tpos
+            std::sort(memList.begin(), memList.end(),
+                      [isFw](util::MemInfo &q1, util::MemInfo &q2) -> bool {
+                          auto q1ref = q1.tpos + q1.memInfo->memlen;
+                          auto q2ref = q2.tpos + q2.memInfo->memlen;
+                          auto q1read = q1.memInfo->rpos + q1.memInfo->memlen;
+                          auto q2read = q2.memInfo->rpos + q2.memInfo->memlen;
+                          return q1ref != q2ref ? q1ref < q2ref :
+                                 (isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
                           });
-            else
-                std::sort(memList.begin(), memList.end(),
-                          [](util::MemInfo &q1, util::MemInfo &q2) -> bool {
-                              return q1.tpos == q2.tpos ? q1.memInfo->rpos > q2.memInfo->rpos : q1.tpos <
-                                                                                                q2.tpos; // sort based on tpos
-                          });
-
             if (verbose) {
                 std::cerr << "\ntid" << tid << " " << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
             }
@@ -296,23 +291,23 @@ public:
             for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
                 auto &hi = memList[i];
 
-                auto qposi = hi.memInfo->rpos;
-                auto rposi = hi.tpos;
+                auto qposi = hi.memInfo->rpos + hi.memInfo->memlen;
+                auto rposi = hi.tpos + hi.memInfo->memlen;
 
                 double baseScore = static_cast<double>(hi.memInfo->memlen);
                 p.push_back(i);
                 f.push_back(baseScore);
 
                 // possible predecessors in the chain
-                int32_t numRounds{1};
+                int32_t numRounds{2};
                 (void) numRounds;
                 for (int32_t j = i - 1; j >= 0; --j) {
                     auto &hj = memList[j];
 
-                    auto qposj = hj.memInfo->rpos;
-                    auto rposj = hj.tpos;
+                    auto qposj = hj.memInfo->rpos + hj.memInfo->memlen;
+                    auto rposj = hj.tpos + hj.memInfo->memlen;
 
-                    auto qdiff = qposi - qposj;
+                    auto qdiff = isFw ? qposi - qposj : qposj - qposi;
                     auto rdiff = rposi - rposj;
 
                     auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.memInfo->memlen) - beta(qdiff, rdiff, avgseed);
@@ -329,7 +324,10 @@ public:
                     // here we take this to the extreme, and stop at the first j to which we chain.
                     // we can add a parameter "h" as in the minimap paper.  But here we expect the
                     // chains of matches in short reads to be short enough that this may not be worth it.
-                    if (p[i] < i) { break; }
+                    if (p[i] < i) {
+                        numRounds--;
+                        if (numRounds <= 0) { break; }
+                    }
                 }
                 if (f[i] > bestScore) {
                     bestScore = f[i];
@@ -340,26 +338,22 @@ public:
 
             // Do backtracking
             //auto lastChainHit = bestChainEnd;
-            bool firstMem = true;
             if (bestChainEnd >= 0) {
+                std::vector<uint64_t> memIndicesInReverse;
                 auto lastPtr = p[bestChainEnd];
+                memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw));
                 while (lastPtr < bestChainEnd) {
-                    if (firstMem) {
-                        memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw));
-                        firstMem = false;
-                    }
-                    memClusters[tid][0].addMem(memList[(uint64_t) bestChainEnd].memInfo,
-                                               memList[(uint64_t) bestChainEnd].tpos);
+                    memIndicesInReverse.push_back(bestChainEnd);
                     bestChainEnd = lastPtr;
                     lastPtr = p[bestChainEnd];
 //                    lastPtr = bestChainEnd;
 //                    bestChainEnd = p[bestChainEnd];
                 }
-                if (firstMem) {
-                    memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw));
+                memIndicesInReverse.push_back(bestChainEnd);
+                for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
+                    memClusters[tid][0].addMem(memList[*it].memInfo,
+                                               memList[*it].tpos);
                 }
-                memClusters[tid][0].addMem(memList[(uint64_t) bestChainEnd].memInfo,
-                                           memList[(uint64_t) bestChainEnd].tpos);
 //                minPosIt += lastPtr;
             } else {
                 // should not happen

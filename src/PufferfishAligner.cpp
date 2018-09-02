@@ -758,7 +758,7 @@ void processReadsPair(paired_parser *parser,
         for (auto &rpair : rg) {
             readLen = rpair.first.seq.length();
             totLen = readLen + rpair.second.seq.length();
-            //bool verbose = rpair.first.name == "NC_009667.fna:1:1:1703:6588#0/1";
+            // bool verbose = rpair.first.name == "read103/ENST00000400269;mate1:61-160;mate2:182-280";
             //bool verbose = rpair.first.name == "gi|459387757|gb|CP003329.1|-361328/1";
 
             bool verbose = false;
@@ -784,6 +784,7 @@ void processReadsPair(paired_parser *parser,
                                    MateStatus::PAIRED_END_LEFT,
                                    qc,
                                    verbose
+
                     /*
                     mopts->consistentHits,
                     refBlocks*/);
