@@ -338,6 +338,18 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
         std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio * maxCoverage
                   << "\n";
         std::cerr << jointMemsList.size() << "\n";
+        for (auto &jointMems : jointMemsList) {
+            std::cerr << " -->" << pfi.refName(jointMems.tid) << "\n\t\t";
+            for (auto &cl : jointMems.leftClust->mems) {
+                std::cerr << cl.tpos << " ";
+            }
+            std::cerr << "\n\t\t";
+            for (auto &cl : jointMems.rightClust->mems) {
+                std::cerr << cl.tpos << " ";
+            }
+            std::cerr << "\n";
+        }
+
     }
     if (verbose)
         std::cerr << "\n[END OF JOINREADSANDFILTER]\n";
@@ -758,10 +770,8 @@ void processReadsPair(paired_parser *parser,
         for (auto &rpair : rg) {
             readLen = rpair.first.seq.length();
             totLen = readLen + rpair.second.seq.length();
-            // bool verbose = rpair.first.name == "read103/ENST00000400269;mate1:61-160;mate2:182-280";
-            //bool verbose = rpair.first.name == "gi|459387757|gb|CP003329.1|-361328/1";
-
             bool verbose = false;
+//            bool verbose = rpair.first.name == "read118/ENST00000400269;mate1:239-338;mate2:351-449";
             if (verbose) std::cerr << rpair.first.name << "\n";
             //std::cerr << "read: " << rpair.first.name << "\n\n";
 

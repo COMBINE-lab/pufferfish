@@ -260,7 +260,11 @@ public:
                                  (isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
                           });
             if (verbose) {
-                std::cerr << "\ntid" << tid << " " << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
+                std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
+                for (auto &m : memList) {
+                    std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
+                              << "\n";
+                }
             }
 
             //auto minPosIt = memList.begin();
@@ -307,10 +311,19 @@ public:
                     auto qposj = hj.memInfo->rpos + hj.memInfo->memlen;
                     auto rposj = hj.tpos + hj.memInfo->memlen;
 
-                    auto qdiff = isFw ? qposi - qposj : qposj - qposi;
+                    auto qdiff = isFw ? qposi - qposj :
+                                 (qposj - hj.memInfo->memlen) - (qposi - hi.memInfo->memlen);
                     auto rdiff = rposi - rposj;
 
                     auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.memInfo->memlen) - beta(qdiff, rdiff, avgseed);
+                    if (verbose) {
+                        std::cerr << i << " " << j <<
+                                  " f[i]:" << f[i] << " f[j]:" << f[j] <<
+                                  " readDiff:" << qdiff << " refDiff:" << rdiff <<
+                                  " alpha:" << alpha(qdiff, rdiff, hi.memInfo->memlen) <<
+                                  " beta:" << beta(qdiff, rdiff, avgseed) <<
+                                  " extensionScore: " << extensionScore << "\n";
+                    }
                     bool extendWithJ = (extensionScore > f[i]);
                     p[i] = extendWithJ ? j : p[i];
                     f[i] = extendWithJ ? extensionScore : f[i];
@@ -365,6 +378,9 @@ public:
             }
 
         }
+        if (verbose)
+            std::cerr << "\n[END OF FIND_OPT_CHAIN]\n";
+
         return true;
     }
 
