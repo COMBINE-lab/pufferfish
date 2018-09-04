@@ -300,7 +300,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                           jointMemsList.end()); */
 
     }
-    if (coverageRatio == 1) {
+    //TODO you should take care of this case later. Don't forget
+    /*if (coverageRatio == 1) {
         std::set<std::vector<util::UniMemInfo>::iterator> lvalidUnimemSet, rvalidUnimemSet;
         if (jointMemsList.size() > 0) {
             auto &first = jointMemsList[0];
@@ -333,7 +334,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                 }
             }
         }
-    }
+    }*/
     if (verbose) {
         std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio * maxCoverage
                   << "\n";
@@ -771,7 +772,7 @@ void processReadsPair(paired_parser *parser,
             readLen = rpair.first.seq.length();
             totLen = readLen + rpair.second.seq.length();
             bool verbose = false;
-//            bool verbose = rpair.first.name == "read118/ENST00000400269;mate1:239-338;mate2:351-449";
+//            bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
             if (verbose) std::cerr << rpair.first.name << "\n";
             //std::cerr << "read: " << rpair.first.name << "\n\n";
 
