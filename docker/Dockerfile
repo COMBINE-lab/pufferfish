@@ -44,7 +44,7 @@ cp -r lib/intel64/gcc4.7/* /usr/local/lib && \
 cd .. && \
 rm -rf tbb2018_20180411oss
 
-RUN git clone https://github.com/medvedevgroup/TwoPaCo.git
+RUN git clone https://github.com/fataltes/TwoPaCo.git
 
 RUN cd TwoPaCo && \
 	mkdir build && \
