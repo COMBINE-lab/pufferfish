@@ -73,7 +73,7 @@ RUN	cd pufferfish && \
 	
 # Pufferfish
 RUN cd pufferfish && \	
-	git checkout skoufos && \
+	git checkout develop && \
 	mkdir build && \
 	cd build && \
 	cmake ../ && \
