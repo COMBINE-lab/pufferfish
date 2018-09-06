@@ -915,18 +915,21 @@ void processReadsPair(paired_parser *parser,
 
             hctr.totAlignment += jointAlignments.size();
 
-            if (mopts->krakOut) {
-                writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
-            } else if (mopts->salmonOut) {
-                writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
-            } else if (jointAlignments.size() > 0 and !mopts->noOutput) {
-                writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap);
-            } else if (jointAlignments.size() == 0 and !mopts->noOutput) {
-                writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan,
-                                                mopts->justMap);
+            if (!mopts->noOutput) {
+                if (mopts->krakOut) {
+                    writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
+                } else if (mopts->salmonOut) {
+                    writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
+                } else if (jointAlignments.size() > 0) {
+                    writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan,
+                                            mopts->justMap);
+                } else if (jointAlignments.size() == 0) {
+                    writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan,
+                                                    mopts->justMap);
+                }
             }
 
-            if (mopts->noOutput) {
+            /*if (mopts->noOutput) {
                 if (jointHits.size() == 1) {
                     bool notFound = true;
                     for (auto &qa : jointHits) {
@@ -983,7 +986,7 @@ void processReadsPair(paired_parser *parser,
                         }
                     }
                 }
-            }
+            }*/
 
 
 
