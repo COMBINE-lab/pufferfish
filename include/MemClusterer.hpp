@@ -369,6 +369,7 @@ public:
                             break;
                         }
                         memIndicesInReverse.push_back(bestChainEnd);
+                        seen[bestChainEnd] = true;
                         bestChainEnd = lastPtr;
                         lastPtr = p[bestChainEnd];
 //                    lastPtr = bestChainEnd;
