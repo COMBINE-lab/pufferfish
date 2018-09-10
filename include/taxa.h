@@ -87,6 +87,8 @@ class TaxaNode {
         bool isFw(ReadEnd re) {if (re == ReadEnd::LEFT) return leftFw; return rightFw;}
         void setPos(refLenType pos, ReadEnd re) {re == ReadEnd::LEFT?lPos = pos:rPos = pos;}
         void setFw(bool isFw, ReadEnd re) {re == ReadEnd::LEFT?leftFw = isFw:rightFw = isFw;}
+
+    void setScore(uint32_t scoreIn) { score = scoreIn; }
         bool isConcordant() {
             return lintervals.size() && rintervals.size();
         }

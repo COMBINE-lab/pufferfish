@@ -50,23 +50,25 @@ class PuffMappingReader {
                 inFile.read(reinterpret_cast<char*>(&rlen), sizeof(rLenType)); // right read len
                 rinf.len += rlen;
             }
-            //std::cout << rinf.rid << " " << rinf.cnt << " " << rinf.len << "\n";
+//            std::cout << rinf.rid << " " << rinf.cnt << " " << rinf.len << "\n";
             rinf.mappings.reserve(rinf.cnt);
             for (size_t mappingCntr = 0; mappingCntr < rinf.cnt; mappingCntr++) {
+                rLenType rscore{0}, lscore{0};
                 inFile.read(reinterpret_cast<char*>(&puff_id), sizeof(uint32_t));
                 // fetch the taxon from the map
-                //std::cout << "puff_id: " << puff_id << "\n";
+//                std::cout << "puff_id: " << puff_id << "\n";
                 rinf.mappings.push_back(puff_id);
                 TaxaNode& taxaPtr = rinf.mappings.back();
                 inFile.read(reinterpret_cast<char*>(&lcnt), sizeof(rLenType));
-                //std::cout << "left ints:" << lcnt << "\n";
+//                std::cout << "left ints:" << lcnt << "\n";
                 if (isPaired)
                     inFile.read(reinterpret_cast<char*>(&rcnt), sizeof(rLenType));
                 if (lcnt) {
+                    inFile.read(reinterpret_cast<char *>(&lscore), sizeof(refLenType));
                     inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
                     taxaPtr.setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::LEFT);
                     taxaPtr.setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::LEFT);
-                    //std::cout << rinf.refLeftPos << " " << rinf.isLeftFw << "\n";
+//                    std::cout << taxaPtr.getPos(ReadEnd::LEFT) << " " << taxaPtr.isFw(ReadEnd::LEFT) << "\n";
                 }
                 for (size_t i = 0; i < lcnt; ++i) {
                     inFile.read(reinterpret_cast<char*>(&ibeg), sizeof(rLenType));
@@ -77,6 +79,7 @@ class PuffMappingReader {
 
                 if (isPaired) {
                     if (rcnt) {
+                        inFile.read(reinterpret_cast<char *>(&rscore), sizeof(refLenType));
                         inFile.read(reinterpret_cast<char*>(&refPos), sizeof(refLenType));
                         taxaPtr.setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::RIGHT);
                         taxaPtr.setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::RIGHT);
@@ -90,7 +93,8 @@ class PuffMappingReader {
                 //std::cout << "here\n";
                 taxaPtr.cleanIntervals(ReadEnd::LEFT);
                 taxaPtr.cleanIntervals(ReadEnd::RIGHT);
-                taxaPtr.updateScore();
+                taxaPtr.setScore(lscore + rscore);
+                //taxaPtr.updateScore();
                 //std::cout << "here\n";
             }
             return true;

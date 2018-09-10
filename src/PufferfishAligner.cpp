@@ -201,9 +201,9 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                     }
                     // FILTERING fragments with size smaller than maxFragmentLength
                     // FILTER just in case of priority 0 (round 0)
-                    if (verbose) {
+                    /*if (verbose) {
                         std::cerr << "fraglen: " << fragmentLen << " " << maxFragmentLength << "\n";
-                    }
+                    }*/
                     if (fragmentLen < maxFragmentLength || round > 0) {
                         // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
                         // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
