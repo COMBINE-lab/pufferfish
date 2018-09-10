@@ -288,7 +288,7 @@ public:
             double bottomScore = std::numeric_limits<double>::lowest();
             double bestScore = bottomScore;
             int32_t bestChainEnd = -1;
-            std::vector<uint64_t> bestChainEndList;
+            std::vector<int32_t> bestChainEndList;
             double avgseed = 31.0;
             f.clear();
             p.clear();
@@ -346,42 +346,55 @@ public:
                 if (f[i] > bestScore) {
                     bestScore = f[i];
                     bestChainEnd = i;
-//                    bestChainEndList.clear();
-//                    bestChainEndList.push_back(bestChainEnd);
-                }
-                /*else if (f[i] == bestScore) {
+                    bestChainEndList.clear();
+                    bestChainEndList.push_back(bestChainEnd);
+                } else if (f[i] == bestScore) {
                     bestChainEndList.push_back(i);
-                }*/
+                }
             }
 
 
+
             // Do backtracking
-            //auto lastChainHit = bestChainEnd;
-            if (bestChainEnd >= 0) {
-                std::vector<uint64_t> memIndicesInReverse;
-                auto lastPtr = p[bestChainEnd];
-                memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw));
-                while (lastPtr < bestChainEnd) {
-                    memIndicesInReverse.push_back(bestChainEnd);
-                    bestChainEnd = lastPtr;
-                    lastPtr = p[bestChainEnd];
+            std::vector<bool> seen(f.size());
+            for (uint64_t i = 0; i < seen.size(); i++) seen[i] = false;
+            for (auto bestChainEnd : bestChainEndList) {
+                bool shouldBeAdded = true;
+                if (bestChainEnd >= 0) {
+                    std::vector<uint64_t> memIndicesInReverse;
+                    auto lastPtr = p[bestChainEnd];
+                    while (lastPtr < bestChainEnd) {
+                        if (seen[bestChainEnd]) {
+                            shouldBeAdded = false;
+                            break;
+                        }
+                        memIndicesInReverse.push_back(bestChainEnd);
+                        bestChainEnd = lastPtr;
+                        lastPtr = p[bestChainEnd];
 //                    lastPtr = bestChainEnd;
 //                    bestChainEnd = p[bestChainEnd];
-                }
-                memIndicesInReverse.push_back(bestChainEnd);
-                for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
-                    memClusters[tid][0].addMem(memList[*it].memInfo,
-                                               memList[*it].tpos);
-                }
-                memClusters[tid][0].coverage = bestScore;
+                    }
+                    if (seen[bestChainEnd]) {
+                        shouldBeAdded = false;
+                    }
+                    memIndicesInReverse.push_back(bestChainEnd);
+                    if (shouldBeAdded) {
+                        memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw));
+                        for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
+                            memClusters[tid][0].addMem(memList[*it].memInfo,
+                                                       memList[*it].tpos);
+                        }
+                        memClusters[tid][0].coverage = bestScore;
+                    }
 //                minPosIt += lastPtr;
-            } else {
-                // should not happen
-                std::cerr << "[FATAL] : Cannot find any valid chain for quasi-mapping\n";
-                std::cerr << "num hits = " << memList.size() << "\n";
-                std::cerr << "bestChainEnd = " << bestChainEnd << "\n";
-                std::cerr << "bestChainScore = " << bestScore << "\n";
-                std::exit(1);
+                } else {
+                    // should not happen
+                    std::cerr << "[FATAL] : Cannot find any valid chain for quasi-mapping\n";
+                    std::cerr << "num hits = " << memList.size() << "\n";
+                    std::cerr << "bestChainEnd = " << bestChainEnd << "\n";
+                    std::cerr << "bestChainScore = " << bestScore << "\n";
+                    std::exit(1);
+                }
             }
 
         }
