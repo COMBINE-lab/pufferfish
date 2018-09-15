@@ -470,6 +470,7 @@ public:
   void clear() {
     memCollectionLeft.clear();
     memCollectionRight.clear();
+      trMemMap.clear();
   }
 
 private:
