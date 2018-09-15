@@ -748,13 +748,14 @@ void processReadsPair(paired_parser *parser,
     BinWriter bstream;
     //size_t batchSize{2500} ;
     size_t readLen{0};
-    size_t totLen{0};
+    //size_t totLen{0};
 
     spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
     spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
     std::vector<util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
     util::QueryCache qc;
+    std::vector<util::MemCluster> all;
 
     //@fatemeh Initialize aligner ksw
     ksw2pp::KSW2Config config;
@@ -770,7 +771,7 @@ void processReadsPair(paired_parser *parser,
     while (parser->refill(rg)) {
         for (auto &rpair : rg) {
             readLen = rpair.first.seq.length();
-            totLen = readLen + rpair.second.seq.length();
+            //totLen = readLen + rpair.second.seq.length();
             bool verbose = false;
 //            bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
             if (verbose) std::cerr << rpair.first.name << "\n";
@@ -789,6 +790,7 @@ void processReadsPair(paired_parser *parser,
 
             //std::cerr << "\n going inside hit collector \n" ;
             //readLen = rpair.first.seq.length() ;
+
             bool lh = memCollector(rpair.first.seq,
                                    leftHits,
                                    mopts->maxSpliceGap,
@@ -809,6 +811,12 @@ void processReadsPair(paired_parser *parser,
                     mopts->consistentHits,
                     refBlocks*/);
 
+            all.clear();
+            memCollector.findBestChain(jointHits,
+                                       all,
+                                       mopts->maxSpliceGap,
+                                       mopts->maxFragmentLength,
+                                       verbose);
             hctr.numMappedAtLeastAKmer += (leftHits.size() || rightHits.size()) ? 1 : 0;
             //do intersection on the basis of
             //performance, or going towards selective alignment
@@ -833,15 +841,16 @@ void processReadsPair(paired_parser *parser,
 
             // We also handle orphans inside this function
             //if(lh && rh){
-            joinReadsAndFilter(leftHits, rightHits, jointHits,
-                               mopts->maxFragmentLength,
-                               totLen,
-                               mopts->scoreRatio,
-                               mopts->noDiscordant,
-                               mopts->noOrphan,
-                               pfi,
-                    /* rpair.first.name == "NC_009641.fna:1:1:2066:284#0/1" */
-                               verbose);
+            //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
+            /* joinReadsAndFilter(leftHits, rightHits, jointHits,
+                                mopts->maxFragmentLength,
+                                totLen,
+                                mopts->scoreRatio,
+                                mopts->noDiscordant,
+                                mopts->noOrphan,
+                                pfi,
+                     *//* rpair.first.name == "NC_009641.fna:1:1:2066:284#0/1" *//*
+                               verbose);*/
             /* } else{
               //ignore orphans for now
             } */
@@ -883,6 +892,15 @@ void processReadsPair(paired_parser *parser,
                 }
                 if (mopts->justMap or (static_cast<int>(jointHit.coverage()) == maxScore)) {
                     if (jointHit.isOrphan()) {
+                        if (verbose) {
+                            std::cerr << "orphan\t";
+                            std::cerr << jointHit.tid << "\t";
+                            std::cerr << jointHit.orphanClust()->getTrFirstHitPos() << "\t";     // reference pos
+                            std::cerr << (uint32_t) jointHit.orphanClust()->isFw << "\t";     // fwd direction
+                            std::cerr << readLen << "\t"; // read length
+                            std::cerr << jointHit.orphanClust()->cigar << "\t"; // cigar string
+                            std::cerr << jointHit.fragmentLen << "\n";
+                        }
                         jointAlignments.emplace_back(jointHit.tid,           // reference id
                                                      jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
                                                      jointHit.orphanClust()->isFw,     // fwd direction
@@ -893,6 +911,15 @@ void processReadsPair(paired_parser *parser,
                         auto &qaln = jointAlignments.back();
                         qaln.mateStatus = jointHit.mateStatus;
                     } else {
+                        if (verbose) {
+                            std::cerr << "paired\t";
+                            std::cerr << jointHit.tid << "\t";
+                            std::cerr << jointHit.leftClust->getTrFirstHitPos() << "\t";     // reference pos
+                            std::cerr << (uint32_t) jointHit.leftClust->isFw << "\t";     // fwd direction
+                            std::cerr << readLen << "\t"; // read length
+                            std::cerr << jointHit.leftClust->cigar << "\t"; // cigar string
+                            std::cerr << jointHit.fragmentLen << "\n";
+                        }
                         //std::cerr << "Selected: " << rpair.first.name << "\n";
                         jointAlignments.emplace_back(jointHit.tid,           // reference id
                                                      jointHit.leftClust->getTrFirstHitPos(),     // reference pos
@@ -914,7 +941,9 @@ void processReadsPair(paired_parser *parser,
             }
 
             hctr.totAlignment += jointAlignments.size();
-
+            if (verbose) {
+                std::cerr << " passed filling jointAlignments:" << hctr.totAlignment << "\n";
+            }
             if (!mopts->noOutput) {
                 if (mopts->krakOut) {
                     writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);

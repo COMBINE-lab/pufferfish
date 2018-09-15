@@ -183,7 +183,6 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    std::vector<util::JointMems>& validJointHits,
                                    BinWriter& bstream,
                                    bool wrtIntervals=true) {
-
     if (validJointHits.size() == 0) return 0;
   auto& readName = r.first.name;
   //std::cout << readName << " || ";
@@ -208,9 +207,10 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
             << static_cast<rLenType>(r.first.seq.length()) 
             << static_cast<rLenType>(r.second.seq.length());
   for (auto& qa : validJointHits) {
-    /* auto& refName = formatter.index->refName(qa.tid);
-    uint32_t refLength = formatter.index->refLength(qa.tid);
-     */
+
+      /* auto& refName = formatter.index->refName(qa.tid);
+      uint32_t refLength = formatter.index->refLength(qa.tid);
+       */
     auto& clustLeft = qa.leftClust;
     auto& clustRight = qa.rightClust;
     size_t leftNumOfIntervals = 0;

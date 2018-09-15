@@ -78,7 +78,7 @@ public:
                                     0, firstGap-1, rfirstMem->cpos,
                                     rfirstMem->cGlobalPos, rfirstMem->clen);
               memCluster.addMem(std::prev(memCollection.end()),
-                                    tpos , 0);
+                                tpos, (size_t) 0);
             }
             if (lastGap > 0 && lastGap <= thresh) {
               // FIXME -> what if it passes the transcript length?
@@ -178,7 +178,7 @@ public:
                                     firstGap-1, rfirstMem->cpos,
                                     rfirstMem->cGlobalPos, rfirstMem->clen);
               memCluster.addMem(std::prev(memCollection.end()),
-                                    tpos, 0);  
+                                tpos, (size_t) 0);
               if (verbose) {
                 std::cerr << "\nafter: " << memCluster.coverage << "\n ";
                     for (auto mem : memCluster.mems) {
@@ -361,7 +361,8 @@ public:
     return currReadStart;
   }
 
-  bool operator()(std::string& read,
+
+    bool operator()(std::string &read,
                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
@@ -372,7 +373,7 @@ public:
    /*  if (verbose) {
       std::cerr << (mateStatus == util::MateStatus::PAIRED_END_RIGHT) << "\n";
     } */
-
+      (void) maxSpliceGap;
     util::ProjectedHits phits;
     std::vector<std::pair<int, util::ProjectedHits>> rawHits;
 
@@ -426,7 +427,12 @@ public:
     auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
-      mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+      if (mateStatus == util::MateStatus::PAIRED_END_LEFT)
+        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT);
+      else
+        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT);
+
+//      mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
 //      mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
       if (verbose) {
         std::cerr << "lets see what we have\n";
@@ -449,35 +455,18 @@ public:
         }
 
       }
-      /*recoverGaps(memClusters, *memCollection, read.length(), verbose );
-      
-      if (verbose) {
-        std::cerr << "\n and now after recover gaps\n\n";
-        for (auto kv : memClusters) {
-          
-        std::cerr <<"tid:" <<  kv.first << "\n";
-          for (auto clust : kv.second) {
-            auto lclust = &clust;
-          
-              std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-              for (size_t i = 0; i < lclust->mems.size(); i++){
-                  std::cerr << "--- t" << lclust->mems[i].tpos << " r"
-                  << lclust->mems[i].memInfo->rpos << " cid:"
-                  << lclust->mems[i].memInfo->cid << " cpos: "
-                  << lclust->mems[i].memInfo->cpos << " len:"
-                  << lclust->mems[i].memInfo->memlen << " fw:"
-                  << lclust->mems[i].memInfo->cIsFw << "\n";
-              }
-            }
-        }
-      
-      }*/
+      /*recoverGaps(memClusters, *memCollection, read.length(), verbose );*/
       
       return true;
     }
     return false;
   }
 
+    void findBestChain(std::vector<util::JointMems> &jointHits,
+                       std::vector<util::MemCluster> &all,
+                       uint32_t maxSpliceGap, uint32_t maxFragmentLength, bool verbose) {
+      mc.findOptChain(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength, verbose);
+    }
   void clear() {
     memCollectionLeft.clear();
     memCollectionRight.clear();
@@ -490,5 +479,7 @@ private:
   std::vector<util::UniMemInfo> memCollectionLeft;
   std::vector<util::UniMemInfo> memCollectionRight;
     MemClusterer mc;
+    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> trMemMap;
+
 };
 #endif

@@ -46,7 +46,9 @@ using namespace std;
     78, 78,  78, 78,  65, 65, 78, 78,  78, 78, 78, 78,  78, 78, 78, 78  // 127
   };
 
-
+    enum ReadEnd : uint8_t {
+        LEFT, RIGHT
+    };
 // Adapted from
 // https://github.com/mengyao/Complete-Striped-Smith-Waterman-Library/blob/8c9933a1685e0ab50c7d8b7926c9068bc0c9d7d2/src/main.c#L36
  inline void reverseRead(std::string& seq,
@@ -224,16 +226,22 @@ enum class MateStatus : uint8_t {
     uint32_t cpos ;
     uint64_t cGlobalPos;
     uint32_t clen;
+      ReadEnd readEnd;
 
-    UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn, uint32_t cposIn, uint64_t cGlobalPosIn, uint32_t clenIn) :
-      cid(cidIn), cIsFw(cIsFwIn), rpos(rposIn), memlen(memlenIn), cpos(cposIn), cGlobalPos(cGlobalPosIn), clen(clenIn){}
+
+      UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn, uint32_t cposIn,
+                 uint64_t cGlobalPosIn, uint32_t clenIn, ReadEnd rendIn = ReadEnd::LEFT) :
+              cid(cidIn), cIsFw(cIsFwIn), rpos(rposIn), memlen(memlenIn), cpos(cposIn), cGlobalPos(cGlobalPosIn),
+              clen(clenIn), readEnd(rendIn) {}
   };
 
   struct MemInfo {
     std::vector<UniMemInfo>::iterator memInfo;
     size_t tpos;
+      bool isFw;
 
-    MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn):memInfo(uniMemInfoIn), tpos(tposIn) {}
+      MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn, bool isFwIn = true) : memInfo(
+              uniMemInfoIn), tpos(tposIn), isFw(isFwIn) {}
   };
 
   struct MemCluster {
@@ -258,7 +266,7 @@ enum class MateStatus : uint8_t {
     MemCluster() {}
 
     // Add the new mem to the list and update the coverage
-    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos) {
+    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, bool isFw = true) {
       if (mems.empty())
         coverage = uniMemInfo->memlen;
 	  else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
@@ -267,7 +275,7 @@ enum class MateStatus : uint8_t {
       else { // they overlap
           coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen)-(int)(mems.back().tpos + mems.back().memInfo->memlen), 0);
       }
-      mems.emplace_back(uniMemInfo, tpos);
+        mems.emplace_back(uniMemInfo, tpos, isFw);
       /*if (coverage > 100) {
         std::cout << "fuck: " << mems.size() << " " << coverage <<"\n";
         }*/
@@ -330,6 +338,13 @@ enum class MateStatus : uint8_t {
               tid(tidIn), leftClust(leftClustIn), 
               rightClust(rightClustIn), fragmentLen(fragmentLenIn),
               mateStatus(mateStatusIn) {
+        if (!leftClust->mems.size() and !rightClust->mems.size()) {
+            std::cerr << "ERROR: Both read end mem lists cannot be empty.\n";
+            std::exit(1);
+        }
+        if (leftClust->mems.size() == 0) mateStatus = MateStatus::PAIRED_END_RIGHT;
+        if (rightClust->mems.size() == 0) mateStatus = MateStatus::PAIRED_END_LEFT;
+//        std::cerr << "[jointMem] " << leftClust->mems.size() << " " << rightClust->mems.size() << " " << (uint32_t)mateStatus << "\n";
     }
     uint32_t coverage() {
       return (isLeftAvailable()?leftClust->coverage:0)+(isRightAvailable()?rightClust->coverage:0);}
@@ -339,7 +354,7 @@ enum class MateStatus : uint8_t {
     
     // FIXME : what if the mapping is not orphan? who takes care of this function not being called from outside?
     std::vector<util::MemCluster>::iterator orphanClust() {
-      if (isLeftAvailable()) return leftClust;
+        if (isLeftAvailable()) { return leftClust; }
       return rightClust;
     }
 
