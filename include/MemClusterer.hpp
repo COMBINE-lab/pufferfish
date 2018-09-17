@@ -254,9 +254,12 @@ public:
 
         using namespace pufferfish::common_types;
 
+        double globalScore{-std::numeric_limits<double>::infinity()};
         std::vector<double> f;
         std::vector<int32_t> p;
         all.reserve(200 * 2 * trMemMap.size());
+        all.push_back(util::MemCluster(1));
+        bool no = trMemMap.size() == 0;
         for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
             auto &trOri = trMem.first;
             auto &tid = trOri.first;
@@ -312,7 +315,7 @@ public:
 
             double bottomScore = std::numeric_limits<double>::lowest();
             double bestScore = bottomScore;
-            int32_t bestChainEnd = -1;
+            //int32_t bestChainEnd = -1;
             std::vector<int32_t> bestChainEndList;
             double avgseed = 31.0;
             f.clear();
@@ -353,6 +356,8 @@ public:
                                   " f[i]:" << f[i] << " f[j]:" << f[j] <<
                                   " sameRead:" << (uint32_t) (hi.memInfo->readEnd == hj.memInfo->readEnd) <<
                                   " ori:" << (uint32_t) hi.isFw << " sameOri:" << (uint32_t) (hi.isFw == hj.isFw) <<
+                                  " ri, j:" << rposi << " " << rposj <<
+                                  " qi,j:" << qposi << " " << qposj <<
                                   " readDiff:" << qdiff << " refDiff:" << rdiff <<
                                   " len:" << hi.memInfo->memlen <<
                                   " alpha:"
@@ -385,9 +390,9 @@ public:
                 }
                 if (f[i] > bestScore) {
                     bestScore = f[i];
-                    bestChainEnd = i;
+                    //bestChainEnd = i;
                     bestChainEndList.clear();
-                    bestChainEndList.push_back(bestChainEnd);
+                    bestChainEndList.push_back(i);
                 } else if (f[i] == bestScore) {
                     bestChainEndList.push_back(i);
                 }
@@ -396,7 +401,8 @@ public:
             // Do backtracking
             std::vector<bool> seen(f.size());
             for (uint64_t i = 0; i < seen.size(); i++) seen[i] = false;
-            for (auto bestChainEnd : bestChainEndList) {
+            for (auto bc : bestChainEndList) {
+                int32_t bestChainEnd = bc;
                 bool shouldBeAdded = true;
                 if (bestChainEnd >= 0) {
                     std::vector<uint64_t> memIndicesInReverse;
@@ -439,10 +445,24 @@ public:
                                 rclust->isFw = memList[*it].isFw;
                             }
                         }
-                        rclust->coverage = bestScore / 2;
-                        lclust->coverage = bestScore / 2;
-                        // TODO assuming left comes before right!! This is important to be checked and swapped if required
-                        auto fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
+
+                        //FIXME take care of the left and right coverage/score separately!!
+                        lclust->coverage = bestScore / 2.0;
+                        rclust->coverage = bestScore / 2.0;
+
+                        if (bestScore > globalScore) {
+                            globalScore = bestScore;
+                        }
+                        uint32_t fragmentLen, fragStart, fragEnd;
+                        fragStart = lclust->firstRefPos();
+                        if (rclust->firstRefPos() < fragStart) {
+                            fragStart = rclust->firstRefPos();
+                        }
+                        fragEnd = rclust->lastRefPos() + rclust->lastMemLen();
+                        if (fragEnd < lclust->lastRefPos() + lclust->lastMemLen()) {
+                            fragEnd = lclust->lastRefPos() + lclust->lastMemLen();
+                        }
+                        fragmentLen = fragEnd - fragStart;
                         if (verbose) {
                             std::cerr << "fragmentlen: " << fragmentLen << "\n";
                         }
@@ -451,10 +471,26 @@ public:
                             std::cerr << "BAD; SHOULD NOT HAPPEN! " << all.size() << "\n";
                             std::exit(1);
                         }
-                        if (fragmentLen < maxFragmentLength) {
+                        if (!rclust->mems.empty() and !lclust->mems.empty() and
+                            fragmentLen < maxFragmentLength) {
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
-                        }
+                        } else {
+//                            std::cerr << "in else\n";
+                            if (!lclust->mems.empty())
+                                jointMemsList.emplace_back(tid, lclust, all.begin(), fragmentLen);
+                            if (!rclust->mems.empty())
+                                jointMemsList.emplace_back(tid, all.begin(), rclust, fragmentLen);
+                            if (bestScore == globalScore) {
+                                globalScore = bestScore / 2.0;
+                            }
+
+                        } /*else {
+                            std::cerr << "fragmentlen issue: " << lclust->lastRefPos()
+                                      << " " << lclust->lastMemLen() << " "
+                                                                        << rclust->firstRefPos() << " " << maxFragmentLength << "\n";
+                        }*/
                     }
+
 //                minPosIt += lastPtr;
                 } else {
                     // should not happen
@@ -467,6 +503,43 @@ public:
             }
 
         }
+        bool yes = false;
+        double tmpScore;
+        if (jointMemsList.size() > 0) {
+            yes = true;
+            tmpScore = jointMemsList.front().coverage();
+        } else if (!no) {
+            std::cerr << "This is even worse than F*\n";
+            std::exit(1);
+        }
+        jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                           [&globalScore](util::JointMems &pairedReadMems) -> bool {
+                                               return pairedReadMems.coverage() < (globalScore - 0.01);
+                                           }),
+                            jointMemsList.end());
+        if (jointMemsList.size() == 0 and yes) {
+            std::cerr << "WTF IS GOING ON\n" << tmpScore << " " << globalScore << "\n";
+            std::exit(1);
+        }
+        /*if (jointMemsList.size() >= 7) {
+            uint32_t cntr=0;
+            for (auto &j : jointMemsList) {
+                std::cerr << "\n" << cntr++ << " --> ";
+                std::cerr << "tid:" << j.tid << "\n" ;
+                std::cerr << "left:" << j.leftClust->isFw << " size:" << j.leftClust->mems.size() << " score:" << j.leftClust->coverage << " --> ";
+                for (size_t i = 0; i < j.leftClust->mems.size(); i++) {
+                    std::cerr << "t" << j.leftClust->mems[i].tpos <<
+                              " r" << j.leftClust->mems[i].memInfo->rpos <<
+                              " l" << j.leftClust->mems[i].memInfo->memlen << "\t";
+                }
+                std::cerr << "\nright:" << j.rightClust->isFw << " size:" << j.rightClust->mems.size() << " score:" << j.rightClust->coverage << " --> ";
+                for (size_t i = 0; i < j.rightClust->mems.size(); i++) {
+                    std::cerr << "t" << j.rightClust->mems[i].tpos <<
+                              " r" << j.rightClust->mems[i].memInfo->rpos <<
+                              " l" << j.rightClust->mems[i].memInfo->memlen << "\t";
+                }
+            }
+        }*/
         return true;
     }
 

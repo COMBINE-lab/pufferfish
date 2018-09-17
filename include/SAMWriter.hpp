@@ -235,7 +235,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 
       if (qa.isLeftAvailable()) {
           //std::cerr << " lrefpos: " << leftRefPos;
-          bstream << static_cast<refLenType>(clustLeft->coverage);
+        bstream << static_cast<double>(clustLeft->coverage);
         bstream << static_cast<refLenType>(leftRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustLeft->mems) {
@@ -246,7 +246,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 	  }
       if (qa.isRightAvailable()) {
           //std::cerr << " rrefpos: " << rightRefPos;
-          bstream << static_cast<refLenType>(clustRight->coverage);
+        bstream << static_cast<double>(clustRight->coverage);
         bstream << static_cast<refLenType>(rightRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustRight->mems) {

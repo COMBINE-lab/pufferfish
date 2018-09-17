@@ -249,7 +249,7 @@ enum class MateStatus : uint8_t {
     std::vector<MemInfo> mems;
     bool isFw;
     bool isVisited = false;
-    uint32_t coverage{0};
+      double coverage{0};
     std::vector<std::pair<std::string,std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
     int score ;
     std::string cigar ;
@@ -346,11 +346,13 @@ enum class MateStatus : uint8_t {
         if (rightClust->mems.size() == 0) mateStatus = MateStatus::PAIRED_END_LEFT;
 //        std::cerr << "[jointMem] " << leftClust->mems.size() << " " << rightClust->mems.size() << " " << (uint32_t)mateStatus << "\n";
     }
-    uint32_t coverage() {
+
+      double coverage() {
       return (isLeftAvailable()?leftClust->coverage:0)+(isRightAvailable()?rightClust->coverage:0);}
-    
-    uint32_t leftCoverage() {return isLeftAvailable()?leftClust->coverage:0;}
-    uint32_t rightCoverage() {return isRightAvailable()?rightClust->coverage:0;}
+
+      double leftCoverage() { return isLeftAvailable() ? leftClust->coverage : 0; }
+
+      double rightCoverage() { return isRightAvailable() ? rightClust->coverage : 0; }
     
     // FIXME : what if the mapping is not orphan? who takes care of this function not being called from outside?
     std::vector<util::MemCluster>::iterator orphanClust() {
