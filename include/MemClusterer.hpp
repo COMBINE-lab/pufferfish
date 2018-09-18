@@ -543,6 +543,371 @@ public:
         return true;
     }
 
+    bool
+    findOptChainAllowingOneJumpBetweenTheReadEnds(
+            std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
+            std::vector<util::JointMems> &jointMemsList,
+            std::vector<util::MemCluster> &all,
+            uint32_t maxSpliceGap,
+            uint32_t maxFragmentLength,
+            bool verbose = false) {
+        if (verbose)
+            std::cerr << "\n[START OF FIND_OPT_CHAIN]\n";
+
+        using namespace pufferfish::common_types;
+
+        double globalScore{-std::numeric_limits<double>::infinity()};
+        std::vector<double> f;
+        std::vector<double> fswitch;
+        std::vector<int32_t> p;
+        std::vector<int32_t> pswitch;
+        all.reserve(200 * 2 * trMemMap.size());
+        all.push_back(util::MemCluster(1));
+        bool no = trMemMap.size() == 0;
+        //verbose = true;
+        for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
+            auto &trOri = trMem.first;
+            auto &tid = trOri.first;
+            auto &isFw = trOri.second;
+            auto &memList = trMem.second;
+            // sort memList according to mem reference positions
+            std::sort(memList.begin(), memList.end(),
+                      [](util::MemInfo &q1, util::MemInfo &q2) -> bool {
+                          auto q1ref = q1.tpos + q1.memInfo->memlen;
+                          auto q2ref = q2.tpos + q2.memInfo->memlen;
+                          auto q1read = q1.memInfo->rpos + q1.memInfo->memlen;
+                          auto q2read = q2.memInfo->rpos + q2.memInfo->memlen;
+                          return q1ref != q2ref ? q1ref < q2ref :
+                                 (q1.isFw && q2.isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
+                      });
+            if (verbose) {
+                std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
+                for (auto &m : memList) {
+                    std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
+                              << "\n";
+                }
+            }
+
+            //auto minPosIt = memList.begin();
+            // find the valid chains
+            // Use variant of minimap2 scoring (Li 2018)
+            // https://academic.oup.com/bioinformatics/advance-article/doi/10.1093/bioinformatics/bty191/4994778
+            auto alpha = [](uint32_t qdiff, uint32_t rdiff, uint32_t ilen,
+                            bool readsAreDifferent) -> double {
+                double mindiff = (qdiff < rdiff) ? qdiff : rdiff;
+                double score = ilen;
+                if (readsAreDifferent)
+                    mindiff = rdiff;
+                return (score < mindiff) ? score : mindiff;
+            };
+
+            auto beta = [maxSpliceGap](int32_t qdiff, int32_t rdiff, double avgseed,
+                                       bool readsAreDifferent,
+                                       bool sameOrientation, uint32_t memLen) -> double {
+                if (readsAreDifferent) {
+                    double penalty = sameOrientation ? 5 : 1;
+                    int32_t al = std::abs(rdiff - memLen);
+                    return penalty *
+                           std::min(0.01 * avgseed * al, static_cast<double>(fastlog2(static_cast<float>(al))));
+                }
+                if (!sameOrientation or (qdiff < 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap))) {
+                    return std::numeric_limits<double>::infinity();
+                }
+                double l = qdiff - rdiff;
+                int32_t al = std::abs(l);
+                return (l == 0) ? 0.0 : (0.01 * avgseed * al + 0.5 * fastlog2(static_cast<float>(al)));
+            };
+
+            double bottomScore = std::numeric_limits<double>::lowest();
+            double bestScore = bottomScore;
+            //int32_t bestChainEnd = -1;
+            std::vector<int32_t> bestChainEndList;
+            double avgseed = 31.0;
+            f.clear();
+            fswitch.clear();
+            p.clear();
+            pswitch.clear();
+            //auto lastHitId = static_cast<int32_t>(memList.size() - 1);
+            for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
+                auto &hi = memList[i];
+
+                auto qposi = hi.memInfo->rpos + hi.memInfo->memlen;
+                auto rposi = hi.tpos + hi.memInfo->memlen;
+
+                double baseScore = static_cast<double>(hi.memInfo->memlen);
+                p.push_back(i);
+                pswitch.push_back(i);
+                f.push_back(baseScore);
+                fswitch.push_back(-std::numeric_limits<double>::infinity());
+                // possible predecessors in the chain
+                int32_t numRounds{2};
+                (void) numRounds;
+                for (int32_t j = i - 1; j >= 0; --j) {
+                    if (verbose) {
+                        std::cerr << "before " << i << " " << j <<
+                                  " f[i]:" << f[i] << " f[j]:" << f[j] <<
+                                  " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j];
+                    }
+                    auto &hj = memList[j];
+
+                    auto qposj = hj.memInfo->rpos + hj.memInfo->memlen;
+                    auto rposj = hj.tpos + hj.memInfo->memlen;
+
+                    auto qdiff = hi.isFw && hj.isFw ? qposi - qposj :
+                                 (qposj - hj.memInfo->memlen) - (qposi - hi.memInfo->memlen);
+                    auto rdiff = rposi - rposj;
+
+                    double extensionScore;
+                    if (hi.memInfo->readEnd == hj.memInfo->readEnd) {
+                        extensionScore = f[j] + alpha(qdiff, rdiff, hi.memInfo->memlen,
+                                                      hi.memInfo->readEnd != hj.memInfo->readEnd) -
+                                         beta(qdiff, rdiff, avgseed,
+                                              hi.memInfo->readEnd !=
+                                              hj.memInfo->readEnd,
+                                              hi.isFw == hj.isFw,
+                                              hi.memInfo->memlen);
+                        bool extendWithJ = (extensionScore > f[i]);
+                        p[i] = extendWithJ ? j : p[i];
+                        f[i] = extendWithJ ? extensionScore : f[i];
+                        extensionScore = fswitch[j] + alpha(qdiff, rdiff, hi.memInfo->memlen,
+                                                            hi.memInfo->readEnd != hj.memInfo->readEnd) -
+                                         beta(qdiff, rdiff, avgseed,
+                                              hi.memInfo->readEnd !=
+                                              hj.memInfo->readEnd,
+                                              hi.isFw == hj.isFw,
+                                              hi.memInfo->memlen);
+                        extendWithJ = (extensionScore > fswitch[i]);
+                        fswitch[i] = extendWithJ ? extensionScore : fswitch[i];
+                        pswitch[i] = extendWithJ ? j : pswitch[i];
+                    }
+                    if (hi.memInfo->readEnd != hj.memInfo->readEnd) {
+                        extensionScore = f[j] + alpha(qdiff, rdiff, hi.memInfo->memlen,
+                                                      hi.memInfo->readEnd != hj.memInfo->readEnd) -
+                                         beta(qdiff, rdiff, avgseed,
+                                              hi.memInfo->readEnd !=
+                                              hj.memInfo->readEnd,
+                                              hi.isFw == hj.isFw,
+                                              hi.memInfo->memlen);
+                        bool extendWithJ = (extensionScore > fswitch[i]);
+                        pswitch[i] = extendWithJ ? j : pswitch[i];
+                        fswitch[i] = extendWithJ ? extensionScore : fswitch[i];
+                    }
+                    if (verbose) {
+                        std::cerr /*<< i << " " << j */<<
+                                                       " f[i]:" << f[i] << " f[j]:" << f[j] <<
+                                                       " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j]
+                                                       << "\n" <<
+                                                       " sameRead:"
+                                                       << (uint32_t) (hi.memInfo->readEnd == hj.memInfo->readEnd) <<
+                                                       " ori:" << (uint32_t) hi.isFw << " sameOri:"
+                                                       << (uint32_t) (hi.isFw == hj.isFw) <<
+                                                       " ri, j:" << rposi << " " << rposj <<
+                                                       " qi,j:" << qposi << " " << qposj <<
+                                                       " readDiff:" << qdiff << " refDiff:" << rdiff <<
+                                                       " len:" << hi.memInfo->memlen <<
+                                                       " alpha:"
+                                                       << alpha(qdiff, rdiff, hi.memInfo->memlen,
+                                                                hi.memInfo->readEnd != hj.memInfo->readEnd)
+                                                       <<
+                                                       " beta:" << beta(qdiff, rdiff, avgseed,
+                                                                        hi.memInfo->readEnd !=
+                                                                        hj.memInfo->readEnd,
+                                                                        hi.isFw == hj.isFw,
+                                                                        hi.memInfo->memlen) << "\n";
+//                                  " extensionScore: " << extensionScore << "\n";
+                    }
+
+                    // HEURISTIC : if we connected this match to an earlier one
+                    // i.e. if we extended the chain.
+                    // This implements Heng Li's heuristic ---
+                    // "
+                    // We note that if anchor i is chained to j, chaining i to a predecessor of j
+                    // is likely to yield a lower score.
+                    // "
+                    // here we take this to the extreme, and stop at the first j to which we chain.
+                    // we can add a parameter "h" as in the minimap paper.  But here we expect the
+                    // chains of matches in short reads to be short enough that this may not be worth it.
+                    if (p[i] < i || pswitch[i] < i) {
+                        numRounds--;
+                        if (numRounds <= 0) { break; }
+                    }
+                }
+                auto curScore = f[i];
+                if (fswitch[i] > f[i]) {
+                    curScore = fswitch[i];
+                }
+                if (curScore > bestScore) {
+                    bestScore = curScore;
+                    //bestChainEnd = i;
+                    bestChainEndList.clear();
+                    bestChainEndList.push_back(i);
+                } else if (curScore == bestScore) {
+                    bestChainEndList.push_back(i);
+                }
+            }
+
+            // Do backtracking
+            std::vector<bool> seen(f.size());
+            for (uint64_t i = 0; i < seen.size(); i++) seen[i] = false;
+            for (auto bc : bestChainEndList) {
+                int32_t bestChainEnd = bc;
+                bool shouldBeAdded = true;
+                if (bestChainEnd >= 0) {
+                    std::vector<uint64_t> memIndicesInReverse;
+                    auto lastPtr = p[bestChainEnd];
+                    if (fswitch[bestChainEnd] >= f[bestChainEnd])
+                        lastPtr = pswitch[bestChainEnd];
+                    while (lastPtr < bestChainEnd) {
+                        if (seen[bestChainEnd]) {
+                            shouldBeAdded = false;
+                            break;
+                        }
+                        memIndicesInReverse.push_back(bestChainEnd);
+                        seen[bestChainEnd] = true;
+                        bestChainEnd = lastPtr;
+                        lastPtr = p[bestChainEnd];
+                        if (fswitch[bestChainEnd] >= f[bestChainEnd])
+                            lastPtr = pswitch[bestChainEnd];
+//                    lastPtr = bestChainEnd;
+//                    bestChainEnd = p[bestChainEnd];
+                    }
+                    if (seen[bestChainEnd]) {
+                        shouldBeAdded = false;
+                    }
+                    memIndicesInReverse.push_back(bestChainEnd);
+                    if (shouldBeAdded) {
+                        all.push_back(util::MemCluster(isFw));
+                        all.push_back(util::MemCluster(isFw));
+                        std::vector<util::MemCluster>::iterator lclust = all.end() - 2;
+                        std::vector<util::MemCluster>::iterator rclust = all.end() - 1;
+                        for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
+                            if (memList[*it].memInfo->readEnd == util::ReadEnd::LEFT) {
+                                if (verbose) {
+                                    std::cerr << "wl-" << *it << ":" << memList[*it].tpos << " " << memList[*it].isFw
+                                              << "\n";
+                                }
+                                lclust->addMem(memList[*it].memInfo, memList[*it].tpos, memList[*it].isFw);
+                                lclust->isFw = memList[*it].isFw;
+                            } else {
+                                if (verbose) {
+                                    std::cerr << "wr-" << *it << ":" << memList[*it].tpos << " " << memList[*it].isFw
+                                              << "\n";
+                                }
+                                rclust->addMem(memList[*it].memInfo, memList[*it].tpos, memList[*it].isFw);
+                                rclust->isFw = memList[*it].isFw;
+                            }
+                        }
+
+                        //FIXME take care of the left and right coverage/score separately!!
+                        lclust->coverage = bestScore / 2.0;
+                        rclust->coverage = bestScore / 2.0;
+
+                        if (bestScore > globalScore) {
+                            globalScore = bestScore;
+                        }
+                        uint32_t fragmentLen, fragStart, fragEnd;
+                        fragStart = lclust->firstRefPos();
+                        if (rclust->firstRefPos() < fragStart) {
+                            fragStart = rclust->firstRefPos();
+                        }
+                        fragEnd = rclust->lastRefPos() + rclust->lastMemLen();
+                        if (fragEnd < lclust->lastRefPos() + lclust->lastMemLen()) {
+                            fragEnd = lclust->lastRefPos() + lclust->lastMemLen();
+                        }
+                        fragmentLen = fragEnd - fragStart;
+                        if (verbose) {
+                            std::cerr << "fragmentlen: " << fragmentLen << "\n";
+                        }
+
+                        if (all.size() >= 200 * 2 * trMemMap.size()) {
+                            std::cerr << "BAD; SHOULD NOT HAPPEN! " << all.size() << "\n";
+                            std::exit(1);
+                        }
+                        if (!rclust->mems.empty() and !lclust->mems.empty() and
+                            fragmentLen < maxFragmentLength) {
+                            jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
+                        } else {
+//                            std::cerr << "in else\n";
+                            if (!lclust->mems.empty())
+                                jointMemsList.emplace_back(tid, lclust, all.begin(), fragmentLen);
+                            if (!rclust->mems.empty())
+                                jointMemsList.emplace_back(tid, all.begin(), rclust, fragmentLen);
+                            if (bestScore == globalScore) {
+                                globalScore = bestScore / 2.0;
+                            }
+
+                        } /*else {
+                            std::cerr << "fragmentlen issue: " << lclust->lastRefPos()
+                                      << " " << lclust->lastMemLen() << " "
+                                                                        << rclust->firstRefPos() << " " << maxFragmentLength << "\n";
+                        }*/
+                    }
+
+//                minPosIt += lastPtr;
+                } else {
+                    // should not happen
+                    std::cerr << "[FATAL] : Cannot find any valid chain for quasi-mapping\n";
+                    std::cerr << "num hits = " << memList.size() << "\n";
+                    std::cerr << "bestChainEnd = " << bestChainEnd << "\n";
+                    std::cerr << "bestChainScore = " << bestScore << "\n";
+                    std::exit(1);
+                }
+            }
+
+        }
+        bool yes = false;
+        double tmpScore;
+        if (jointMemsList.size() > 0) {
+            yes = true;
+            tmpScore = jointMemsList.front().coverage();
+        } else if (!no) {
+            std::cerr << "This is even worse than F*\n";
+            std::exit(1);
+        }
+        bool hasOnePaired = false;
+        jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                           [&globalScore, &hasOnePaired](util::JointMems &pairedReadMems) -> bool {
+                                               if (pairedReadMems.coverage() >= (globalScore - 0.01) and
+                                                   pairedReadMems.mateStatus == util::MateStatus::PAIRED_END_PAIRED)
+                                                   hasOnePaired = true;
+                                               return pairedReadMems.coverage() < (globalScore - 0.01);
+                                           }),
+                            jointMemsList.end());
+        if (hasOnePaired) {
+            jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                               [](util::JointMems &pairedReadMems) -> bool {
+                                                   return pairedReadMems.mateStatus !=
+                                                          util::MateStatus::PAIRED_END_PAIRED;
+                                               }),
+                                jointMemsList.end());
+        }
+        if (jointMemsList.size() == 0 and yes) {
+            std::cerr << "WTF IS GOING ON\n" << tmpScore << " " << globalScore << "\n";
+            std::exit(1);
+        }
+        /*if (jointMemsList.size() >= 7) {
+            uint32_t cntr=0;
+            for (auto &j : jointMemsList) {
+                std::cerr << "\n" << cntr++ << " --> ";
+                std::cerr << "tid:" << j.tid << "\n" ;
+                std::cerr << "left:" << j.leftClust->isFw << " size:" << j.leftClust->mems.size() << " score:" << j.leftClust->coverage << " --> ";
+                for (size_t i = 0; i < j.leftClust->mems.size(); i++) {
+                    std::cerr << "t" << j.leftClust->mems[i].tpos <<
+                              " r" << j.leftClust->mems[i].memInfo->rpos <<
+                              " l" << j.leftClust->mems[i].memInfo->memlen << "\t";
+                }
+                std::cerr << "\nright:" << j.rightClust->isFw << " size:" << j.rightClust->mems.size() << " score:" << j.rightClust->coverage << " --> ";
+                for (size_t i = 0; i < j.rightClust->mems.size(); i++) {
+                    std::cerr << "t" << j.rightClust->mems[i].tpos <<
+                              " r" << j.rightClust->mems[i].memInfo->rpos <<
+                              " l" << j.rightClust->mems[i].memInfo->memlen << "\t";
+                }
+            }
+        }*/
+        return true;
+    }
+
+
 
     bool findOptChain(std::vector<std::pair<int, util::ProjectedHits>> &hits,
                       spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>> &memClusters,

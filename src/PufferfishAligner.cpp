@@ -812,11 +812,11 @@ void processReadsPair(paired_parser *parser,
                     refBlocks*/);
 
             all.clear();
-            memCollector.findBestChain(jointHits,
-                                       all,
-                                       mopts->maxSpliceGap,
-                                       mopts->maxFragmentLength,
-                                       verbose);
+            memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/*findBestChain*/(jointHits,
+                                                                                        all,
+                                                                                        mopts->maxSpliceGap,
+                                                                                        mopts->maxFragmentLength,
+                                                                                        verbose);
             hctr.numMappedAtLeastAKmer += (leftHits.size() || rightHits.size()) ? 1 : 0;
             //do intersection on the basis of
             //performance, or going towards selective alignment

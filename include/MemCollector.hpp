@@ -467,6 +467,15 @@ public:
                        uint32_t maxSpliceGap, uint32_t maxFragmentLength, bool verbose) {
       mc.findOptChain(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength, verbose);
     }
+
+    void findOptChainAllowingOneJumpBetweenTheReadEnds(std::vector<util::JointMems> &jointHits,
+                                                       std::vector<util::MemCluster> &all,
+                                                       uint32_t maxSpliceGap, uint32_t maxFragmentLength,
+                                                       bool verbose) {
+      mc.findOptChainAllowingOneJumpBetweenTheReadEnds(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength,
+                                                       verbose);
+    }
+
   void clear() {
     memCollectionLeft.clear();
     memCollectionRight.clear();
