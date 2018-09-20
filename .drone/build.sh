@@ -1,5 +1,5 @@
 #!/bin/bash
-source /exe_gc_hardened/activate
+source /hbb_exe_gc_hardened/activate
 
 set -e
 
