@@ -1,5 +1,5 @@
 #!/bin/bash
-source /shlib/activate
+source /exe_gc_hardened/activate
 
 set -e
 
