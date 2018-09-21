@@ -41,8 +41,22 @@ mkdir ${DIR}/../RELEASES/${betaname}/lib
 
 # copy over the executable
 echo -e "Copying over the binary\n"
-cp ${DIR}/../bin/* ${DIR}/../RELEASES/${betaname}/bin/
+cp ${DIR}/../build/src/pufferfish ${DIR}/../RELEASES/${betaname}/bin/
+cp ${DIR}/../build/src/pufferize ${DIR}/../RELEASES/${betaname}/bin/
+cp ${DIR}/../build/src/fixFasta ${DIR}/../RELEASES/${betaname}/bin/
 
+# copy other dependencies (shared libraries)
+echo -e "Copying over other shared library dependencies\n"
+bash ${DIR}/../scripts/cpld.bash ${DIR}/../bin/pufferfish ${DIR}/../RELEASES/${betaname}/lib/
+bash ${DIR}/../scripts/cpld.bash ${DIR}/../bin/pufferize ${DIR}/../RELEASES/${betaname}/lib/
+bash ${DIR}/../scripts/cpld.bash ${DIR}/../bin/fixFasta ${DIR}/../RELEASES/${betaname}/lib/
+
+echo -e "Removing dangerous dependencies\n"
+rm ${DIR}/../RELEASES/${betaname}/lib/librt.so.1
+rm ${DIR}/../RELEASES/${betaname}/lib/libc.so.6
+rm ${DIR}/../RELEASES/${betaname}/lib/ld-linux-x86-64.so.2
+rm ${DIR}/../RELEASES/${betaname}/lib/libdl.so.2
+rm ${DIR}/../RELEASES/${betaname}/lib/libpthread*.so.*
 
 # now make the tarball
 echo -e "Making the tarball\n"
