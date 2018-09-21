@@ -41,7 +41,7 @@ mkdir ${DIR}/../RELEASES/${betaname}/lib
 
 # copy over the executable
 echo -e "Copying over the binary\n"
-cp ${DIR}/../bin/pufferfish ${DIR}/../RELEASES/${betaname}/bin/
+cp ${DIR}/../bin/* ${DIR}/../RELEASES/${betaname}/bin/
 
 
 # now make the tarball
