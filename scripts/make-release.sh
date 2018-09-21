@@ -42,14 +42,10 @@ mkdir ${DIR}/../RELEASES/${betaname}/lib
 # copy over the executable
 echo -e "Copying over the binary\n"
 cp ${DIR}/../build/src/pufferfish ${DIR}/../RELEASES/${betaname}/bin/
-cp ${DIR}/../build/src/pufferize ${DIR}/../RELEASES/${betaname}/bin/
-cp ${DIR}/../build/src/fixFasta ${DIR}/../RELEASES/${betaname}/bin/
 
 # copy other dependencies (shared libraries)
 echo -e "Copying over other shared library dependencies\n"
-bash ${DIR}/../scripts/cpld.bash ${DIR}/../bin/pufferfish ${DIR}/../RELEASES/${betaname}/lib/
-bash ${DIR}/../scripts/cpld.bash ${DIR}/../bin/pufferize ${DIR}/../RELEASES/${betaname}/lib/
-bash ${DIR}/../scripts/cpld.bash ${DIR}/../bin/fixFasta ${DIR}/../RELEASES/${betaname}/lib/
+bash ${DIR}/../scripts/cpld.bash ${DIR}/../build/src/pufferfish ${DIR}/../RELEASES/${betaname}/lib/
 
 echo -e "Removing dangerous dependencies\n"
 rm ${DIR}/../RELEASES/${betaname}/lib/librt.so.1
