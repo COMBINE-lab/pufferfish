@@ -10,7 +10,10 @@ echo "[Drone build] current path : ${CPATH}"
 
 
 echo "[Drone build] Installing ThreePaCo"
-yum install -y tbb
+yum install -y wget
+wget https://github.com/01org/tbb/releases/download/2019_U1/tbb2019_20181003oss_lin.tgz
+tar -xvzf tbb2019_20181003oss_lin.tgz
+export LD_LIBRARY_PATH=${PWD}/tbb2019_20181003oss/lib/intel64/gcc4.7/
 git clone https://github.com/fataltes/TwoPaCo.git
 cd TwoPaCo
 mkdir build
