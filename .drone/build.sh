@@ -1,5 +1,5 @@
 #!/bin/bash
-source /hbb_shlib/activate
+source /hbb_exe/activate
 
 set -e
 
