@@ -6,6 +6,15 @@ set -e
 CPATH=`pwd`
 echo "[Drone build] current path : ${CPATH}"
 
+echo "[Drone build] Installing ThreePaCo"
+git clone https://github.com/fataltes/TwoPaCo.git
+cd TwoPaCo
+mkdir build
+cd build
+cmake ../src
+make
+cd ../..
+
 echo "[Drone build] Installikng sdsl"
 git clone https://github.com/simongog/sdsl-lite.git
 cd sdsl-lite
