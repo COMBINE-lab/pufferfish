@@ -1,14 +1,16 @@
 #!/bin/bash
+set -e
+
 source /hbb_exe/activate
 
-set -e
+set -x
 
 CPATH=`pwd`
 echo "[Drone build] current path : ${CPATH}"
 
 
 echo "[Drone build] Installing ThreePaCo"
-yum install tbb
+yum install -y tbb
 git clone https://github.com/fataltes/TwoPaCo.git
 cd TwoPaCo
 mkdir build
