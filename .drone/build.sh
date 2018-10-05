@@ -6,7 +6,9 @@ set -e
 CPATH=`pwd`
 echo "[Drone build] current path : ${CPATH}"
 
+
 echo "[Drone build] Installing ThreePaCo"
+yum install tbb
 git clone https://github.com/fataltes/TwoPaCo.git
 cd TwoPaCo
 mkdir build
