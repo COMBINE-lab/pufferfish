@@ -19,6 +19,7 @@ tar -xvzf tbb2019_20181003oss_lin.tgz
 export LD_LIBRARY_PATH=${PWD}/tbb2019_20181003oss/lib/intel64/gcc4.7/
 git clone https://github.com/fataltes/TwoPaCo.git
 cd TwoPaCo
+git checkout pufferize
 mkdir build
 cd build
 cmake ../src/ -DTBB_LIB_DIR=/tbb2019_20181003oss/lib/intel64/gcc4.7/ -DTBB_INCLUDE_DIR=/tbb2019_20181003oss/include/
