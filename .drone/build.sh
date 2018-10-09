@@ -8,7 +8,6 @@ set -x
 CPATH=`pwd`
 echo "[Drone build] current path : ${CPATH}"
 
-
 echo "[Drone build] Installing ThreePaCo"
 RUN  apt-get update \
   && apt-get install -y wget \
@@ -35,6 +34,9 @@ cd ..
 echo "[Drone build] making build directory"
 mkdir build
 cd build
+
+echo "[Drone build] Installing FixFasta"
+g++ -O3 -std=c++11 -Wall -static-libgcc -static-libstdc++ -static -I../include ../src/FixFasta.cpp ../src/FastxParser.cpp ../src/xxhash.c -pthread -lm -lz -o fixFasta
 
 echo "[Drone build] cmake configuration"
 cmake ..
