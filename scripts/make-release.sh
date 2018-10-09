@@ -43,8 +43,8 @@ mkdir ${DIR}/../RELEASES/${betaname}/lib
 echo -e "Copying over the binary\n"
 cp ${DIR}/../build/src/pufferfish ${DIR}/../RELEASES/${betaname}/bin/
 cp ${DIR}/../build/src/fixFasta ${DIR}/../RELEASES/${betaname}/bin/
-cp ${DIR}/../../TwoPaCo/build/graphconstructor/twopaco ${DIR}/../RELEASES/${betaname}/bin/
-cp ${DIR}/../../TwoPaCo/build/graphdump/graphdump ${DIR}/../RELEASES/${betaname}/bin/
+cp ${DIR}/../TwoPaCo/build/graphconstructor/twopaco ${DIR}/../RELEASES/${betaname}/bin/
+cp ${DIR}/../TwoPaCo/build/graphdump/graphdump ${DIR}/../RELEASES/${betaname}/bin/
 
 # copy other dependencies (shared libraries)
 echo -e "Copying over other shared library dependencies\n"
