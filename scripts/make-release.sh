@@ -49,8 +49,8 @@ cp ${DIR}/../TwoPaCo/build/graphdump/graphdump ${DIR}/../RELEASES/${betaname}/bi
 # copy other dependencies (shared libraries)
 echo -e "Copying over other shared library dependencies\n"
 bash ${DIR}/../scripts/cpld.bash ${DIR}/../build/src/pufferfish ${DIR}/../RELEASES/${betaname}/lib/
-bash ${DIR}/../scripts/cpld.bash ${DIR}/../../TwoPaCo/build/graphconstructor/twopaco ${DIR}/../RELEASES/${betaname}/lib/
-bash ${DIR}/../scripts/cpld.bash ${DIR}/../../TwoPaCo/build/graphdump/graphdump ${DIR}/../RELEASES/${betaname}/lib/
+bash ${DIR}/../scripts/cpld.bash ${DIR}/../TwoPaCo/build/graphconstructor/twopaco ${DIR}/../RELEASES/${betaname}/lib/
+bash ${DIR}/../scripts/cpld.bash ${DIR}/../TwoPaCo/build/graphdump/graphdump ${DIR}/../RELEASES/${betaname}/lib/
 
 echo -e "Removing dangerous dependencies\n"
 rm ${DIR}/../RELEASES/${betaname}/lib/librt.so.1
