@@ -9,9 +9,6 @@ CPATH=`pwd`
 echo "[Drone build] current path : ${CPATH}"
 
 echo "[Drone build] Installing ThreePaCo"
-RUN  apt-get update \
-  && apt-get install -y wget \
-  && rm -rf /var/lib/apt/lists/*
 
 wget https://github.com/01org/tbb/releases/download/2019_U1/tbb2019_20181003oss_lin.tgz
 tar -xvzf tbb2019_20181003oss_lin.tgz
