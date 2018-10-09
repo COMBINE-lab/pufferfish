@@ -18,7 +18,7 @@ cd TwoPaCo
 git checkout pufferize
 mkdir build
 cd build
-cmake ../src/ -DTBB_LIB_DIR=/tbb2019_20181003oss/lib/intel64/gcc4.7/ -DTBB_INCLUDE_DIR=/tbb2019_20181003oss/include/
+cmake ../src/ -DTBB_LIB_DIR=/mnt/ci_res/tbb2019_20181003oss/lib/intel64/gcc4.7/ -DTBB_INCLUDE_DIR=/mnt/ci_res/tbb2019_20181003oss/include/
 make
 cd ../..
 
