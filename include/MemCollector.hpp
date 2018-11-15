@@ -424,6 +424,7 @@ public:
 
     // if this is the right end of a paired-end read, use memCollectionRight,
     // otherwise (left end or single end) use memCollectionLeft.
+    isSingleEnd = mateStatus == util::MateStatus::SINGLE_END;
     auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
@@ -479,7 +480,7 @@ public:
   void clear() {
     memCollectionLeft.clear();
     memCollectionRight.clear();
-      trMemMap.clear();
+    trMemMap.clear();
   }
 
 private:
@@ -488,6 +489,7 @@ private:
   //AlignerEngine ae_;
   std::vector<util::UniMemInfo> memCollectionLeft;
   std::vector<util::UniMemInfo> memCollectionRight;
+  bool isSingleEnd = false;
     MemClusterer mc;
     std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> trMemMap;
 
