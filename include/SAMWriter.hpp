@@ -183,7 +183,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    std::vector<util::JointMems>& validJointHits,
                                    BinWriter& bstream,
                                    bool wrtIntervals=true) {
-    if (validJointHits.size() == 0) return 0;
+  if (validJointHits.empty()) return 0;
   auto& readName = r.first.name;
   //std::cout << readName << " || ";
   // If the read name contains multiple space-separated parts,
@@ -266,10 +266,12 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
                                    BinWriter& binStream,
                                    bool wrtIntervals=true) {
-    if (validHits.size() == 0) return 0;
+    if (validHits.empty()) return 0;
+
   auto& readName = r.name;
+  //std::cerr << readName  << " -- ";
   size_t nameLen = readName.length();
-  
+
   // If the read name contains multiple space-separated parts,
   // print only the first
   size_t splitPos = readName.find(' ');
@@ -278,23 +280,25 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     nameLen = splitPos;
   } else {
     splitPos = readName.length();
-  } 
-  
+  }
+
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
     nameLen = splitPos - 2;
   }
-
+    //std::cerr << readName << " " << nameLen << "\n";
   binStream << stx::string_view(readName.data(), nameLen) 
             << static_cast<uint32_t>(validHits.size()) 
             << static_cast<rLenType>(r.seq.length());
-  
+  //std::cerr << readName << "\t" << validHits.size() << "\t" << r.seq.length() << "\n";
   for (auto& qa : validHits) {
     auto& clust = qa.second;
     binStream << static_cast<uint32_t>(qa.first);
 //    if (wrtIntervals) {
       binStream << static_cast<rLenType>(clust->mems.size());
 //    }
+    //std::cerr << qa.first << "\t" << clust->mems.size() << "\n";
+    binStream << static_cast<double>(clust->coverage);
     binStream << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
     if (wrtIntervals) {
       for (auto& mem: clust->mems){
@@ -302,7 +306,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                   << static_cast<rLenType>(mem.memInfo->memlen);
       }
     }
-  }   
+  }
   return 0;
 
 }
