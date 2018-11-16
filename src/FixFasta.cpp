@@ -195,9 +195,9 @@ void fixFasta(single_parser* parser,
           // If there was no collision, then add the transcript
           transcriptNames.emplace_back(processedName);
           if (transcriptNameSet.find(processedName) != transcriptNameSet.end()) {
-            log->error("In FixFasta, two references with the same name but different sequences."
+            log->error("In FixFasta, two references with the same name but different sequences: {}. "
                        "We require that all input records have a unique name "
-                       "up to the first whitespace character.");
+                       "up to the first whitespace character.", processedName);
             std::exit(1);
           }
           transcriptNameSet.insert(processedName);
