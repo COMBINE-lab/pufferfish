@@ -51,13 +51,20 @@ public:
   bool fuzzy{false};
   bool consistentHits{false};
   bool quiet{false};
-	bool writeOrphans{false} ;
+  bool writeOrphans{false} ;
   bool justMap{false};
   bool krakOut{false};
   bool salmonOut{false};
   bool noDiscordant{false};
   bool noOrphan{false};
   bool compressedOutput{false};
+
+  int32_t gapOpenPenalty{5};
+  int32_t gapExtendPenalty{3};
+  int32_t matchScore{2};
+  int32_t missMatchScore{-4};
+  uint32_t refExtendLength{8};
+  double minScoreFraction{0.65};
 };
 
 
