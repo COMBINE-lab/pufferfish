@@ -54,6 +54,10 @@ private:
   boophf_t* hash_raw_{nullptr};
 
 public:
+  sdsl::int_vector<2> refseq_;
+  std::vector<uint64_t> refAccumLengths_;
+
+
   PufferfishLossyIndex();
   PufferfishLossyIndex(const std::string& indexPath);
   // Returns a ProjectedHits object that contains all of the
