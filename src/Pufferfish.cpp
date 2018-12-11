@@ -127,7 +127,8 @@ int main(int argc, char* argv[]) {
                     (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
                     |
                     (option("-s", "--salmon").set(alignmentOpt.salmonOut, true)) % "write output in the format required for salmon"
-                    )
+                    ),
+                    (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "minScoreFraction"
                     );
 
   auto cli = (

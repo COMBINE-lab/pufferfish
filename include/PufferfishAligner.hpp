@@ -9,10 +9,16 @@
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 
+#include "tsl/hopscotch_map.h"
 
 #include "Util.hpp"
 #include "KSW2Aligner.hpp"
 #include "ProgOpts.hpp"
+ 
+struct PassthroughHash {
+	std::size_t operator()(uint64_t const& u) const { return u; }
+};
+using AlnCacheMap = tsl::hopscotch_map<uint64_t, int32_t, PassthroughHash>;
 
 class PufferfishAligner {
 public:
@@ -26,9 +32,12 @@ public:
 		aligner.config() = config;
 		config.flag |= KSW_EZ_SCORE_ONLY;
 		memset(&ez, 0, sizeof(ksw_extz_t));
+
+		alnCacheLeft.reserve(32);
+		alnCacheRight.reserve(32);
 	};
 	int32_t calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, bool verbose);
-	int32_t alignmentScore(std::string& read, std::vector<util::MemInfo> mems, bool isFw, size_t tid, bool verbose);
+	int32_t alignmentScore(std::string& read, std::vector<util::MemInfo> mems, bool isFw, size_t tid, AlnCacheMap& alnCache, bool verbose);
 private:
 	sdsl::int_vector<2>& allRefSeq;
 	std::vector<uint64_t>& refAccumLengths;
@@ -36,6 +45,9 @@ private:
 	AlignmentOpts* mopts;
 	ksw2pp::KSW2Aligner& aligner;
 	ksw_extz_t ez;
+
+	AlnCacheMap alnCacheLeft;
+	AlnCacheMap alnCacheRight;
 };
 
 

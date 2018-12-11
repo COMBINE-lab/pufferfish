@@ -584,7 +584,7 @@ public:
                 std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
                 for (auto &m : memList) {
                     std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
-                              << "\n";
+                              << " ori:" << m.isFw  <<  "\n";
                 }
             }
 
