@@ -59,6 +59,7 @@
 
 #include "tsl/hopscotch_map.h"
 
+
 #define START_CONTIG_ID ((uint32_t)-1)
 #define END_CONTIG_ID ((uint32_t)-2)
 
@@ -410,7 +411,7 @@ std::string getRefSeq(sdsl::int_vector<2>& refseq, uint64_t refAccPos, size_t tp
 
 using AlnCacheMap = tsl::hopscotch_map<uint64_t, int32_t, PassthroughHash>;
 
-int32_t PufferfishAligner::alignmentScore(std::string& read, std::vector<util::MemInfo> mems, bool isFw, size_t tid, AlnCacheMap& alnCache, bool verbose) {
+int32_t PufferfishAligner::alignmentScore(std::string read, std::vector<util::MemInfo> mems, bool isFw, size_t tid, AlnCacheMap& alnCache, bool verbose) {
 	uint32_t refExtLength = mopts->refExtendLength;
 	bool firstMem = true;
 	int32_t lastHitEnd_read = -1;
@@ -437,19 +438,23 @@ int32_t PufferfishAligner::alignmentScore(std::string& read, std::vector<util::M
 		int score = 0;
 		currHitStart_read = mem.isFw ? mem.memInfo->rpos : read.length() - (mem.memInfo->rpos + mem.memInfo->memlen);
 		currHitStart_ref = mem.tpos;
-		if ( firstMem ) {
-			lastHitEnd_ref = currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1: -1;
+		if (firstMem) {
+			lastHitEnd_ref = currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
 		}
 		// To work around a possible bug in the chaining algorithm, next kmer match occuring earlier
 		// Example -> CGGGCATGGTGGCTCACACCTGTAATCCCAGCACTTTGGGAGGCCAAGGTGGGTGGATCATGAGGTCAGGAATTCGAGAATAGCCTGGCCAACATGGTGA
-		if (currHitStart_read < lastHitEnd_read - k and !firstMem)
-			break;
+		if (currHitStart_read < lastHitEnd_read - k and !firstMem) {
+			//std::cerr<< "tid" <<tid << "\n";
+			//std::cerr<<original_read<<"\n";
+		}
 		// To work around a possible bug in the chaining algorithm, next kmer match far from the current match
 		// Example -> GATGCAGTGGCTCATGCCTGTAATCCCAGCACTTTGGGAGGCCAAGGCAGGCAGATCACTTGAGATCAGGAGTTCGAGACAAGCCTGGCTAAAATGGTGA
-		if (currHitStart_ref > lastHitEnd_ref + read.length())
-			break;
+		if (currHitStart_ref > lastHitEnd_ref + read.length()){
+			//std::cerr<< "tid" <<tid << "\n";
+			//std::cerr<<original_read<<"\n\n";
+		}
 
-		// Performing full alignment to validate the socres
+			// Performing full alignment to validate the socres
 		if (firstMem) {
 			auto refStart = mem.tpos; //lastHitEnd_ref + 1; // currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read : 0;
 			auto refLength = (refStart + read.length()*2 < refTotalLength ) ? read.length()*2 : refTotalLength - refStart;
@@ -484,7 +489,7 @@ int32_t PufferfishAligner::alignmentScore(std::string& read, std::vector<util::M
 			}
 
 			std::string refSeq;
-			if (verbose and firstMem) {
+			if (firstMem) {
 				lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
 				// Not extending the reference beyond its beginning
 				auto refStartSeq = lastHitEnd_ref > refExtLength ?  lastHitEnd_ref + 1 - refExtLength : 0;
@@ -575,10 +580,12 @@ int32_t PufferfishAligner::alignmentScore(std::string& read, std::vector<util::M
 			}
 		}
 	}
-	if (true)
+	if (verbose)
 		std::cerr<<"alignmentScore\t"<<alignmentScore<< "\talignmment\t" << alignment <<"\n";
-	if (alignmentScore == 200 and alignment < 0)
+	/*if (alignmentScore<0){
 		std::cerr<< tid << "\n";
+		std::cerr<<alignmentScore<<"\n";
+	}*/
 	return alignmentScore;
 }
 
@@ -587,22 +594,23 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 	double optFrac{mopts->minScoreFraction};
 
 	if (jointHit.isOrphan()) {
-		if (verbose)
-			std::cerr<<"orphan\n";
+		//if (verbose)
+		//	std::cerr<<"orphan\n";
 
 		int32_t maxScore = mopts->matchScore * read_left.length();
-		auto score = alignmentScore(read_left, jointHit.orphanClust()->mems, jointHit.orphanClust()->isFw, tid, alnCacheLeft, verbose);
-		jointHit.orphanClust()->coverage = score > (optFrac * maxScore) ? score : std::numeric_limits<decltype(score)>::min();
-		return jointHit.orphanClust()->coverage;
+		//auto score = alignmentScore(read_left, jointHit.orphanClust()->mems, jointHit.orphanClust()->isFw, tid, alnCacheLeft, verbose);
+		//jointHit.orphanClust()->coverage = score > (optFrac * maxScore) ? score : std::numeric_limits<decltype(score)>::min();
+		return 0;//jointHit.orphanClust()->coverage;
 	}
 	else {
 		int32_t maxLeftScore = mopts->matchScore * read_left.length();
 		int32_t maxRightScore = mopts->matchScore * read_right.length();
-
-		std::cerr<<"left\n";
+		if (verbose)
+			std::cerr<<"left\n";
 		auto score_left = alignmentScore(read_left, jointHit.leftClust->mems, jointHit.leftClust->isFw, tid, alnCacheLeft, verbose);
-		std::cerr<<"right\n";
-		auto score_right = alignmentScore(read_right, jointHit.rightClust->mems, jointHit.rightClust->isFw, tid, alnCacheRight, verbose);
+		if (verbose)
+			std::cerr<<"right\n";
+		auto score_right = 0;//alignmentScore(read_right, jointHit.rightClust->mems, jointHit.rightClust->isFw, tid, alnCacheRight, verbose);
 		jointHit.leftClust->coverage = score_left > (optFrac * maxLeftScore) ? score_left : std::numeric_limits<decltype(score_left)>::min();
 		jointHit.rightClust->coverage = score_right > (optFrac * maxRightScore) ? score_right : std::numeric_limits<decltype(score_right)>::min();
 		auto total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
@@ -1006,8 +1014,9 @@ void processReadsPair(paired_parser *parser,
             readLen = rpair.first.seq.length();
             //totLen = readLen + rpair.second.seq.length();
             //bool verbose = false;
-            bool verbose = (rpair.first.seq == "GGAGCTGGGCCCAGGGAGGCCGACTTGCTGCTCTTCCAGGCCCACTTCCAGGCCGACTTGAGGACGACTTGGGCCTGCAGAGGCCGCCGGGAGGCTGGAG" or rpair.second.seq == "GGAGCTGGGCCCAGGGAGGCCGACTTGCTGCTCTTCCAGGCCCACTTCCAGGCCGACTTGAGGACGACTTGGGCCTGCAGAGGCCGCCGGGAGGCTGGAG");
-            if (verbose) std::cerr << rpair.first.name << "\n";
+			bool verbose = (rpair.first.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC" or
+							rpair.second.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC");
+			if (verbose) std::cerr << rpair.first.name << "\n";
             //std::cerr << "read: " << rpair.first.name << "\n\n";
 
             ++hctr.numReads;
@@ -1119,13 +1128,13 @@ void processReadsPair(paired_parser *parser,
 			size_t idx{0};
 
             for (auto &jointHit : jointHits) {
-				if ( (rpair.first.seq == "GGAGCTGGGCCCAGGGAGGCCGACTTGCTGCTCTTCCAGGCCCACTTCCAGGCCGACTTGAGGACGACTTGGGCCTGCAGAGGCCGCCGGGAGGCTGGAG" or
-				rpair.second.seq == "GGAGCTGGGCCCAGGGAGGCCGACTTGCTGCTCTTCCAGGCCCACTTCCAGGCCGACTTGAGGACGACTTGGGCCTGCAGAGGCCGCCGGGAGGCTGGAG") ) {
-				auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, true);
-				std::cerr << jointHit.tid << "\n";
+				bool verbose = (rpair.first.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC" or
+								rpair.second.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC") and
+										jointHit.tid == 72542;
+				auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, verbose);
 				scores[idx] = hitScore;
 				++idx;
-				bestScore = (hitScore > bestScore) ? hitScore : bestScore;}
+				bestScore = (hitScore > bestScore) ? hitScore : bestScore;
 			}
 
 			// Filter out these alignments with low scores

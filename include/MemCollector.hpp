@@ -376,6 +376,10 @@ public:
     CanonicalKmer::k(k);
     pufferfish::CanonicalKmerIterator kit_end;
     pufferfish::CanonicalKmerIterator kit1(read);
+    if (verbose) {
+      std::cerr << "ORIGINAL READ:\n";
+      std::cerr << read << "\n";
+    }
 
     /**
      *  Testing heuristic.  If we just succesfully matched a k-mer, and extended it to a uni-MEM, then
@@ -424,9 +428,9 @@ public:
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
       if (mateStatus == util::MateStatus::PAIRED_END_LEFT)
-        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT);
+        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT, verbose);
       else
-        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT);
+        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT, verbose);
 
 //      mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
 //      mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
@@ -446,7 +450,7 @@ public:
                         << mem.memInfo->cpos << " len:"
                         << mem.memInfo->memlen << " re:"
                         << mem.memInfo->readEnd << " fw:"
-                        << mem.memInfo->cIsFw << "\n";
+                        << mem.isFw << "\n";
 						std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
             //}
           }

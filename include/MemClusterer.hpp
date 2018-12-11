@@ -584,7 +584,7 @@ public:
                 std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
                 for (auto &m : memList) {
                     std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
-                              << " ori:" << m.isFw  <<  "\n";
+                              << " ori:" << m.isFw  <<  " re:" << m.memInfo->readEnd << "\n";
                 }
             }
 
@@ -610,7 +610,7 @@ public:
                     return penalty *
                            std::min(0.01 * avgseed * al, static_cast<double>(fastlog2(static_cast<float>(al))));
                 }
-                if (!sameOrientation or (qdiff < 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap))) {
+                if (!sameOrientation or (qdiff <= 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap))) {
                     return std::numeric_limits<double>::infinity();
                 }
                 double l = qdiff - rdiff;
@@ -644,9 +644,11 @@ public:
                 (void) numRounds;
                 for (int32_t j = i - 1; j >= 0; --j) {
                     if (verbose) {
-                        std::cerr << "before " << i << " " << j <<
+                        std::cerr << i << " " << j <<
                                   " f[i]:" << f[i] << " f[j]:" << f[j] <<
-                                  " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j];
+                                  " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j] <<
+                                  " p[i]:" << p[i] << " p[j]:" << p[j] <<
+                                  " pswitch[i]:" << pswitch[i] << " pswitch[j]:" << pswitch[j] << " --> ";
                     }
                     auto &hj = memList[j];
 
@@ -693,10 +695,13 @@ public:
                         fswitch[i] = extendWithJ ? extensionScore : fswitch[i];
                     }
                     if (verbose) {
-                        std::cerr /*<< i << " " << j */<<
-                                                       " f[i]:" << f[i] << " f[j]:" << f[j] <<
-                                                       " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j]
+                        std::cerr <<
+                                                       "f[i]:" << f[i] << " f[j]:" << f[j] <<
+                                                       " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j] <<
+                                                        " p[i]:" << p[i] << " p[j]:" << p[j] <<
+                                                        " pswitch[i]:" << pswitch[i] << " pswitch[j]:" << pswitch[j]
                                                        << "\n" <<
+                                                       "extensionScore:" << extensionScore <<
                                                        " sameRead:"
                                                        << (uint32_t) (hi.memInfo->readEnd == hj.memInfo->readEnd) <<
                                                        " ori:" << (uint32_t) hi.isFw << " sameOri:"
