@@ -66,6 +66,10 @@ private:
     0xe00000000000000, 0x7000000000000000};
 
 public:
+  sdsl::int_vector<2> refseq_;
+  std::vector<uint64_t> refAccumLengths_;
+
+
   PufferfishSparseIndex();
   PufferfishSparseIndex(const std::string& indexPath);
   //Returns the position in the compacted bBG sequence from the sparse

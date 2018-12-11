@@ -99,11 +99,30 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
     sdsl::load_from_file(sampledPos_, pfile);
   }
 
-  if (haveEdges_) {
-    CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
-    std::string pfile = indexDir + "/edge.bin";
-    sdsl::load_from_file(edge_, pfile);
+  {
+    CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
+    std::string pfile = indexDir + "/refseq.bin";
+    sdsl::load_from_file(refseq_, pfile);
   }
+
+  {
+    CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
+    std::string pfile = indexDir + "/refAccumLengths.bin";
+    sdsl::load_from_file(refAccumLengths_, pfile);
+  }
+
+  {
+    std::string rlPath = indexDir + "/refAccumLengths.bin";
+    if (puffer::fs::FileExists(rlPath.c_str())) {
+      CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
+      std::ifstream refLengthStream(rlPath);
+      cereal::BinaryInputArchive refLengthArchive(refLengthStream);
+      refLengthArchive(refAccumLengths_);
+    } else {
+      refAccumLengths_ = std::vector<uint64_t>(refNames_.size(), 1000);
+    }
+  }
+
 }
 
 /**
