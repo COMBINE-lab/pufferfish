@@ -1072,27 +1072,10 @@ void processReadsPair(paired_parser *parser,
                                                                                         mopts->maxSpliceGap,
                                                                                         mopts->maxFragmentLength,
                                                                                         verbose);
-            hctr.numMappedAtLeastAKmer += (leftHits.size() || rightHits.size()) ? 1 : 0;
+            hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0; //(leftHits.size() || rightHits.size()) ? 1 : 0;
             //do intersection on the basis of
             //performance, or going towards selective alignment
             //otherwise orphan
-            if (verbose) {
-                for (auto &l : leftHits) {
-                    auto &lclust = l.second;
-                    for (auto &clust : lclust)
-                        for (auto &m : clust.mems) {
-                            std::cerr << "before join " << m.memInfo->cid << " cpos " << m.memInfo->cpos << "\n";
-                        }
-                }
-                for (auto &l : rightHits) {
-                    auto &lclust = l.second;
-                    for (auto &clust : lclust)
-                        for (auto &m : clust.mems) {
-                            std::cerr << "before join " << m.memInfo->cid << " cpos " << m.memInfo->cpos << " len:"
-                                      << m.memInfo->memlen << "\n";
-                        }
-                }
-            }
 
             // We also handle orphans inside this function
             //if(lh && rh){
@@ -1250,68 +1233,6 @@ void processReadsPair(paired_parser *parser,
                 }
             }
 
-            /*if (mopts->noOutput) {
-                if (jointHits.size() == 1) {
-                    bool notFound = true;
-                    for (auto &qa : jointHits) {
-                        std::string refName = pfi.refName(qa.tid);
-                        std::string readName(rpair.first.name);
-                        if (readName == "") {
-                            std::cerr << "\nhappened!\n";
-                            readName = rpair.second.name;
-                        }
-                        if (foundTruth(refName, readName)) {
-                            notFound = false;
-                            break;
-                        }
-                    }
-                    if (notFound) {
-                        for (auto &qa : jointHits) {
-                            std::string refName = pfi.refName(qa.tid);
-                            std::string readName(rpair.first.name);
-                            if (readName == "") {
-                                readName = rpair.second.name;
-                            }
-                            auto &clustLeft = qa.leftClust;
-                            auto &clustRight = qa.rightClust;
-                            size_t leftNumOfIntervals{0}, rightNumOfIntervals{0}, leftRefPos{0}, rightRefPos{0};
-                            if (qa.isLeftAvailable()) {
-                                leftNumOfIntervals = clustLeft->mems.size();
-                                leftRefPos = clustLeft->getTrFirstHitPos();
-                            }
-                            if (qa.isRightAvailable()) {
-                                rightNumOfIntervals = clustRight->mems.size();
-                                rightRefPos = clustRight->getTrFirstHitPos();
-                            }
-                            std::cout << readName << '\t';
-                            std::cout << (refName) << '\t'
-                                      << qa.coverage() << '\t'
-                                      << (leftNumOfIntervals) << '\t'
-                                      << (rightNumOfIntervals) << ':';
-
-                            if (qa.isLeftAvailable()) {
-                                std::cout << (leftRefPos) << '\t';
-                                for (auto &mem: clustLeft->mems) {
-                                    std::cout << (mem.memInfo->rpos) << ','
-                                              << (mem.memInfo->memlen) << '\t';
-                                }
-                            }
-                            if (qa.isRightAvailable()) {
-                                std::cout << (rightRefPos) << '\t';
-                                for (auto &mem: clustRight->mems) {
-                                    std::cout << (mem.memInfo->rpos) << ','
-                                              << (mem.memInfo->memlen) << '\t';
-                                }
-                            }
-                            std::cout << '\n';
-                        }
-                    }
-                }
-            }*/
-
-
-
-
             // write them on cmd
             if (hctr.numReads > hctr.lastPrint + 1000000) {
                 hctr.lastPrint.store(hctr.numReads.load());
@@ -1377,13 +1298,14 @@ void processReadsSingle(single_parser *parser,
     BinWriter bstream;
     //size_t batchSize{2500} ;
     size_t readLen{0};
-    size_t totLen{0};
+    //size_t totLen{0};
 
     spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
     spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
     std::vector<util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
     util::QueryCache qc;
+    std::vector<util::MemCluster> all;
 
     //@fatemeh Initialize aligner ksw
     ksw2pp::KSW2Config config;
@@ -1399,7 +1321,7 @@ void processReadsSingle(single_parser *parser,
     while (parser->refill(rg)) {
         for (auto &read : rg) {
             readLen = read.seq.length();
-            totLen = readLen;
+            //totLen = readLen;
             bool verbose = false;
             if (verbose) std::cerr << read.name << "\n";
             ++hctr.numReads;
@@ -1418,22 +1340,17 @@ void processReadsSingle(single_parser *parser,
                     mopts->consistentHits,
                     refBlocks*/);
             (void) lh;
-            //do intersection on the basis of
-            //performance, or going towards selective alignment
-            //otherwise orphan
-            if (verbose) {
-                for (auto &l : leftHits) {
-                    auto &lclust = l.second;
-                    for (auto &clust : lclust)
-                        for (auto &m : clust.mems) {
-                            std::cerr << "before join " << m.memInfo->cid << " cpos " << m.memInfo->cpos << "\n";
-                        }
-                }
-            }
+            all.clear();
+            memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/*findBestChain*/(jointHits,
+                                                                                        all,
+                                                                                        mopts->maxSpliceGap,
+                                                                                        mopts->maxFragmentLength,
+                                                                                        verbose);
 
             // Filter left hits
-            uint32_t maxCoverage{0};
+/*            uint32_t maxCoverage{0};
             uint32_t perfectCoverage{static_cast<uint32_t>(totLen)};
+
             std::vector<std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>> validHits;
             validHits.reserve(2 * leftHits.size());
             for (auto &l : leftHits) {
@@ -1442,7 +1359,8 @@ void processReadsSingle(single_parser *parser,
                     if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage; }
                     if (clustIt->coverage >= mopts->scoreRatio * maxCoverage or clustIt->coverage == perfectCoverage) {
                         validHits.emplace_back(static_cast<uint32_t>(l.first), clustIt);
-                        /*
+                        */
+/*
                         if (read.name == "spj_1622951_1623126_68819/2") {
                           std::cerr << "\ntid" << l.first << " " << pfi.refName(l.first) << " coverage:" << clustIt->coverage << "\n";
                            for (auto& clus : lclust) {
@@ -1453,7 +1371,8 @@ void processReadsSingle(single_parser *parser,
                              std::cerr << "\n";
                              }
                         }
-                        */
+                        *//*
+
                     }
                 }
                 double thresh = mopts->scoreRatio * maxCoverage;
@@ -1472,72 +1391,46 @@ void processReadsSingle(single_parser *parser,
                                                    return static_cast<double>(e.second->coverage) < thresh;
                                                }), validHits.end());
             }
+*/
 
-            /*
-            int maxScore = std::numeric_limits<int>::min();
-            bool doTraverse = !mopts->justMap;
-            if (doTraverse) {
-              if(!jointHits.empty() && jointHits.front().coverage() < 2*readLen) {
-                for(auto& hit : jointHits){
-                  traverseGraph(rpair, hit, pfi, refSeqConstructor, contigSeqCache, aligner, verbose) ;
-                  // update minScore across all hits
-                  if(hit.leftClust->score + hit.rightClust->score > maxScore) {
-                    maxScore = hit.leftClust->score + hit.rightClust->score;
-                  }
-                }
-              }
-              else if(!jointHits.empty()){
-                maxScore = 2 * readLen * MATCH_SCORE ;
-                for(auto& jointHit : jointHits){
-                  jointHit.leftClust->score = jointHit.leftClust->coverage * MATCH_SCORE ;
-                  jointHit.rightClust->score = jointHit.rightClust->coverage * MATCH_SCORE;
-                  jointHit.leftClust->cigar = std::to_string(readLen)+"M" ;
-                  jointHit.rightClust->cigar = std::to_string(readLen)+"M" ;
-                }
-
-              }
-            }
-            */
-            hctr.totHits += validHits.size();
-            hctr.seHits += validHits.size();
-            hctr.numMapped += !validHits.empty() ? 1 : 0;
-            if (validHits.size() > hctr.maxMultimapping) {
-                hctr.maxMultimapping = validHits.size();
+            hctr.numMappedAtLeastAKmer += jointHits.size() > 0 ? 1:0;
+            hctr.totHits += jointHits.size();
+            hctr.seHits += jointHits.size();
+            hctr.numMapped += !jointHits.empty() ? 1 : 0;
+            if (jointHits.size() > hctr.maxMultimapping) {
+                hctr.maxMultimapping = jointHits.size();
             }
             std::vector<QuasiAlignment> jointAlignments;
-            for (auto &hit : validHits) {
-                // reference id
-                size_t tid = hit.first;
-                auto memIt = hit.second;
-                jointAlignments.emplace_back(tid,                   // reference id
-                                             memIt->firstRefPos(), // reference pos
-                                             memIt->isFw,          // fwd direction
-                                             readLen,               // read length
-                                             memIt->cigar,          // cigar string
-                                             readLen,               // fragment length
-                                             false);                // properly paired
-                // Fill in the mate info		         // Fill in the mate
-                // info
+            std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>> validHits;
+            for (auto &jointHit : jointHits) {
+                        jointAlignments.emplace_back(jointHit.tid,           // reference id
+                                                     jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
+                                                     jointHit.orphanClust()->isFw,     // fwd direction
+                                                     readLen, // read length
+                                                     jointHit.orphanClust()->cigar, // cigar string
+                                                     readLen,       // fragment length
+                                                     false);
                 auto &qaln = jointAlignments.back();
                 qaln.mateLen = readLen;
                 qaln.mateCigar = "";
                 qaln.matePos = 0;       // jointHit.rightClust->getTrFirstHitPos();
                 qaln.mateIsFwd = false; // jointHit.rightClust->isFw;
                 qaln.mateStatus = MateStatus::SINGLE_END;
+                validHits.emplace_back(jointHit.tid, jointHit.orphanClust());
             }
 
-            hctr.totAlignment += validHits.size();
+            hctr.totAlignment += jointHits.size();
 
             // write puffkrak format output
             if (mopts->krakOut) {
                 writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream);
             } else if (mopts->salmonOut) {
                 writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream, false);
-            } else if (validHits.size() > 0 and !mopts->noOutput) {
+            } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
                                               !mopts->noOrphan, mopts->justMap);
-            } else if (validHits.size() == 0 and !mopts->noOutput) {
+            } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
                 writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
                                                       sstream, !mopts->noOrphan,
@@ -1564,13 +1457,15 @@ void processReadsSingle(single_parser *parser,
 
         // dump output
         if (!mopts->noOutput) {
+            // Get rid of last newline
             if (mopts->krakOut || mopts->salmonOut) {
                 if (mopts->salmonOut && bstream.getBytes() > 0) {
                     BinWriter sbw(64);
                     sbw << bstream.getBytes();
-                    outQueue->info("{}", sbw);
+                    outQueue->info("{}{}", sbw, bstream);
+                }else if (mopts->krakOut) {
+                    outQueue->info("{}", bstream);
                 }
-                outQueue->info("{}", bstream);
                 bstream.clear();
             } else {
                 std::string outStr(sstream.str());

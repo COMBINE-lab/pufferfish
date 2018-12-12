@@ -317,6 +317,12 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     std::unordered_map<std::string, uint64_t> refIdMap;
     uint64_t prev = 0;
     for (uint64_t i = 0; i < refIds.size(); i++) {
+      if (refIdMap.find(refIds[i]) != refIdMap.end()) {
+        console->error("Two references with the same name but different sequences: {}. "
+                       "We require that all input records have a unique name "
+                       "up to the first whitespace character.", refIds[i]);
+        std::exit(1);
+      }
       refIdMap[refIds[i]] = i;
       refAccumLengths[i] = prev + refLengths[i];
       prev = refAccumLengths[i];

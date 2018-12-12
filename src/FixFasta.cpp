@@ -17,6 +17,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+#include <unordered_set>
 
 using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
@@ -35,6 +36,7 @@ void fixFasta(single_parser* parser,
 
   uint32_t n{0};
   std::vector<std::string> transcriptNames;
+  std::unordered_set<std::string> transcriptNameSet;
   std::map<std::string, bool> shortFlag ;
 
   std::vector<int64_t> transcriptStarts;
@@ -192,6 +194,13 @@ void fixFasta(single_parser* parser,
 
           // If there was no collision, then add the transcript
           transcriptNames.emplace_back(processedName);
+          if (transcriptNameSet.find(processedName) != transcriptNameSet.end()) {
+            log->error("In FixFasta, two references with the same name but different sequences: {}. "
+                       "We require that all input records have a unique name "
+                       "up to the first whitespace character.", processedName);
+            std::exit(1);
+          }
+          transcriptNameSet.insert(processedName);
           if(!tooShort)
               shortFlag[processedName] = false ;
           else
