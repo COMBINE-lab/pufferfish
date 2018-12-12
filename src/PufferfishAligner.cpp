@@ -430,7 +430,7 @@ int32_t PufferfishAligner::alignmentScore(std::string read, std::vector<util::Me
 	auto refAccPos = refAccumLengths[tid-1];
 	auto refTotalLength = refAccumLengths[tid] - refAccumLengths[tid-1];
 
-	auto original_read = read;
+	std::string original_read = read;
 	if ( !isFw )
 		read = util::reverseComplement(read);
 
@@ -438,36 +438,51 @@ int32_t PufferfishAligner::alignmentScore(std::string read, std::vector<util::Me
 		int score = 0;
 		currHitStart_read = mem.isFw ? mem.memInfo->rpos : read.length() - (mem.memInfo->rpos + mem.memInfo->memlen);
 		currHitStart_ref = mem.tpos;
+		if (verbose)
+			std::cerr<<"currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n";
 		if (firstMem) {
 			lastHitEnd_ref = currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
 		}
 		// To work around a possible bug in the chaining algorithm, next kmer match occuring earlier
 		// Example -> CGGGCATGGTGGCTCACACCTGTAATCCCAGCACTTTGGGAGGCCAAGGTGGGTGGATCATGAGGTCAGGAATTCGAGAATAGCCTGGCCAACATGGTGA
 		if (currHitStart_read < lastHitEnd_read - k and !firstMem) {
+			break;
 			//std::cerr<< "tid" <<tid << "\n";
 			//std::cerr<<original_read<<"\n";
 		}
 		// To work around a possible bug in the chaining algorithm, next kmer match far from the current match
 		// Example -> GATGCAGTGGCTCATGCCTGTAATCCCAGCACTTTGGGAGGCCAAGGCAGGCAGATCACTTGAGATCAGGAGTTCGAGACAAGCCTGGCTAAAATGGTGA
 		if (currHitStart_ref > lastHitEnd_ref + read.length()){
+			break;
 			//std::cerr<< "tid" <<tid << "\n";
 			//std::cerr<<original_read<<"\n\n";
 		}
 
 			// Performing full alignment to validate the socres
-		if (firstMem) {
-			auto refStart = mem.tpos; //lastHitEnd_ref + 1; // currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read : 0;
+		if (verbose and firstMem) {
+			//auto refStart = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read : currHitStart_ref; // mem.tpos
+			uint32_t refStart, readStart;
+			if ( currHitStart_ref > currHitStart_read) {
+				refStart = currHitStart_ref - currHitStart_read;
+				readStart = 0;
+			} else if (currHitStart_ref < currHitStart_read) {
+				readStart = currHitStart_read - currHitStart_ref;
+				refStart = 0;
+			} else{
+				readStart = currHitStart_read;
+				refStart = currHitStart_ref;
+			}
 			auto refLength = (refStart + read.length()*2 < refTotalLength ) ? read.length()*2 : refTotalLength - refStart;
-			auto refSeq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
-
 			// SOFT CLIPPING for alignment
-			auto readStart = refStart > 0  ? 0 : currHitStart_read - currHitStart_ref;
-			auto readSeq = read; //readStart > 0 ? extractReadSeq(read, readStart, read.length(), 1) : read;
+			//auto readStart = currHitStart_ref > 0  ? 0 : currHitStart_read;
+			
+			auto refSeq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
+			auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, read.length(), 1) : read;
 			aligner(readSeq.c_str(), readSeq.length(), refSeq.c_str(), refSeq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>() );
 			alignment = std::max(ez.mqe, ez.mte);
 			if (verbose) {
 				std::cerr << "Original read seq:\t" << original_read << "\n";
-				std::cerr << "Total alignment with the score\t"<< alignment <<"\t from position\t" << currHitStart_read << "\t on the read:\n" << readSeq <<"\n";
+				std::cerr << "Total alignment with the score\t"<< alignment <<"\t from position\t" << readStart << "\t on the read:\n" << readSeq <<"\n";
 				std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n" << refSeq << "\n";
 				for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
 						printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
@@ -582,10 +597,9 @@ int32_t PufferfishAligner::alignmentScore(std::string read, std::vector<util::Me
 	}
 	if (verbose)
 		std::cerr<<"alignmentScore\t"<<alignmentScore<< "\talignmment\t" << alignment <<"\n";
-	/*if (alignmentScore<0){
-		std::cerr<< tid << "\n";
-		std::cerr<<alignmentScore<<"\n";
-	}*/
+	//if (alignment<0 and alignmentScore>100)
+	//	std::cerr<< tid << "\t" << alignment<< "\t" <<alignmentScore<<"\n"<<original_read<< "\n\n";
+	
 	return alignmentScore;
 }
 
@@ -594,13 +608,12 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 	double optFrac{mopts->minScoreFraction};
 
 	if (jointHit.isOrphan()) {
-		//if (verbose)
-		//	std::cerr<<"orphan\n";
-
+		if (verbose)
+			std::cerr<<"orphan\n";
 		int32_t maxScore = mopts->matchScore * read_left.length();
-		//auto score = alignmentScore(read_left, jointHit.orphanClust()->mems, jointHit.orphanClust()->isFw, tid, alnCacheLeft, verbose);
-		//jointHit.orphanClust()->coverage = score > (optFrac * maxScore) ? score : std::numeric_limits<decltype(score)>::min();
-		return 0;//jointHit.orphanClust()->coverage;
+		auto score = alignmentScore(read_left, jointHit.orphanClust()->mems, jointHit.orphanClust()->isFw, tid, alnCacheLeft, verbose);
+		jointHit.orphanClust()->coverage = score > (optFrac * maxScore) ? score : std::numeric_limits<decltype(score)>::min();
+		return jointHit.orphanClust()->coverage;
 	}
 	else {
 		int32_t maxLeftScore = mopts->matchScore * read_left.length();
@@ -610,7 +623,7 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		auto score_left = alignmentScore(read_left, jointHit.leftClust->mems, jointHit.leftClust->isFw, tid, alnCacheLeft, verbose);
 		if (verbose)
 			std::cerr<<"right\n";
-		auto score_right = 0;//alignmentScore(read_right, jointHit.rightClust->mems, jointHit.rightClust->isFw, tid, alnCacheRight, verbose);
+		auto score_right = alignmentScore(read_right, jointHit.rightClust->mems, jointHit.rightClust->isFw, tid, alnCacheRight, verbose);
 		jointHit.leftClust->coverage = score_left > (optFrac * maxLeftScore) ? score_left : std::numeric_limits<decltype(score_left)>::min();
 		jointHit.rightClust->coverage = score_right > (optFrac * maxRightScore) ? score_right : std::numeric_limits<decltype(score_right)>::min();
 		auto total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
@@ -1013,9 +1026,9 @@ void processReadsPair(paired_parser *parser,
         for (auto &rpair : rg) {
             readLen = rpair.first.seq.length();
             //totLen = readLen + rpair.second.seq.length();
-            //bool verbose = false;
-			bool verbose = (rpair.first.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC" or
-							rpair.second.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC");
+            bool verbose = false;
+			//bool verbose = (rpair.first.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC" or
+			//				rpair.second.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC");
 			if (verbose) std::cerr << rpair.first.name << "\n";
             //std::cerr << "read: " << rpair.first.name << "\n\n";
 
@@ -1128,9 +1141,8 @@ void processReadsPair(paired_parser *parser,
 			size_t idx{0};
 
             for (auto &jointHit : jointHits) {
-				bool verbose = (rpair.first.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC" or
-								rpair.second.seq == "AAAATGTGAAGGCCAAGATCCAAGATAAAGAAGGCATCCCCCCCGACCAGCAGAGGCTCATCTTTGCAGGCAAGCAGCTGGAAGATGGCCGCACTCTTTC") and
-										jointHit.tid == 72542;
+				// chaining bug bool verbose = rpair.first.seq == "CCAGCAGAGAGTAGTGACACAGGAGTTCTGGAGGGCTGTGCCGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCA" and jointHit.tid==17815;
+				//bool verbose = rpair.first.seq == "CCATTTTATTTTATTTTATTTTATTTTATTTTNTTTTATTTTATTTTTGAGAAAGGGTCTCACTCTGTCACCCAGGCTGAAGTGCAGTGGTGCCATCATA" and jointHit.tid == 25088;
 				auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, verbose);
 				scores[idx] = hitScore;
 				++idx;
