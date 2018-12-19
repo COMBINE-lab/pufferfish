@@ -38,6 +38,7 @@ public:
 	};
 	int32_t calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, bool verbose);
 	int32_t alignmentScore(std::string read, std::vector<util::MemInfo> mems, bool isFw, size_t tid, AlnCacheMap& alnCache, bool verbose);
+	void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
 private:
 	sdsl::int_vector<2>& allRefSeq;
 	std::vector<uint64_t>& refAccumLengths;
