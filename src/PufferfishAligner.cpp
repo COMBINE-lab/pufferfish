@@ -631,8 +631,8 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		if (verbose)
 			std::cerr<<"right\n";
 		auto score_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->isFw, tid, alnCacheRight, verbose);
-		jointHit.leftClust->coverage = score_left > (optFrac * maxLeftScore) ? score_left : std::numeric_limits<decltype(score_left)>::min();
-		jointHit.rightClust->coverage = score_right > (optFrac * maxRightScore) ? score_right : std::numeric_limits<decltype(score_right)>::min();
+		jointHit.leftClust->coverage = score_left;// score_left > (optFrac * maxLeftScore) ? score_left : std::numeric_limits<decltype(score_left)>::min();
+		jointHit.rightClust->coverage = score_right;//score_right > (optFrac * maxRightScore) ? score_right : std::numeric_limits<decltype(score_right)>::min();
 		auto total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
 		if (total_score < 0) {
 			//std::cerr<< jointHit.coverage() << "\t" << jointHit.leftClust->coverage << "\t" << jointHit.rightClust->coverage << "\n";
@@ -1076,11 +1076,14 @@ void processReadsPair(paired_parser *parser,
                     refBlocks*/);
 
             all.clear();
+
+			//verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
             memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/*findBestChain*/(jointHits,
                                                                                         all,
                                                                                         mopts->maxSpliceGap,
                                                                                         mopts->maxFragmentLength,
                                                                                         verbose);
+
             hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0; //(leftHits.size() || rightHits.size()) ? 1 : 0;
             //do intersection on the basis of
             //performance, or going towards selective alignment
@@ -1126,13 +1129,14 @@ void processReadsPair(paired_parser *parser,
 					//bool verbose = (rpair.first.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA" or
 					//			   rpair.second.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA") and
 					//				jointHit.tid == 44366;
-					//bool verbose = true;
+					//bool verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
 					auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, verbose);
 					if (hitScore < 0)
 						hitScore = std::numeric_limits<int32_t>::min();
 					scores[idx] = hitScore;
 					++idx;
 					bestScore = (hitScore > bestScore) ? hitScore : bestScore;
+				
 					if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
 						std::vector<int32_t> coverage_hit;
 						transcript_set[jointHit.tid] = coverage_hit;
@@ -1173,7 +1177,11 @@ void processReadsPair(paired_parser *parser,
 					jointHits.clear();
             	}
 
-			}	
+			}
+	        //if (mopts->salmonUnmapped.find(rpair.first.name) == mopts->salmonUnmapped.end()) {
+            //	jointHits.clear();
+	        //} else {
+         	//} 
 
 			hctr.totHits += jointHits.size();
             hctr.peHits += jointHits.size();
@@ -1189,10 +1197,11 @@ void processReadsPair(paired_parser *parser,
             if (jointHits.size() > hctr.maxMultimapping) {
                 hctr.maxMultimapping = jointHits.size();
             }
-
+			bool found = false;
 			for (auto &jointHit : jointHits) {
-				//if (rpair.first.name.find(txpNames[jointHit.tid]) != std::string::npos){
-				//std::cout<<"#" << rpair.first.name << "\t" << txpNames[jointHit.tid] << "\n";
+				//if (verbose){//rpair.first.name.find(txpNames[jointHit.tid]) != std::string::npos){
+				//	hctr.validHits++;
+				//	std::cout<<"#" << rpair.first.name << "\t" << txpNames[jointHit.tid] << "\t" << jointHit.coverage() <<"\n";
 				//}
 					
                 // FIXME : This part needs to be taken care of
@@ -1671,6 +1680,7 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("Total # of orphans : {}", hctrs.numOfOrphans);
     consoleLog->info("Total # of pe hits : {}", hctrs.peHits);
     consoleLog->info("Total # of total Hits : {}", hctrs.totHits);
+    //consoleLog->info("Total # of valid hits : {}", hctrs.validHits);
     consoleLog->info("Max multimapping group : {}", hctrs.maxMultimapping);
     consoleLog->info("=====");
 }
@@ -1685,7 +1695,7 @@ bool alignReads(
 	std::ifstream unmapped;
 	//unmapped.open("/mnt/scratch4/mohsen/puffalign_test/quants/polyester_0.001/salmon_puf_single_noChange/aux_info/unmapped_names.txt");
 	//unmapped.open("/mnt/scratch4/mohsen/puffalign_test/allMappings_strict_Equal_mohsen");
-	unmapped.open("/mnt/scratch4/mohsen/puffalign_test/allMappings_equal_noExtraFilter");
+	unmapped.open("/mnt/scratch4/mohsen/puffalign_test/allMappings_equal_pe");
  	while (!unmapped.eof()) {
     	unmapped >> output;
 		mopts->salmonUnmapped.insert(output);
