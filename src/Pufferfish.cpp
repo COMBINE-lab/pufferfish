@@ -128,6 +128,12 @@ int main(int argc, char* argv[]) {
                     |
                     (option("-s", "--salmon").set(alignmentOpt.salmonOut, true)) % "write output in the format required for salmon"
                     ),
+					(option("--verbose").set(alignmentOpt.verbose, true) % "print out auxilary information to trace program's flow"
+					),
+					(option("--validateMappings").set(alignmentOpt.validateMappings, true) % "calculate alignment scores to filter spurious mappings"
+                    ),
+					(option("--strictFilter").set(alignmentOpt.strictFilter, true) % "keep only the hits with best score for each read"
+					),
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "minScoreFraction"
                     );
 
