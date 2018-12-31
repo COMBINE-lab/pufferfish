@@ -554,10 +554,10 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 					std::cerr<<"+";
 				std::cerr<<" end gap alignments\n";
 			}
-		} 
+		}
 		
 		score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (currHitStart_ref + mem.memInfo->memlen - lastHitEnd_ref - 1) : mopts->matchScore * mem.memInfo->memlen;
-		if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read) {
+		if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
 			alignmentScore += score;
 			if ( verbose ) {
 				auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + mem.memInfo->memlen, 1);
@@ -571,7 +571,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 			int32_t penalty = -mopts->gapOpenPenalty - mopts->gapExtendPenalty*(gapLength-1);
 			score += penalty - gapLength*mopts->matchScore;
 			if (verbose){
-				std::cerr<<"penalty" << penalty << "\n";
+				std::cerr<<"penalty\t" << penalty << "\n";
 				auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + mem.memInfo->memlen, 1);
 				std::string refSeq = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, mem.memInfo->memlen);
 				std::cerr<<"read from "<<currHitStart_read<< "\t with the sequence \n"<<readSeq<<"\n";
@@ -1077,7 +1077,7 @@ void processReadsPair(paired_parser *parser,
 
             all.clear();
 
-			//verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
+			//First one 302 verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
             memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/*findBestChain*/(jointHits,
                                                                                         all,
                                                                                         mopts->maxSpliceGap,
@@ -1199,8 +1199,8 @@ void processReadsPair(paired_parser *parser,
             }
 			bool found = false;
 			for (auto &jointHit : jointHits) {
-				//if (verbose){//rpair.first.name.find(txpNames[jointHit.tid]) != std::string::npos){
-				//	hctr.validHits++;
+				//if (rpair.first.name.find(txpNames[jointHit.tid]) != std::string::npos){
+				//:	hctr.validHits++;
 				//	std::cout<<"#" << rpair.first.name << "\t" << txpNames[jointHit.tid] << "\t" << jointHit.coverage() <<"\n";
 				//}
 					
