@@ -69,7 +69,8 @@ set(pufferfish_lib_srcs
 		xxhash.c
 		PufferfishAligner.cpp
     #edlib.cpp
-	RefSeqConstructor.cpp
+		RefSeqConstructor.cpp
+		${PROJECT_SOURCE_DIR}/src/metro/metrohash64.cpp
 		)
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})

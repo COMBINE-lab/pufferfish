@@ -300,7 +300,7 @@ public:
     while (stillMatch and
            (cCurrPos < cEndPos) and
            (cCurrPos > cStartPos) and
-           readSeqOffset < readSeqLen) { // over kmers in contig
+           readSeqOffset < readSeqLen) { 
 
       if (hit.contigOrientation_) { // if fw match, compare read last base with
                                     // contig first base and move fw in the
@@ -399,6 +399,7 @@ public:
 
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
+
       skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
@@ -406,7 +407,9 @@ public:
         // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
         size_t readPosOld = kit1->second ;
         expandHitEfficient(phits, kit1, et, verbose);
+
         rawHits.push_back(std::make_pair(readPosOld, phits));
+				
         basesSinceLastHit = 1;
         skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
         kit1 += (skip-1);
@@ -472,9 +475,9 @@ public:
 
     void findOptChainAllowingOneJumpBetweenTheReadEnds(std::vector<util::JointMems> &jointHits,
                                                        std::vector<util::MemCluster> &all,
-                                                       uint32_t maxSpliceGap, uint32_t maxFragmentLength,
+                                                       uint32_t maxSpliceGap, uint32_t maxFragmentLength, uint32_t readLen,
                                                        bool verbose) {
-      mc.findOptChainAllowingOneJumpBetweenTheReadEnds(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength,
+      mc.findOptChainAllowingOneJumpBetweenTheReadEnds(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength, pfi_, readLen,
                                                        verbose);
     }
 

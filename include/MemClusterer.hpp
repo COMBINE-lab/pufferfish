@@ -543,7 +543,7 @@ public:
         return true;
     }
 
-		//template<typename PufferfishIndexT>
+		template<typename PufferfishIndexT>
     bool
     findOptChainAllowingOneJumpBetweenTheReadEnds(
             std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
@@ -551,7 +551,8 @@ public:
             std::vector<util::MemCluster> &all,
             uint32_t maxSpliceGap,
             uint32_t maxFragmentLength,
-						//PufferfishIndexT* pfi_,
+						PufferfishIndexT* pfi_,
+						uint32_t readLen,
             bool verbose = false) {
         if (verbose)
             std::cerr << "\n[START OF FIND_OPT_CHAIN]\n";
@@ -810,8 +811,15 @@ public:
                         //FIXME take care of the left and right coverage/score separately!!
 												if (verbose)
 													std::cerr<< "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n"; 
+
+												if (lclust->coverage == readLen) {
+													lclust->perfectChain = true;
+												}
+												if (rclust->coverage == readLen)
+													rclust->perfectChain = true;
                         lclust->coverage = bestScore / 2.0;
                         rclust->coverage = bestScore / 2.0;
+																								
 
                         if (bestScore > globalScore) {
                             globalScore = bestScore;
@@ -837,7 +845,7 @@ public:
                         if (!rclust->mems.empty() and !lclust->mems.empty() and
                             fragmentLen < maxFragmentLength) {
 														if(verbose) {
-															std::cerr<< "fragmentLen\t" << fragmentLen << "\t" << maxFragmentLength <<"\n"<< "tid\t" << tid << lclust->coverage << "\t" << rclust->coverage << "\n"; 
+															std::cerr<< "fragmentLen\t" << fragmentLen << "\t" << maxFragmentLength <<"\n"<< "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n"; 
 														}
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                         } else {
@@ -880,9 +888,9 @@ public:
         }
         bool hasOnePaired = false;
         jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                           [&globalScore, &hasOnePaired](util::JointMems &pairedReadMems) -> bool {
-																							 //if (verbose)
-																							 //	std::cerr<< "globalScore\t" << globalScore << "\tpairedReadMems.coverage()\t" << pairedReadMems.coverage() <<"\trefName\t"<< pfi_->refName(pairedReadMems.tid) << "\t" << pairedReadMems.tid<< "\n";
+                                           [&globalScore, &hasOnePaired, &pfi_, &verbose](util::JointMems &pairedReadMems) -> bool {
+																							 if (verbose)
+																							 		std::cerr<< "globalScore\t" << globalScore << "\tpairedReadMems.coverage()\t" << pairedReadMems.coverage() <<"\trefName\t"<< pfi_->refName(pairedReadMems.tid) << "\t" << pairedReadMems.tid<< "\n";
                                                if (pairedReadMems.coverage() >= (globalScore - 0.01)/2 and
                                                    pairedReadMems.mateStatus == util::MateStatus::PAIRED_END_PAIRED)
                                                    hasOnePaired = true;
