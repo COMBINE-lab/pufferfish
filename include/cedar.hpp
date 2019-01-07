@@ -32,16 +32,7 @@ class Cedar {
                  double eps,
                  std::string& output_filename,
                  bool onlyUniq,
-                 bool onlyPerf) {
-                    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf);
-                    basicEM(maxIter, eps);
-                    if (!flatAbund) {
-                        serialize(output_filename);
-                    } else {
-                        serializeFlat(output_filename);
-                    }
-                    //std::cout << "I guess that's it\n";
-                 };
+                 bool onlyPerf);
     private:
         bool readHeader(std::ifstream& mfile);
         void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance, bool onlyUniq, bool onlyPerfect);

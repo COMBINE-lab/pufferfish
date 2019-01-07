@@ -969,7 +969,7 @@ void processReadsPair(paired_parser *parser,
     fmt::MemoryWriter sstream;
     BinWriter bstream;
     //size_t batchSize{2500} ;
-    size_t readLen{0};
+    size_t readLen{0}, mateLen{0};
     //size_t totLen{0};
 
     spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
@@ -997,6 +997,7 @@ void processReadsPair(paired_parser *parser,
     while (parser->refill(rg)) {
         for (auto &rpair : rg) {
             readLen = rpair.first.seq.length();
+            mateLen = rpair.second.seq.length();
             //totLen = readLen + rpair.second.seq.length();
             bool verbose = false;
 //            bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
@@ -1092,7 +1093,7 @@ void processReadsPair(paired_parser *parser,
 			int32_t bestScore = std::numeric_limits<int32_t>::min() ;
 			std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
 			size_t idx{0};
-            for (auto &jointHit : jointHits) {
+            /*for (auto &jointHit : jointHits) {
 				auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, false);
 				scores[idx] = hitScore;
 				++idx;
@@ -1115,7 +1116,7 @@ void processReadsPair(paired_parser *parser,
             } else {
 				// There is no alignment with high quality for this read, so we skip this reads' alignments
 				continue;
-            }
+            }*/
 
 			for (auto &jointHit : jointHits) {
                 // FIXME : This part needs to be taken care of
@@ -1172,7 +1173,7 @@ void processReadsPair(paired_parser *parser,
                                                      true);         // properly paired
                         // Fill in the mate info
                         auto &qaln = jointAlignments.back();
-						qaln.mateLen = readLen;
+						qaln.mateLen = mateLen;
 						qaln.mateCigar = jointHit.rightClust->cigar;
 						qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
 						qaln.mateIsFwd = jointHit.rightClust->isFw;

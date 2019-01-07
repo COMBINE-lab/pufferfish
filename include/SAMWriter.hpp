@@ -501,8 +501,8 @@ inline uint32_t writeAlignmentsToStreamSingle(
       if (alnCtr != 0) {
         flags1 |= 0x100;
       }
-
-      adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1);
+      int tmp=0;
+      adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1, tmp);
 
       // Reverse complement the read and reverse
       // the quality string if we need to
@@ -709,9 +709,9 @@ inline uint32_t writeAlignmentsToStream(
       std::string* unalignedName{nullptr} ;
       std::string* readTemp{nullptr} ;
 
-      auto& cigarStr = formatter.cigarStr1;
-      cigarStr.clear();
-      cigarStr.write("{}M", r.first.seq.length());
+      auto* cigarStr = &formatter.cigarStr1;
+      cigarStr->clear();
+      cigarStr->write("{}M", r.first.seq.length());
 
       //logic for assigning orphans
       if(qa.mateStatus == util::MateStatus::PAIRED_END_LEFT){ //left read
@@ -727,6 +727,9 @@ inline uint32_t writeAlignmentsToStream(
         haveRev = &haveRev1 ;
         readTemp = &read1Temp ;
       } else {
+        cigarStr = &formatter.cigarStr2;
+        cigarStr->clear();
+        cigarStr->write("{}M", r.second.seq.length());
         alignedName = &mateName ;
         unalignedName = &readName ;
 
@@ -769,7 +772,7 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
+              << (justMappings ? (*cigarStr).c_str() : qa.cigar) << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << /* qa.matePos */ qa.pos + 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN

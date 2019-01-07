@@ -130,6 +130,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     //size_t numCorrectHits{0};
     size_t numMapped{0};
     bool wasMapped = false;
+    //std::unordered_set<std::string> readset;
     //size_t gid{0};
     //bool foundTruth = false;
     // std::ofstream covDist("uniqCovDist.txt");
@@ -156,18 +157,23 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
         readPerStrainProbInst.reserve(readInfo.cnt);
         bool isConflicting = true;
         if (readInfo.cnt != 0) {
-            //std::cout << "read len " << readInfo.len << "\n";
+            /*readset.insert(readInfo.rid);
+            if (readInfo.cnt > 1) {
+//                std::cerr << readInfo.rid << " cnt " << readInfo.cnt << "\n";
+                totalMultiMappedReads++;
+            }*/
             if (!wasMapped) { wasMapped = true; ++numMapped; }
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
             for (auto& mapping : readInfo.mappings) {
+                //std::cerr << mapping.getId() << " " << mappings.refName(mapping.getId()) << "\n";
                 // first condition: Ignore those references that we don't have a
                 // taxaId for 
                 // second condition: Ignore repeated exactly identical
                 // mappings (FIXME thing)
                 // note: Fatemeh!! don't change the or and and again!!
                 // if we are on flatAbund, we want to count for multiple occurence of a reference
-                if( (flatAbund or 
+                if( (flatAbund or
                      (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) 
                   and
                   activeTaxa.find(mapping.getId()) == activeTaxa.end()) {
@@ -199,7 +205,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     }
                     readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
-                    
+
                     /* notMappedReadsFile  << readInfo.rid << "\t" 
                                         << mappings.refName(mapping.getId()) 
                                         << "\t" << mapping.getScore() << "\n"; */
@@ -215,7 +221,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 else {
                    // std::cerr << mappings.refName(mapping.getId()) << "\n";
                 }
-            } 
+            }
             if (activeTaxa.size() == 0) {
                 seqNotFound++;
             } else if ( (!onlyUniq and !onlyPerfect) 
@@ -264,9 +270,10 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 totalUnmappedReads++;
         }
     }
+    //logger->info("Total # of unique reads: {}", readset.size());
     //notMappedReadsFile.close();
     logger->info("Total # of conflicting reads reported: {}", conflicting); 
-    logger->info("Total # of multimapped reads: {}", totalMultiMappedReads);
+    //logger->info("Total # of multimapped reads: {}", totalMultiMappedReads);
     if (requireConcordance)
         logger->info("Discarded {} discordant mappings.", discordantMappings);
 }
@@ -430,6 +437,25 @@ void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
             << "\t" << abund << "\n";
     }
     ofile.close();
+}
+
+template<class ReaderType>
+void Cedar<ReaderType>::run(std::string mapperOutput_filename,
+         bool requireConcordance,
+         size_t maxIter,
+         double eps,
+         std::string& output_filename,
+         bool onlyUniq,
+         bool onlyPerf) {
+    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf);
+    basicEM(maxIter, eps);
+    logger->info("serialize to ", output_filename);
+    if (!flatAbund) {
+        serialize(output_filename);
+    } else {
+        serializeFlat(output_filename);
+    }
+    //std::cout << "I guess that's it\n";
 }
 
 template class Cedar<PuffMappingReader>;
