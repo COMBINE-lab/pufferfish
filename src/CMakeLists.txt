@@ -66,11 +66,12 @@ set(pufferfish_lib_srcs
     FastxParser.cpp 
     PufferfishGFAReader.cpp 
     PufferFS.cpp
-		xxhash.c
-		PufferfishAligner.cpp
+	xxhash.c
+	PufferfishAligner.cpp
     #edlib.cpp
 	RefSeqConstructor.cpp
-		)
+	metro/metrohash64.cpp
+	)
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 

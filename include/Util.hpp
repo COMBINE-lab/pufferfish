@@ -253,6 +253,7 @@ enum class MateStatus : uint8_t {
     std::vector<std::pair<std::string,std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
     int score ;
     std::string cigar ;
+	bool perfectChain = false;
     //bool isValid = true;
     MemCluster(bool isFwIn): isFw(isFwIn) {}
     /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {

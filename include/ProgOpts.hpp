@@ -58,7 +58,10 @@ public:
   bool noDiscordant{false};
   bool noOrphan{false};
   bool compressedOutput{false};
+  bool verbose{false};
 
+  bool validateMappings{false};
+  bool strictFilter{false};
   int32_t gapOpenPenalty{5};
   int32_t gapExtendPenalty{3};
   int32_t matchScore{2};

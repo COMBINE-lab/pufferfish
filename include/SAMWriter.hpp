@@ -501,8 +501,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
       if (alnCtr != 0) {
         flags1 |= 0x100;
       }
-      int tmp=0;
-      adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1, tmp);
+      adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1);
 
       // Reverse complement the read and reverse
       // the quality string if we need to

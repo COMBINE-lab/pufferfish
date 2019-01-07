@@ -543,6 +543,7 @@ public:
         return true;
     }
 
+		template<typename PufferfishIndexT>
     bool
     findOptChainAllowingOneJumpBetweenTheReadEnds(
             std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
@@ -550,6 +551,9 @@ public:
             std::vector<util::MemCluster> &all,
             uint32_t maxSpliceGap,
             uint32_t maxFragmentLength,
+						PufferfishIndexT* pfi_,
+						uint32_t readLenLeft,
+            uint32_t readLenRight,
             bool verbose = false) {
         if (verbose)
             std::cerr << "\n[START OF FIND_OPT_CHAIN]\n";
@@ -584,7 +588,7 @@ public:
                 std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
                 for (auto &m : memList) {
                     std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
-                              << "\n";
+                              << " ori:" << m.isFw  <<  " re:" << m.memInfo->readEnd << "\n";
                 }
             }
 
@@ -610,7 +614,7 @@ public:
                     return penalty *
                            std::min(0.01 * avgseed * al, static_cast<double>(fastlog2(static_cast<float>(al))));
                 }
-                if (!sameOrientation or (qdiff < 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap))) {
+                if (!sameOrientation or (qdiff <= 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap))) {
                     return std::numeric_limits<double>::infinity();
                 }
                 double l = qdiff - rdiff;
@@ -644,9 +648,11 @@ public:
                 (void) numRounds;
                 for (int32_t j = i - 1; j >= 0; --j) {
                     if (verbose) {
-                        std::cerr << "before " << i << " " << j <<
+                        std::cerr << i << " " << j <<
                                   " f[i]:" << f[i] << " f[j]:" << f[j] <<
-                                  " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j];
+                                  " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j] <<
+                                  " p[i]:" << p[i] << " p[j]:" << p[j] <<
+                                  " pswitch[i]:" << pswitch[i] << " pswitch[j]:" << pswitch[j] << " --> ";
                     }
                     auto &hj = memList[j];
 
@@ -693,10 +699,13 @@ public:
                         fswitch[i] = extendWithJ ? extensionScore : fswitch[i];
                     }
                     if (verbose) {
-                        std::cerr /*<< i << " " << j */<<
-                                                       " f[i]:" << f[i] << " f[j]:" << f[j] <<
-                                                       " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j]
+                        std::cerr <<
+                                                       "f[i]:" << f[i] << " f[j]:" << f[j] <<
+                                                       " fswitch[i]:" << fswitch[i] << " fswitch[j]:" << fswitch[j] <<
+                                                        " p[i]:" << p[i] << " p[j]:" << p[j] <<
+                                                        " pswitch[i]:" << pswitch[i] << " pswitch[j]:" << pswitch[j]
                                                        << "\n" <<
+                                                       "extensionScore:" << extensionScore <<
                                                        " sameRead:"
                                                        << (uint32_t) (hi.memInfo->readEnd == hj.memInfo->readEnd) <<
                                                        " ori:" << (uint32_t) hi.isFw << " sameOri:"
@@ -736,6 +745,8 @@ public:
                 if (fswitch[i] > f[i]) {
                     curScore = fswitch[i];
                 }
+								//MOHSEN FIX BUG FOR paired end reads of size 100
+								//if (curScore > 200) curScore=0;
                 if (curScore > bestScore) {
                     bestScore = curScore;
                     //bestChainEnd = i;
@@ -799,8 +810,17 @@ public:
                         }
 
                         //FIXME take care of the left and right coverage/score separately!!
+												if (verbose)
+													std::cerr<< "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n"; 
+
+												if (lclust->coverage == readLenLeft) {
+													lclust->perfectChain = true;
+												}
+												if (rclust->coverage == readLenRight)
+													rclust->perfectChain = true;
                         lclust->coverage = bestScore / 2.0;
                         rclust->coverage = bestScore / 2.0;
+																								
 
                         if (bestScore > globalScore) {
                             globalScore = bestScore;
@@ -825,6 +845,9 @@ public:
                         }
                         if (!rclust->mems.empty() and !lclust->mems.empty() and
                             fragmentLen < maxFragmentLength) {
+														if(verbose) {
+															std::cerr<< "fragmentLen\t" << fragmentLen << "\t" << maxFragmentLength <<"\n"<< "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n"; 
+														}
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                         } else {
 //                            std::cerr << "in else\n";
@@ -866,11 +889,13 @@ public:
         }
         bool hasOnePaired = false;
         jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                           [&globalScore, &hasOnePaired](util::JointMems &pairedReadMems) -> bool {
-                                               if (pairedReadMems.coverage() >= (globalScore - 0.01) and
+                                           [&globalScore, &hasOnePaired, &pfi_, &verbose](util::JointMems &pairedReadMems) -> bool {
+																							 if (verbose)
+																							 		std::cerr<< "globalScore\t" << globalScore << "\tpairedReadMems.coverage()\t" << pairedReadMems.coverage() <<"\trefName\t"<< pfi_->refName(pairedReadMems.tid) << "\t" << pairedReadMems.tid<< "\n";
+                                               if (pairedReadMems.coverage() >= (globalScore - 0.01)/2 and
                                                    pairedReadMems.mateStatus == util::MateStatus::PAIRED_END_PAIRED)
                                                    hasOnePaired = true;
-                                               return pairedReadMems.coverage() < (globalScore - 0.01);
+                                               return pairedReadMems.coverage() < (globalScore - 0.01)/2;
                                            }),
                             jointMemsList.end());
         if (hasOnePaired) {

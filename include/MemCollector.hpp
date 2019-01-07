@@ -276,10 +276,6 @@ public:
 			    ExpansionTerminationType& et,
                             bool verbose=false) {
 
-    if(verbose){
-      std::cerr <<"\nBefore cpos " << hit.contigPos_ << "\n" ;
-    }
-
     auto& allContigs = pfi_->getSeq();
     // startPos points to the next kmer in contig (which can be the left or
     // right based on the orientation of match)
@@ -304,7 +300,7 @@ public:
     while (stillMatch and
            (cCurrPos < cEndPos) and
            (cCurrPos > cStartPos) and
-           readSeqOffset < readSeqLen) { // over kmers in contig
+           readSeqOffset < readSeqLen) { 
 
       if (hit.contigOrientation_) { // if fw match, compare read last base with
                                     // contig first base and move fw in the
@@ -380,6 +376,10 @@ public:
     CanonicalKmer::k(k);
     pufferfish::CanonicalKmerIterator kit_end;
     pufferfish::CanonicalKmerIterator kit1(read);
+    if (verbose) {
+      std::cerr << "ORIGINAL READ:\n";
+      std::cerr << read << "\n";
+    }
 
     /**
      *  Testing heuristic.  If we just succesfully matched a k-mer, and extended it to a uni-MEM, then
@@ -399,6 +399,7 @@ public:
 
     while (kit1 != kit_end) {
       auto phits = pfi_->getRefPos(kit1->first, qc);
+
       skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
       if (!phits.empty()) {
         // kit1 gets updated inside expandHitEfficient function
@@ -406,7 +407,9 @@ public:
         // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
         size_t readPosOld = kit1->second ;
         expandHitEfficient(phits, kit1, et, verbose);
+
         rawHits.push_back(std::make_pair(readPosOld, phits));
+				
         basesSinceLastHit = 1;
         skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
         kit1 += (skip-1);
@@ -429,32 +432,33 @@ public:
       &memCollectionRight : &memCollectionLeft;
     if (rawHits.size() > 0) {
       if (mateStatus == util::MateStatus::PAIRED_END_LEFT)
-        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT);
+        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT, verbose);
       else
-        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT);
+        mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT, verbose);
 
 //      mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
 //      mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
       if (verbose) {
         std::cerr << "lets see what we have\n";
-        for (auto kv : memClusters) {
+        for (auto kv : trMemMap) {
           
-        std::cerr <<"tid:" <<  kv.first << "\n";
-          for (auto clust : kv.second) {
-            auto lclust = &clust;
+        std::cerr <<"tid:" <<  kv.first.first << "\n";
+          for (auto mem : kv.second) {
+            //auto lclust = &clust;
 
-            std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-            for (size_t i = 0; i < lclust->mems.size(); i++) {
-              std::cerr << "--- t" << lclust->mems[i].tpos << " r"
-                        << lclust->mems[i].memInfo->rpos << " cid:"
-                        << lclust->mems[i].memInfo->cid << " cpos: "
-                        << lclust->mems[i].memInfo->cpos << " len:"
-                        << lclust->mems[i].memInfo->memlen << " fw:"
-                        << lclust->mems[i].memInfo->cIsFw << "\n";
-            }
+            //std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
+            //for (size_t i = 0; i < lclust->mems.size(); i++) {
+              std::cerr << "--- t" << mem.tpos << " r"
+                        << mem.memInfo->rpos << " cid:"
+                        << mem.memInfo->cid << " cpos: "
+                        << mem.memInfo->cpos << " len:"
+                        << mem.memInfo->memlen << " re:"
+                        << mem.memInfo->readEnd << " fw:"
+                        << mem.isFw << "\n";
+						std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
+            //}
           }
         }
-
       }
       /*recoverGaps(memClusters, *memCollection, read.length(), verbose );*/
       
@@ -472,8 +476,12 @@ public:
     void findOptChainAllowingOneJumpBetweenTheReadEnds(std::vector<util::JointMems> &jointHits,
                                                        std::vector<util::MemCluster> &all,
                                                        uint32_t maxSpliceGap, uint32_t maxFragmentLength,
+                                                       uint32_t readLenLeft,
+                                                       uint32_t readLenRight,
                                                        bool verbose) {
-      mc.findOptChainAllowingOneJumpBetweenTheReadEnds(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength,
+      mc.findOptChainAllowingOneJumpBetweenTheReadEnds(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength, pfi_,
+              readLenLeft,
+                                                       readLenRight,
                                                        verbose);
     }
 
