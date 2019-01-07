@@ -446,7 +446,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 	auto mem = mems[0];
 	currHitStart_read = mem.isFw ? mem.memInfo->rpos : read.length() - (mem.memInfo->rpos + mem.memInfo->memlen);
 	currHitStart_ref = mem.tpos;
-	uint32_t refStart, readStart;
+	uint32_t refStart;
 	if ( currHitStart_ref > currHitStart_read) {
 		refStart = currHitStart_ref - currHitStart_read;
 	} else if (currHitStart_ref < currHitStart_read) {
@@ -473,7 +473,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 
 	if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
 
-		if (false) { //perfectChain) {
+		if (perfectChain) {
 			alignmentScore = read.length() * mopts->matchScore;
 		} else {
 
@@ -489,12 +489,12 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 			}
 			// To work around a possible bug in the chaining algorithm, next kmer match occuring earlier
 			// Example -> CGGGCATGGTGGCTCACACCTGTAATCCCAGCACTTTGGGAGGCCAAGGTGGGTGGATCATGAGGTCAGGAATTCGAGAATAGCCTGGCCAACATGGTGA
-			if (currHitStart_read < lastHitEnd_read - k and !firstMem) {
+			if (currHitStart_read < lastHitEnd_read - (int32_t)k and !firstMem) {
 				break;
 			}
 			// To work around a possible bug in the chaining algorithm, next kmer match far from the current match
 			// Example -> GATGCAGTGGCTCATGCCTGTAATCCCAGCACTTTGGGAGGCCAAGGCAGGCAGATCACTTGAGATCAGGAGTTCGAGACAAGCCTGGCTAAAATGGTGA
-			if (currHitStart_ref > lastHitEnd_ref + read.length()) {
+			if (currHitStart_ref > lastHitEnd_ref + (int32_t)read.length()) {
 				break;
 			}
 
@@ -634,7 +634,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 		}
 
 		// Try and align any remaining sequence on the read
-		if (lastHitEnd_read  < read.length() - 1) {
+		if (lastHitEnd_read  < (int32_t)read.length() - 1) {
 			auto readGapLength = read.length() - 1 - lastHitEnd_read;
 			auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ? readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
 
@@ -1090,7 +1090,7 @@ void processReadsPair(paired_parser *parser,
     auto rg = parser->getReadGroup();
 
 	//For filtering reads
-	auto& txpNames = pfi.getRefNames();
+	//auto& txpNames = pfi.getRefNames();
     while (parser->refill(rg)) {
         for (auto &rpair : rg) {
             readLen = rpair.first.seq.length();
@@ -1115,7 +1115,7 @@ void processReadsPair(paired_parser *parser,
             //std::cerr << "\n going inside hit collector \n" ;
             //readLen = rpair.first.seq.length() ;
             bool lh = memCollector(rpair.first.seq,
-                                   leftHits,
+                                   //leftHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_LEFT,
                                    qc,
@@ -1125,7 +1125,7 @@ void processReadsPair(paired_parser *parser,
                     mopts->consistentHits,
                     refBlocks*/);
             bool rh = memCollector(rpair.second.seq,
-                                   rightHits,
+                                   //rightHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_RIGHT,
                                    qc,
@@ -1226,7 +1226,7 @@ void processReadsPair(paired_parser *parser,
 				if (bestScore > std::numeric_limits<int32_t>::min()) {
 					jointHits.erase(
 								std::remove_if(jointHits.begin(), jointHits.end(),
-									[&ctr, &scores, bestScore] (util::JointMems& ja) -> bool{
+									[&ctr, &scores, bestScore] (util::JointMems&) -> bool{
 										bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
 										++ctr;
 										return rem;
@@ -1258,7 +1258,6 @@ void processReadsPair(paired_parser *parser,
             if (jointHits.size() > hctr.maxMultimapping) {
                 hctr.maxMultimapping = jointHits.size();
             }
-			bool found = false;
 			for (auto &jointHit : jointHits) {
 				//if (rpair.first.name.find(txpNames[jointHit.tid]) != std::string::npos){
 				//:	hctr.validHits++;
@@ -1430,8 +1429,7 @@ void processReadsSingle(single_parser *parser,
     config.flag = KSW_EZ_RIGHT;
     aligner.config() = config;
 
-	auto& txpNames = pfi.getRefNames();
-
+	//auto& txpNames = pfi.getRefNames();
     auto rg = parser->getReadGroup();
     while (parser->refill(rg)) {
         for (auto &read : rg) {
@@ -1446,7 +1444,7 @@ void processReadsSingle(single_parser *parser,
             memCollector.clear();
 
             bool lh = memCollector(read.seq,
-                                   leftHits,
+                                   //leftHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::SINGLE_END,
                                    qc,
@@ -1565,7 +1563,7 @@ void processReadsSingle(single_parser *parser,
 				if (bestScore > std::numeric_limits<int32_t>::min()) {
 					jointHits.erase(
 								std::remove_if(jointHits.begin(), jointHits.end(),
-									[&ctr, &scores, bestScore] (util::JointMems& ja) -> bool{
+									[&ctr, &scores, bestScore] (util::JointMems&) -> bool{
 										bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
 										++ctr;
 										return rem;

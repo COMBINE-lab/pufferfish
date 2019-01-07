@@ -273,8 +273,7 @@ public:
 
   size_t expandHitEfficient(util::ProjectedHits& hit,
                             pufferfish::CanonicalKmerIterator& kit,
-			    ExpansionTerminationType& et,
-                            bool verbose=false) {
+			    ExpansionTerminationType& et) {
 
     auto& allContigs = pfi_->getSeq();
     // startPos points to the next kmer in contig (which can be the left or
@@ -359,7 +358,7 @@ public:
 
 
     bool operator()(std::string &read,
-                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                  //spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
                   util::QueryCache& qc,
@@ -406,7 +405,7 @@ public:
         // stamping the reasPos
         // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
         size_t readPosOld = kit1->second ;
-        expandHitEfficient(phits, kit1, et, verbose);
+        expandHitEfficient(phits, kit1, et);
 
         rawHits.push_back(std::make_pair(readPosOld, phits));
 				
