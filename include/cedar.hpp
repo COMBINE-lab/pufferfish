@@ -30,13 +30,14 @@ class Cedar {
                  bool requireConcordance,
                  size_t maxIter, 
                  double eps,
+                 double minCnt,
                  std::string& output_filename,
                  bool onlyUniq,
                  bool onlyPerf);
     private:
         bool readHeader(std::ifstream& mfile);
         void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance, bool onlyUniq, bool onlyPerfect);
-        bool basicEM(size_t maxIter, double eps);
+        bool basicEM(size_t maxIter, double eps, double minCnt);
         void serialize(std::string& output_filename);
         void serializeFlat(std::string& output_filename);
         
