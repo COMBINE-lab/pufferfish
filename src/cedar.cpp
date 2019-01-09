@@ -33,6 +33,7 @@ struct CedarOpts {
     size_t maxIter = 1000;
     double eps = 0.001;
     double filterThreshold = 0;
+    double minCnt = 0;
     bool flatAbund{false};
     bool requireConcordance{false};
     bool isPuffOut{false};
@@ -136,7 +137,8 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                             bool onlyPerfect,
 														uint32_t segmentSize) {
     int32_t rangeFactorization{4};
-    uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid;// totalMultiMappedReads{0};
+    uint64_t totalReadCnt{0}, seqNotFound{0},
+    totalMultiMappedReads{0}, totalUnmappedReads{0}, totalReadsNotPassingCond{0}, tid;
     logger->info("Cedar: Load Mapping File ..");
     logger->info("Mapping Output File: {}", mapperOutput_filename);
     mappings.load(mapperOutput_filename, logger);
@@ -147,119 +149,77 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     size_t discordantMappings{0};
 
     constexpr const bool getReadName = true;
-    bool checkTruthExists = true;
-    //size_t numCorrectHits{0};
     size_t numMapped{0};
     bool wasMapped = false;
-    //std::unordered_set<std::string> readset;
-    //size_t gid{0};
-    //bool foundTruth = false;
-    // std::ofstream covDist("uniqCovDist.txt");
+    std::cerr << "\n";
     while(mappings.nextRead(readInfo, getReadName)) {
-        if (checkTruthExists) {
-            //foundTruth = false;
-            wasMapped = false;
-            /*
-            size_t start = readInfo.rid.find_first_of('|');
-            size_t finish = readInfo.rid.find_first_of('|', start+1);
-            std::cout <<readInfo.rid<< "\t";
-                        std::cout << start+1 << " " << finish-(start+1) << "\n";
-                        //std::cout << std::stoul(readInfo.rid.substr(start+1, finish-(start+1))) << "\n";
-            gid = std::stoul(readInfo.rid.substr(start+1, finish-(start+1)));
-            */
-        }
         totalReadCnt++;
         if (totalReadCnt % 1000000 == 0) {
-          logger->info("Processed {} reads",totalReadCnt);
+          std::cerr << "\rProcessed " << totalReadCnt << " reads";
         }
         activeTaxa.clear();
         double readMappingsScoreSum = 0;
         std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
         readPerStrainProbInst.reserve(readInfo.cnt);
         bool isConflicting = true;
+        uint64_t maxScore = readInfo.len;
         if (readInfo.cnt != 0) {
-            /*readset.insert(readInfo.rid);
             if (readInfo.cnt > 1) {
-//                std::cerr << readInfo.rid << " cnt " << readInfo.cnt << "\n";
                 totalMultiMappedReads++;
-            }*/
+            }
             if (!wasMapped) { wasMapped = true; ++numMapped; }
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
             for (auto& mapping : readInfo.mappings) {
-                //std::cerr << mapping.getId() << " " << mappings.refName(mapping.getId()) << "\n";
-                // first condition: Ignore those references that we don't have a
-                // taxaId for 
-                // second condition: Ignore repeated exactly identical
-                // mappings (FIXME thing)
+                auto &refNam = mappings.refName(mapping.getId());
+                // first condition: Ignore those references that we don't have a taxaId
+                // second condition: Ignore repeated exactly identical mappings (FIXME thing)
                 // note: Fatemeh!! don't change the or and and again!!
-                // if we are on flatAbund, we want to count for multiple occurence of a reference
+                // if we are on flatAbund, we want to count for multiple occurrences of a reference
                 if( (flatAbund or
-                     (refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) 
-                  and
-                  activeTaxa.find(mapping.getId()) == activeTaxa.end()) {
-
+                     (refId2taxId.find(refNam) != refId2taxId.end()))
+                        and
+                        activeTaxa.find(mapping.getId()) == activeTaxa.end()) {
                     if (prevTaxa != nullptr and
                         activeTaxa.find(mapping.getId()) == activeTaxa.end() and 
                         !prevTaxa->compareIntervals(mapping)) {
                         isConflicting = false;
                     }
-                    prevTaxa = &mapping;
-                    /*
-                        if (activeTaxa.find(mapping.getId()) == activeTaxa.end() and
-                            (flatAbund or 
-                            refId2taxId.find(mappings.refName(mapping.getId())) != refId2taxId.end())) {
-                    */
-                    if (requireConcordance && mappings.isMappingPaired() && (!mapping.isConcordant() || mapping.isFw(ReadEnd::LEFT) == mapping.isFw(ReadEnd::RIGHT) ) ) {
+                    activeTaxa.insert(mapping.getId());
+                    if (requireConcordance && mappings.isMappingPaired() &&
+                    (!mapping.isConcordant() || mapping.isFw(ReadEnd::LEFT) == mapping.isFw(ReadEnd::RIGHT) ) ) {
                         discordantMappings++;
                         continue;
                     }
 
-                    tid = flatAbund ? mapping.getId() : refId2taxId[mappings.refName(mapping.getId())];
-                    seqToTaxMap[mapping.getId()] = tid;
-                    activeTaxa.insert(mapping.getId());
-                    if (cov.find(refId2taxId[mappings.refName(mapping.getId())]) != cov.end()) {
-                        cov[refId2taxId[mappings.refName(mapping.getId())]] += mapping.getScore();
+                    tid = flatAbund ? mapping.getId() : refId2taxId[refNam];
+                    seqToTaxMap[mapping.getId()] = static_cast<uint32_t >(tid);
+
+                    if (cov.find(refId2taxId[refNam]) == cov.end()) {
+                        cov[refId2taxId[refNam]] = 0;
                     }
-                    else {
-                        cov[refId2taxId[mappings.refName(mapping.getId())]] = mapping.getScore();
-                    }
-                    readPerStrainProbInst.emplace_back(mapping.getId(), static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())) /* / static_cast<double>(tlen) */);
+                    cov[refId2taxId[refNam]] += mapping.getScore();
+                    readPerStrainProbInst.emplace_back(mapping.getId(),
+                            static_cast<double>( mapping.getScore()) / static_cast<double>(mappings.refLength(mapping.getId())));
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
 
-                    /* notMappedReadsFile  << readInfo.rid << "\t" 
-                                        << mappings.refName(mapping.getId()) 
-                                        << "\t" << mapping.getScore() << "\n"; */
-                    /* if (!foundTruth and checkTruthExists) {
-                      const auto& refName = mappings.refName(tid);
-                      auto start = refName.find_first_of('|');
-                      auto finish = refName.find_first_of('|', start+1);
-                      auto refId = std::stoul(refName.substr(start+1, finish-(start+1)));
-                      if (refId == gid) { ++numCorrectHits; foundTruth = true; }
-                    } */
 										uint32_t bin_number = mapping.getPos(ReadEnd::LEFT)/segmentSize > 0 ? mapping.getPos(ReadEnd::LEFT)/segmentSize - 1 : 0;
 										strain_coverage_bins[mapping.getId()][bin_number]++;
-                }
-                else {
-                   // std::cerr << mappings.refName(mapping.getId()) << "\n";
+                    prevTaxa = &mapping;
                 }
             }
-            if (activeTaxa.size() == 0) {
+            if (activeTaxa.empty()) {
                 seqNotFound++;
             } else if ( (!onlyUniq and !onlyPerfect) 
                         or (onlyUniq and activeTaxa.size() == 1)
                         or (onlyPerfect and activeTaxa.size() == 1 
                             and 
-                            readInfo.mappings[0].getScore() >= readInfo.len) ) {
+                            readInfo.mappings[0].getScore() >= maxScore) ) {
                 if (!isConflicting) {conflicting++;}
-                //if (!foundTruth) { notMappedReadsFile << readInfo.rid << "\n";}
-                // bool isUnique = (readPerStrainProbInst.size() == 1);
                 // it->first : strain id
-                // it->second : prob of current read comming from this strain id
+                // it->second : prob of current read comming from this strain id (mapping_score/ref_len)
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
                     it->second = it->second/readMappingsScoreSum; // normalize the probabilities for each read
-                    // strain[it->first].first : read count for strainCnt
-                    // strain[it->first].second : strain length
                     strain[it->first] += 1.0/static_cast<double>(readPerStrainProbInst.size());
                 }
                 // SAVE MEMORY, don't push this
@@ -272,37 +232,45 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 });
                 std::vector<uint32_t> genomeIDs; genomeIDs.reserve(2*readPerStrainProbInst.size());
                 std::vector<double> probs; probs.reserve(readPerStrainProbInst.size());
-                for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
-                    genomeIDs.push_back(static_cast<uint32_t>(it->first));
-                    probs.push_back(it->second);
+                for (auto &it : readPerStrainProbInst) {
+                    genomeIDs.push_back(static_cast<uint32_t>(it.first));
+                    probs.push_back(it.second);
                 } 
                 if (rangeFactorization > 0) {
                     int genomeSize = genomeIDs.size();
                     int rangeCount = std::sqrt(genomeSize) + rangeFactorization;
                     for (int i = 0; i < genomeSize; i++) {
-                        int rangeNumber = probs[i] * rangeCount;
+                        int rangeNumber = static_cast<int>(probs[i] * rangeCount);
                         genomeIDs.push_back(static_cast<uint32_t>(rangeNumber));
                     }
                 }
                 readCnt++;
                 TargetGroup tg(genomeIDs);
-                eqb.addGroup(std::move(tg), probs);
+                eqb.addGroup(std::move(tg), probs); //add or update eq read cnt by 1
+            }
+            else {
+                totalReadsNotPassingCond++;
             }
         } else {
                 totalUnmappedReads++;
         }
     }
 		calculateCoverage();
+    std::cerr << "\r";
     //logger->info("Total # of unique reads: {}", readset.size());
     //notMappedReadsFile.close();
-    logger->info("Total # of conflicting reads reported: {}", conflicting); 
-    //logger->info("Total # of multimapped reads: {}", totalMultiMappedReads);
+    logger->info("# of mapped (and accepted) reads: {}", readCnt);
+    if (onlyUniq or onlyPerfect)
+        logger->info("# of mapped reads that were not uniq/perfect: {}", totalReadsNotPassingCond);
+    logger->info("# of multi-mapped reads: {}", totalMultiMappedReads);
+    logger->info("# of conflicting reads: {}", conflicting);
+    logger->info("# of unmapped reads: {}", totalUnmappedReads);
     if (requireConcordance)
         logger->info("Discarded {} discordant mappings.", discordantMappings);
 }
 
 template<class ReaderType>
-bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
+bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
     eqb.finish();
     auto& eqvec = eqb.eqVec();
     int64_t maxSeqID{-1};
@@ -312,6 +280,10 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
 
     std::vector<double> newStrainCnt(maxSeqID+1,0.0); 
     std::vector<double> strainCnt(maxSeqID+1);
+    std::vector<bool> strainValid(maxSeqID+1);
+    for (uint64_t i = 0; i < strainValid.size(); i++) {
+        strainValid[i] = true;
+    }
     for (auto& kv : strain) { 
       strainCnt[kv.first] = kv.second;
     }
@@ -322,12 +294,15 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
     for (auto& eqc : eqvec) {
         totCount += eqc.second.count;
     }
-    logger->info("total staring count {}", totCount);
-    logger->info("mapped readCnt {}", readCnt);
+    logger->info("Total starting count {}", totCount);
+    logger->info("Total mapped reads cnt {}", readCnt);
 
     size_t cntr = 0;
     bool converged = false;
     while (cntr++ < maxIter && !converged) {
+        for (size_t i = 0; i < strainCnt.size(); ++i) {
+            strainValid[i] = strainCnt[i] > minCnt;
+        }
         // M step
         // Find the best (most likely) count assignment
         for (auto& eqc : eqvec) {
@@ -338,12 +313,16 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
             double denom{0.0};
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                 auto& tgt = tg.tgts[readMappingCntr];
-               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strainCnt[tgt] * strain_coverage[tgt]; //* (1.0/refLengths[tgt]);
-               denom += tmpReadProb[readMappingCntr];
+                if (strainValid[tgt]) {
+                    tmpReadProb[readMappingCntr] =
+                            v.weights[readMappingCntr] * strainCnt[tgt] * strain_coverage[tgt];// * (1.0/refLengths[tgt]);
+                    denom += tmpReadProb[readMappingCntr];
+                }
             }
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                 auto& tgt = tg.tgts[readMappingCntr];
-                newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
+                if (strainValid[tgt])
+                    newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
             }
         }
     
@@ -364,10 +343,10 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
         }
 
         if (std::abs(readCntValidator - readCnt) > 10) {
-            logger->error("Total read count changed during the EM process");
+            //logger->error("Total read count changed during the EM process");
             logger->error("original: {}, current : {}, diff : {}", readCnt, 
                            readCntValidator, std::abs(readCntValidator - readCnt));
-            std::exit(1);
+            //std::exit(1);
         }
         
         if (cntr > 0 and cntr % 100 == 0) {
@@ -385,6 +364,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
     for (auto& kv : strain) { 
         outputMap[seqToTaxMap[kv.first]] += strainCnt[kv.first];
     }
+    // Until here, strain map was actually holding refids as key, but after swap it'll be holding strain taxids
     std::swap(strain, outputMap);
     
     return cntr < maxIter;
@@ -467,12 +447,13 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
          bool requireConcordance,
          size_t maxIter,
          double eps,
+         double minCnt,
          std::string& output_filename,
          bool onlyUniq,
          bool onlyPerf,
 				 uint32_t segmentSize) {
     loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize);
-    basicEM(maxIter, eps);
+    basicEM(maxIter, eps, minCnt);
     logger->info("serialize to ", output_filename);
     if (!flatAbund) {
         serialize(output_filename);
@@ -526,6 +507,7 @@ int main(int argc, char* argv[]) {
               required("--output", "-o") & value("output", kopts.output_filename) % "path to the output file to write results",
               option("--maxIter", "-i") & value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 100)",
               option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
+              option("--minCnt", "-c") & value("minCnt", kopts.minCnt) % "minimum count for keeping a reference with count greater than that (default : 0)",
               option("--level", "-l") & value("level", kopts.level).call(checkLevel) % "choose between (species, genus, family, order, class, phylum). (default : species)",
               option("--filter", "-f") & value("filter", kopts.filterThreshold) % "choose the threshold [0,1] below which to filter out mappings (default : no filter)",
               option("--noDiscordant").set(kopts.requireConcordance, true) % "ignore orphans for paired end reads",
@@ -582,6 +564,7 @@ int main(int argc, char* argv[]) {
                   kopts.requireConcordance,
                   kopts.maxIter, 
                   kopts.eps,
+                  kopts.minCnt,
                   kopts.output_filename,
                   kopts.onlyUniq,
                   kopts.onlyPerfect,
@@ -593,6 +576,7 @@ int main(int argc, char* argv[]) {
             kopts.requireConcordance,
             kopts.maxIter, 
             kopts.eps,
+            kopts.minCnt,
             kopts.output_filename,
             kopts.onlyUniq,
             kopts.onlyPerfect,
