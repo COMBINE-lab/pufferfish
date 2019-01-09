@@ -281,8 +281,11 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
     std::vector<double> newStrainCnt(maxSeqID+1,0.0); 
     std::vector<double> strainCnt(maxSeqID+1);
     std::vector<bool> strainValid(maxSeqID+1);
+    std::vector<bool> potentiallyRemoveStrain(maxSeqID+1);
+
     for (uint64_t i = 0; i < strainValid.size(); i++) {
         strainValid[i] = true;
+        potentiallyRemoveStrain[i] = false;
     }
     for (auto& kv : strain) { 
       strainCnt[kv.first] = kv.second;
@@ -299,9 +302,37 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
 
     size_t cntr = 0;
     bool converged = false;
+    uint64_t thresholdingIterStep = 10;
     while (cntr++ < maxIter && !converged) {
         for (size_t i = 0; i < strainCnt.size(); ++i) {
-            strainValid[i] = strainCnt[i] > minCnt;
+            potentiallyRemoveStrain[i] = strainCnt[i] <= minCnt;
+        }
+        if (cntr % thresholdingIterStep == 0) {
+            for (auto& eqc : eqvec) {
+                auto& tg = eqc.first;
+                auto& v = eqc.second;
+                auto csize = v.weights.size();
+                uint64_t potentialRemovedCntr = 0;
+                uint64_t maxCnt = 0, maxTgt = 0;
+
+                for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                    auto &tgt = tg.tgts[readMappingCntr];
+                    if (potentiallyRemoveStrain[tgt])
+                        potentialRemovedCntr++;
+                    if (strainCnt[tgt] > maxCnt) {
+                        maxCnt = strainCnt[tgt];
+                        maxTgt = tgt;
+                    }
+                }
+                if (potentialRemovedCntr < csize) {
+                    maxTgt = -1;
+                }
+                for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                    auto &tgt = tg.tgts[readMappingCntr];
+                    if (potentiallyRemoveStrain[tgt] and tgt != maxTgt)
+                        strainValid[tgt] = false;
+                }
+            }
         }
         // M step
         // Find the best (most likely) count assignment
