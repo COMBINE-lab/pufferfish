@@ -46,8 +46,9 @@ class TaxaNode {
             rank = Rank::STRAIN; 
             score = 0; 
             notIncorporatedChildrenCounter = 0;
+						paired = false;
         }
-        TaxaNode(uint64_t inId) : id(inId) {}
+        TaxaNode(uint64_t inId) : id(inId) {paired = false;}
         TaxaNode(uint64_t inId, uint64_t inPid, Rank inRank) : 
             id(inId), parentId(inPid), rank(inRank),
             score(0), notIncorporatedChildrenCounter(0) 
@@ -58,6 +59,7 @@ class TaxaNode {
                     parentId = NO_PARENT;
                     //std::cerr << id << "\n";
                 }
+								paired = false;
             }
         bool isRoot() { return rank == Rank::LIFE; }//TODO not easy with the new design return children.size(); }
         bool isRipe() { 
@@ -204,6 +206,8 @@ class TaxaNode {
             }
             return "really!! none?";
         }
+				void setPaired() { paired = true; }
+				bool isPaired() { return paired; }
     private:
         // fix for all the mappings (coming from taxonomy tree structure)
         uint64_t id;
@@ -220,6 +224,7 @@ class TaxaNode {
         std::vector<Interval> lintervals;
         std::vector<Interval> rintervals;
         bool isCleaned = false;
+				bool paired;
 };
 
 struct TaxaInfo {

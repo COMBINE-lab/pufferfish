@@ -73,6 +73,7 @@ public:
             if (isPaired) {
                 re = ReadEnd::RIGHT;
                 rinf.len += rec.Length();
+								taxa->setPaired();
             }
 
             while (hasNext && rec.Qname() == readName) {

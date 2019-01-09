@@ -39,6 +39,11 @@ struct CedarOpts {
     bool isSAM{false};
     bool onlyUniq{false};
     bool onlyPerfect{false};
+		
+		std::string indexDir;
+		std::vector<uint64_t> refAccumLengths;
+		std::vector<uint32_t> refLengths;
+		uint32_t segmentSize{200};
 };
 
 template<class ReaderType>
@@ -47,19 +52,20 @@ Cedar<ReaderType>::Cedar(std::string& taxonomyTree_filename,
                  std::string pruneLevelIn,
                  double filteringThresholdIn,
                  bool flatAbundIn,
-                 std::shared_ptr<spdlog::logger> loggerIn) {
+                 std::shared_ptr<spdlog::logger> loggerIn,
+								 spp::sparse_hash_map<uint64_t, std::vector<uint32_t> > strain_coverage_binsIn) {
     flatAbund = flatAbundIn;
     logger = loggerIn;
     logger->info("Cedar: Construct ..");
 
-    
+		strain_coverage_bins = strain_coverage_binsIn;  
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
     if (!flatAbund) {
         pruningLevel = TaxaNode::str2rank(pruneLevelIn);
         std::ifstream tfile;
         uint32_t id, pid;
-        std::string rank, name;
+         std::string rank, name;
         // load the reference id (name) to its corresponding taxonomy id
         tfile.open(refId2TaxId_filename);
         while(!tfile.eof()) {
@@ -108,14 +114,29 @@ Cedar<ReaderType>::Cedar(std::string& taxonomyTree_filename,
         //std::cerr << "\n\ndone reading taxonomy tree\n\n";
     } 
 }
+template<class ReaderType>
+void Cedar<ReaderType>::calculateCoverage() {
+	for (uint32_t i=0; i<strain_coverage_bins.size(); i++) {
+		auto bins = strain_coverage_bins[i];
+		double covered = 0.0;
+		uint32_t expression_depth = 0;
+		for (uint32_t j=0; j<bins.size(); j++) {
+			if (bins[j]>0)
+				covered++;
+			expression_depth+=bins[j];
+		}
+		strain_coverage[i] = covered / bins.size();
+	}
+}
 
 template<class ReaderType>
 void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                             bool requireConcordance,
                             bool onlyUniq,
-                            bool onlyPerfect) {
+                            bool onlyPerfect,
+														uint32_t segmentSize) {
     int32_t rangeFactorization{4};
-    uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid, totalMultiMappedReads{0};
+    uint64_t totalReadCnt{0}, seqNotFound{0}, totalUnmappedReads{0}, tid;// totalMultiMappedReads{0};
     logger->info("Cedar: Load Mapping File ..");
     logger->info("Mapping Output File: {}", mapperOutput_filename);
     mappings.load(mapperOutput_filename, logger);
@@ -216,7 +237,8 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                       auto refId = std::stoul(refName.substr(start+1, finish-(start+1)));
                       if (refId == gid) { ++numCorrectHits; foundTruth = true; }
                     } */
-
+										uint32_t bin_number = mapping.getPos(ReadEnd::LEFT)/segmentSize > 0 ? mapping.getPos(ReadEnd::LEFT)/segmentSize - 1 : 0;
+										strain_coverage_bins[mapping.getId()][bin_number]++;
                 }
                 else {
                    // std::cerr << mappings.refName(mapping.getId()) << "\n";
@@ -270,6 +292,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 totalUnmappedReads++;
         }
     }
+		calculateCoverage();
     //logger->info("Total # of unique reads: {}", readset.size());
     //notMappedReadsFile.close();
     logger->info("Total # of conflicting reads reported: {}", conflicting); 
@@ -315,7 +338,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps) {
             double denom{0.0};
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                 auto& tgt = tg.tgts[readMappingCntr];
-               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strainCnt[tgt];// * (1.0/refLengths[tgt]);
+               tmpReadProb[readMappingCntr] = v.weights[readMappingCntr] * strainCnt[tgt] * strain_coverage[tgt]; //* (1.0/refLengths[tgt]);
                denom += tmpReadProb[readMappingCntr];
             }
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
@@ -423,7 +446,7 @@ void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
     logger->info("Before writing results in the file, total # of mapped reads is {}", finalMappedReadCnt);
     logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
-    ofile << "taxaId\ttaxaRank\tcount\n";
+    ofile << "taxaId\ttaxaRank\tcount\tcoverage\n";
     std::cerr << "NUMREFS: " << mappings.numRefs() << "\n";
     for (uint32_t i = 0; i < mappings.numRefs(); ++i) { 
         //for (auto& kv : strain) {
@@ -434,7 +457,7 @@ void Cedar<ReaderType>::serializeFlat(std::string& output_filename) {
         }
         ofile << mappings.refName(i) << "\t" 
             << "flat" 
-            << "\t" << abund << "\n";
+            << "\t" << abund <<"\t" << strain_coverage[i] << "\n";
     }
     ofile.close();
 }
@@ -446,8 +469,9 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
          double eps,
          std::string& output_filename,
          bool onlyUniq,
-         bool onlyPerf) {
-    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf);
+         bool onlyPerf,
+				 uint32_t segmentSize) {
+    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize);
     basicEM(maxIter, eps);
     logger->info("serialize to ", output_filename);
     if (!flatAbund) {
@@ -494,6 +518,7 @@ int main(int argc, char* argv[]) {
               required("--taxtree", "-t") & value("taxtree", kopts.taxonomyTree_filename) % "path to the taxonomy tree file",
               required("--seq2taxa", "-s") & value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file "
             )),
+						required("--index", "-x") & value("index", kopts.indexDir) % "directory where the pufferfish index is stored",
               ( (required("--puffMapperOut", "-p").set(kopts.isPuffOut, true) & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file")
               |
               (required("--sam").set(kopts.isSAM, true) & value("mapout", kopts.mapperOutput_filename) % "path to the SAM file")
@@ -509,7 +534,6 @@ int main(int argc, char* argv[]) {
               option("--help", "-h").set(showHelp, true) % "show help",
               option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version")
               );
-   
   //Multithreaded console logger(with color support)
   auto console = spdlog::stderr_color_mt("console");
 
@@ -527,29 +551,53 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+	std::string indexDir = kopts.indexDir;
+	spp::sparse_hash_map<uint64_t, std::vector<uint32_t> > strain_coverage_bins;
+	{
+		std::string rlPath = indexDir + "/refAccumLengths.bin";
+		if (puffer::fs::FileExists(rlPath.c_str())) {
+			CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
+			std::ifstream refLengthStream(rlPath);
+			cereal::BinaryInputArchive refLengthArchive(refLengthStream);
+			refLengthArchive(kopts.refAccumLengths);
+		} else {
+			//refAccumLengths_ = std::vector<uint64_t>(refNames_.size(), 1000);
+		}
+		uint64_t refAcc_{0};
+		for (uint64_t i=0; i<kopts.refAccumLengths.size(); ++i) {
+			auto refLength = kopts.refAccumLengths[i]-refAcc_;
+			kopts.refLengths.push_back(refLength);
+			refAcc_ = kopts.refAccumLengths[i];
+			uint64_t binCnt = refLength/kopts.segmentSize;
+			if (binCnt ==0) binCnt = 1;
+			std::vector<uint32_t> bins(binCnt, 0);
+			strain_coverage_bins[i] = bins;
+		}
+	}
+
   if(res) {
     if (kopts.isSAM) {
-        Cedar<SAMReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
+        Cedar<SAMReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console, strain_coverage_bins);
         cedar.run(kopts.mapperOutput_filename, 
                   kopts.requireConcordance,
                   kopts.maxIter, 
                   kopts.eps,
                   kopts.output_filename,
                   kopts.onlyUniq,
-                  kopts.onlyPerfect);
-        //std::cout << "inside the scope\n";
+                  kopts.onlyPerfect,
+									kopts.segmentSize);
     }
     else {
-        Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
+        Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console, strain_coverage_bins);
         cedar.run(kopts.mapperOutput_filename, 
             kopts.requireConcordance,
             kopts.maxIter, 
             kopts.eps,
             kopts.output_filename,
             kopts.onlyUniq,
-            kopts.onlyPerfect);
+            kopts.onlyPerfect,
+						kopts.segmentSize);
     }
-    //std::cout << "We even got here!!\n";
     return 0;
   } else {
     std::cout << usage_lines(cli, "cedar") << '\n';
