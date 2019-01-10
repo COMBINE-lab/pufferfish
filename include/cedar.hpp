@@ -25,8 +25,7 @@ class Cedar {
         Cedar(std::string& taxonomyTree_filename, std::string& 
               refId2TaxId_filename, std::string pruneLevelIn, double filteringThresholdIn,
               bool flatAbund,
-              std::shared_ptr<spdlog::logger> loggerIn,
-							spp::sparse_hash_map<uint64_t, std::vector<uint32_t> > strain_coverage_binsIn);
+              std::shared_ptr<spdlog::logger> loggerIn);
         void run(std::string mapperOutput_filename, 
                  bool requireConcordance,
                  size_t maxIter, 
