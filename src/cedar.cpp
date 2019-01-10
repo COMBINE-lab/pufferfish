@@ -40,7 +40,7 @@ struct CedarOpts {
     bool isSAM{false};
     bool onlyUniq{false};
     bool onlyPerfect{false};
-		
+	
 		std::string indexDir;
 		std::vector<uint64_t> refAccumLengths;
 		std::vector<uint32_t> refLengths;
@@ -302,7 +302,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
 
     size_t cntr = 0;
     bool converged = false;
-    uint64_t thresholdingIterStep = 100;
+    uint64_t thresholdingIterStep = 10;
     while (cntr++ < maxIter && !converged) {
         for (size_t i = 0; i < strainCnt.size(); ++i) {
             potentiallyRemoveStrain[i] = strainCnt[i] <= minCnt;
@@ -337,9 +337,9 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
 										}
                 }
             }
-						if (thresholdingIterStep>1){
-							thresholdingIterStep = thresholdingIterStep / 2;
-						}
+						//if (thresholdingIterStep>1){
+						//	thresholdingIterStep = thresholdingIterStep / 2;
+						//}
         }
         // M step
         // Find the best (most likely) count assignment
@@ -543,7 +543,7 @@ int main(int argc, char* argv[]) {
               (required("--sam").set(kopts.isSAM, true) & value("mapout", kopts.mapperOutput_filename) % "path to the SAM file")
               ),
               required("--output", "-o") & value("output", kopts.output_filename) % "path to the output file to write results",
-              option("--maxIter", "-i") & value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 100)",
+              option("--maxIter", "-i") & value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 1000)",
               option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
               option("--minCnt", "-c") & value("minCnt", kopts.minCnt) % "minimum count for keeping a reference with count greater than that (default : 0)",
               option("--level", "-l") & value("level", kopts.level).call(checkLevel) % "choose between (species, genus, family, order, class, phylum). (default : species)",
