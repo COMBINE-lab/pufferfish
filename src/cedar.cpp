@@ -302,7 +302,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
 
     size_t cntr = 0;
     bool converged = false;
-    uint64_t thresholdingIterStep = 10;
+    uint64_t thresholdingIterStep = 100;
     while (cntr++ < maxIter && !converged) {
         for (size_t i = 0; i < strainCnt.size(); ++i) {
             potentiallyRemoveStrain[i] = strainCnt[i] <= minCnt;
@@ -331,8 +331,15 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
                     auto &tgt = tg.tgts[readMappingCntr];
                     if (potentiallyRemoveStrain[tgt] and tgt != maxTgt)
                         strainValid[tgt] = false;
+										if (tgt == maxTgt) {
+												strainValid[tgt] = true; 
+												potentiallyRemoveStrain[tgt] = false;
+										}
                 }
             }
+						if (thresholdingIterStep>1){
+							thresholdingIterStep = thresholdingIterStep / 2;
+						}
         }
         // M step
         // Find the best (most likely) count assignment
@@ -373,12 +380,12 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
             newStrainCnt[i] = 0.0;
         }
 
-        if (std::abs(readCntValidator - readCnt) > 10) {
+        /*if (std::abs(readCntValidator - readCnt) > 10) {
             //logger->error("Total read count changed during the EM process");
             logger->error("original: {}, current : {}, diff : {}", readCnt, 
                            readCntValidator, std::abs(readCntValidator - readCnt));
             //std::exit(1);
-        }
+        }*/
         
         if (cntr > 0 and cntr % 100 == 0) {
             logger->info("max diff : {}", maxDiff);
