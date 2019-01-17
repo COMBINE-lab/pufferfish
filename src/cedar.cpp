@@ -631,7 +631,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
     decltype(strain) outputMap;
     outputMap.reserve(strain.size());
     for (auto& kv : strain) {
-        std::cerr << kv.first << ":" << strainCnt[kv.first] << "," << kv.second << "\t";
+        //std::cerr << kv.first << ":" << strainCnt[kv.first] << "," << kv.second << "\t";
         outputMap[seqToTaxMap[kv.first]] += strainValid[kv.first]? strainCnt[kv.first]: 0;
     }
     std::cerr << "\n";
