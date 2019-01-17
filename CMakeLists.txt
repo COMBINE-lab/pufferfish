@@ -48,7 +48,24 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r json <INSTALL_DIR>/include &&
                   cp -r htslib <INSTALL_DIR>/include
 )
-
+ExternalProject_Add(libSetCover
+        GIT_REPOSITORY https://github.com/martin-steinegger/setcover.git
+        GIT_TAG        master
+        UPDATE_COMMAND ""
+        CONFIGURE_COMMAND ""
+        UPDATE_DISCONNECTED 1
+        BUILD_IN_SOURCE TRUE
+        DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/setcover
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/setcover
+        INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
+        BUILD_COMMAND     make -j8
+        INSTALL_COMMAND     ar rcs libSetCover.a SetCover.o &&
+        mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &&
+        cp libSetCover.a <INSTALL_DIR>/lib &&
+        cp SetCover.h <INSTALL_DIR>/include &&
+        cp SetElement.h <INSTALL_DIR>/include &&
+        cp LinearMultiArray.h <INSTALL_DIR>/include
+        )
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
 set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")

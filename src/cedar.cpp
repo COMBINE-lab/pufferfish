@@ -5,6 +5,7 @@
 #include <cmath> // std::abs
 #include <memory>
 #include <unordered_set>
+#include <list>
 
 #include "cedar.hpp"
 
@@ -15,7 +16,19 @@
 #include "cereal/archives/binary.hpp"
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
+//#include "LinearMultiArray.h"
+#include "SetCover.h"
 
+struct set_data {
+    unsigned int ** sets;
+    unsigned short ** weights;
+    unsigned int * set_sizes;
+    unsigned int * element_size_lookup;
+    unsigned int set_count;
+    unsigned int uniqu_element_count;
+    unsigned int all_element_count;
+    unsigned int max_weight;
+};
 // trim from both ends (in place)
 static inline std::string& trim(std::string &s) {
     std::string chars = "\t\n\v\f\r ";
@@ -303,43 +316,218 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
     size_t cntr = 0;
     bool converged = false;
     uint64_t thresholdingIterStep = 10;
+    bool canHelp = true;
     while (cntr++ < maxIter && !converged) {
-        for (size_t i = 0; i < strainCnt.size(); ++i) {
-            potentiallyRemoveStrain[i] = strainCnt[i] <= minCnt;
-        }
-        if (cntr % thresholdingIterStep == 0) {
-            for (auto& eqc : eqvec) {
-                auto& tg = eqc.first;
-                auto& v = eqc.second;
+        if (cntr % thresholdingIterStep == 0 && canHelp) {
+            for (size_t i = 0; i < strainCnt.size(); ++i) {
+                potentiallyRemoveStrain[i] = strainValid[i]? strainCnt[i] <= minCnt: false;
+            }
+            std::unordered_map <uint32_t, std::unordered_set<uint64_t>> ref2eqset;
+            uint64_t removedImmediatelyCnt{0}, wasAlreadyRemovedCnt{0};
+            for (auto &eqc : eqvec) {
+                auto &tg = eqc.first;
+                auto &v = eqc.second;
                 auto csize = v.weights.size();
                 uint64_t potentialRemovedCntr = 0;
-                uint64_t maxCnt = 0, maxTgt = 0;
-
+                //uint64_t maxCnt = 0, maxTgt = 0;
+                uint64_t totalValidEqs{0};
                 for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                     auto &tgt = tg.tgts[readMappingCntr];
-                    if (potentiallyRemoveStrain[tgt])
+                    if (strainValid[tgt]) {
+                        totalValidEqs++;
+                    } else {
+                        potentiallyRemoveStrain[tgt] = false;
+                    }
+                    if (potentiallyRemoveStrain[tgt]) {
                         potentialRemovedCntr++;
-                    if (strainCnt[tgt] > maxCnt) {
+                    }
+                    /*if (strainCnt[tgt] > maxCnt) {
                         maxCnt = strainCnt[tgt];
                         maxTgt = tgt;
-                    }
+                    }*/
                 }
-                if (potentialRemovedCntr < csize) {
+                /*if (potentialRemovedCntr < csize) {
                     maxTgt = -1;
                 }
                 for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                     auto &tgt = tg.tgts[readMappingCntr];
                     if (potentiallyRemoveStrain[tgt] and tgt != maxTgt)
                         strainValid[tgt] = false;
-										if (tgt == maxTgt) {
-												strainValid[tgt] = true; 
-												potentiallyRemoveStrain[tgt] = false;
-										}
+                        if (tgt == maxTgt) {
+                                strainValid[tgt] = true;
+                                potentiallyRemoveStrain[tgt] = false;
+                        }
+                }*/
+                for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                    auto &tgt = tg.tgts[readMappingCntr];
+                    if (potentiallyRemoveStrain[tgt]) {
+                        if (potentialRemovedCntr < totalValidEqs) {
+                            if (strainValid[tgt]) {
+                                removedImmediatelyCnt++;
+                            }
+                            else
+                                wasAlreadyRemovedCnt++;
+                            strainValid[tgt] = false;
+                        } else {
+                            ref2eqset[tgt].insert(tg.hash);
+                        }
+                    }
                 }
             }
-						//if (thresholdingIterStep>1){
-						//	thresholdingIterStep = thresholdingIterStep / 2;
-						//}
+            std::cerr << "\nRemoved immediately: " << removedImmediatelyCnt <<
+                      " was already removed: " << wasAlreadyRemovedCnt <<
+                      " ref2eqset size: " << ref2eqset.size() << "\n";
+            std::unordered_map <uint64_t, uint32_t > eq2id;
+            if (ref2eqset.size() > 0) {
+                uint32_t id = 1;
+                for (auto &kv : ref2eqset) {
+                    for (auto v : kv.second)
+                        if (eq2id.find(v) == eq2id.end()) {
+                            eq2id[v] = id;
+                            id++;
+                        }
+                }
+                auto elementCnt = eq2id.size(); // n
+                auto setCnt = ref2eqset.size(); // m
+                //uniquEqs.clear();
+                //std::cerr << elementCnt << " " << setCnt << "\n";
+                set_data ret_struct;
+                ret_struct.set_count = setCnt;
+                ret_struct.uniqu_element_count = elementCnt;
+
+                unsigned int *element_size = new unsigned int[elementCnt + 2];
+                memset(&element_size[0], 0, sizeof(unsigned int) * (elementCnt + 2));
+                ret_struct.element_size_lookup = element_size;
+                unsigned int *set_size = new unsigned int[setCnt];
+
+                ret_struct.set_sizes = set_size;
+                ret_struct.sets = new unsigned int *[setCnt];
+                ret_struct.weights = new unsigned short *[setCnt];
+                ret_struct.max_weight = 0;
+                ret_struct.all_element_count = 0;
+
+                uint32_t i = 0;
+                for (auto &kv : ref2eqset) {
+                    auto setSize = kv.second.size();
+                    ret_struct.set_sizes[i] = setSize;
+                    if (ret_struct.max_weight < setSize) {
+                        ret_struct.max_weight = setSize;
+                    }
+                    ret_struct.sets[i] = new unsigned int[setSize];
+                    uint32_t element_counter = 0;
+                    for (auto &eq : kv.second) {
+                        ret_struct.sets[i][element_counter++] = eq2id[eq];
+                        ret_struct.element_size_lookup[eq2id[eq]]++;
+                        ret_struct.all_element_count++;
+                    }
+                    ret_struct.weights[i] = new unsigned short[setSize];
+                    std::fill_n(ret_struct.weights[i], setSize, 1);
+                    i++;
+                }
+                std::cerr << "# of refs (set cnt): " << ret_struct.set_count
+                << " # of uniq eqs (uniq elem cnt):" << ret_struct.uniqu_element_count << "\n";
+                std::cerr << "max set size: " << ret_struct.max_weight << "\n";
+                /*for (uint32_t j = 0; j < elementCnt; j++) {
+                    std::cerr << ret_struct.element_size_lookup[j] << " ";
+                }
+                std::cerr << "\n";*/
+                set_cover setcover(ret_struct.set_count,
+                                   ret_struct.uniqu_element_count,
+                                   ret_struct.max_weight,
+                                   ret_struct.all_element_count,
+                                   ret_struct.element_size_lookup
+                );
+                for(int j = 0; j < ret_struct.set_count; j++){
+                    setcover.add_set(j+1, ret_struct.set_sizes[j]
+                            ,(const unsigned int*)ret_struct.sets[j],
+                                     (const unsigned short*)ret_struct.weights[j],
+                                     ret_struct.set_sizes[j]);
+                    free(ret_struct.sets[j]);
+                    free(ret_struct.weights[j]);
+
+                }
+                std::list < set * > ret = setcover.execute_set_cover();
+                std::unordered_set <uint32_t> remainingRefs;
+/*
+                std::vector<bool> forValidation;
+                forValidation.resize(ret_struct.uniqu_element_count);
+                for (auto kk = 0; kk < ret_struct.uniqu_element_count; kk++)
+                    forValidation[kk] = false;
+*/
+                for (auto iterator = ret.begin(); iterator != ret.end(); ++iterator) {
+                    //std::cerr << "set id " << (*iterator)->set_id << " Element: ";
+                    remainingRefs.insert((*iterator)->set_id);
+                    /*set::element *element = (*iterator)->elements;
+                    do {
+                        forValidation[element->element_id-1] = true;
+                    } while ((element = element->next) != NULL);*/
+                    //std::cerr << std::endl;
+                }
+               /* // To validate:
+                uint32_t missedEqCnt = 0;
+                for (auto v : forValidation) {
+                    if (!v) {
+                        missedEqCnt++;
+                    }
+                }
+                if (missedEqCnt > 0) {
+                    std::cerr << "AAAAA missed validation: " << missedEqCnt <<
+                    " out of " << forValidation.size() << "\n";
+                    //std::exit(1);
+                }*/
+                uint32_t alreadySet{0}, canRemove{0}, reverted{0};
+                i = 1;
+                for (auto &kv : ref2eqset) { // the order is the same as the order of input sets to setCover
+                    potentiallyRemoveStrain[kv.first] = false;
+                    if (remainingRefs.find(i) == remainingRefs.end()) {
+                        if (!strainValid[kv.first])
+                            alreadySet++;
+                        else
+                            canRemove++;
+                        strainValid[kv.first] = false;
+                    } else {
+                        if (!strainValid[kv.first]) {
+                            reverted++;
+                        }
+                        strainValid[kv.first] = true;
+                    }
+                    i++;
+                }
+
+                std::cerr << "total suspicious: " << ref2eqset.size() <<
+                " cannot remove: " << remainingRefs.size() <<
+                ", can remove: " << canRemove <<
+                ", has been removed: " << alreadySet <<
+                ", has been reverted: " << reverted <<
+                ", should be equal: " << alreadySet + canRemove + remainingRefs.size() <<
+                " " << ref2eqset.size() << "\n";
+                uint32_t totalvalid{0};
+                for (auto s : strainValid) {
+                    totalvalid += s;
+                }
+                std::cerr << "valid: " << totalvalid
+                            << ", invalid: " << strainValid.size() - totalvalid << "\n";
+/*
+            std::vector<std::pair<uint32_t, std::unordered_set<uint64_t>>> refAndeqset;
+            std::copy(ref2eqset.begin(), ref2eqset.end(),
+                    std::back_inserter(refAndeqset));
+            std::sort(refAndeqset.begin(), refAndeqset.end(),
+                    [](const std::pair<uint32_t, std::unordered_set<uint64_t>>& v1,
+                            const std::pair<uint32_t, std::unordered_set<uint64_t>>& v2) {
+                return v1.second.size() > v2.second.size();
+            });
+            std::unordered_set<uint64_t> covered;
+            for (auto &kv : refAndeqset) {
+                for (auto &eq : kv.second) {
+                    if (covered.find(eq) == covered.end()) {
+                        strainValid[kv.first] = false;
+                        covered.insert(eq);
+                    }
+                }
+            }*/
+                canHelp = removedImmediatelyCnt != reverted || canRemove;
+            }
+
         }
         // M step
         // Find the best (most likely) count assignment
@@ -352,17 +540,33 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                 auto& tgt = tg.tgts[readMappingCntr];
                 if (strainValid[tgt]) {
+
                     tmpReadProb[readMappingCntr] =
-                            v.weights[readMappingCntr] * strainCnt[tgt] * strain_coverage[tgt];// * (1.0/refLengths[tgt]);
+                            v.weights[readMappingCntr] * strainCnt[tgt];// * strain_coverage[tgt];// * (1.0/refLengths[tgt]);
+                    //std::cerr << tmpReadProb[readMappingCntr] << ",";
                     denom += tmpReadProb[readMappingCntr];
+                    //std::cerr << denom << " ";
                 }
             }
+            /*if (denom == 0) {
+                std::cerr << "denom is 0: " << tg.hash << " " << csize << " " << v.count <<  "\n";
+                for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                    auto &tgt = tg.tgts[readMappingCntr];
+                    if (strainValid[tgt]) {
+                        std::cerr << " weird!\n";
+                    }
+                }
+            }*/
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                 auto& tgt = tg.tgts[readMappingCntr];
                 if (strainValid[tgt])
                     newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
+                else {
+                    newStrainCnt[tgt] = 0;
+                }
             }
         }
+        //std::cerr << "\n";
     
         // E step
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
@@ -391,17 +595,43 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
             logger->info("max diff : {}", maxDiff);
         }
     }
-    logger->info( "iterator cnt: {}", cntr); 
-
+    logger->info( "iterator cnt: {}", cntr);
+    /*auto &eqvec1 = eqb.eqVec();
+    std::vector<bool> eqRemained;
+    eqRemained.resize(eqvec1.size());
+    for (auto kk=0; kk<eqRemained.size(); kk++)
+        eqRemained[kk] = false;
+    uint32_t kk{0};
+    for (auto & eqc: eqvec1) {
+        auto &tg = eqc.first;
+        auto &v = eqc.second;
+        auto csize = v.weights.size();
+        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+            auto &tgt = tg.tgts[readMappingCntr];
+            if (strainValid[tgt]) {
+                eqRemained[kk] = true;
+            }
+        }
+        kk++;
+    }
+    kk=0;
+    for (auto tf: eqRemained) {
+        if (!tf) {
+            std::cerr << "so bad eq is removed: " << kk << "\n";
+        }
+        kk++;
+    }*/
     // We have done the EM in the space of sequence / reference IDs
     // but we need to output results in terms of taxa IDs.  Here, we 
     // will map our reference IDs back to taxa IDs, and put the resulting
     // computed abundances in the "strain" member variable.
     decltype(strain) outputMap;
     outputMap.reserve(strain.size());
-    for (auto& kv : strain) { 
-        outputMap[seqToTaxMap[kv.first]] += strainCnt[kv.first];
+    for (auto& kv : strain) {
+        std::cerr << kv.first << ":" << strainCnt[kv.first] << "," << kv.second << "\t";
+        outputMap[seqToTaxMap[kv.first]] += strainValid[kv.first]? strainCnt[kv.first]: 0;
     }
+    std::cerr << "\n";
     // Until here, strain map was actually holding refids as key, but after swap it'll be holding strain taxids
     std::swap(strain, outputMap);
     

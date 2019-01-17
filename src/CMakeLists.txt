@@ -143,7 +143,7 @@ target_link_libraries(myGFAtester Threads::Threads z sdsl puffer)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
 target_link_libraries(krakmap Threads::Threads puffer)
-target_link_libraries(cedar Threads::Threads seqlib hts puffer bz2 lzma z )
+target_link_libraries(cedar Threads::Threads seqlib hts puffer bz2 lzma z SetCover)
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z )
 
 #target_link_libraries(pufferfish-index-old z sdsl)
