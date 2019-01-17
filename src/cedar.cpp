@@ -53,10 +53,6 @@ struct CedarOpts {
     bool isSAM{false};
     bool onlyUniq{false};
     bool onlyPerfect{false};
-	
-		std::string indexDir;
-		std::vector<uint64_t> refAccumLengths;
-		std::vector<uint32_t> refLengths;
 		uint32_t segmentSize{200};
 };
 
@@ -66,13 +62,11 @@ Cedar<ReaderType>::Cedar(std::string& taxonomyTree_filename,
                  std::string pruneLevelIn,
                  double filteringThresholdIn,
                  bool flatAbundIn,
-                 std::shared_ptr<spdlog::logger> loggerIn,
-								 spp::sparse_hash_map<uint64_t, std::vector<uint32_t> > strain_coverage_binsIn) {
+                 std::shared_ptr<spdlog::logger> loggerIn) {
     flatAbund = flatAbundIn;
     logger = loggerIn;
     logger->info("Cedar: Construct ..");
 
-		strain_coverage_bins = strain_coverage_binsIn;  
     // map rank string values to enum values
     filteringThreshold = filteringThresholdIn;
     if (!flatAbund) {
@@ -161,6 +155,15 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     size_t conflicting{0};
     size_t discordantMappings{0};
 
+		// Construct coverage bins
+    for (uint64_t i=0; i<mappings.numRefs(); ++i) {
+			auto refLength = mappings.refLength(i);
+			uint64_t binCnt = refLength/segmentSize;
+			if (binCnt == 0) binCnt = 1;
+			std::vector<uint32_t> bins(binCnt, 0);
+			strain_coverage_bins[i] = bins;
+    }
+	
     constexpr const bool getReadName = true;
     size_t numMapped{0};
     bool wasMapped = false;
@@ -767,7 +770,6 @@ int main(int argc, char* argv[]) {
               required("--taxtree", "-t") & value("taxtree", kopts.taxonomyTree_filename) % "path to the taxonomy tree file",
               required("--seq2taxa", "-s") & value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file "
             )),
-						required("--index", "-x") & value("index", kopts.indexDir) % "directory where the pufferfish index is stored",
               ( (required("--puffMapperOut", "-p").set(kopts.isPuffOut, true) & value("mapout", kopts.mapperOutput_filename) % "path to the pufferfish mapper output file")
               |
               (required("--sam").set(kopts.isSAM, true) & value("mapout", kopts.mapperOutput_filename) % "path to the SAM file")
@@ -801,33 +803,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-	std::string indexDir = kopts.indexDir;
-	spp::sparse_hash_map<uint64_t, std::vector<uint32_t> > strain_coverage_bins;
-	{
-		std::string rlPath = indexDir + "/refAccumLengths.bin";
-		if (puffer::fs::FileExists(rlPath.c_str())) {
-			CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
-			std::ifstream refLengthStream(rlPath);
-			cereal::BinaryInputArchive refLengthArchive(refLengthStream);
-			refLengthArchive(kopts.refAccumLengths);
-		} else {
-			//refAccumLengths_ = std::vector<uint64_t>(refNames_.size(), 1000);
-		}
-		uint64_t refAcc_{0};
-		for (uint64_t i=0; i<kopts.refAccumLengths.size(); ++i) {
-			auto refLength = kopts.refAccumLengths[i]-refAcc_;
-			kopts.refLengths.push_back(refLength);
-			refAcc_ = kopts.refAccumLengths[i];
-			uint64_t binCnt = refLength/kopts.segmentSize;
-			if (binCnt ==0) binCnt = 1;
-			std::vector<uint32_t> bins(binCnt, 0);
-			strain_coverage_bins[i] = bins;
-		}
-	}
-
   if(res) {
     if (kopts.isSAM) {
-        Cedar<SAMReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console, strain_coverage_bins);
+        Cedar<SAMReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
         cedar.run(kopts.mapperOutput_filename, 
                   kopts.requireConcordance,
                   kopts.maxIter, 
@@ -839,7 +817,7 @@ int main(int argc, char* argv[]) {
 									kopts.segmentSize);
     }
     else {
-        Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console, strain_coverage_bins);
+        Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level, kopts.filterThreshold, kopts.flatAbund, console);
         cedar.run(kopts.mapperOutput_filename, 
             kopts.requireConcordance,
             kopts.maxIter, 
