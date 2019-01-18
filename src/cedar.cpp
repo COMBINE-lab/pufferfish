@@ -373,9 +373,9 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                 std::fill_n(ret_struct.weights[i], setSize, 1);
                 i++;
             }
-            std::cerr << "# of refs (set cnt): " << ret_struct.set_count
+            /*std::cerr << "# of refs (set cnt): " << ret_struct.set_count
                       << " # of uniq eqs (uniq elem cnt):" << ret_struct.uniqu_element_count << "\n";
-            std::cerr << "max set size: " << ret_struct.max_weight << "\n";
+            std::cerr << "max set size: " << ret_struct.max_weight << "\n";*/
             set_cover setcover(ret_struct.set_count,
                                ret_struct.uniqu_element_count,
                                ret_struct.max_weight,
@@ -566,7 +566,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
     for (auto& kv : strain) {
         outputMap[seqToTaxMap[kv.first]] += strainValid[kv.first]? strainCnt[kv.first]: 0;
     }
-    std::cerr << "\n";
+    //std::cerr << "\n";
     // Until here, strain map was actually holding refids as key, but after swap it'll be holding strain taxids
     std::swap(strain, outputMap);
     
@@ -580,7 +580,6 @@ void Cedar<ReaderType>::serialize(std::string& output_filename) {
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\n";
     spp::sparse_hash_map<uint64_t, double> validTaxa;
-    std::cerr << "strain size: " << strain.size() << "\n";
     for (auto& kv : strain) {
         if (taxaNodeMap.find(kv.first) != taxaNodeMap.end()) {
             TaxaNode *walker = &taxaNodeMap[kv.first];
@@ -603,13 +602,16 @@ void Cedar<ReaderType>::serialize(std::string& output_filename) {
             std::cerr << "taxa not found: " << kv.first << "\n";
         }
     }
-    for (auto& kv : validTaxa) { 
-        ofile << kv.first << "\t" 
-              << TaxaNode::rank2str(taxaNodeMap[kv.first].getRank()) 
-              << "\t" << kv.second << "\n";
+    uint64_t finalReadCnt{0};
+    for (auto& kv : validTaxa) {
+        if (kv.second != 0)
+            ofile << kv.first << "\t"
+                << TaxaNode::rank2str(taxaNodeMap[kv.first].getRank())
+                << "\t" << kv.second << "\n";
+        finalReadCnt+=kv.second;
     }
     ofile.close();
-
+    logger->info("Final reported read count by Cedar: {}", finalReadCnt);
     std::ofstream covOfile(output_filename + ".coverage");
     for (auto& kv: cov) {
         covOfile << kv.first << "\t" << kv.second << "\n";
