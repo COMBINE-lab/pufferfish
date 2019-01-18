@@ -361,9 +361,10 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                 } else if (strainValid[tgt]) { // otherwise keep it for the setCover step
                     ref2eqset[tgt].insert(tg.hash);
                 }
-            }/* else if (tgtsAmbiguousCnt == totalValidEqs) {
+            } else if (tgtsAmbiguousCnt == totalValidRefsInCurEq) {
                 ref2eqset[tgt].insert(tg.hash);
-            }*/
+                potentiallyRemoveStrain[tgt] = true;
+            }
         }
     }
     if (verbose)
