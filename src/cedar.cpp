@@ -285,7 +285,8 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         std::vector<bool> &strainValid,
         std::vector<bool> &potentiallyRemoveStrain,
         double minCnt,
-        bool canHelp) {
+        bool canHelp,
+        bool verbose) {
         auto& eqvec = eqb.eqVec();
         for (size_t i = 0; i < strainCnt.size(); ++i) {
             potentiallyRemoveStrain[i] = strainValid[i]? strainCnt[i] <= minCnt: false;
@@ -325,9 +326,10 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                 }
             }
         }
-        /*std::cerr << "\nRemoved immediately: " << removedImmediatelyCnt <<
+        if (verbose)
+            std::cerr << "\nRemoved immediately: " << removedImmediatelyCnt <<
                   " was already removed: " << wasAlreadyRemovedCnt <<
-                  " ref2eqset size: " << ref2eqset.size() << "\n";*/
+                  " ref2eqset size: " << ref2eqset.size() << "\n";
         std::unordered_map <uint64_t, uint32_t > eq2id;
         if (ref2eqset.size() > 0) {
             uint32_t id = 1;
@@ -373,9 +375,10 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                 std::fill_n(ret_struct.weights[i], setSize, 1);
                 i++;
             }
-            /*std::cerr << "# of refs (set cnt): " << ret_struct.set_count
-                      << " # of uniq eqs (uniq elem cnt):" << ret_struct.uniqu_element_count << "\n";
-            std::cerr << "max set size: " << ret_struct.max_weight << "\n";*/
+            if (verbose)
+                std::cerr << "# of refs (set cnt): " << ret_struct.set_count
+                      << " # of uniq eqs (uniq elem cnt):" << ret_struct.uniqu_element_count << "\n"
+                      << "max set size: " << ret_struct.max_weight << "\n";
             set_cover setcover(ret_struct.set_count,
                                ret_struct.uniqu_element_count,
                                ret_struct.max_weight,
@@ -414,31 +417,27 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                 }
                 i++;
             }
-
-/*
-                std::cerr << "total suspicious: " << ref2eqset.size() <<
-                " cannot remove: " << remainingRefs.size() <<
-                ", can remove: " << canRemove <<
-                ", has been removed: " << alreadySet <<
-                ", has been reverted: " << reverted <<
-                ", should be equal: " << alreadySet + canRemove + remainingRefs.size() <<
-                " " << ref2eqset.size() << "\n";
-*/
             uint32_t totalvalid{0};
             for (auto s : strainValid) {
                 totalvalid += s;
             }
-/*
-                std::cerr << "valid: " << totalvalid
+            if (verbose)
+                std::cerr << "total suspicious: " << ref2eqset.size() <<
+                          " cannot remove: " << remainingRefs.size() <<
+                          ", can remove: " << canRemove <<
+                          ", has been removed: " << alreadySet <<
+                          ", has been reverted: " << reverted <<
+                          ", should be equal: " << alreadySet + canRemove + remainingRefs.size() <<
+                          " " << ref2eqset.size() << "\n"
+                            << "valid: " << totalvalid
                             << ", invalid: " << strainValid.size() - totalvalid << "\n";
-*/
             canHelp = removedImmediatelyCnt != reverted || canRemove;
         }
         return canHelp;
 }
 
 template<class ReaderType>
-bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
+bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool verbose) {
     eqb.finish();
     auto& eqvec = eqb.eqVec();
     int64_t maxSeqID{-1};
@@ -474,7 +473,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
     bool canHelp = true;
     while (cntr++ < maxIter && !converged) {
         if (cntr % thresholdingIterStep == 0 && canHelp) {
-            canHelp = applySetCover(strainCnt, strainValid, potentiallyRemoveStrain, minCnt, canHelp);
+            canHelp = applySetCover(strainCnt, strainValid, potentiallyRemoveStrain, minCnt, canHelp, verbose);
         }
         // M step
         // Find the best (most likely) count assignment
@@ -566,7 +565,6 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt) {
     for (auto& kv : strain) {
         outputMap[seqToTaxMap[kv.first]] += strainValid[kv.first]? strainCnt[kv.first]: 0;
     }
-    //std::cerr << "\n";
     // Until here, strain map was actually holding refids as key, but after swap it'll be holding strain taxids
     std::swap(strain, outputMap);
     
@@ -583,14 +581,10 @@ void Cedar<ReaderType>::serialize(std::string& output_filename) {
     for (auto& kv : strain) {
         if (taxaNodeMap.find(kv.first) != taxaNodeMap.end()) {
             TaxaNode *walker = &taxaNodeMap[kv.first];
-            //std::cerr << "s" << walker->getId() << " ";
             while (!walker->isRoot() && walker->getRank() != pruningLevel) {
-                //std::cerr << "p" << walker->getParentId() << " ";
                 walker = &taxaNodeMap[walker->getParentId()];
-                //std::cerr << walker->getId() << " ";
                 if (walker->getId() > 18000000000000) std::exit(1);
             }
-            //std::cerr << "\n";
             if (!walker->isRoot()) {
                 if (validTaxa.find(walker->getId()) == validTaxa.end()) {
                     validTaxa[walker->getId()] = kv.second;
@@ -658,7 +652,8 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
          bool onlyPerf,
 				 uint32_t segmentSize) {
     loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize);
-    basicEM(maxIter, eps, minCnt);
+    bool verbose = false;
+    basicEM(maxIter, eps, minCnt, verbose);
     logger->info("serialize to ", output_filename);
     if (!flatAbund) {
         serialize(output_filename);

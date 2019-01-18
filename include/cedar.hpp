@@ -38,8 +38,8 @@ class Cedar {
     private:
         bool readHeader(std::ifstream& mfile);
         void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance, bool onlyUniq, bool onlyPerfect, uint32_t segmentSize);
-		bool applySetCover(std::vector<double> &strainCnt, std::vector<bool> &strainValid, std::vector<bool> &potentiallyRemoveStrain, double minCnt, bool canHelp);
-        bool basicEM(size_t maxIter, double eps, double minCnt);
+		bool applySetCover(std::vector<double> &strainCnt, std::vector<bool> &strainValid, std::vector<bool> &potentiallyRemoveStrain, double minCnt, bool canHelp, bool verbose = false);
+        bool basicEM(size_t maxIter, double eps, double minCnt, bool verbose = false);
         void serialize(std::string& output_filename);
         void serializeFlat(std::string& output_filename);
 				void calculateCoverage();
