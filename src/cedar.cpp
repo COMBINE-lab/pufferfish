@@ -164,6 +164,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     constexpr const bool getReadName = true;
     size_t numMapped{0};
     bool wasMapped = false;
+    double globalprobsum{0.0};
     std::cerr << "\n";
     while (mappings.nextRead(readInfo, getReadName)) {
         totalReadCnt++;
@@ -236,9 +237,16 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 if (!isConflicting) { conflicting++; }
                 // it->first : strain id
                 // it->second : prob of current read comming from this strain id (mapping_score/ref_len)
+                double probsum{0.0};
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
                     it->second = it->second / readMappingsScoreSum; // normalize the probabilities for each read
                     strain[it->first] += 1.0 / static_cast<double>(readPerStrainProbInst.size());
+                    probsum+=1.0 / static_cast<double>(readPerStrainProbInst.size());
+                }
+                globalprobsum+=probsum;
+                if (abs(probsum-1.0) >= 1e-10) {
+                    std::cerr << "hfs!!";
+                    std::exit(1);
                 }
                 // SAVE MEMORY, don't push this
                 //readPerStrainProb.push_back(readPerStrainProbInst);
@@ -279,6 +287,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     //logger->info("Total # of unique reads: {}", readset.size());
     //notMappedReadsFile.close();
     logger->info("# of mapped (and accepted) reads: {}", readCnt);
+    logger->info("global probsum: {}", globalprobsum);
     if (onlyUniq or onlyPerfect)
         logger->info("# of mapped reads that were not uniq/perfect: {}", totalReadsNotPassingCond);
     logger->info("# of multi-mapped reads: {}", totalMultiMappedReads);
@@ -322,20 +331,20 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         auto &tg = eqc.first;
         auto &v = eqc.second;
         auto csize = v.weights.size();
-        uint64_t totalValidEqs{0}, potentialRemovedCntr{0}, tgtsAmbiguousCnt{0};
+        uint64_t totalValidRefsInCurEq{0}, potentialRemovedCntr{0}, tgtsAmbiguousCnt{0};
 
         // count total number of valid references for each eq.
         // (other than those that have been invalidated in previous rounds)
         for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
             auto &tgt = tg.tgts[readMappingCntr];
             if (strainValid[tgt]) {
-                totalValidEqs++;
+                totalValidRefsInCurEq++;
                 // this if is for the case where we apply setCover on ambiguous eqs as well
                 if (uniqueReadRefs.find(tgt) == uniqueReadRefs.end())
                     tgtsAmbiguousCnt++;
-            } else {
+            }/* else {
                 potentiallyRemoveStrain[tgt] = false;
-            }
+            }*/
             if (potentiallyRemoveStrain[tgt]) {
                 potentialRemovedCntr++;
             }
@@ -343,18 +352,18 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
             auto &tgt = tg.tgts[readMappingCntr];
             if (potentiallyRemoveStrain[tgt]) {
-                if (potentialRemovedCntr < totalValidEqs) { // if it's safe remove potentially removable reference
+                if (potentialRemovedCntr < totalValidRefsInCurEq) { // if it's safe remove potentially removable reference
                     if (strainValid[tgt]) {
                         removedImmediatelyCnt++;
                     } else
                         wasAlreadyRemovedCnt++;
-                    strainValid[tgt] = false;
-                } else { // otherwise keep it for the setCover step
+                    //strainValid[tgt] = false;
+                } else if (strainValid[tgt]) { // otherwise keep it for the setCover step
                     ref2eqset[tgt].insert(tg.hash);
                 }
-            } else if (tgtsAmbiguousCnt == totalValidEqs) {
+            }/* else if (tgtsAmbiguousCnt == totalValidEqs) {
                 ref2eqset[tgt].insert(tg.hash);
-            }
+            }*/
         }
     }
     if (verbose)
@@ -437,14 +446,19 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         // put the list of minimum # of references that can cover all eqs (output of setCover algo.) in remainingRefs
         std::unordered_set<uint32_t> remainingRefs;
         for (auto iterator = ret.begin(); iterator != ret.end(); ++iterator) {
-            remainingRefs.insert((*iterator)->set_id);
+            remainingRefs.insert((*iterator)->set_id-1);
         }
 
 
         // go over the list of references in ref2eqset
         uint32_t alreadySet{0}, canRemove{0}, reverted{0};
-        i = 1;
-        for (auto &kv : ref2eqset) { // the order is the same as the order of input sets to setCover
+        i = 0;
+        for (uint64_t refCntr = 0; refCntr < strainValid.size(); refCntr++) {
+            if (potentiallyRemoveStrain[refCntr] and remainingRefs.find(static_cast<unsigned int>(refCntr)) == remainingRefs.end()) {
+                strainValid[refCntr] = false;
+            }
+        }
+        /*for (auto &kv : ref2eqset) { // the order is the same as the order of input sets to setCover
             potentiallyRemoveStrain[kv.first] = false;
             if (remainingRefs.find(i) == remainingRefs.end()) {
                 // if the reference is not in the remainingRefs set, safely remove it (make it invalid)
@@ -463,7 +477,7 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                 strainValid[kv.first] = true;
             }
             i++;
-        }
+        }*/
         uint32_t totalvalid{0};
         for (auto s : strainValid) {
             totalvalid += s;
@@ -487,7 +501,7 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         // This shows that we won't have any massive cases from this step that will get removed
         // It might still happen because of the EM and change of counts,
         // but based on my observation this is a good point to stop and trade the time for accuracy
-        canHelp = removedImmediatelyCnt != reverted || canRemove;
+        //canHelp = removedImmediatelyCnt != reverted || canRemove;
     }
     return canHelp;
 }
@@ -503,25 +517,24 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
 
     std::vector<double> newStrainCnt(maxSeqID + 1, 0.0);
     std::vector<double> strainCnt(maxSeqID + 1);
-    std::vector<bool> strainValid(maxSeqID + 1);
-    std::vector<bool> potentiallyRemoveStrain(maxSeqID + 1);
+    std::vector<bool> strainValid(maxSeqID + 1, true);
+    std::vector<bool> potentiallyRemoveStrain(maxSeqID + 1, false);
 
-    for (uint64_t i = 0; i < strainValid.size(); i++) {
-        strainValid[i] = true;
-        potentiallyRemoveStrain[i] = false;
-    }
+    double validTaxIdCnt{0};
     for (auto &kv : strain) {
         strainCnt[kv.first] = kv.second;
+        validTaxIdCnt+=kv.second;
     }
-
     logger->info("maxSeqID : {}", maxSeqID);
     logger->info("found : {} equivalence classes", eqvec.size());
+
     size_t totCount{0};
     for (auto &eqc : eqvec) {
         totCount += eqc.second.count;
     }
     logger->info("Total starting count {}", totCount);
     logger->info("Total mapped reads cnt {}", readCnt);
+    logger->info("Total reads cnt mapped to valid taxids {}", static_cast<uint64_t >(validTaxIdCnt));
 
     size_t cntr = 0;
     bool converged = false;
@@ -544,8 +557,8 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
                 if (strainValid[tgt]) {
 
                     tmpReadProb[readMappingCntr] =
-                            v.weights[readMappingCntr] * strainCnt[tgt] *
-                            strain_coverage[tgt];// * (1.0/refLengths[tgt]);
+                            v.weights[readMappingCntr] * strainCnt[tgt] * strain_coverage[tgt];
+                    // * (1.0/refLengths[tgt]);
                     denom += tmpReadProb[readMappingCntr];
                 }
             }
@@ -576,15 +589,15 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
             newStrainCnt[i] = 0.0;
         }
 
-        /*if (std::abs(readCntValidator - readCnt) > 10) {
+        if (std::abs(readCntValidator - readCnt) > 10) {
             //logger->error("Total read count changed during the EM process");
             logger->error("original: {}, current : {}, diff : {}", readCnt, 
                            readCntValidator, std::abs(readCntValidator - readCnt));
             //std::exit(1);
-        }*/
+        }
 
         if (cntr > 0 and cntr % 100 == 0) {
-            logger->info("max diff : {}", maxDiff);
+            logger->info("max diff : {}, readCnt : {}", maxDiff, readCntValidator);
         }
     }
     logger->info("iterator cnt: {}", cntr);
@@ -619,9 +632,15 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
     // computed abundances in the "strain" member variable.
     decltype(strain) outputMap;
     outputMap.reserve(strain.size());
+    double finalReadCnt{0}, numOfValids{0};
     for (auto &kv : strain) {
+        finalReadCnt += strainCnt[kv.first];
+        numOfValids += strainValid[kv.first];
         outputMap[seqToTaxMap[kv.first]] += strainValid[kv.first] ? strainCnt[kv.first] : 0;
     }
+    logger->info("Final Reference-level read cnt: {}, # of valid refs: {}",
+            static_cast<uint64_t >(finalReadCnt),
+                 static_cast<uint64_t>(numOfValids));
     // Until here, strain map was actually holding refids as key, but after swap it'll be holding strain taxids
     std::swap(strain, outputMap);
 
@@ -653,7 +672,7 @@ void Cedar<ReaderType>::serialize(std::string &output_filename) {
             std::cerr << "taxa not found: " << kv.first << "\n";
         }
     }
-    uint64_t finalReadCnt{0};
+    double finalReadCnt{0.0};
     for (auto &kv : validTaxa) {
         if (kv.second != 0)
             ofile << kv.first << "\t"
@@ -662,7 +681,7 @@ void Cedar<ReaderType>::serialize(std::string &output_filename) {
         finalReadCnt += kv.second;
     }
     ofile.close();
-    logger->info("Final reported read count by Cedar: {}", finalReadCnt);
+    logger->info("Final reported read count by Cedar: {}", static_cast<uint64_t >(finalReadCnt));
     std::ofstream covOfile(output_filename + ".coverage");
     for (auto &kv: cov) {
         covOfile << kv.first << "\t" << kv.second << "\n";
@@ -709,7 +728,7 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
                             bool onlyPerf,
                             uint32_t segmentSize) {
     loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize);
-    bool verbose = false;
+    bool verbose = true;
     basicEM(maxIter, eps, minCnt, verbose);
     logger->info("serialize to ", output_filename);
     if (!flatAbund) {
