@@ -404,7 +404,9 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         ret_struct.all_element_count = 0;
 
         uint32_t i = 0;
+        std::vector<uint64_t> setCoverId2ref(ref2eqset.size());
         for (auto &kv : ref2eqset) {
+            setCoverId2ref[i] = kv.first;
             auto setSize = kv.second.size();
             ret_struct.set_sizes[i] = setSize;
             if (ret_struct.max_weight < setSize) {
@@ -446,7 +448,7 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         // put the list of minimum # of references that can cover all eqs (output of setCover algo.) in remainingRefs
         std::unordered_set<uint32_t> remainingRefs;
         for (auto iterator = ret.begin(); iterator != ret.end(); ++iterator) {
-            remainingRefs.insert((*iterator)->set_id-1);
+            remainingRefs.insert(setCoverId2ref[(*iterator)->set_id-1]);
         }
 
 
