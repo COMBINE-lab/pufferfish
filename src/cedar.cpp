@@ -327,6 +327,26 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
     }
     std::unordered_map<uint32_t, std::unordered_set<uint64_t>> ref2eqset;
     uint64_t removedImmediatelyCnt{0}, wasAlreadyRemovedCnt{0};
+		for (auto &eqc : eqvec) {
+        auto &tg = eqc.first;
+        auto &v = eqc.second;
+        auto csize = v.weights.size();
+        uint64_t totalValidRefsInCurEq{0}, tgtsAmbiguousCnt{0};
+        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+            auto &tgt = tg.tgts[readMappingCntr];
+            if (strainValid[tgt])
+                totalValidRefsInCurEq++;
+            if (strainValid[tgt] and uniqueReadRefs.find(tgt) == uniqueReadRefs.end()) 
+                tgtsAmbiguousCnt++;
+        }
+        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+            auto &tgt = tg.tgts[readMappingCntr];
+						if ( !potentiallyRemoveStrain[tgt] and tgtsAmbiguousCnt == totalValidRefsInCurEq) {
+                ref2eqset[tgt].insert(tg.hash);
+                potentiallyRemoveStrain[tgt] = true;
+            }
+        }
+		}
     for (auto &eqc : eqvec) {
         auto &tg = eqc.first;
         auto &v = eqc.second;
@@ -361,10 +381,10 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                 } else if (strainValid[tgt]) { // otherwise keep it for the setCover step
                     ref2eqset[tgt].insert(tg.hash);
                 }
-            } else if (tgtsAmbiguousCnt == totalValidRefsInCurEq) {
+            } /*else if (tgtsAmbiguousCnt == totalValidRefsInCurEq) {
                 ref2eqset[tgt].insert(tg.hash);
                 potentiallyRemoveStrain[tgt] = true;
-            }
+            }*/
         }
     }
     if (verbose)
