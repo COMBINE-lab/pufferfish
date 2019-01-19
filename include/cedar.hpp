@@ -44,7 +44,7 @@ private:
                          uint32_t segmentSize);
 
     bool applySetCover(std::vector<double> &strainCnt, std::vector<bool> &strainValid,
-                       std::vector<bool> &potentiallyRemoveStrain, double minCnt, bool canHelp, bool verbose = false);
+                       std::vector<bool> &strainPotentiallyRemovable, double minCnt, bool canHelp, bool verbose = false);
 
     bool basicEM(size_t maxIter, double eps, double minCnt, bool verbose = false);
 

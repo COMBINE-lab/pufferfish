@@ -241,10 +241,10 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
                     it->second = it->second / readMappingsScoreSum; // normalize the probabilities for each read
                     strain[it->first] += 1.0 / static_cast<double>(readPerStrainProbInst.size());
-                    probsum+=1.0 / static_cast<double>(readPerStrainProbInst.size());
+                    probsum += 1.0 / static_cast<double>(readPerStrainProbInst.size());
                 }
-                globalprobsum+=probsum;
-                if (abs(probsum-1.0) >= 1e-10) {
+                globalprobsum += probsum;
+                if (abs(probsum - 1.0) >= 1e-10) {
                     std::cerr << "hfs!!";
                     std::exit(1);
                 }
@@ -300,14 +300,16 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
 template<class ReaderType>
 bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                                       std::vector<bool> &strainValid,
-                                      std::vector<bool> &potentiallyRemoveStrain,
+                                      std::vector<bool> &strainPotentiallyRemovable,
                                       double minCnt,
                                       bool canHelp,
                                       bool verbose) {
+    uint64_t previouslyValid{0};
     auto &eqvec = eqb.eqVec();
     // rule to find potentially removable strains
     for (size_t i = 0; i < strainCnt.size(); ++i) {
-        potentiallyRemoveStrain[i] = strainValid[i] ? strainCnt[i] <= minCnt : false;
+        strainPotentiallyRemovable[i] = strainValid[i] ? strainCnt[i] <= minCnt : false;
+        previouslyValid += strainValid[i];
     }
     // find list of all references with a unique *valid* read mapped to them
     std::unordered_set<uint64_t> uniqueReadRefs;
@@ -325,33 +327,18 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
             uniqueReadRefs.insert(eqValids[0]);
         }
     }
+    for (size_t i = 0; i < strainCnt.size(); ++i) {
+        if (strainValid[i] and uniqueReadRefs.find(i) == uniqueReadRefs.end())
+            strainPotentiallyRemovable[i] = true;
+    }
+
+
     std::unordered_map<uint32_t, std::unordered_set<uint64_t>> ref2eqset;
-    uint64_t removedImmediatelyCnt{0}, wasAlreadyRemovedCnt{0};
-		for (auto &eqc : eqvec) {
-        auto &tg = eqc.first;
-        auto &v = eqc.second;
-        auto csize = v.weights.size();
-        uint64_t totalValidRefsInCurEq{0}, tgtsAmbiguousCnt{0};
-        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
-            auto &tgt = tg.tgts[readMappingCntr];
-            if (strainValid[tgt])
-                totalValidRefsInCurEq++;
-            if (strainValid[tgt] and uniqueReadRefs.find(tgt) == uniqueReadRefs.end()) 
-                tgtsAmbiguousCnt++;
-        }
-        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
-            auto &tgt = tg.tgts[readMappingCntr];
-						if ( !potentiallyRemoveStrain[tgt] and tgtsAmbiguousCnt == totalValidRefsInCurEq) {
-                ref2eqset[tgt].insert(tg.hash);
-                potentiallyRemoveStrain[tgt] = true;
-            }
-        }
-		}
     for (auto &eqc : eqvec) {
         auto &tg = eqc.first;
         auto &v = eqc.second;
         auto csize = v.weights.size();
-        uint64_t totalValidRefsInCurEq{0}, potentialRemovedCntr{0}, tgtsAmbiguousCnt{0};
+        uint64_t totalValidRefsInCurEq{0}, potentialRemovableCntr{0};
 
         // count total number of valid references for each eq.
         // (other than those that have been invalidated in previous rounds)
@@ -359,49 +346,31 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
             auto &tgt = tg.tgts[readMappingCntr];
             if (strainValid[tgt]) {
                 totalValidRefsInCurEq++;
-                // this if is for the case where we apply setCover on ambiguous eqs as well
-                if (uniqueReadRefs.find(tgt) == uniqueReadRefs.end())
-                    tgtsAmbiguousCnt++;
-            }/* else {
-                potentiallyRemoveStrain[tgt] = false;
-            }*/
-            if (potentiallyRemoveStrain[tgt]) {
-                potentialRemovedCntr++;
+            }
+            if (strainPotentiallyRemovable[tgt]) {
+                potentialRemovableCntr++;
             }
         }
-        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
-            auto &tgt = tg.tgts[readMappingCntr];
-            if (potentiallyRemoveStrain[tgt]) {
-                if (potentialRemovedCntr < totalValidRefsInCurEq) { // if it's safe remove potentially removable reference
-                    if (strainValid[tgt]) {
-                        removedImmediatelyCnt++;
-                    } else
-                        wasAlreadyRemovedCnt++;
-                    //strainValid[tgt] = false;
-                } else if (strainValid[tgt]) { // otherwise keep it for the setCover step
+        if (potentialRemovableCntr >=
+            totalValidRefsInCurEq) { // if all the refs in the eq are set as potentiallyRemovable
+            for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                auto &tgt = tg.tgts[readMappingCntr];
+                if (strainValid[tgt] and strainPotentiallyRemovable[tgt]) {
                     ref2eqset[tgt].insert(tg.hash);
                 }
-            } /*else if (tgtsAmbiguousCnt == totalValidRefsInCurEq) {
-                ref2eqset[tgt].insert(tg.hash);
-                potentiallyRemoveStrain[tgt] = true;
-            }*/
+            }
         }
     }
-    if (verbose)
-        std::cerr << "\nRemoved immediately: " << removedImmediatelyCnt <<
-                  " was already removed: " << wasAlreadyRemovedCnt <<
-                  " ref2eqset size: " << ref2eqset.size() << "\n";
-
 
     std::unordered_map<uint64_t, uint32_t> eq2id;
-    // ref2eqset is a map from a reference to the set of ambiguous eqs it belongs to (careful, not all the set of eqs.)
-    // ambiguous eq is an eq that all its remaining refs has been chosen as potentially removable
+// ref2eqset is a map from a reference to the set of ambiguous eqs it belongs to (careful, not all the set of eqs.)
+// ambiguous eq is an eq that all its remaining refs has been chosen as potentially removable
     if (ref2eqset.size() > 0) {
-        // set cover input preparation
-        // convert the input to proper format for the library that runs setCover algo.
+// set cover input preparation
+// convert the input to proper format for the library that runs setCover algo.
         uint32_t id = 1;
-        for (auto &kv : ref2eqset) {
-            for (auto v : kv.second)
+        for (auto &kv: ref2eqset) {
+            for (auto v: kv.second)
                 if (eq2id.find(v) == eq2id.end()) {
                     eq2id[v] = id;
                     id++;
@@ -415,7 +384,8 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
 
         unsigned int *element_size = new unsigned int[elementCnt + 2];
         memset(&element_size[0], 0, sizeof(unsigned int) * (elementCnt + 2));
-        ret_struct.element_size_lookup = element_size;
+        ret_struct.
+                element_size_lookup = element_size;
         unsigned int *set_size = new unsigned int[setCnt];
 
         ret_struct.set_sizes = set_size;
@@ -426,7 +396,7 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
 
         uint32_t i = 0;
         std::vector<uint64_t> setCoverId2ref(ref2eqset.size());
-        for (auto &kv : ref2eqset) {
+        for (auto &kv: ref2eqset) {
             setCoverId2ref[i] = kv.first;
             auto setSize = kv.second.size();
             ret_struct.set_sizes[i] = setSize;
@@ -435,7 +405,7 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
             }
             ret_struct.sets[i] = new unsigned int[setSize];
             uint32_t element_counter = 0;
-            for (auto &eq : kv.second) {
+            for (auto &eq: kv.second) {
                 ret_struct.sets[i][element_counter++] = eq2id[eq];
                 ret_struct.element_size_lookup[eq2id[eq]]++;
                 ret_struct.all_element_count++;
@@ -444,13 +414,13 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
             std::fill_n(ret_struct.weights[i], setSize, 1);
             i++;
         }
-        // end of set cover input preparation
+// end of set cover input preparation
         if (verbose)
-            std::cerr << "# of refs (set cnt): " << ret_struct.set_count
-                      << " # of uniq eqs (uniq elem cnt):" << ret_struct.uniqu_element_count << "\n"
-                      << "max set size: " << ret_struct.max_weight << "\n";
+            std::cerr << "Set Cover Input:\n# of refs: " << ret_struct.set_count
+                      << ", # of uniq eqs:" << ret_struct.uniqu_element_count
+                      << ", max set size: " << ret_struct.max_weight << "\n";
 
-        // run setCover algo over the list of refs and eqs in ref2eqset
+// run setCover algo over the list of refs and eqs in ref2eqset
         set_cover setcover(ret_struct.set_count,
                            ret_struct.uniqu_element_count,
                            ret_struct.max_weight,
@@ -463,68 +433,35 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
                              ret_struct.set_sizes[j]);
             free(ret_struct.sets[j]);
             free(ret_struct.weights[j]);
-
         }
         std::list<set *> ret = setcover.execute_set_cover();
-        // put the list of minimum # of references that can cover all eqs (output of setCover algo.) in remainingRefs
+// put the list of minimum # of references that can cover all eqs (output of setCover algo.) in remainingRefs
         std::unordered_set<uint32_t> remainingRefs;
         for (auto iterator = ret.begin(); iterator != ret.end(); ++iterator) {
-            remainingRefs.insert(setCoverId2ref[(*iterator)->set_id-1]);
+            remainingRefs.insert(setCoverId2ref[(*iterator)->set_id - 1]);
         }
 
 
-        // go over the list of references in ref2eqset
-        uint32_t alreadySet{0}, canRemove{0}, reverted{0};
+// go over the list of references in ref2eqset
         i = 0;
         for (uint64_t refCntr = 0; refCntr < strainValid.size(); refCntr++) {
-            if (potentiallyRemoveStrain[refCntr] and remainingRefs.find(static_cast<unsigned int>(refCntr)) == remainingRefs.end()) {
+            if (strainPotentiallyRemovable[refCntr] and
+                remainingRefs.find(static_cast<unsigned int>(refCntr)) == remainingRefs.end()) {
                 strainValid[refCntr] = false;
             }
+            strainPotentiallyRemovable[refCntr] = false;
         }
-        /*for (auto &kv : ref2eqset) { // the order is the same as the order of input sets to setCover
-            potentiallyRemoveStrain[kv.first] = false;
-            if (remainingRefs.find(i) == remainingRefs.end()) {
-                // if the reference is not in the remainingRefs set, safely remove it (make it invalid)
-                if (!strainValid[kv.first])
-                    alreadySet++;
-                else
-                    canRemove++;
-                strainValid[kv.first] = false;
-            } else {
-                // otherwise, it meanst the reference should be kept
-                // so if it was set to be removed in an earlier step unset it (keep it)
-                // we call these refs reverted
-                if (!strainValid[kv.first]) {
-                    reverted++;
-                }
-                strainValid[kv.first] = true;
-            }
-            i++;
-        }*/
-        uint32_t totalvalid{0};
-        for (auto s : strainValid) {
-            totalvalid += s;
+        uint32_t totalValid{0};
+        for (auto s: strainValid) {
+            totalValid += s;
         }
         if (verbose)
-            std::cerr << "total suspicious: " << ref2eqset.size() <<
-                      " cannot remove: " << remainingRefs.size() <<
-                      ", can remove: " << canRemove <<
-                      ", has been removed: " << alreadySet <<
-                      ", has been reverted: " << reverted <<
-                      ", should be equal: " << alreadySet + canRemove + remainingRefs.size() <<
-                      " " << ref2eqset.size() << "\n"
-                      << "valid: " << totalvalid
-                      << ", invalid: " << strainValid.size() - totalvalid << "\n";
-        // repeat this process until
-        // first: here are still references that will be set to be removed after the setCover
-        // meaning that they have not been already removed and they're not put in the remaining set
-        // and
-        // second: all the selected list of references to be removed at the beginning (from safe non-ambigous eqs.)
-        // get reverted here because the setCover algo. decides that they should be kept.
-        // This shows that we won't have any massive cases from this step that will get removed
-        // It might still happen because of the EM and change of counts,
-        // but based on my observation this is a good point to stop and trade the time for accuracy
-        //canHelp = removedImmediatelyCnt != reverted || canRemove;
+            std::cerr << "Input refs: " << ref2eqset.size()
+                      << "\tRescued refs: " << remainingRefs.size()
+                      << "\n"
+                      << "valid: " << totalValid
+                      << ", invalid: " << strainValid.size() - totalValid << "\n\n";
+        canHelp = previouslyValid != totalValid;
     }
     return canHelp;
 }
@@ -541,12 +478,12 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
     std::vector<double> newStrainCnt(maxSeqID + 1, 0.0);
     std::vector<double> strainCnt(maxSeqID + 1);
     std::vector<bool> strainValid(maxSeqID + 1, true);
-    std::vector<bool> potentiallyRemoveStrain(maxSeqID + 1, false);
+    std::vector<bool> strainPotentiallyRemovable(maxSeqID + 1, false);
 
     double validTaxIdCnt{0};
     for (auto &kv : strain) {
         strainCnt[kv.first] = kv.second;
-        validTaxIdCnt+=kv.second;
+        validTaxIdCnt += kv.second;
     }
     logger->info("maxSeqID : {}", maxSeqID);
     logger->info("found : {} equivalence classes", eqvec.size());
@@ -565,7 +502,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
     bool canHelp = true;
     while (cntr++ < maxIter && !converged) {
         if (cntr % thresholdingIterStep == 0 && canHelp) {
-            canHelp = applySetCover(strainCnt, strainValid, potentiallyRemoveStrain, minCnt, canHelp, verbose);
+            canHelp = applySetCover(strainCnt, strainValid, strainPotentiallyRemovable, minCnt, canHelp, verbose);
         }
         // M step
         // Find the best (most likely) count assignment
@@ -614,13 +551,13 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
 
         if (std::abs(readCntValidator - readCnt) > 10) {
             //logger->error("Total read count changed during the EM process");
-            logger->error("original: {}, current : {}, diff : {}", readCnt, 
-                           readCntValidator, std::abs(readCntValidator - readCnt));
+            logger->error("original: {}, current : {}, diff : {}", readCnt,
+                          readCntValidator, std::abs(readCntValidator - readCnt));
             //std::exit(1);
         }
 
         if (cntr > 0 and cntr % 100 == 0) {
-            logger->info("max diff : {}, readCnt : {}", maxDiff, readCntValidator);
+            logger->info("max diff : {}, readCnt : {}", maxDiff, static_cast<uint64_t>(readCntValidator));
         }
     }
     logger->info("iterator cnt: {}", cntr);
@@ -662,7 +599,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
         outputMap[seqToTaxMap[kv.first]] += strainValid[kv.first] ? strainCnt[kv.first] : 0;
     }
     logger->info("Final Reference-level read cnt: {}, # of valid refs: {}",
-            static_cast<uint64_t >(finalReadCnt),
+                 static_cast<uint64_t >(finalReadCnt),
                  static_cast<uint64_t>(numOfValids));
     // Until here, strain map was actually holding refids as key, but after swap it'll be holding strain taxids
     std::swap(strain, outputMap);
