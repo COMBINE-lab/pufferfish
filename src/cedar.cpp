@@ -442,7 +442,7 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         }
 
 
-// go over the list of references in ref2eqset
+// go over the list of references
         i = 0;
         for (uint64_t refCntr = 0; refCntr < strainValid.size(); refCntr++) {
             if (strainPotentiallyRemovable[refCntr] and
