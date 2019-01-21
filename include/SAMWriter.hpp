@@ -534,7 +534,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
               << 1 << '\t'                                   // MAPQ
               << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
-              << 0 << '\t'                      // PNEXT
+              << 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
               << *readSeq1 << '\t'                           // SEQ
               << "*\t"                                       // QUAL
