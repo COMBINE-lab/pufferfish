@@ -8,6 +8,8 @@
 #include "CommonTypes.hpp"
 
 class MemClusterer {
+private:
+    uint64_t maxAllowedRefsPerHit = 200;
 public:
     static inline float fastlog2(float x) {
         union {
@@ -55,9 +57,9 @@ public:
         // here we guarantee that even if later we fill up
         // every gap between the hits and before the first and after the last hit
         // still the memCollection size doesn't change and hence the pointers are valid
-        memCollection.reserve(200 * 2 * hits.size() + 1);
+        memCollection.reserve(maxAllowedRefsPerHit * 2 * hits.size() + 1);
         if (verbose)
-            std::cerr << "\nreserved memCollection size: " << 200 * 2 * hits.size() + 1 << "\n";
+            std::cerr << "\nreserved memCollection size: " << maxAllowedRefsPerHit * 2 * hits.size() + 1 << "\n";
         for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
             auto &readPos = hit.first;
             auto &projHits = hit.second;
@@ -66,7 +68,7 @@ public:
             auto &refs = projHits.refRange;
             if (verbose)
                 std::cerr << "total number of references found: " << refs.size() << "\n";
-            if (refs.size() < 200) {
+            if (static_cast<uint64_t >(refs.size()) < maxAllowedRefsPerHit) {
                 memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                            readPos, projHits.k_, projHits.contigPos_,
                                            projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_);
@@ -210,9 +212,9 @@ public:
         // here we guarantee that even if later we fill up
         // every gap between the hits and before the first and after the last hit
         // still the memCollection size doesn't change and hence the pointers are valid
-        memCollection.reserve(200 * 2 * hits.size() + 1);
+        memCollection.reserve(maxAllowedRefsPerHit * 2 * hits.size() + 1);
         if (verbose)
-            std::cerr << "\nreserved memCollection size: " << 200 * 2 * hits.size() + 1 << "\n";
+            std::cerr << "\nreserved memCollection size: " << maxAllowedRefsPerHit * 2 * hits.size() + 1 << "\n";
         for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
             auto &readPos = hit.first;
             auto &projHits = hit.second;
@@ -221,7 +223,7 @@ public:
             auto &refs = projHits.refRange;
             if (verbose)
                 std::cerr << "total number of references found: " << refs.size() << "\n";
-            if (refs.size() < 200) {
+            if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit) {
                 memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                            readPos, projHits.k_, projHits.contigPos_,
                                            projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_, re);
@@ -253,12 +255,11 @@ public:
             std::cerr << "\n[START OF FIND_OPT_CHAIN]\n";
 
         using namespace pufferfish::common_types;
-
         double globalScore{-std::numeric_limits<double>::infinity()};
         std::vector<double> f;
         std::vector<int32_t> p;
-        all.reserve(200 * 2 * trMemMap.size());
-        all.push_back(util::MemCluster(1));
+        all.reserve(maxAllowedRefsPerHit * 2 * trMemMap.size()+10);
+        all.emplace_back(1);
         bool no = trMemMap.size() == 0;
         for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
             auto &trOri = trMem.first;
@@ -424,10 +425,10 @@ public:
                     }
                     memIndicesInReverse.push_back(bestChainEnd);
                     if (shouldBeAdded) {
-                        all.push_back(util::MemCluster(isFw));
-                        all.push_back(util::MemCluster(isFw));
-                        std::vector<util::MemCluster>::iterator lclust = all.end() - 2;
-                        std::vector<util::MemCluster>::iterator rclust = all.end() - 1;
+                        all.emplace_back(isFw);
+                        all.emplace_back(isFw);
+                        auto lclust = all.end() - 2;
+                        auto rclust = all.end() - 1;
                         for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
                             if (memList[*it].memInfo->readEnd == util::ReadEnd::LEFT) {
                                 if (verbose) {
@@ -467,9 +468,10 @@ public:
                             std::cerr << "fragmentlen: " << fragmentLen << "\n";
                         }
 
-                        if (all.size() >= 200 * 2 * trMemMap.size()) {
-                            std::cerr << "BAD; SHOULD NOT HAPPEN! " << all.size() << "\n";
-                            std::exit(1);
+                        if (all.size() >= maxAllowedRefsPerHit * 2 * trMemMap.size()) {
+                            std::cerr << "1 BAD; SHOULD NOT HAPPEN! " << all.size() << " " << trMemMap.size() << "\n";
+                            break;
+                            //std::exit(1);
                         }
                         if (!rclust->mems.empty() and !lclust->mems.empty() and
                             fragmentLen < maxFragmentLength) {
@@ -565,8 +567,8 @@ public:
         std::vector<double> fswitch;
         std::vector<int32_t> p;
         std::vector<int32_t> pswitch;
-        all.reserve(200 * 2 * trMemMap.size());
-        all.push_back(util::MemCluster(1));
+        all.reserve(maxAllowedRefsPerHit * 2 * trMemMap.size()+10);
+        all.emplace_back(1);
         bool no = trMemMap.size() == 0;
         //verbose = true;
         for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
@@ -574,6 +576,8 @@ public:
             auto &tid = trOri.first;
             auto &isFw = trOri.second;
             auto &memList = trMem.second;
+            /*if (trMemMap.size() == 1 and tid == 51)
+                verbose = true;*/
             // sort memList according to mem reference positions
             std::sort(memList.begin(), memList.end(),
                       [](util::MemInfo &q1, util::MemInfo &q2) -> bool {
@@ -787,10 +791,10 @@ public:
                     }
                     memIndicesInReverse.push_back(bestChainEnd);
                     if (shouldBeAdded) {
-                        all.push_back(util::MemCluster(isFw));
-                        all.push_back(util::MemCluster(isFw));
-                        std::vector<util::MemCluster>::iterator lclust = all.end() - 2;
-                        std::vector<util::MemCluster>::iterator rclust = all.end() - 1;
+                        all.emplace_back(isFw);
+                        all.emplace_back(isFw);
+                        auto lclust = all.end() - 2;
+                        auto rclust = all.end() - 1;
                         for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
                             if (memList[*it].memInfo->readEnd == util::ReadEnd::LEFT) {
                                 if (verbose) {
@@ -810,14 +814,14 @@ public:
                         }
 
                         //FIXME take care of the left and right coverage/score separately!!
-												if (verbose)
-													std::cerr<< "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n"; 
+                        if (verbose)
+                            std::cerr<< "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n";
 
-												if (lclust->coverage == readLenLeft) {
-													lclust->perfectChain = true;
-												}
-												if (rclust->coverage == readLenRight)
-													rclust->perfectChain = true;
+                        if (lclust->coverage == readLenLeft) {
+                            lclust->perfectChain = true;
+                        }
+                        if (rclust->coverage == readLenRight)
+                            rclust->perfectChain = true;
                         lclust->coverage = bestScore / 2.0;
                         rclust->coverage = bestScore / 2.0;
 																								
@@ -839,15 +843,23 @@ public:
                             std::cerr << "fragmentlen: " << fragmentLen << "\n";
                         }
 
-                        if (all.size() >= 200 * 2 * trMemMap.size()) {
-                            std::cerr << "BAD; SHOULD NOT HAPPEN! " << all.size() << "\n";
-                            std::exit(1);
+                        if (all.size() >= maxAllowedRefsPerHit * 2 * trMemMap.size()) {
+                            std::cerr << "BAD; SHOULD NOT HAPPEN! " << all.size() << " "
+                            << trMemMap.size() << " " << tid << " " << memList.size() << "\n";
+                            std::cerr << "chain size: " << bestChainEndList.size() << "\n";
+                            break;
+                            /*for (auto ii : bestChainEndList) {
+                                std::cerr << ii << " ";
+                            }
+                            std::cerr << "\n";*/
+                            //std::exit(1);
                         }
                         if (!rclust->mems.empty() and !lclust->mems.empty() and
                             fragmentLen < maxFragmentLength) {
-														if(verbose) {
-															std::cerr<< "fragmentLen\t" << fragmentLen << "\t" << maxFragmentLength <<"\n"<< "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n"; 
-														}
+                            if(verbose) {
+                                std::cerr<< "fragmentLen\t" << fragmentLen << "\t" << maxFragmentLength <<"\n"
+                                << "tid\t" << tid << "\t" << lclust->coverage << "\t" << rclust->coverage << "\n";
+                            }
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                         } else {
 //                            std::cerr << "in else\n";
