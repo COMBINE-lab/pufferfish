@@ -31,7 +31,7 @@ public:
         return false;
     }
 
-    bool hasNext() { std::cerr << currByte_ << " " << chunkSize_ << "\n";return currByte_ < chunkSize_; }
+    bool hasNext() { return currByte_ < chunkSize_; }
 
     template<class T>
     inline void fill(T &val) {
@@ -74,10 +74,8 @@ class PuffMappingReader {
 
         bool nextRead(ReadInfo& rinf, bool needReadName=false) {
             if (!chunk.hasNext()) {// try to read a new chunk from file
-                std::cerr << "want to read a new chunk\n";
                 if (!readChunk(chunk)) // if nothing left to process return false
                     return false;
-                std::cerr << "read a new chunk\n";
             }
             rinf.mappings.clear();
 
@@ -105,45 +103,54 @@ class PuffMappingReader {
                 chunk.fill(rlen); // right read len
                 rinf.len += rlen;
             }
-            std::cerr << rinf.rid << " " << rinf.cnt << " " << rinf.len << "\n";
+//            std::cerr << rinf.rid << " " << rinf.cnt << " " << rinf.len << "\n";
             rinf.mappings.reserve(rinf.cnt);
+            TaxaNode dummy;
+            TaxaNode *taxaPtr = &dummy;
+
             for (size_t mappingCntr = 0; mappingCntr < rinf.cnt; mappingCntr++) {
                 double rscore{0.0}, lscore{0.0};
                 chunk.fill(puff_id);
                 // fetch the taxon from the map
-                std::cerr << "puff_id: " << puff_id << "\n";
+//                std::cerr << "puff_id: " << puff_id << " ";
                 rinf.mappings.emplace_back(puff_id);
-                TaxaNode& taxaPtr = rinf.mappings.back();
+                taxaPtr = &rinf.mappings.back();
                 chunk.fill(lcnt);
-                std::cerr << "left ints:" << lcnt << "\n";
+//                std::cerr << "left intrvls:" << lcnt << " ";
                 if (isPaired) {
                     chunk.fill(rcnt);
-                    std::cerr << "right ints:" << rcnt << "\n";
+//                    std::cerr << "right intrvls:" << rcnt << " ";
                 }
                     if (lcnt) {
                     chunk.fill(lscore);
-                    std::cerr << "left score:" << lscore << "\n";
                     chunk.fill(refPos);
-                    taxaPtr.setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::LEFT);
-                    taxaPtr.setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::LEFT);
-                    std::cout << taxaPtr.getPos(ReadEnd::LEFT) << " " << taxaPtr.isFw(ReadEnd::LEFT) << "\n";
+                    taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::LEFT);
+                    taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::LEFT);
+//                    std::cerr << "left score:" << lscore << " ";
+//                    std::cout << "left pos:" << taxaPtr->getPos(ReadEnd::LEFT) << " " << taxaPtr->isFw(ReadEnd::LEFT) << "\n";
                 }
 
                 if (isPaired) {
                     if (rcnt) {
+                        ReadEnd currRe = ReadEnd::RIGHT;
+                        // NOTE, IMPORTANT! There is this implicit untold!!! assumption that
+                        // if a mapping is orphan (one end is only mapped), we're gonna see that as the LEFT end!!
+                        if (!lcnt) {
+                            currRe = ReadEnd::LEFT;
+                        }
                         chunk.fill(rscore);
-                        std::cerr << "right score:" << rscore << "\n";
                         chunk.fill(refPos);
-                        taxaPtr.setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::RIGHT);
-                        taxaPtr.setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::RIGHT);
-                        std::cout << taxaPtr.getPos(ReadEnd::RIGHT) << " " << taxaPtr.isFw(ReadEnd::RIGHT) << "\n";
+                        taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, currRe);
+                        taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, currRe);
+//                        std::cerr << "right score:" << rscore << " ";
+//                        std::cout << "right pos: " << taxaPtr->getPos(currRe) << " " << taxaPtr->isFw(currRe) << "\n";
                     }
                 }
                 //std::cout << "here\n";
-                taxaPtr.cleanIntervals(ReadEnd::LEFT);
-                taxaPtr.cleanIntervals(ReadEnd::RIGHT);
-                taxaPtr.setScore(lscore + rscore);
-                //taxaPtr.updateScore();
+                taxaPtr->cleanIntervals(ReadEnd::LEFT);
+                taxaPtr->cleanIntervals(ReadEnd::RIGHT);
+                taxaPtr->setScore(lscore + rscore);
+                //taxaPtr->updateScore();
                 //std::cout << "here\n";
             }
             return true;

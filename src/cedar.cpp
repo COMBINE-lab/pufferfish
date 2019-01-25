@@ -227,7 +227,8 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     if(bin_number < cbins.size()) {
                         cbins[bin_number]++;
                     } else {
-                        std::cerr << "got an out of bound bin number: " << bin_number << " " << cbins.size() << "\n";
+                        std::cerr << "SHOULDN'T HAPPEN! out of bound: " << bin_number << " " << cbins.size() << " ";
+                        std::cerr << "lpos: " << mapping.getPos(ReadEnd::LEFT) << "\n";
                     }
                     prevTaxa = &mapping;
                 }

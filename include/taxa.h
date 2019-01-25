@@ -214,13 +214,13 @@ class TaxaNode {
         uint64_t parentId;
         Rank rank;
         // change per read mapping
-        uint32_t score;
+        uint32_t score{0};
         uint64_t notIncorporatedChildrenCounter;
         std::set<uint64_t> activeChildren; //it's a set because, we might add the same child multiple times
-        bool leftFw;
-        bool rightFw;
-        refLenType lPos;
-        refLenType rPos;
+        bool leftFw{true};
+        bool rightFw{false};
+        refLenType lPos{0};
+        refLenType rPos{0};
         std::vector<Interval> lintervals;
         std::vector<Interval> rintervals;
         bool isCleaned = false;
