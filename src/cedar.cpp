@@ -431,8 +431,10 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
             setcover.add_set(j + 1, ret_struct.set_sizes[j], (const unsigned int *) ret_struct.sets[j],
                              (const unsigned short *) ret_struct.weights[j],
                              ret_struct.set_sizes[j]);
-            free(ret_struct.sets[j]);
-            free(ret_struct.weights[j]);
+            delete [] ret_struct.sets[j];
+            delete [] ret_struct.weights[j];
+//            free(ret_struct.sets[j]);
+//            free(ret_struct.weights[j]);
         }
         std::list<set *> ret = setcover.execute_set_cover();
 // put the list of minimum # of references that can cover all eqs (output of setCover algo.) in remainingRefs
@@ -440,8 +442,10 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
         for (auto iterator = ret.begin(); iterator != ret.end(); ++iterator) {
             remainingRefs.insert(setCoverId2ref[(*iterator)->set_id - 1]);
         }
-
-
+        delete[] element_size;
+        delete[] set_size;
+        delete[] ret_struct.sets;
+        delete[] ret_struct.weights;
 // go over the list of references
         i = 0;
         for (uint64_t refCntr = 0; refCntr < strainValid.size(); refCntr++) {
