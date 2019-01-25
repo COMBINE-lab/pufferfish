@@ -223,7 +223,12 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
 
                     uint32_t bin_number = mapping.getPos(ReadEnd::LEFT) / segmentSize > 0 ?
                                           mapping.getPos(ReadEnd::LEFT) / segmentSize - 1 : 0;
-                    strain_coverage_bins[mapping.getId()][bin_number]++;
+                    auto& cbins = strain_coverage_bins[mapping.getId()];
+                    if(bin_number < cbins.size()) {
+                        cbins[bin_number]++;
+                    } else {
+                        std::cerr << "got an out of bound bin number: " << bin_number << " " << cbins.size() << "\n";
+                    }
                     prevTaxa = &mapping;
                 }
             }
