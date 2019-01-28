@@ -387,7 +387,7 @@ std::string cigar2str(const ksw_extz_t *ez) {
     return cigar;
 }
 
-char* getRefSeq(sdsl::int_vector<2>& refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen, std::string& tseq) {
+void getRefSeq(sdsl::int_vector<2>& refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen, std::string& tseq) {
 	//std::string tseq = "";
 	uint64_t bucket_offset = (refAccPos+tpos)*2;
 	auto len_on_vector = memlen * 2;
@@ -408,10 +408,9 @@ char* getRefSeq(sdsl::int_vector<2>& refseq, uint64_t refAccPos, size_t tpos, ui
 		}
 		bucket_offset += len;
 	}
-	char *cstr = new char[tseq.length() + 1];
+	/*char *cstr = new char[tseq.length() + 1];
 	strcpy(cstr, tseq.c_str());
-
-	return cstr;
+	return cstr;*/
 }
 
 using AlnCacheMap = tsl::hopscotch_map<uint64_t, int32_t, PassthroughHash>;
@@ -455,7 +454,9 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 		refStart = currHitStart_ref;
 	}
 	keyLen = (refStart + read.length() < refTotalLength ) ? read.length() : refTotalLength - refStart;
-	refSeq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen, tseq);
+	getRefSeq(allRefSeq, refAccPos, refStart, keyLen, tseq);
+	refSeq = new char[tseq.length() + 1];
+	strcpy(refSeq, tseq.c_str());
 
     uint64_t hashKey{0};
     bool didHash{false};
@@ -669,6 +670,8 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 	if (verbose)
 		std::cerr<<"alignmentScore\t"<<alignmentScore<< "\talignmment\t" << alignment <<"\n";
 
+	delete refSeq;
+
 	return alignmentScore;
 }
 
@@ -683,6 +686,7 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		std::string read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
 		int32_t score = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain, jointHit.orphanClust()->isFw, tid, alnCacheLeft, verbose);
 		jointHit.orphanClust()->coverage = score > (optFrac * maxScore) ? score : std::numeric_limits<decltype(score)>::min();
+		jointHit.alignmentScore = jointHit.orphanClust()->coverage;
 		return jointHit.orphanClust()->coverage;
 	}
 	else {
@@ -697,6 +701,7 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		jointHit.leftClust->coverage = score_left;// score_left > (optFrac * maxLeftScore) ? score_left : std::numeric_limits<decltype(score_left)>::min();
 		jointHit.rightClust->coverage = score_right;//score_right > (optFrac * maxRightScore) ? score_right : std::numeric_limits<decltype(score_right)>::min();
 		auto total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
+		jointHit.alignmentScore = total_score;
 		return total_score;
 	}
 }
@@ -1184,7 +1189,7 @@ void processReadsPair(paired_parser *parser,
 				size_t idx{0};
 
 				std::map<int32_t, std::vector<int32_t>> transcript_set;
-    	        for (auto &jointHit : jointHits) {
+    	  for (auto &jointHit : jointHits) {
 					// chaining bug bool verbose = rpair.first.seq == "CCAGCAGAGAGTAGTGACACAGGAGTTCTGGAGGGCTGTGCCGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCA" and jointHit.tid==17815;
 					//bool verbose = rpair.first.seq == "CCATTTTATTTTATTTTATTTTATTTTATTTTNTTTTATTTTATTTTTGAGAAAGGGTCTCACTCTGTCACCCAGGCTGAAGTGCAGTGGTGCCATCATA" and jointHit.tid == 25088;
 					//bool verbose = (rpair.first.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA" or
@@ -1236,13 +1241,19 @@ void processReadsPair(paired_parser *parser,
             	} else {
 					// There is no alignment with high quality for this read, so we skip this reads' alignments
 					jointHits.clear();
-            	}
-
+        }
 			}
 	        //if (mopts->salmonUnmapped.find(rpair.first.name) == mopts->salmonUnmapped.end()) {
             //	jointHits.clear();
 	        //} else {
          	//}
+			if (jointHits.size()>200) {
+				std::sort(jointHits.begin(), jointHits.end(), 
+					[] (const auto& lhs, const auto& rhs) {
+						return lhs.alignmentScore < rhs.alignmentScore;
+					});
+				jointHits.erase(jointHits.begin()+200, jointHits.end());
+			}
 
 			hctr.totHits += jointHits.size();
             hctr.peHits += jointHits.size();
@@ -1258,6 +1269,7 @@ void processReadsPair(paired_parser *parser,
             if (jointHits.size() > hctr.maxMultimapping) {
                 hctr.maxMultimapping = jointHits.size();
             }
+
 			for (auto &jointHit : jointHits) {
 				//if (rpair.first.name.find(txpNames[jointHit.tid]) != std::string::npos){
 				//:	hctr.validHits++;
@@ -1575,6 +1587,14 @@ void processReadsSingle(single_parser *parser,
 					jointHits.clear();
         	    }
 
+			}
+
+			if (jointHits.size()>200) {
+				std::sort(jointHits.begin(), jointHits.end(), 
+					[] (const auto& lhs, const auto& rhs) {
+						return lhs.alignmentScore < rhs.alignmentScore;
+					});
+				jointHits.erase(jointHits.begin()+200, jointHits.end());
 			}
 
             hctr.numMappedAtLeastAKmer += jointHits.size() > 0 ? 1:0;

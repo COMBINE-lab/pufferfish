@@ -9,7 +9,7 @@
 
 class MemClusterer {
 private:
-    uint64_t maxAllowedRefsPerHit = 200;
+    uint64_t maxAllowedRefsPerHit = 1000;
 public:
     static inline float fastlog2(float x) {
         union {
