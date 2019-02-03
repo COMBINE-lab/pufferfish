@@ -324,7 +324,7 @@ enum class MateStatus : uint8_t {
     std::vector<util::MemCluster>::iterator rightClust;
     size_t fragmentLen;
     size_t rmemMaxLen{0}, lmemMaxLen{0};
-		size_t alignmentScore{0};
+    int32_t alignmentScore{0};
     MateStatus mateStatus;
     bool isLeftAvailable() { return mateStatus == MateStatus::PAIRED_END_PAIRED ||
                                     mateStatus == MateStatus::PAIRED_END_LEFT;}
@@ -562,6 +562,10 @@ struct HitCounters {
   std::atomic<uint64_t> totAlignment{0};
   std::atomic<uint64_t> correctAlignment{0};
   std::atomic<uint64_t> maxMultimapping{0};
+
+  std::atomic<uint64_t> skippedAlignments_byCache{0};
+  std::atomic<uint64_t> skippedAlignments_byCov{0};
+  std::atomic<uint64_t> totalAlignmentAttempts{0};
 };
 
 struct ContigBlock{

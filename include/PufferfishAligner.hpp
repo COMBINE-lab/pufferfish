@@ -14,6 +14,8 @@
 #include "Util.hpp"
 #include "KSW2Aligner.hpp"
 #include "ProgOpts.hpp"
+
+using HitCounters = util::HitCounters;
  
 struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
@@ -36,8 +38,8 @@ public:
 		alnCacheLeft.reserve(32);
 		alnCacheRight.reserve(32);
 	};
-	int32_t calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, bool verbose);
-	int32_t alignRead(std::string read, std::vector<util::MemInfo> mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, bool verbose);
+	int32_t calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, HitCounters& hctr, bool verbose);
+	int32_t alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
 	void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
 private:
 	sdsl::int_vector<2>& allRefSeq;
