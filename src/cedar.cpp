@@ -55,6 +55,7 @@ struct CedarOpts {
     bool onlyUniq{false};
     bool onlyPerfect{false};
     uint32_t segmentSize{200};
+    uint32_t rangeFactorizationBins{4};
 };
 
 template<class ReaderType>
@@ -139,8 +140,9 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                                         bool requireConcordance,
                                         bool onlyUniq,
                                         bool onlyPerfect,
-                                        uint32_t segmentSize) {
-    int32_t rangeFactorization{4};
+                                        uint32_t segmentSize,
+                                        uint32_t rangeFactorizationBins) {
+    int32_t rangeFactorization{rangeFactorizationBins};
     uint64_t totalReadCnt{0}, seqNotFound{0},
             totalMultiMappedReads{0}, totalUnmappedReads{0}, totalReadsNotPassingCond{0}, tid;
     logger->info("Cedar: Load Mapping File ..");
@@ -187,6 +189,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
             }
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
+						std::vector< std::tuple<uint32_t, bool> > mapping_scores;
             for (auto &mapping : readInfo.mappings) {
                 auto &refNam = mappings.refName(mapping.getId());
                 // first condition: Ignore those references that we don't have a taxaId
@@ -215,6 +218,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     if (cov.find(refId2taxId[refNam]) == cov.end()) {
                         cov[refId2taxId[refNam]] = 0;
                     }
+										mapping_scores.push_back( std::tuple<uint32_t, bool>(mapping.getScore(), mapping.isPaired()) );
                     cov[refId2taxId[refNam]] += mapping.getScore();
                     readPerStrainProbInst.emplace_back(mapping.getId(),
                                                        static_cast<double>( mapping.getScore()) /
@@ -233,6 +237,15 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     prevTaxa = &mapping;
                 }
             }
+						if (mapping_scores.size() > 20) {
+							std::sort(mapping_scores.begin(),mapping_scores.end());
+							std::cout<< readInfo.len << "\n";
+							for (auto &mapping_score : mapping_scores) {
+								std::cout << std::get<0>(mapping_score) << " " << std::get<1>(mapping_score) << " ";
+							}
+							std::cout<<"\n";
+						}
+
             if (activeTaxa.empty()) {
                 seqNotFound++;
             } else if ((!onlyUniq and !onlyPerfect)
@@ -696,8 +709,9 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
                             std::string &output_filename,
                             bool onlyUniq,
                             bool onlyPerf,
-                            uint32_t segmentSize) {
-    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize);
+                            uint32_t segmentSize,
+                            uint32_t rangeFactorizationBins) {
+    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize, rangeFactorizationBins);
     bool verbose = true;
     basicEM(maxIter, eps, minCnt, verbose);
     logger->info("serialize to ", output_filename);
@@ -761,6 +775,7 @@ int main(int argc, char *argv[]) {
                     option("--maxIter", "-i") &
                     value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 1000)",
                     option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
+                    option("--rangeFactorizationBins") & value("rangeFactorizationBins", kopts.rangeFactorizationBins) % "Number of bins for range factorization (default : 4)",
                     option("--minCnt", "-c") & value("minCnt", kopts.minCnt) %
                                                "minimum count for keeping a reference with count greater than that (default : 0)",
                     option("--level", "-l") & value("level", kopts.level).call(checkLevel) %
@@ -804,7 +819,8 @@ int main(int argc, char *argv[]) {
                       kopts.output_filename,
                       kopts.onlyUniq,
                       kopts.onlyPerfect,
-                      kopts.segmentSize);
+                      kopts.segmentSize,
+                      kopts.rangeFactorizationBins);
         } else {
             Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level,
                                            kopts.filterThreshold, kopts.flatAbund, console);
@@ -816,7 +832,8 @@ int main(int argc, char *argv[]) {
                       kopts.output_filename,
                       kopts.onlyUniq,
                       kopts.onlyPerfect,
-                      kopts.segmentSize);
+                      kopts.segmentSize,
+                      kopts.rangeFactorizationBins);
         }
         return 0;
     } else {

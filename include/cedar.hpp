@@ -35,13 +35,14 @@ public:
              std::string &output_filename,
              bool onlyUniq,
              bool onlyPerf,
-             uint32_t segmentSize);
+             uint32_t segmentSize,
+             uint32_t rangeFactorizationBins);
 
 private:
     bool readHeader(std::ifstream &mfile);
 
     void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance, bool onlyUniq, bool onlyPerfect,
-                         uint32_t segmentSize);
+                         uint32_t segmentSize, uint32_t rangeFactorizationBins);
 
     bool applySetCover(std::vector<double> &strainCnt, std::vector<bool> &strainValid,
                        std::vector<bool> &strainPotentiallyRemovable, double minCnt, bool canHelp, bool verbose = false);
