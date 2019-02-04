@@ -142,7 +142,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                                         bool onlyPerfect,
                                         uint32_t segmentSize,
                                         uint32_t rangeFactorizationBins) {
-    int32_t rangeFactorization{rangeFactorizationBins};
+    uint32_t rangeFactorization{rangeFactorizationBins};
     uint64_t totalReadCnt{0}, seqNotFound{0},
             totalMultiMappedReads{0}, totalUnmappedReads{0}, totalReadsNotPassingCond{0}, tid;
     logger->info("Cedar: Load Mapping File ..");
@@ -237,14 +237,14 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     prevTaxa = &mapping;
                 }
             }
-						if (mapping_scores.size() > 20) {
+						/*if (mapping_scores.size() > 20) {
 							std::sort(mapping_scores.begin(),mapping_scores.end());
 							std::cout<< readInfo.len << "\n";
 							for (auto &mapping_score : mapping_scores) {
 								std::cout << std::get<0>(mapping_score) << " " << std::get<1>(mapping_score) << " ";
 							}
 							std::cout<<"\n";
-						}
+						}*/
 
             if (activeTaxa.empty()) {
                 seqNotFound++;
