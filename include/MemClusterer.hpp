@@ -10,6 +10,7 @@
 class MemClusterer {
 private:
     uint64_t maxAllowedRefsPerHit = 1000;
+
 public:
     static inline float fastlog2(float x) {
         union {
@@ -581,12 +582,13 @@ public:
             // sort memList according to mem reference positions
             std::sort(memList.begin(), memList.end(),
                       [](util::MemInfo &q1, util::MemInfo &q2) -> bool {
-                          auto q1ref = q1.tpos + q1.memInfo->memlen;
-                          auto q2ref = q2.tpos + q2.memInfo->memlen;
-                          auto q1read = q1.memInfo->rpos + q1.memInfo->memlen;
-                          auto q2read = q2.memInfo->rpos + q2.memInfo->memlen;
+                          auto q1ref = q1.tpos;// + q1.memInfo->memlen;
+                          auto q2ref = q2.tpos;// + q2.memInfo->memlen;
+                          auto q1read = q1.memInfo->rpos;// + q1.memInfo->memlen;
+                          auto q2read = q2.memInfo->rpos;// + q2.memInfo->memlen;
                           return q1ref != q2ref ? q1ref < q2ref :
-                                 (q1.isFw && q2.isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
+                                 (q1.memInfo->readEnd != q2.memInfo->readEnd ? q1.memInfo->readEnd < q2.memInfo->readEnd :
+                                  (q1.isFw == q2.isFw? q1read < q2read : q1read > q2read));// sort based on tpos
                       });
             if (verbose) {
                 std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
@@ -602,10 +604,15 @@ public:
             // https://academic.oup.com/bioinformatics/advance-article/doi/10.1093/bioinformatics/bty191/4994778
             auto alpha = [](uint32_t qdiff, uint32_t rdiff, uint32_t ilen,
                             bool readsAreDifferent) -> double {
-                double mindiff = (qdiff < rdiff) ? qdiff : rdiff;
                 double score = ilen;
-                if (readsAreDifferent)
-                    mindiff = rdiff;
+                double mindiff = (qdiff < rdiff) ? qdiff : rdiff;
+                if (readsAreDifferent) {
+                    /*if (rdiff == 0)
+                        mindiff = std::numeric_limits<double>::infinity();
+                    else*/
+                        //mindiff = rdiff;
+                        mindiff = std::numeric_limits<double>::infinity();
+                }
                 return (score < mindiff) ? score : mindiff;
             };
 
@@ -614,7 +621,8 @@ public:
                                        bool sameOrientation, uint32_t memLen) -> double {
                 if (readsAreDifferent) {
                     double penalty = sameOrientation ? 5 : 1;
-                    int32_t al = std::abs(rdiff - memLen);
+                    int64_t l = rdiff == 0? std::numeric_limits<double>::infinity():rdiff - 100-static_cast<int64_t>(memLen);
+                    int64_t al = std::abs(l);
                     return penalty *
                            std::min(0.01 * avgseed * al, static_cast<double>(fastlog2(static_cast<float>(al))));
                 }
@@ -622,7 +630,7 @@ public:
                     return std::numeric_limits<double>::infinity();
                 }
                 double l = qdiff - rdiff;
-                int32_t al = std::abs(l);
+                int64_t al = std::abs(l);
                 return (l == 0) ? 0.0 : (0.01 * avgseed * al + 0.5 * fastlog2(static_cast<float>(al)));
             };
 
@@ -639,17 +647,18 @@ public:
             for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
                 auto &hi = memList[i];
 
-                auto qposi = hi.memInfo->rpos + hi.memInfo->memlen;
-                auto rposi = hi.tpos + hi.memInfo->memlen;
+                auto qposi = hi.memInfo->rpos;// + hi.memInfo->memlen;
+                auto rposi = hi.tpos;// + hi.memInfo->memlen;
 
                 double baseScore = static_cast<double>(hi.memInfo->memlen);
                 p.push_back(i);
                 pswitch.push_back(i);
                 f.push_back(baseScore);
                 fswitch.push_back(-std::numeric_limits<double>::infinity());
+                int32_t prevp{p[i]}, prevpswitch{pswitch[i]};
                 // possible predecessors in the chain
-                int32_t numRounds{2};
-                (void) numRounds;
+                int32_t numRounds{1};
+                //(void) numRounds;
                 for (int32_t j = i - 1; j >= 0; --j) {
                     if (verbose) {
                         std::cerr << i << " " << j <<
@@ -660,11 +669,12 @@ public:
                     }
                     auto &hj = memList[j];
 
-                    auto qposj = hj.memInfo->rpos + hj.memInfo->memlen;
-                    auto rposj = hj.tpos + hj.memInfo->memlen;
+                    auto qposj = hj.memInfo->rpos;// + hj.memInfo->memlen;
+                    auto rposj = hj.tpos;// + hj.memInfo->memlen;
 
-                    auto qdiff = hi.isFw && hj.isFw ? qposi - qposj :
-                                 (qposj - hj.memInfo->memlen) - (qposi - hi.memInfo->memlen);
+                    // In case of read end switch alpha or beta won't use qdiff
+                    auto qdiff = hi.isFw && hj.isFw ? qposi - qposj : qposj - qposi;
+                                 //(qposj - hj.memInfo->memlen) - (qposi - hi.memInfo->memlen);
                     auto rdiff = rposi - rposj;
 
                     double extensionScore;
@@ -740,8 +750,10 @@ public:
                     // here we take this to the extreme, and stop at the first j to which we chain.
                     // we can add a parameter "h" as in the minimap paper.  But here we expect the
                     // chains of matches in short reads to be short enough that this may not be worth it.
-                    if (p[i] < i || pswitch[i] < i) {
+                    if (p[i] < prevp || pswitch[i] < prevpswitch) {
                         numRounds--;
+                        prevp = p[i];
+                        prevpswitch = pswitch[i];
                         if (numRounds <= 0) { break; }
                     }
                 }
@@ -764,14 +776,17 @@ public:
             // Do backtracking
             std::vector<bool> seen(f.size());
             for (uint64_t i = 0; i < seen.size(); i++) seen[i] = false;
+            bool hasAlreadySwitched = false;
             for (auto bc : bestChainEndList) {
                 int32_t bestChainEnd = bc;
                 bool shouldBeAdded = true;
                 if (bestChainEnd >= 0) {
                     std::vector<uint64_t> memIndicesInReverse;
                     auto lastPtr = p[bestChainEnd];
-                    if (fswitch[bestChainEnd] >= f[bestChainEnd])
+                    if (fswitch[bestChainEnd] >= f[bestChainEnd]) {
                         lastPtr = pswitch[bestChainEnd];
+                        //hasAlreadySwitched = true;
+                    }
                     while (lastPtr < bestChainEnd) {
                         if (seen[bestChainEnd]) {
                             shouldBeAdded = false;
@@ -781,8 +796,10 @@ public:
                         seen[bestChainEnd] = true;
                         bestChainEnd = lastPtr;
                         lastPtr = p[bestChainEnd];
-                        if (fswitch[bestChainEnd] >= f[bestChainEnd])
+                        if (!hasAlreadySwitched and fswitch[bestChainEnd] >= f[bestChainEnd]) {
                             lastPtr = pswitch[bestChainEnd];
+                            //hasAlreadySwitched = true;
+                        }
 //                    lastPtr = bestChainEnd;
 //                    bestChainEnd = p[bestChainEnd];
                     }
@@ -798,14 +815,20 @@ public:
                         for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
                             if (memList[*it].memInfo->readEnd == util::ReadEnd::LEFT) {
                                 if (verbose) {
-                                    std::cerr << "wl-" << *it << ":" << memList[*it].tpos << " " << memList[*it].isFw
+                                    std::cerr << "wl-" << *it << ":t" << memList[*it].tpos <<
+                                    " r" << memList[*it].memInfo->rpos <<
+                                   " len" <<
+                                   memList[*it].memInfo->memlen << " " << memList[*it].isFw
                                               << "\n";
                                 }
                                 lclust->addMem(memList[*it].memInfo, memList[*it].tpos, memList[*it].isFw);
                                 lclust->isFw = memList[*it].isFw;
                             } else {
                                 if (verbose) {
-                                    std::cerr << "wr-" << *it << ":" << memList[*it].tpos << " " << memList[*it].isFw
+                                    std::cerr << "wr-" << *it << ":t" << memList[*it].tpos <<
+                                      " r" << memList[*it].memInfo->rpos <<
+                                      " len" <<
+                                      memList[*it].memInfo->memlen << " " << memList[*it].isFw
                                               << "\n";
                                 }
                                 rclust->addMem(memList[*it].memInfo, memList[*it].tpos, memList[*it].isFw);
