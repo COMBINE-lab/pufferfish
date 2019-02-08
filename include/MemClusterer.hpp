@@ -785,7 +785,7 @@ public:
                     auto lastPtr = p[bestChainEnd];
                     if (fswitch[bestChainEnd] >= f[bestChainEnd]) {
                         lastPtr = pswitch[bestChainEnd];
-                        //hasAlreadySwitched = true;
+                        hasAlreadySwitched = true;
                     }
                     while (lastPtr < bestChainEnd) {
                         if (seen[bestChainEnd]) {
@@ -798,7 +798,7 @@ public:
                         lastPtr = p[bestChainEnd];
                         if (!hasAlreadySwitched and fswitch[bestChainEnd] >= f[bestChainEnd]) {
                             lastPtr = pswitch[bestChainEnd];
-                            //hasAlreadySwitched = true;
+                            hasAlreadySwitched = true;
                         }
 //                    lastPtr = bestChainEnd;
 //                    bestChainEnd = p[bestChainEnd];
