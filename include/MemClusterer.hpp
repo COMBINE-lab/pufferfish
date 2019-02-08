@@ -621,7 +621,7 @@ public:
                                        bool sameOrientation, uint32_t memLen) -> double {
                 if (readsAreDifferent) {
                     double penalty = sameOrientation ? 5 : 1;
-                    int64_t l = rdiff == 0? std::numeric_limits<double>::infinity():rdiff - 100-static_cast<int64_t>(memLen);
+                    int64_t l = rdiff == 0? std::numeric_limits<double>::infinity():rdiff - static_cast<int64_t>(memLen);
                     int64_t al = std::abs(l);
                     return penalty *
                            std::min(0.01 * avgseed * al, static_cast<double>(fastlog2(static_cast<float>(al))));
@@ -785,7 +785,7 @@ public:
                     auto lastPtr = p[bestChainEnd];
                     if (fswitch[bestChainEnd] >= f[bestChainEnd]) {
                         lastPtr = pswitch[bestChainEnd];
-                        hasAlreadySwitched = true;
+                        //hasAlreadySwitched = true;
                     }
                     while (lastPtr < bestChainEnd) {
                         if (seen[bestChainEnd]) {
@@ -798,7 +798,7 @@ public:
                         lastPtr = p[bestChainEnd];
                         if (!hasAlreadySwitched and fswitch[bestChainEnd] >= f[bestChainEnd]) {
                             lastPtr = pswitch[bestChainEnd];
-                            hasAlreadySwitched = true;
+                            //hasAlreadySwitched = true;
                         }
 //                    lastPtr = bestChainEnd;
 //                    bestChainEnd = p[bestChainEnd];

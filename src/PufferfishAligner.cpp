@@ -1132,7 +1132,8 @@ void processReadsPair(paired_parser *parser,
             readLen = rpair.first.seq.length();
             mateLen = rpair.second.seq.length();
             //totLen = readLen + rpair.second.seq.length();
-            bool verbose = true;
+            bool verbose = false;
+            //bool verbose = true;
 //            bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
             if (verbose) std::cerr << rpair.first.name << "\n";
             //std::cerr << "read: " << rpair.first.name << "\n\n";
