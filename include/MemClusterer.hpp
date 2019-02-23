@@ -35,14 +35,12 @@ public:
                  uint32_t maxFragmentLength,
                  bool verbose = false);
 
-  template<typename PufferfishIndexT>
   bool findOptChainAllowingOneJumpBetweenTheReadEnds(
             std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
             std::vector<util::JointMems> &jointMemsList,
             std::vector<util::MemCluster> &all,
             uint32_t maxSpliceGap,
             uint32_t maxFragmentLength,
-            PufferfishIndexT* pfi_,
             uint32_t readLenLeft,
             uint32_t readLenRight,
             bool verbose = false);

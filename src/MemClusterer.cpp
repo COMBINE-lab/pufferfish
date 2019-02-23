@@ -533,14 +533,12 @@ bool MemClusterer::findOptChain(std::map<std::pair<pufferfish::common_types::Ref
   return true;
 }
 
-template<typename PufferfishIndexT>
 bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
     std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
     std::vector<util::JointMems> &jointMemsList,
     std::vector<util::MemCluster> &all,
     uint32_t maxSpliceGap,
     uint32_t maxFragmentLength,
-    PufferfishIndexT* pfi_,
     uint32_t readLenLeft,
     uint32_t readLenRight,
     bool verbose) {
@@ -577,7 +575,7 @@ bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
                 (q1.isFw == q2.isFw? q1read < q2read : q1read > q2read));// sort based on tpos
           });
     if (verbose) {
-      std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
+      std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
         std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
               << " ori:" << m.isFw  <<  " re:" << m.memInfo->readEnd << "\n";
@@ -901,11 +899,11 @@ bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
   }
   bool hasOnePaired = false;
   jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                     [&globalScore, &hasOnePaired, &pfi_, &verbose](util::JointMems &pairedReadMems) -> bool {
+                     [&globalScore, &hasOnePaired, &verbose](util::JointMems &pairedReadMems) -> bool {
                        if (verbose)
                         std::cerr<< "globalScore\t" << globalScore << "\tpairedReadMems.coverage()\t" << 
-                                                           pairedReadMems.coverage() <<"\trefName\t"<< 
-                                                           pfi_->refName(pairedReadMems.tid) << "\t" << pairedReadMems.tid<< "\n";
+                                                           pairedReadMems.coverage() << "\trefID\t" << 
+                                                           pairedReadMems.tid<< "\n";
                        if (pairedReadMems.coverage() >= (globalScore - 0.01)/2 and
                          pairedReadMems.mateStatus == util::MateStatus::PAIRED_END_PAIRED)
                          hasOnePaired = true;
@@ -979,7 +977,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
                (isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
           });
     if (verbose) {
-      std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
+      std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
         std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
               << "\n";
@@ -1123,39 +1121,3 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
 
   return true;
 }
-
-template
-bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds<PufferfishIndex>(
-    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
-    std::vector<util::JointMems> &jointMemsList,
-    std::vector<util::MemCluster> &all,
-    uint32_t maxSpliceGap,
-    uint32_t maxFragmentLength,
-    PufferfishIndex* pfi_,
-    uint32_t readLenLeft,
-    uint32_t readLenRight,
-    bool verbose);
-
-template
-bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds<PufferfishSparseIndex>(
-    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
-    std::vector<util::JointMems> &jointMemsList,
-    std::vector<util::MemCluster> &all,
-    uint32_t maxSpliceGap,
-    uint32_t maxFragmentLength,
-    PufferfishSparseIndex* pfi_,
-    uint32_t readLenLeft,
-    uint32_t readLenRight,
-    bool verbose);
-
-template
-bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds<PufferfishLossyIndex>(
-    std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
-    std::vector<util::JointMems> &jointMemsList,
-    std::vector<util::MemCluster> &all,
-    uint32_t maxSpliceGap,
-    uint32_t maxFragmentLength,
-    PufferfishLossyIndex* pfi_,
-    uint32_t readLenLeft,
-    uint32_t readLenRight,
-    bool verbose);

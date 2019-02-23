@@ -466,8 +466,8 @@ void MemCollector<PufferfishIndexT>::findOptChainAllowingOneJumpBetweenTheReadEn
                                                        uint32_t readLenLeft,
                                                        uint32_t readLenRight,
                                                        bool verbose) {
-  mc.findOptChainAllowingOneJumpBetweenTheReadEnds(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength, pfi_,
-              readLenLeft, readLenRight, verbose);
+  mc.findOptChainAllowingOneJumpBetweenTheReadEnds(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength,
+                                                   readLenLeft, readLenRight, verbose);
 }
 
   
