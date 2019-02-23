@@ -31,8 +31,8 @@ public:
                                         bool verbose=false);
 
   size_t expandHitEfficient(util::ProjectedHits& hit,
-                            pufferfish::CanonicalKmerIterator& kit,
-			                      ExpansionTerminationType& et);
+                          pufferfish::CanonicalKmerIterator& kit,
+		                      ExpansionTerminationType& et);
     
   bool operator()(std::string &read,
                   //spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
