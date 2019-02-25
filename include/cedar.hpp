@@ -47,6 +47,16 @@ namespace util {
             returnedMass = val.compare_and_swap(newMass, oldMass);
         } while (returnedMass != oldMass);
     }
+
+    inline void update(tbb::atomic<double> &val, double newval) {      // Update x and return old value of x.
+        double oldval = val;
+        do {
+            // Read globalX
+            oldval = val;
+            // Store new value if another thread has not changed globalX.
+        } while( val.compare_and_swap(newval,oldval)!=oldval );
+    }
+
 }
 
 
