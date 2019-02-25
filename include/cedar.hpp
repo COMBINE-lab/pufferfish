@@ -77,7 +77,8 @@ public:
              bool onlyUniq,
              bool onlyPerf,
              uint32_t segmentSize,
-             uint32_t rangeFactorizationBins);
+             uint32_t rangeFactorizationBins,
+             uint32_t numThreads);
 
 private:
     bool readHeader(std::ifstream &mfile);
@@ -88,7 +89,7 @@ private:
     bool applySetCover(std::vector<double> &strainCnt, std::vector<bool> &strainValid,
                        std::vector<bool> &strainPotentiallyRemovable, double minCnt, bool canHelp, bool verbose = false);
 
-    bool basicEM(size_t maxIter, double eps, double minCnt, bool verbose = false);
+    bool basicEM(size_t maxIter, double eps, double minCnt, uint32_t numThreads, bool verbose = false);
 
     void serialize(std::string &output_filename);
 
