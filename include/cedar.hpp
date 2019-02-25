@@ -8,6 +8,47 @@
 #include "EquivalenceClassBuilder.hpp"
 
 #include "taxa.h"
+#include "tbb/tbb.h"
+
+namespace util {
+/*
+ * Use atomic compare-and-swap to update val to
+ * val + inc (*in log-space*).  Update occurs in a loop in case other
+ * threads update in the meantime.
+ */
+    /*inline void incLoopLog(tbb::atomic<double> &val, double inc) {
+        double oldMass = val.load();
+        double returnedMass = oldMass;
+        double newMass{salmon::math::LOG_0};
+        do {
+            oldMass = returnedMass;
+            newMass = salmon::math::logAdd(oldMass, inc);
+            returnedMass = val.compare_and_swap(newMass, oldMass);
+        } while (returnedMass != oldMass);
+    }*/
+
+/*
+ * Same as above, but overloaded for "plain" doubles
+ */
+    inline void incLoop(double &val, double inc) { val += inc; }
+
+/*
+ * Use atomic compare-and-swap to update val to
+ * val + inc.  Update occurs in a loop in case other
+ * threads update in the meantime.
+ */
+    inline void incLoop(tbb::atomic<double> &val, double inc) {
+        double oldMass = val.load();
+        double returnedMass = oldMass;
+        double newMass{oldMass + inc};
+        do {
+            oldMass = returnedMass;
+            newMass = oldMass + inc;
+            returnedMass = val.compare_and_swap(newMass, oldMass);
+        } while (returnedMass != oldMass);
+    }
+}
+
 
 struct ReadInfo {
     std::string rid;
