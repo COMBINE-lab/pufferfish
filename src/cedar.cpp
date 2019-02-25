@@ -498,7 +498,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
         maxSeqID = (static_cast<int64_t>(kv.first) > maxSeqID) ? static_cast<int64_t>(kv.first) : maxSeqID;
     }
 
-    std::vector<double> newStrainCnt(maxSeqID + 1, 0.0);
+    std::vector<tbb::atomic<double>> newStrainCnt(maxSeqID + 1, 0.0);
     std::vector<double> strainCnt(maxSeqID + 1);
     std::vector<bool> strainValid(maxSeqID + 1, true);
     std::vector<bool> strainPotentiallyRemovable(maxSeqID + 1, false);
@@ -529,7 +529,13 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
         }
         // M step
         // Find the best (most likely) count assignment
-        for (auto &eqc : eqvec) {
+        tbb::parallel_for(
+                tbb::blocked_range<size_t>(0, eqvec.size()),
+                [&eqvec, &strainValid, &strainCnt, &newStrainCnt, this]
+                (const tbb::blocked_range<size_t>& range) -> void {
+                    for (auto eqID = range.begin(); eqID != range.end(); ++eqID) {
+                        auto& eqc = eqvec[eqID];
+
             auto &tg = eqc.first;
             auto &v = eqc.second;
             auto csize = v.weights.size();
@@ -540,7 +546,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
                 if (strainValid[tgt]) {
 
                     tmpReadProb[readMappingCntr] =
-                            v.weights[readMappingCntr] * strainCnt[tgt] * strain_coverage[tgt];
+                            v.weights[readMappingCntr] * strainCnt[tgt] * this->strain_coverage[tgt];
                     // * (1.0/refLengths[tgt]);
                     denom += tmpReadProb[readMappingCntr];
                 }
@@ -548,12 +554,13 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
             for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                 auto &tgt = tg.tgts[readMappingCntr];
                 if (strainValid[tgt])
-                    newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
-                else {
+                    util::incLoop(newStrainCnt[tgt], v.count * (tmpReadProb[readMappingCntr] / denom));
+                    //newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
+                /*else {
                     newStrainCnt[tgt] = 0;
-                }
+                }*/
             }
-        }
+        }});
         //std::cerr << "\n";
 
         // E step

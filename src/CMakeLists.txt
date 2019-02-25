@@ -121,6 +121,7 @@ target_include_directories(cedar PRIVATE
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 add_dependencies(cedar libseqlib)
+add_dependencies(cedar libtbb)
 
 add_executable(filtersam testing/SAMFilter.cpp)
 target_include_directories(filtersam PRIVATE
@@ -145,7 +146,7 @@ target_link_libraries(myGFAtester Threads::Threads z sdsl puffer)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
 target_link_libraries(krakmap Threads::Threads puffer)
-target_link_libraries(cedar Threads::Threads seqlib hts puffer bz2 lzma z SetCover)
+target_link_libraries(cedar ${TBB_LIBRARIES} Threads::Threads seqlib hts puffer bz2 lzma z SetCover)
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z )
 
 #target_link_libraries(pufferfish-index-old z sdsl)
