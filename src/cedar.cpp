@@ -56,6 +56,7 @@ struct CedarOpts {
     bool onlyPerfect{false};
     uint32_t segmentSize{200};
     uint32_t rangeFactorizationBins{4};
+    uint32_t numThreads{4};
 };
 
 template<class ReaderType>
@@ -490,7 +491,7 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
 }
 
 template<class ReaderType>
-bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool verbose) {
+bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint32_t numThreads, bool verbose) {
     eqb.finish();
     auto &eqvec = eqb.eqVec();
     int64_t maxSeqID{-1};
@@ -523,6 +524,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, bool 
     bool converged = false;
     uint64_t thresholdingIterStep = 10;
     bool canHelp = true;
+    tbb::task_scheduler_init tbbScheduler(numThreads);
     while (cntr++ < maxIter && !converged) {
         if (cntr % thresholdingIterStep == 0 && canHelp) {
             canHelp = applySetCover(strainCnt, strainValid, strainPotentiallyRemovable, minCnt, canHelp, verbose);
@@ -717,10 +719,11 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
                             bool onlyUniq,
                             bool onlyPerf,
                             uint32_t segmentSize,
-                            uint32_t rangeFactorizationBins) {
+                            uint32_t rangeFactorizationBins,
+                            uint32_t numThreads) {
     loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize, rangeFactorizationBins);
     bool verbose = true;
-    basicEM(maxIter, eps, minCnt, verbose);
+    basicEM(maxIter, eps, minCnt, numThreads, verbose);
     logger->info("serialize to ", output_filename);
     if (!flatAbund) {
         serialize(output_filename);
@@ -766,7 +769,7 @@ int main(int argc, char *argv[]) {
     auto cli = (
             (required("--flat").set(kopts.flatAbund, true) % "estimate flat abundance (i.e. there is no taxonomy given)"
              | (
-                     required("--taxtree", "-t") &
+                     required("--taxtree", "-x") &
                      value("taxtree", kopts.taxonomyTree_filename) % "path to the taxonomy tree file",
                              required("--seq2taxa", "-s") &
                              value("seq2taxa", kopts.refId2TaxId_filename) % "path to the refId 2 taxId file "
@@ -782,6 +785,7 @@ int main(int argc, char *argv[]) {
                     option("--maxIter", "-i") &
                     value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 1000)",
                     option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
+                    option("--threads", "-t") & value("threads", kopts.numThreads) % "number of threads to use",
                     option("--rangeFactorizationBins") & value("rangeFactorizationBins", kopts.rangeFactorizationBins) % "Number of bins for range factorization (default : 4)",
                     option("--minCnt", "-c") & value("minCnt", kopts.minCnt) %
                                                "minimum count for keeping a reference with count greater than that (default : 0)",
@@ -827,7 +831,8 @@ int main(int argc, char *argv[]) {
                       kopts.onlyUniq,
                       kopts.onlyPerfect,
                       kopts.segmentSize,
-                      kopts.rangeFactorizationBins);
+                      kopts.rangeFactorizationBins,
+                      kopts.numThreads);
         } else {
             Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level,
                                            kopts.filterThreshold, kopts.flatAbund, console);
@@ -840,7 +845,8 @@ int main(int argc, char *argv[]) {
                       kopts.onlyUniq,
                       kopts.onlyPerfect,
                       kopts.segmentSize,
-                      kopts.rangeFactorizationBins);
+                      kopts.rangeFactorizationBins,
+                      kopts.numThreads);
         }
         return 0;
     } else {
