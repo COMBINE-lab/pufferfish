@@ -5,7 +5,7 @@
 // polute the namespace --- put this in the functions that need it.
 namespace kmers = combinelib::kmers;
 
-template <typename PufferfishIndexT>
+/*template <typename PufferfishIndexT>
 void MemCollector<PufferfishIndexT>::recoverGaps(spp::sparse_hash_map<pufferfish::common_types::ReferenceID, 
                                         std::vector<util::MemCluster>>& memClustersMap,
                                         std::vector<util::UniMemInfo>& memCollection,
@@ -249,7 +249,7 @@ void MemCollector<PufferfishIndexT>::recoverGaps(spp::sparse_hash_map<pufferfish
   if (verbose)
   std::cerr << "\n[END OF RECOVERGAPS]\n";
 
-}
+}*/
 
 
 template <typename PufferfishIndexT>
@@ -341,7 +341,7 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& h
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
-                  //spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
                   util::QueryCache& qc,
@@ -349,7 +349,7 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
   // currently unused:
   // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
- /*  if (verbose) {
+  /*if (verbose) {
   std::cerr << (mateStatus == util::MateStatus::PAIRED_END_RIGHT) << "\n";
   } */
   (void) maxSpliceGap;
@@ -360,8 +360,8 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
   pufferfish::CanonicalKmerIterator kit_end;
   pufferfish::CanonicalKmerIterator kit1(read);
   if (verbose) {
-  std::cerr << "ORIGINAL READ:\n";
-  std::cerr << read << "\n";
+    std::cerr << "ORIGINAL READ:\n";
+    std::cerr << read << "\n";
   }
 
   /**
@@ -414,38 +414,36 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
   auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
   &memCollectionRight : &memCollectionLeft;
   if (rawHits.size() > 0) {
-  if (mateStatus == util::MateStatus::PAIRED_END_LEFT)
-    mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT, verbose);
-  else
-    mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT, verbose);
+    //if (mateStatus == util::MateStatus::PAIRED_END_LEFT)
+    //  mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT, verbose);
+    //else
+    //  mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT, verbose);
 
-  //mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
-  //mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
-  if (verbose) {
-    std::cerr << "lets see what we have\n";
-    for (auto kv : trMemMap) {
-    
-    std::cerr <<"tid:" <<  kv.first.first << "\n";
-    for (auto mem : kv.second) {
-      //auto lclust = &clust;
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+    mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+    if (verbose) {
+      std::cerr << "lets see what we have\n";
+      for (auto kv : trMemMap) {
+        std::cerr <<"tid:" <<  kv.first.first << "\n";
+        for (auto mem : kv.second) {
+          //auto lclust = &clust;
 
-      //std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-      //for (size_t i = 0; i < lclust->mems.size(); i++) {
-      std::cerr << "--- t" << mem.tpos << " r"
-            << mem.memInfo->rpos << " cid:"
-            << mem.memInfo->cid << " cpos: "
-            << mem.memInfo->cpos << " len:"
-            << mem.memInfo->memlen << " re:"
-            << mem.memInfo->readEnd << " fw:"
-            << mem.isFw << "\n";
-      std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
-      //}
+          //std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
+          //for (size_t i = 0; i < lclust->mems.size(); i++) {
+          std::cerr << "--- t" << mem.tpos << " r"
+              << mem.memInfo->rpos << " cid:"
+              << mem.memInfo->cid << " cpos: "
+              << mem.memInfo->cpos << " len:"
+              << mem.memInfo->memlen << " re:"
+              << mem.memInfo->readEnd << " fw:"
+              << mem.isFw << "\n";
+          std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
+          //}
+        }
+      }
     }
-    }
-  }
-  /*recoverGaps(memClusters, *memCollection, read.length(), verbose );*/
-  
-  return true;
+    /*recoverGaps(memClusters, *memCollection, read.length(), verbose );*/
+    return true;
   }
   return false;
 }

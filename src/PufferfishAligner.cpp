@@ -1091,126 +1091,117 @@ void processReadsPair(paired_parser *parser,
                       std::shared_ptr<spdlog::logger> outQueue,
                       HitCounters &hctr,
                       AlignmentOpts *mopts) {
-    MemCollector<PufferfishIndexT> memCollector(&pfi);
+  MemCollector<PufferfishIndexT> memCollector(&pfi);
 
-    //create aligner
-    spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
-    RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
+  //create aligner
+  spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
+  RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
-    std::vector<std::string> refBlocks;
+  std::vector<std::string> refBlocks;
 
-    auto logger = spdlog::get("stderrLog");
-    fmt::MemoryWriter sstream;
-    BinWriter bstream;
-    //size_t batchSize{2500} ;
-    size_t readLen{0}, mateLen{0};
-    //size_t totLen{0};
+  auto logger = spdlog::get("stderrLog");
+  fmt::MemoryWriter sstream;
+  BinWriter bstream;
+  //size_t batchSize{2500} ;
+  size_t readLen{0}, mateLen{0};
+  size_t totLen{0};
 
-    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
-    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
-    std::vector<util::JointMems> jointHits;
-    PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
-    util::QueryCache qc;
-    std::vector<util::MemCluster> all;
+  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
+  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
+  std::vector<util::JointMems> jointHits;
+  PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
+  util::QueryCache qc;
+  std::vector<util::MemCluster> all;
 
-    //@fatemeh Initialize aligner ksw
-    ksw2pp::KSW2Config config;
-    ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
+  //@fatemeh Initialize aligner ksw
+  ksw2pp::KSW2Config config;
+  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
-    config.gapo = -1 * GAP_SCORE;
-    config.gape = -1 * GAP_SCORE;
-    config.bandwidth = -1;
-    config.flag = KSW_EZ_RIGHT;
-    aligner.config() = config;
+  config.gapo = -1 * GAP_SCORE;
+  config.gape = -1 * GAP_SCORE;
+  config.bandwidth = -1;
+  config.flag = KSW_EZ_RIGHT;
+  aligner.config() = config;
 
-    auto rg = parser->getReadGroup();
+  auto rg = parser->getReadGroup();
 
 	//For filtering reads
 	//auto& txpNames = pfi.getRefNames();
-    while (parser->refill(rg)) {
-        for (auto &rpair : rg) {
-            readLen = rpair.first.seq.length();
-            mateLen = rpair.second.seq.length();
-            //totLen = readLen + rpair.second.seq.length();
-            bool verbose = false;
-            //bool verbose = true;
-//            bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
-            if (verbose) std::cerr << rpair.first.name << "\n";
-            //std::cerr << "read: " << rpair.first.name << "\n\n";
+  while (parser->refill(rg)) {
+    for (auto &rpair : rg) {
+      readLen = rpair.first.seq.length();
+      mateLen = rpair.second.seq.length();
+      totLen = readLen + mateLen;
+      bool verbose = false;
+      //bool verbose = true;
+      //bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
+      if (verbose) std::cerr << rpair.first.name << "\n";
+      //std::cerr << "read: " << rpair.first.name << "\n\n";
 
-            ++hctr.numReads;
+      ++hctr.numReads;
 
-            jointHits.clear();
-            leftHits.clear();
-            rightHits.clear();
-            memCollector.clear();
+      jointHits.clear();
+      leftHits.clear();
+      rightHits.clear();
+      memCollector.clear();
 
-            //help me to debug, will deprecate later
-            //std::cerr << "\n first seq in pair " << rpair.first.seq << "\n" ;
-            //std::cerr << "\n second seq in pair " << rpair.second.seq << "\n" ;
-
-            //std::cerr << "\n going inside hit collector \n" ;
-            //readLen = rpair.first.seq.length() ;
-            bool lh = memCollector(rpair.first.seq,
-                                   //leftHits,
-                                   mopts->maxSpliceGap,
-                                   MateStatus::PAIRED_END_LEFT,
-                                   qc,
-                                   verbose
-
+      //readLen = rpair.first.seq.length() ;
+      bool lh = memCollector(rpair.first.seq,
+                              leftHits,
+                              mopts->maxSpliceGap,
+                              MateStatus::PAIRED_END_LEFT,
+                              qc,
+                              verbose
                     /*
                     mopts->consistentHits,
-                    refBlocks*/);
-            bool rh = memCollector(rpair.second.seq,
-                                   //rightHits,
-                                   mopts->maxSpliceGap,
-                                   MateStatus::PAIRED_END_RIGHT,
-                                   qc,
-                                   verbose
+                   refBlocks*/);
+      bool rh = memCollector(rpair.second.seq,
+                               rightHits,
+                               mopts->maxSpliceGap,
+                               MateStatus::PAIRED_END_RIGHT,
+                               qc,
+                               verbose
                     /*,
                     mopts->consistentHits,
                     refBlocks*/);
 
-            all.clear();
-
-			// Second one, described in slack for Fatemeh verbose = "read10059738/ENST00000247866.8:ENSG00000090266.12;mate1:102-201;mate2:257-356" == rpair.first.name;
-			//First one 302 verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
-            memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/*findBestChain*/(jointHits,
+      //all.clear();
+      // Second one, described in slack for Fatemeh verbose = "read10059738/ENST00000247866.8:ENSG00000090266.12;mate1:102-201;mate2:257-356" == rpair.first.name;
+      //First one 302 verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
+      /*memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/findBestChain/(jointHits,
                                                                                         all,
                                                                                         mopts->maxSpliceGap,
                                                                                         mopts->maxFragmentLength,
                                                                                         rpair.first.seq.length(),
-																						rpair.second.seq.length(),
+                                                                                        rpair.second.seq.length(),
                                                                                         verbose);
-            hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0; //(leftHits.size() || rightHits.size()) ? 1 : 0;
-            //do intersection on the basis of
-            //performance, or going towards selective alignment
-            //otherwise orphan
+      hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0; */
+			hctr.numMappedAtLeastAKmer += (leftHits.size() || rightHits.size()) ? 1 : 0;
+      //do intersection on the basis of
+      //performance, or going towards selective alignment
+      //otherwise orphan
 
-            // We also handle orphans inside this function
-            //if(lh && rh){
-            //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
-            /* joinReadsAndFilter(leftHits, rightHits, jointHits,
-                                mopts->maxFragmentLength,
-                                totLen,
-                                mopts->scoreRatio,
-                                mopts->noDiscordant,
-                                mopts->noOrphan,
-                                pfi,
-                     *//* rpair.first.name == "NC_009641.fna:1:1:2066:284#0/1" *//*
-                               verbose);*/
-            /* } else{
-              //ignore orphans for now
-            } */
+      // We also handle orphans inside this function
+      //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
+      if(lh && rh) {
+        /*joinReadsAndFilter(leftHits, rightHits, jointHits,
+                           mopts->maxFragmentLength,
+                           totLen,
+                           mopts->scoreRatio,
+                           mopts->noDiscordant,
+                           mopts->noOrphan,
+                           pfi,
+                           verbose);*/
+      } else {
+        //ignore orphans for now
+      }
+      //jointHits is a vector
+      //this can be used for BFS
+      //NOTE sanity check
+      //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
+      int maxScore = std::numeric_limits<int>::min();
 
-
-            //jointHits is a vector
-            //this can be used for BFS
-            //NOTE sanity check
-            //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache){
-            int maxScore = std::numeric_limits<int>::min();
-
-            std::vector<QuasiAlignment> jointAlignments;
+      std::vector<QuasiAlignment> jointAlignments;
 
 			if (mopts->validateMappings) {
 				ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
@@ -1222,17 +1213,16 @@ void processReadsPair(paired_parser *parser,
 
 				std::map<int32_t, std::vector<int32_t>> transcript_set;
     	  for (auto &jointHit : jointHits) {
-					// chaining bug bool verbose = rpair.first.seq == "CCAGCAGAGAGTAGTGACACAGGAGTTCTGGAGGGCTGTGCCGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCA" and jointHit.tid==17815;
+					//chaining bug bool verbose = rpair.first.seq == "CCAGCAGAGAGTAGTGACACAGGAGTTCTGGAGGGCTGTGCCGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCAGCTTGGAGGGCAGGGCGGGGCTGCA" and jointHit.tid==17815;
 					//bool verbose = rpair.first.seq == "CCATTTTATTTTATTTTATTTTATTTTATTTTNTTTTATTTTATTTTTGAGAAAGGGTCTCACTCTGTCACCCAGGCTGAAGTGCAGTGGTGCCATCATA" and jointHit.tid == 25088;
 					//bool verbose = (rpair.first.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA" or
-					//			   rpair.second.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA") and
-					//				jointHit.tid == 44366;
-					//bool verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
+					//                rpair.second.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA") and	jointHit.tid == 44366;
+					//bool verbose =rpair.first.name== "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
 					auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, verbose);
 					if (hitScore < 0)
 						hitScore = std::numeric_limits<int32_t>::min();
-					scores[idx] = hitScore;
-					++idx;
+          scores[idx] = hitScore;
+          ++idx;
 					bestScore = (hitScore > bestScore) ? hitScore : bestScore;
 
 					if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
@@ -1481,7 +1471,7 @@ void processReadsSingle(single_parser *parser,
             memCollector.clear();
 
             bool lh = memCollector(read.seq,
-                                   //leftHits,
+                                   leftHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::SINGLE_END,
                                    qc,
