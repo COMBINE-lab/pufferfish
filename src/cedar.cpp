@@ -564,39 +564,40 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint3
                 }*/
             }
         }});
-        //std::cerr << "\n";
 
         // E step
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
         //tbb::atomic<double> readCntValidator = 0;
+        double readCntValidator = 0;
         converged = true;
-        tbb::atomic<double> maxDiff = {0.0};
+        //tbb::atomic<double> maxDiff = {0.0};
+        double maxDiff{0.0};
         /*tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, newStrainCnt.size()),
                 [&maxDiff, &strainCnt, &newStrainCnt, &converged, &eps]//, &readCntValidator]
                         (const tbb::blocked_range<size_t>& range) -> void {
                     for (auto i = range.begin(); i != range.end(); ++i) {*/
-                    for (uint64_t i = 0; i < newStrainCnt.size(); ++i) {
-            //readCntValidator += newStrainCnt[i];
+        for (uint64_t i = 0; i < newStrainCnt.size(); ++i) {
+            readCntValidator += newStrainCnt[i];
             auto adiff = std::abs(newStrainCnt[i] - strainCnt[i]);
             if (adiff > eps) {
                 converged = false;
             }
-            util::update(maxDiff, (adiff > maxDiff) ? adiff : static_cast<double>(maxDiff));
+//            util::update(maxDiff, (adiff > maxDiff) ? adiff : static_cast<double>(maxDiff));
+            maxDiff = (adiff > maxDiff) ? adiff : maxDiff;
             strainCnt[i] = newStrainCnt[i];
             newStrainCnt[i] = 0.0;
         }
                 //});
 
-        /*if (std::abs(readCntValidator - readCnt) > 10) {
+        if (std::abs(readCntValidator - readCnt) > 10) {
             //logger->error("Total read count changed during the EM process");
             logger->error("original: {}, current : {}, diff : {}", readCnt,
                           readCntValidator, std::abs(readCntValidator - readCnt));
             //std::exit(1);
         }
-*/
         if (cntr > 0 and cntr % 100 == 0) {
-            logger->info("max diff : {}, readCnt : {}", maxDiff);//, static_cast<uint64_t>(readCntValidator));
+            logger->info("max diff : {}, readCnt : {}", maxDiff, static_cast<uint64_t>(readCntValidator));
         }
     }
     logger->info("iterator cnt: {}", cntr);
