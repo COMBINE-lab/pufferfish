@@ -6,10 +6,12 @@
 #include "spdlog/spdlog.h"
 #include "sparsepp/spp.h"
 #include "EquivalenceClassBuilder.hpp"
-
+#include <thread>
+#include <mutex>
 #include "taxa.h"
 #include "tbb/tbb.h"
 
+constexpr uint32_t ALIGNMENTS_PER_BATCH{20};
 namespace util {
 /*
  * Use atomic compare-and-swap to update val to
@@ -54,11 +56,33 @@ namespace util {
             // Read globalX
             oldval = val;
             // Store new value if another thread has not changed globalX.
-        } while( val.compare_and_swap(newval,oldval)!=oldval );
+        } while (val.compare_and_swap(newval, oldval) != oldval);
     }
 
 }
 
+struct Stats {
+    uint64_t readCnt{0};
+    double globalprobsum{0};
+    uint64_t totalReadCnt{0};
+    uint64_t seqNotFound{0};
+    uint64_t totalMultiMappedReads{0};
+    uint64_t totalUnmappedReads{0};
+    uint64_t totalReadsNotPassingCond{0};
+    uint64_t conflicting{0};
+    uint64_t discordantMappings{0};
+    void update(Stats& s) {
+        readCnt+=s.readCnt;
+        globalprobsum+=s.globalprobsum;
+        totalReadCnt+=s.totalReadCnt;
+        seqNotFound+=s.seqNotFound;
+        totalMultiMappedReads+=s.totalMultiMappedReads;
+        totalUnmappedReads+=s.totalUnmappedReads;
+        totalReadsNotPassingCond+=s.totalReadsNotPassingCond;
+        conflicting+=s.conflicting;
+        discordantMappings+=s.discordantMappings;
+    }
+};
 
 struct ReadInfo {
     std::string rid;
@@ -70,7 +94,7 @@ struct ReadInfo {
 #include "PuffMappingReader.hpp"
 #include "SAMReader.hpp"
 
-template<class ReaderType>
+template<class ReaderType, class FileReaderType>
 class Cedar {
 public:
     Cedar(std::string &taxonomyTree_filename, std::string &
@@ -91,13 +115,35 @@ public:
              uint32_t numThreads);
 
 private:
-    bool readHeader(std::ifstream &mfile);
 
     void loadMappingInfo(std::string mapperOutput_filename, bool requireConcordance, bool onlyUniq, bool onlyPerfect,
                          uint32_t segmentSize, uint32_t rangeFactorizationBins);
 
+    void loadMappingInfo(std::string mapperOutput_filename,
+                         bool requireConcordance,
+                         bool onlyUniq,
+                         bool onlyPerfect,
+                         uint32_t segmentSize,
+                         uint32_t rangeFactorizationBins,
+                         uint32_t nThreads);
+
+    void processAlignmentBatch(uint32_t threadID,
+                               std::vector<ReadInfo> &alignmentGrp,
+                               Stats &stats,
+                               EquivalenceClassBuilder& eqb,
+                               spp::sparse_hash_map<uint32_t, double>& cov,
+                               spp::sparse_hash_map<uint32_t, double>& strain,
+                               std::mutex &iomutex,
+                               bool requireConcordance,
+                               bool onlyUniq,
+                               bool onlyPerfect,
+                               uint32_t segmentSize,
+                               uint32_t rangeFactorizationBins,
+                               bool getReadName);
+
     bool applySetCover(std::vector<double> &strainCnt, std::vector<bool> &strainValid,
-                       std::vector<bool> &strainPotentiallyRemovable, double minCnt, bool canHelp, bool verbose = false);
+                       std::vector<bool> &strainPotentiallyRemovable, double minCnt, bool canHelp,
+                       bool verbose = false);
 
     bool basicEM(size_t maxIter, double eps, double minCnt, uint32_t numThreads, bool verbose = false);
 
@@ -119,10 +165,10 @@ private:
     bool flatAbund = false;
     std::vector<std::vector<std::pair<uint64_t, double>>> readPerStrainProb;
     EquivalenceClassBuilder eqb;
-    ReaderType mappings;
+    ReaderType fileReader;
     std::shared_ptr<spdlog::logger> logger;
 
-    spp::sparse_hash_map<uint32_t, uint64_t> cov;
+    spp::sparse_hash_map<uint32_t, double> cov;
 
     spp::sparse_hash_map<uint64_t, double> strain_coverage;
     spp::sparse_hash_map<uint64_t, std::vector<uint32_t> > strain_coverage_bins;

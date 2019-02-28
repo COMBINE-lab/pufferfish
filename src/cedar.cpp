@@ -59,8 +59,8 @@ struct CedarOpts {
     uint32_t numThreads{4};
 };
 
-template<class ReaderType>
-Cedar<ReaderType>::Cedar(std::string &taxonomyTree_filename,
+template<class ReaderType, class FileReaderType>
+Cedar<ReaderType, FileReaderType>::Cedar(std::string &taxonomyTree_filename,
                          std::string &refId2TaxId_filename,
                          std::string pruneLevelIn,
                          double filteringThresholdIn,
@@ -121,8 +121,8 @@ Cedar<ReaderType>::Cedar(std::string &taxonomyTree_filename,
     }
 }
 
-template<class ReaderType>
-void Cedar<ReaderType>::calculateCoverage() {
+template<class ReaderType, class FileReaderType>
+void Cedar<ReaderType, FileReaderType>::calculateCoverage() {
     for (uint32_t i = 0; i < strain_coverage_bins.size(); i++) {
         auto bins = strain_coverage_bins[i];
         double covered = 0.0;
@@ -136,8 +136,251 @@ void Cedar<ReaderType>::calculateCoverage() {
     }
 }
 
-template<class ReaderType>
-void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
+template<class ReaderType, class FileReaderType>
+void Cedar<ReaderType, FileReaderType>::processAlignmentBatch(uint32_t threadID,
+                                              std::vector<ReadInfo> &alignmentGrp,
+                                              Stats &stats,
+                                              EquivalenceClassBuilder& eqb,
+                                              spp::sparse_hash_map<uint32_t, double>& cov,
+                                              spp::sparse_hash_map<uint32_t, double>& strain,
+                                              std::mutex &iomutex,
+                                              bool requireConcordance,
+                                              bool onlyUniq,
+                                              bool onlyPerfect,
+                                              uint32_t segmentSize,
+                                              uint32_t rangeFactorizationBins,
+                                              bool getReadName) {
+    TaxaNode *prevTaxa{nullptr};
+    std::set<uint64_t> activeTaxa;
+    ReaderType mappings(fileReader.getReader(), logger);
+    while (mappings.nextAlignmentGroup(alignmentGrp, iomutex, getReadName)) {
+        for (auto &readInfo: alignmentGrp) {
+            stats.totalReadCnt++;
+            if (stats.totalReadCnt % 1000000 == 0) {
+                std::cerr << "\rThread " << threadID << " processed " << stats.totalReadCnt << " reads";
+            }
+            activeTaxa.clear();
+            double readMappingsScoreSum = 0;
+            std::vector<std::pair<uint64_t, double>> readPerStrainProbInst;
+            readPerStrainProbInst.reserve(readInfo.cnt);
+            bool isConflicting = true;
+            uint64_t maxScore = readInfo.len;
+            //std::cerr << "Thread " << threadID << " " << stats.totalReadCnt << " " <<readInfo.cnt << "\n";
+            if (readInfo.cnt != 0) {
+                if (readInfo.cnt > 1) {
+                    stats.totalMultiMappedReads++;
+                }
+
+                std::set<uint64_t> seen;
+                prevTaxa = nullptr;
+                for (auto &mapping : readInfo.mappings) {
+                    auto &refNam = fileReader.refName(mapping.getId());
+                    // first condition: Ignore those references that we don't have a taxaId
+                    // second condition: Ignore repeated exactly identical mappings (FIXME thing)
+                    // note: Fatemeh!! don't change the or and and again!!
+                    // if we are on flatAbund, we want to count for multiple occurrences of a reference
+                    if ((flatAbund or
+                         (refId2taxId.find(refNam) != refId2taxId.end()))
+                        and
+                        activeTaxa.find(mapping.getId()) == activeTaxa.end()) {
+                        if (prevTaxa != nullptr and
+                            activeTaxa.find(mapping.getId()) == activeTaxa.end() and
+                            !prevTaxa->compareIntervals(mapping)) {
+                            isConflicting = false;
+                        }
+                        activeTaxa.insert(mapping.getId());
+                        if (requireConcordance && fileReader.isMappingPaired() &&
+                            (!mapping.isConcordant() || mapping.isFw(ReadEnd::LEFT) == mapping.isFw(ReadEnd::RIGHT))) {
+                            stats.discordantMappings++;
+                            continue;
+                        }
+
+                        /*auto tid = flatAbund ? mapping.getId() : refId2taxId[refNam];
+                        seqToTaxMap[mapping.getId()] = static_cast<uint32_t>(tid);*/
+
+                       /* if (cov.find(refId2taxId[refNam]) == cov.end()) {
+                            util::update(cov[refId2taxId[refNam]], 0);
+                        }*/
+                        auto tid = flatAbund ? mapping.getId() : refId2taxId[refNam];
+                        //std::cerr << "c0:" << cov[tid] << " " << mapping.getScore() << " ";
+                        util::incLoop(cov[tid], mapping.getScore());
+                        //std::cerr << "c1:" << cov[tid] << "\n";
+                        readPerStrainProbInst.emplace_back(mapping.getId(),
+                                                           static_cast<double>( mapping.getScore()) /
+                                                           static_cast<double>(fileReader.refLength(mapping.getId())));
+                        readMappingsScoreSum += readPerStrainProbInst.back().second;
+
+                        uint32_t bin_number = mapping.getPos(ReadEnd::LEFT) / segmentSize > 0 ?
+                                              mapping.getPos(ReadEnd::LEFT) / segmentSize - 1 : 0;
+                        auto &cbins = strain_coverage_bins[mapping.getId()];
+                        if (bin_number < cbins.size()) {
+                            cbins[bin_number]++;
+                        } else {
+                            std::cerr << "SHOULDN'T HAPPEN! out of bound: " << bin_number << " " << cbins.size() << " ";
+                            std::cerr << "lpos: " << mapping.getPos(ReadEnd::LEFT) << "\n";
+                        }
+                        prevTaxa = &mapping;
+                    }
+                }
+
+                if (activeTaxa.empty()) {
+                    stats.seqNotFound++;
+                } else if ((!onlyUniq and !onlyPerfect)
+                           or (onlyUniq and activeTaxa.size() == 1)
+                           or (onlyPerfect and activeTaxa.size() == 1
+                               and
+                               readInfo.mappings[0].getScore() >= maxScore)) {
+                    if (!isConflicting) { stats.conflicting++; }
+                    // it->first : strain id
+                    // it->second : prob of current read comming from this strain id (mapping_score/ref_len)
+                    double probsum{0.0};
+                    for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
+                        it->second = it->second / readMappingsScoreSum; // normalize the probabilities for each read
+                        util::incLoop(strain[it->first], 1.0 / static_cast<double>(readPerStrainProbInst.size()));
+                        probsum += 1.0 / static_cast<double>(readPerStrainProbInst.size());
+                    }
+                    stats.globalprobsum += probsum;
+                    if (abs(probsum - 1.0) >= 1e-10) {
+                        std::cerr << "hfs!!";
+                        std::exit(1);
+                    }
+                    // SAVE MEMORY, don't push this
+                    //readPerStrainProb.push_back(readPerStrainProbInst);
+
+                    // construct the range factorized eq class here
+                    std::sort(readPerStrainProbInst.begin(), readPerStrainProbInst.end(),
+                              [](std::pair<uint64_t, double> &a, std::pair<uint64_t, double> &b) {
+                                  return a.first < b.first;
+                              });
+                    std::vector<uint32_t> genomeIDs;
+                    genomeIDs.reserve(2 * readPerStrainProbInst.size());
+                    std::vector<double> probs;
+                    probs.reserve(readPerStrainProbInst.size());
+                    for (auto &it : readPerStrainProbInst) {
+                        genomeIDs.push_back(static_cast<uint32_t>(it.first));
+                        probs.push_back(it.second);
+                    }
+                    if (rangeFactorizationBins > 0) {
+                        uint64_t genomeSize = genomeIDs.size();
+                        uint64_t rangeCount =
+                                static_cast<uint64_t>(std::sqrt(genomeSize)) + rangeFactorizationBins;
+                        for (uint64_t i = 0; i < genomeSize; i++) {
+                            int rangeNumber = static_cast<int>(probs[i] * rangeCount);
+                            genomeIDs.push_back(static_cast<uint32_t>(rangeNumber));
+                        }
+                    }
+                    stats.readCnt++;
+                    TargetGroup tg(genomeIDs);
+                    eqb.addGroup(std::move(tg), probs); //add or update eq read cnt by 1
+                } else {
+                    stats.totalReadsNotPassingCond++;
+                }
+            } else {
+                stats.totalUnmappedReads++;
+            }
+        }
+    }
+}
+
+
+template<class ReaderType, class FileReaderType>
+void Cedar<ReaderType, FileReaderType>::loadMappingInfo(std::string mapperOutput_filename,
+                                        bool requireConcordance,
+                                        bool onlyUniq,
+                                        bool onlyPerfect,
+                                        uint32_t segmentSize,
+                                        uint32_t rangeFactorizationBins,
+                                        uint32_t nThreads) {
+
+    Stats stats;
+    logger->info("Cedar: Load Mapping File ..");
+    logger->info("Mapping Output File: {}", mapperOutput_filename);
+    fileReader.load(mapperOutput_filename, logger);
+    logger->info("is dataset paired end? {}", fileReader.isMappingPaired());
+
+    // Construct coverage bins
+    for (uint64_t i = 0; i < fileReader.numRefs(); ++i) {
+        auto refLength = fileReader.refLength(i);
+        uint64_t binCnt = refLength / segmentSize;
+        if (binCnt == 0) binCnt = 1;
+        std::vector<uint32_t> bins(binCnt, 0);
+        strain_coverage_bins[i] = bins;
+        auto tid = flatAbund ? i : refId2taxId[fileReader.refName(i)];
+        seqToTaxMap[i] = static_cast<uint32_t>(tid);
+        cov[tid] = 0;
+    }
+
+    constexpr const bool getReadName = true;
+    std::cerr << "\n";
+
+
+    std::vector<std::thread> threads;
+    std::vector<Stats> statsPerThread(nThreads);
+    std::vector<EquivalenceClassBuilder> eqbPerThread(nThreads);
+    std::vector<std::vector<ReadInfo>> alignmentGroups(nThreads);
+    std::vector<spp::sparse_hash_map<uint32_t, double>> covs(nThreads);
+    std::vector<spp::sparse_hash_map<uint32_t, double>> strains(nThreads);
+    for (uint32_t i = 0; i < nThreads; ++i) alignmentGroups[i].resize(ALIGNMENTS_PER_BATCH);
+    std::mutex iomutex;
+    for (uint32_t i = 0; i < nThreads; ++i) {
+        for (auto& kv: cov) {covs[i][kv.first] = kv.second;}
+        for (auto& kv: strain) {strains[i][kv.first] = kv.second;}
+            auto threadFun = [&, i]() -> void {
+            processAlignmentBatch(i,
+                                  alignmentGroups[i],
+                                  statsPerThread[i],
+                                  eqbPerThread[i],
+                                  covs[i],
+                                  strains[i],
+                                  iomutex,
+                                  requireConcordance,
+                                  onlyUniq,
+                                  onlyPerfect,
+                                  segmentSize,
+                                  rangeFactorizationBins,
+                                  getReadName);
+        };
+        threads.emplace_back(threadFun);
+    }
+    for (auto &t : threads) {
+        t.join();
+    }
+    for (auto& s: statsPerThread) {stats.update(s);}
+    readCnt = stats.readCnt;
+    for (auto &s: strains) {
+        for (auto& kv: s) {
+            if (strain.find(kv.first) == strain.end())
+                strain[kv.first] = 0;
+            strain[kv.first] = kv.second;
+        }
+    }
+    for (auto &s: covs) {
+        for (auto& kv: s) {
+            if (cov.find(kv.first) == cov.end())
+                cov[kv.first] = 0;
+            cov[kv.first] = kv.second;
+        }
+    }
+    for (auto &eq: eqbPerThread) {
+        eqb.mergeUnfinishedEQB(eq);
+    }
+    calculateCoverage();
+    std::cerr << "\r";
+    //logger->info("Total # of unique reads: {}", readset.size());
+    //notMappedReadsFile.close();
+    logger->info("# of mapped (and accepted) reads: {}", stats.readCnt);
+    logger->info("global probsum: {}", stats.globalprobsum);
+    if (onlyUniq or onlyPerfect)
+        logger->info("# of mapped reads that were not uniq/perfect: {}", stats.totalReadsNotPassingCond);
+    logger->info("# of multi-mapped reads: {}", stats.totalMultiMappedReads);
+    logger->info("# of conflicting reads: {}", stats.conflicting);
+    logger->info("# of unmapped reads: {}", stats.totalUnmappedReads);
+    if (requireConcordance)
+        logger->info("Discarded {} discordant mappings.", stats.discordantMappings);
+}
+
+template<class ReaderType, class FileReaderType>
+void Cedar<ReaderType, FileReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                                         bool requireConcordance,
                                         bool onlyUniq,
                                         bool onlyPerfect,
@@ -148,16 +391,16 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
             totalMultiMappedReads{0}, totalUnmappedReads{0}, totalReadsNotPassingCond{0}, tid;
     logger->info("Cedar: Load Mapping File ..");
     logger->info("Mapping Output File: {}", mapperOutput_filename);
-    mappings.load(mapperOutput_filename, logger);
-    logger->info("is dataset paired end? {}", mappings.isMappingPaired());
+    fileReader.load(mapperOutput_filename, logger);
+    logger->info("is dataset paired end? {}", fileReader.isMappingPaired());
     ReadInfo readInfo;
     TaxaNode *prevTaxa{nullptr};
     size_t conflicting{0};
     size_t discordantMappings{0};
 
     // Construct coverage bins
-    for (uint64_t i = 0; i < mappings.numRefs(); ++i) {
-        auto refLength = mappings.refLength(i);
+    for (uint64_t i = 0; i < fileReader.numRefs(); ++i) {
+        auto refLength = fileReader.refLength(i);
         uint64_t binCnt = refLength / segmentSize;
         if (binCnt == 0) binCnt = 1;
         std::vector<uint32_t> bins(binCnt, 0);
@@ -165,11 +408,10 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
     }
 
     constexpr const bool getReadName = true;
-    size_t numMapped{0};
-    bool wasMapped = false;
     double globalprobsum{0.0};
     std::cerr << "\n";
-    while (mappings.nextRead(readInfo, getReadName)) {
+    std::mutex iomutex;
+    while (fileReader.nextRead(readInfo, iomutex, getReadName)) {
         totalReadCnt++;
         if (totalReadCnt % 1000000 == 0) {
             std::cerr << "\rProcessed " << totalReadCnt << " reads";
@@ -184,15 +426,12 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
             if (readInfo.cnt > 1) {
                 totalMultiMappedReads++;
             }
-            if (!wasMapped) {
-                wasMapped = true;
-                ++numMapped;
-            }
+
             std::set<uint64_t> seen;
             prevTaxa = nullptr;
-						std::vector< std::tuple<uint32_t, bool> > mapping_scores;
+            std::vector<std::tuple<uint32_t, bool> > mapping_scores;
             for (auto &mapping : readInfo.mappings) {
-                auto &refNam = mappings.refName(mapping.getId());
+                auto &refNam = fileReader.refName(mapping.getId());
                 // first condition: Ignore those references that we don't have a taxaId
                 // second condition: Ignore repeated exactly identical mappings (FIXME thing)
                 // note: Fatemeh!! don't change the or and and again!!
@@ -207,7 +446,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                         isConflicting = false;
                     }
                     activeTaxa.insert(mapping.getId());
-                    if (requireConcordance && mappings.isMappingPaired() &&
+                    if (requireConcordance && fileReader.isMappingPaired() &&
                         (!mapping.isConcordant() || mapping.isFw(ReadEnd::LEFT) == mapping.isFw(ReadEnd::RIGHT))) {
                         discordantMappings++;
                         continue;
@@ -219,17 +458,17 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     if (cov.find(refId2taxId[refNam]) == cov.end()) {
                         cov[refId2taxId[refNam]] = 0;
                     }
-										mapping_scores.push_back( std::tuple<uint32_t, bool>(mapping.getScore(), mapping.isPaired()) );
-                    cov[refId2taxId[refNam]] += mapping.getScore();
+                    mapping_scores.push_back(std::tuple<uint32_t, bool>(mapping.getScore(), mapping.isPaired()));
+                    util::incLoop(cov[refId2taxId[refNam]], mapping.getScore());
                     readPerStrainProbInst.emplace_back(mapping.getId(),
                                                        static_cast<double>( mapping.getScore()) /
-                                                       static_cast<double>(mappings.refLength(mapping.getId())));
+                                                       static_cast<double>(fileReader.refLength(mapping.getId())));
                     readMappingsScoreSum += readPerStrainProbInst.back().second;
 
                     uint32_t bin_number = mapping.getPos(ReadEnd::LEFT) / segmentSize > 0 ?
                                           mapping.getPos(ReadEnd::LEFT) / segmentSize - 1 : 0;
-                    auto& cbins = strain_coverage_bins[mapping.getId()];
-                    if(bin_number < cbins.size()) {
+                    auto &cbins = strain_coverage_bins[mapping.getId()];
+                    if (bin_number < cbins.size()) {
                         cbins[bin_number]++;
                     } else {
                         std::cerr << "SHOULDN'T HAPPEN! out of bound: " << bin_number << " " << cbins.size() << " ";
@@ -238,14 +477,14 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                     prevTaxa = &mapping;
                 }
             }
-						/*if (mapping_scores.size() > 20) {
-							std::sort(mapping_scores.begin(),mapping_scores.end());
-							std::cout<< readInfo.len << "\n";
-							for (auto &mapping_score : mapping_scores) {
-								std::cout << std::get<0>(mapping_score) << " " << std::get<1>(mapping_score) << " ";
-							}
-							std::cout<<"\n";
-						}*/
+            /*if (mapping_scores.size() > 20) {
+                std::sort(mapping_scores.begin(),mapping_scores.end());
+                std::cout<< readInfo.len << "\n";
+                for (auto &mapping_score : mapping_scores) {
+                    std::cout << std::get<0>(mapping_score) << " " << std::get<1>(mapping_score) << " ";
+                }
+                std::cout<<"\n";
+            }*/
 
             if (activeTaxa.empty()) {
                 seqNotFound++;
@@ -260,7 +499,7 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
                 double probsum{0.0};
                 for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
                     it->second = it->second / readMappingsScoreSum; // normalize the probabilities for each read
-                    strain[it->first] += 1.0 / static_cast<double>(readPerStrainProbInst.size());
+                    util::incLoop(strain[it->first], 1.0 / static_cast<double>(readPerStrainProbInst.size()));
                     probsum += 1.0 / static_cast<double>(readPerStrainProbInst.size());
                 }
                 globalprobsum += probsum;
@@ -317,8 +556,8 @@ void Cedar<ReaderType>::loadMappingInfo(std::string mapperOutput_filename,
         logger->info("Discarded {} discordant mappings.", discordantMappings);
 }
 
-template<class ReaderType>
-bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
+template<class ReaderType, class FileReaderType>
+bool Cedar<ReaderType, FileReaderType>::applySetCover(std::vector<double> &strainCnt,
                                       std::vector<bool> &strainValid,
                                       std::vector<bool> &strainPotentiallyRemovable,
                                       double minCnt,
@@ -451,8 +690,8 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
             setcover.add_set(j + 1, ret_struct.set_sizes[j], (const unsigned int *) ret_struct.sets[j],
                              (const unsigned short *) ret_struct.weights[j],
                              ret_struct.set_sizes[j]);
-            delete [] ret_struct.sets[j];
-            delete [] ret_struct.weights[j];
+            delete[] ret_struct.sets[j];
+            delete[] ret_struct.weights[j];
 //            free(ret_struct.sets[j]);
 //            free(ret_struct.weights[j]);
         }
@@ -490,8 +729,8 @@ bool Cedar<ReaderType>::applySetCover(std::vector<double> &strainCnt,
     return canHelp;
 }
 
-template<class ReaderType>
-bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint32_t numThreads, bool verbose) {
+template<class ReaderType, class FileReaderType>
+bool Cedar<ReaderType, FileReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint32_t numThreads, bool verbose) {
     eqb.finish();
     auto &eqvec = eqb.eqVec();
     int64_t maxSeqID{-1};
@@ -499,7 +738,7 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint3
         maxSeqID = (static_cast<int64_t>(kv.first) > maxSeqID) ? static_cast<int64_t>(kv.first) : maxSeqID;
     }
 
-    std::vector<tbb::atomic<double>> newStrainCnt(maxSeqID + 1, 0.0);
+    std::vector<tbb::atomic < double>> newStrainCnt(maxSeqID + 1, 0.0);
     std::vector<double> strainCnt(maxSeqID + 1);
     std::vector<bool> strainValid(maxSeqID + 1, true);
     std::vector<bool> strainPotentiallyRemovable(maxSeqID + 1, false);
@@ -521,7 +760,6 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint3
     logger->info("Total reads cnt mapped to valid taxids {}", static_cast<uint64_t >(validTaxIdCnt));
 
     size_t cntr = 0;
-    //tbb::atomic<bool> converged = false;
     bool converged = false;
     uint64_t thresholdingIterStep = 10;
     bool canHelp = true;
@@ -535,66 +773,57 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint3
         tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, eqvec.size()),
                 [&eqvec, &strainValid, &strainCnt, &newStrainCnt, this]
-                (const tbb::blocked_range<size_t>& range) -> void {
+                        (const tbb::blocked_range <size_t> &range) -> void {
                     for (auto eqID = range.begin(); eqID != range.end(); ++eqID) {
-                        auto& eqc = eqvec[eqID];
+                        auto &eqc = eqvec[eqID];
 
-            auto &tg = eqc.first;
-            auto &v = eqc.second;
-            auto csize = v.weights.size();
-            std::vector<double> tmpReadProb(csize, 0.0);
-            double denom{0.0};
-            for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
-                auto &tgt = tg.tgts[readMappingCntr];
-                if (strainValid[tgt]) {
+                        auto &tg = eqc.first;
+                        auto &v = eqc.second;
+                        auto csize = v.weights.size();
+                        std::vector<double> tmpReadProb(csize, 0.0);
+                        double denom{0.0};
+                        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                            auto &tgt = tg.tgts[readMappingCntr];
+                            if (strainValid[tgt]) {
 
-                    tmpReadProb[readMappingCntr] =
-                            v.weights[readMappingCntr] * strainCnt[tgt] * this->strain_coverage[tgt];
-                    // * (1.0/refLengths[tgt]);
-                    denom += tmpReadProb[readMappingCntr];
-                }
-            }
-            for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
-                auto &tgt = tg.tgts[readMappingCntr];
-                if (strainValid[tgt])
-                    util::incLoop(newStrainCnt[tgt], v.count * (tmpReadProb[readMappingCntr] / denom));
-                    //newStrainCnt[tgt] += v.count * (tmpReadProb[readMappingCntr] / denom);
-                /*else {
-                    newStrainCnt[tgt] = 0;
-                }*/
-            }
-        }});
+                                tmpReadProb[readMappingCntr] =
+                                        v.weights[readMappingCntr] * strainCnt[tgt] * this->strain_coverage[tgt];
+                                // * (1.0/refLengths[tgt]);
+                                denom += tmpReadProb[readMappingCntr];
+                            }
+                        }
+                        for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
+                            auto &tgt = tg.tgts[readMappingCntr];
+                            if (strainValid[tgt])
+                                util::incLoop(newStrainCnt[tgt], v.count * (tmpReadProb[readMappingCntr] / denom));
+                            /*else {
+                                newStrainCnt[tgt] = 0;
+                            }*/
+                        }
+                    }
+                });
 
         // E step
         // normalize strain probabilities using the denum : p(s) = (count(s)/total_read_cnt) 
-        //tbb::atomic<double> readCntValidator = 0;
         double readCntValidator = 0;
         converged = true;
-        //tbb::atomic<double> maxDiff = {0.0};
         double maxDiff{0.0};
-        /*tbb::parallel_for(
-                tbb::blocked_range<size_t>(0, newStrainCnt.size()),
-                [&maxDiff, &strainCnt, &newStrainCnt, &converged, &eps]//, &readCntValidator]
-                        (const tbb::blocked_range<size_t>& range) -> void {
-                    for (auto i = range.begin(); i != range.end(); ++i) {*/
+        // It's a small loop with critical variables so better not to be parallelized
+        // It was a few seconds faster without parallelizing
         for (uint64_t i = 0; i < newStrainCnt.size(); ++i) {
             readCntValidator += newStrainCnt[i];
             auto adiff = std::abs(newStrainCnt[i] - strainCnt[i]);
             if (adiff > eps) {
                 converged = false;
             }
-//            util::update(maxDiff, (adiff > maxDiff) ? adiff : static_cast<double>(maxDiff));
             maxDiff = (adiff > maxDiff) ? adiff : maxDiff;
             strainCnt[i] = newStrainCnt[i];
             newStrainCnt[i] = 0.0;
         }
-                //});
 
         if (std::abs(readCntValidator - readCnt) > 10) {
-            //logger->error("Total read count changed during the EM process");
             logger->error("original: {}, current : {}, diff : {}", readCnt,
                           readCntValidator, std::abs(readCntValidator - readCnt));
-            //std::exit(1);
         }
         if (cntr > 0 and cntr % 100 == 0) {
             logger->info("max diff : {}, readCnt : {}", maxDiff, static_cast<uint64_t>(readCntValidator));
@@ -631,12 +860,13 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint3
     // will map our reference IDs back to taxa IDs, and put the resulting
     // computed abundances in the "strain" member variable.
     decltype(strain) outputMap;
+    //spp::sparse_hash_map<uint64_t, double> outputMap;
     outputMap.reserve(strain.size());
     double finalReadCnt{0}, numOfValids{0};
     for (auto &kv : strain) {
         finalReadCnt += strainCnt[kv.first];
         numOfValids += strainValid[kv.first];
-        outputMap[seqToTaxMap[kv.first]] += strainValid[kv.first] ? strainCnt[kv.first] : 0;
+        util::incLoop(outputMap[seqToTaxMap[kv.first]], strainValid[kv.first] ? strainCnt[kv.first] : 0);
     }
     logger->info("Final Reference-level read cnt: {}, # of valid refs: {}",
                  static_cast<uint64_t >(finalReadCnt),
@@ -647,8 +877,8 @@ bool Cedar<ReaderType>::basicEM(size_t maxIter, double eps, double minCnt, uint3
     return cntr < maxIter;
 }
 
-template<class ReaderType>
-void Cedar<ReaderType>::serialize(std::string &output_filename) {
+template<class ReaderType, class FileReaderType>
+void Cedar<ReaderType, FileReaderType>::serialize(std::string &output_filename) {
     logger->info("Write results into the file: {}", output_filename);
     logger->info("# of strains: {}", strain.size());
     std::ofstream ofile(output_filename);
@@ -690,8 +920,8 @@ void Cedar<ReaderType>::serialize(std::string &output_filename) {
 
 }
 
-template<class ReaderType>
-void Cedar<ReaderType>::serializeFlat(std::string &output_filename) {
+template<class ReaderType, class FileReaderType>
+void Cedar<ReaderType, FileReaderType>::serializeFlat(std::string &output_filename) {
     logger->info("[FlatAbund]");
     // validate final count:
     uint64_t finalMappedReadCnt = 0;
@@ -702,23 +932,23 @@ void Cedar<ReaderType>::serializeFlat(std::string &output_filename) {
     logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\tcoverage\n";
-    std::cerr << "NUMREFS: " << mappings.numRefs() << "\n";
-    for (uint32_t i = 0; i < mappings.numRefs(); ++i) {
+    std::cerr << "NUMREFS: " << fileReader.numRefs() << "\n";
+    for (uint32_t i = 0; i < fileReader.numRefs(); ++i) {
         //for (auto& kv : strain) {
         auto it = strain.find(i);
         double abund = 0.0;
         if (it != strain.end()) {
             abund = it->second;
         }
-        ofile << mappings.refName(i) << "\t"
+        ofile << fileReader.refName(i) << "\t"
               << "flat"
               << "\t" << abund << "\t" << strain_coverage[i] << "\n";
     }
     ofile.close();
 }
 
-template<class ReaderType>
-void Cedar<ReaderType>::run(std::string mapperOutput_filename,
+template<class ReaderType, class FileReaderType>
+void Cedar<ReaderType, FileReaderType>::run(std::string mapperOutput_filename,
                             bool requireConcordance,
                             size_t maxIter,
                             double eps,
@@ -729,7 +959,8 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
                             uint32_t segmentSize,
                             uint32_t rangeFactorizationBins,
                             uint32_t numThreads) {
-    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf, segmentSize, rangeFactorizationBins);
+    loadMappingInfo(mapperOutput_filename, requireConcordance, onlyUniq, onlyPerf,
+                    segmentSize, rangeFactorizationBins, numThreads);
     bool verbose = true;
     basicEM(maxIter, eps, minCnt, numThreads, verbose);
     logger->info("serialize to ", output_filename);
@@ -742,10 +973,10 @@ void Cedar<ReaderType>::run(std::string mapperOutput_filename,
 }
 
 template
-class Cedar<PuffMappingReader>;
+class Cedar<PuffMappingReader, PAMReader>;
 
 template
-class Cedar<SAMReader>;
+class Cedar<SAMReader, SAMFileReader>;
 
 /**
  * "How to run" example:
@@ -794,7 +1025,8 @@ int main(int argc, char *argv[]) {
                     value("iter", kopts.maxIter) % "maximum number of EM iteratons (default : 1000)",
                     option("--eps", "-e") & value("eps", kopts.eps) % "epsilon for EM convergence (default : 0.001)",
                     option("--threads", "-t") & value("threads", kopts.numThreads) % "number of threads to use",
-                    option("--rangeFactorizationBins") & value("rangeFactorizationBins", kopts.rangeFactorizationBins) % "Number of bins for range factorization (default : 4)",
+                    option("--rangeFactorizationBins") & value("rangeFactorizationBins", kopts.rangeFactorizationBins) %
+                                                         "Number of bins for range factorization (default : 4)",
                     option("--minCnt", "-c") & value("minCnt", kopts.minCnt) %
                                                "minimum count for keeping a reference with count greater than that (default : 0)",
                     option("--level", "-l") & value("level", kopts.level).call(checkLevel) %
@@ -828,7 +1060,7 @@ int main(int argc, char *argv[]) {
 
     if (res) {
         if (kopts.isSAM) {
-            Cedar<SAMReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level,
+            Cedar<SAMReader, SAMFileReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level,
                                    kopts.filterThreshold, kopts.flatAbund, console);
             cedar.run(kopts.mapperOutput_filename,
                       kopts.requireConcordance,
@@ -842,7 +1074,7 @@ int main(int argc, char *argv[]) {
                       kopts.rangeFactorizationBins,
                       kopts.numThreads);
         } else {
-            Cedar<PuffMappingReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level,
+            Cedar<PuffMappingReader, PAMReader> cedar(kopts.taxonomyTree_filename, kopts.refId2TaxId_filename, kopts.level,
                                            kopts.filterThreshold, kopts.flatAbund, console);
             cedar.run(kopts.mapperOutput_filename,
                       kopts.requireConcordance,
