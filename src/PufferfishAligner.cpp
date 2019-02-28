@@ -209,9 +209,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                     }
                     // FILTERING fragments with size smaller than maxFragmentLength
                     // FILTER just in case of priority 0 (round 0)
-                    /*if (verbose) {
-                        std::cerr << "fraglen: " << fragmentLen << " " << maxFragmentLength << "\n";
-                    }*/
                     if (fragmentLen < maxFragmentLength || round > 0) {
                         // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
                         // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
@@ -219,9 +216,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                         if (totalCoverage >= coverageRatio * maxCoverage or
                             totalCoverage == perfectCoverage) {//}|| (lclust->coverage + rclust->coverage) == ) {
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
-                            /* if (verbose) {
-                              printMemInfo(tid, lclust, rclust, pfi);
-                            } */
                             uint32_t currCoverage = jointMemsList.back().coverage();
                             if (maxCoverage < currCoverage) {
                                 maxCoverage = currCoverage;
@@ -243,12 +237,15 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
         std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
     }
     if (!noOrphans && (!jointMemsList.size() || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1)) {
+				
+				//std::cerr << " (!noOrphans && (!jointMemsList.size() || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1)) {\n";
+				//std::cerr << !noOrphans << " " << !jointMemsList.size() << " " << !isMaxLeftAndRight << " " << maxLeftCnt << " " <<  maxRightCnt << "\n";
         //std::cerr << "Orphans\n";
         auto orphanFiller = [&jointMemsList, &maxCoverage]
                 (spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &memClusters,
                  bool isLeft) {
             // fragmentLen is set to 0
-            std::vector<util::MemCluster> fake;
+            std::vector<util::MemCluster> dummyCluster;
             for (auto &clustItr : memClusters) {
                 // reference id
                 size_t tid = clustItr.first;
@@ -256,9 +253,9 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                 auto &Clusts = clustItr.second;
                 for (auto clust = Clusts.begin(); clust != Clusts.end(); clust++) {
                     if (isLeft) {
-                        jointMemsList.emplace_back(tid, clust, fake.end(), 0, MateStatus::PAIRED_END_LEFT);
+                        jointMemsList.emplace_back(tid, clust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
                     } else {
-                        jointMemsList.emplace_back(tid, fake.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
+                        jointMemsList.emplace_back(tid, dummyCluster.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
                     }
                     uint32_t currCoverage = jointMemsList.back().coverage();
                     if (maxCoverage < currCoverage) {
@@ -291,13 +288,16 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                                           }),
                            jointMemsList.end());
     }
-    else  */{// ow, we will go with the heuristic that just keep those mappings that have at least
+    else  */{// Now, we will go with the heuristic that just keep those mappings that have at least
         // the required fraction of the best coverage.
+
+				//std::cerr<<jointMemsList.size()<<"\n";
         jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
                                            [&maxCoverage, coverageRatio](util::JointMems &pairedReadMems) -> bool {
                                                return pairedReadMems.coverage() < coverageRatio * maxCoverage;
                                            }),
                             jointMemsList.end());
+				//std::cerr<<jointMemsList.size()<<"\n";
 
 
         /* uint64_t minCoverage = 33;//0.8 * (perfectCoverage / 2);
@@ -501,24 +501,31 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 				// To work around a possible bug in the chaining algorithm, next kmer match occuring earlier
 				// Example -> CGGGCATGGTGGCTCACACCTGTAATCCCAGCACTTTGGGAGGCCAAGGTGGGTGGATCATGAGGTCAGGAATTCGAGAATAGCCTGGCCAACATGGTGA
 				if (currHitStart_read <= lastHitEnd_read - (int32_t)k + 1) {
-					break;
+					if (verbose)
+					  std::cerr<<"bugg!!\t" << original_read<<"\n";
+					//std::cerr<<"1\n";
+					//break;
 				}
 				// To work aroud a case where repetative sequence on reference cause the mems map to the same locations in reference
 				// Example -> verbose = (read_orphan == "AACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAA") and (tid == 166316); on i100 dataset mapping to whole NCBI bacterias
 				if (currHitStart_ref <= lastHitEnd_ref - (int32_t)k + 1) {
-					break;
+					//std::cerr<<"2\n";
+					//break;
 				}
 				// To work around a possible bug in the chaining algorithm, next kmer match far from the current match
 				// Example -> GATGCAGTGGCTCATGCCTGTAATCCCAGCACTTTGGGAGGCCAAGGCAGGCAGATCACTTGAGATCAGGAGTTCGAGACAAGCCTGGCTAAAATGGTGA
 				if (currHitStart_ref > lastHitEnd_ref + (int32_t)read.length()) {
-					break;
+					//std::cerr<<"3\n";
+					//break;
 				}
 				// Example -> (read_orphan == "TCGAGCTTCGAGCTTCGAGCTTCGAGCTTCGAGCTTCTAGCTTCGAGCTTCGAGCTTCGAGCTTCGAGCTTC") and (tid == 166340); on i100 dataset mapping to whole NCBI bacterias
 				if (currHitStart_read <= lastHitEnd_read and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-					break;
+					//std::cerr<<"4\n";
+					//break;
 				}
 				if (currHitStart_ref <= lastHitEnd_ref and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-					break;
+					//std::cerr<<"5\n";
+					//break;
 				}
 			}
 
@@ -1132,8 +1139,10 @@ void processReadsPair(paired_parser *parser,
       readLen = rpair.first.seq.length();
       mateLen = rpair.second.seq.length();
       totLen = readLen + mateLen;
-      bool verbose = false;
+      //bool verbose = false;
       //bool verbose = true;
+			bool verbose = rpair.first.seq == "ACTTAACAATACAAAATGGGAATAAAGCAATTAATTGCTTTATTCCCAGACTCTAATTTGCTTAAACAAGTTCTT" or
+										rpair.second.seq == "ACTTAACAATACAAAATGGGAATAAAGCAATTAATTGCTTTATTCCCAGACTCTAATTTGCTTAAACAAGTTCTT";
       //bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
       if (verbose) std::cerr << rpair.first.name << "\n";
       //std::cerr << "read: " << rpair.first.name << "\n\n";
@@ -1165,7 +1174,7 @@ void processReadsPair(paired_parser *parser,
                     mopts->consistentHits,
                     refBlocks*/);
 
-      //all.clear();
+      all.clear();
       // Second one, described in slack for Fatemeh verbose = "read10059738/ENST00000247866.8:ENSG00000090266.12;mate1:102-201;mate2:257-356" == rpair.first.name;
       //First one 302 verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
       /*memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/findBestChain/(jointHits,
@@ -1174,27 +1183,27 @@ void processReadsPair(paired_parser *parser,
                                                                                         mopts->maxFragmentLength,
                                                                                         rpair.first.seq.length(),
                                                                                         rpair.second.seq.length(),
-                                                                                        verbose);
-      hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0; */
-			hctr.numMappedAtLeastAKmer += (leftHits.size() || rightHits.size()) ? 1 : 0;
+                                                                                        verbose);*/
+      //hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0; 
+			hctr.numMappedAtLeastAKmer += (leftHits.size()>0 || rightHits.size()>0) ? 1 : 0;
       //do intersection on the basis of
       //performance, or going towards selective alignment
       //otherwise orphan
 
       // We also handle orphans inside this function
       //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
-      if(lh && rh) {
-        /*joinReadsAndFilter(leftHits, rightHits, jointHits,
+      //if(lh && rh) {
+      joinReadsAndFilter(leftHits, rightHits, jointHits,
                            mopts->maxFragmentLength,
                            totLen,
                            mopts->scoreRatio,
                            mopts->noDiscordant,
                            mopts->noOrphan,
                            pfi,
-                           verbose);*/
-      } else {
-        //ignore orphans for now
-      }
+                           verbose);
+      //} else {
+      //ignore orphans for now
+      //}
       //jointHits is a vector
       //this can be used for BFS
       //NOTE sanity check
@@ -1274,13 +1283,14 @@ void processReadsPair(paired_parser *parser,
 				jointHits.erase(jointHits.begin()+200, jointHits.end());
 			}
 
-			hctr.totHits += jointHits.size();
 			hctr.peHits += jointHits.size();
+			hctr.totHits += !jointHits.empty() && !jointHits.back().isOrphan() ? 1 : 0;;
 			hctr.numMapped += !jointHits.empty() ? 1 : 0;
 			if (mopts->noOrphan)
 				hctr.numOfOrphans += jointHits.empty() && (lh || rh);
 			else
 				hctr.numOfOrphans += !jointHits.empty() && (jointHits.back().isOrphan()) ? 1 : 0;
+			
 
 			if (jointHits.size() > hctr.maxMultimapping)
 				hctr.maxMultimapping = jointHits.size();
@@ -1323,7 +1333,7 @@ void processReadsPair(paired_parser *parser,
                                                      jointHit.fragmentLen,       // fragment length
                                                      false);
                         auto &qaln = jointAlignments.back();
-						qaln.numHits =jointHit.orphanClust()->coverage;
+                        qaln.numHits =jointHit.orphanClust()->coverage;
                         qaln.mateStatus = jointHit.mateStatus;
                     } else {
                         if (verbose) {

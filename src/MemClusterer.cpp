@@ -233,7 +233,7 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
 
 
 // We have both left and right end mems
-bool MemClusterer::findOptChain(std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
+/*bool MemClusterer::findOptChain(std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
        std::vector<util::JointMems> &jointMemsList,
        std::vector<util::MemCluster> &all,
        uint32_t maxSpliceGap,
@@ -265,7 +265,7 @@ bool MemClusterer::findOptChain(std::map<std::pair<pufferfish::common_types::Ref
                (q1.isFw && q2.isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
         });
     if (verbose) {
-      std::cerr << "\ntid" << tid << /*pfi_->refName(tid) << */" , isFw:" << isFw << "\n";
+      std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
         std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
             << "\n";
@@ -474,11 +474,12 @@ bool MemClusterer::findOptChain(std::map<std::pair<pufferfish::common_types::Ref
               globalScore = bestScore / 2.0;
             }
 
-          } /*else {
-            std::cerr << "fragmentlen issue: " << lclust->lastRefPos()
-                << " " << lclust->lastMemLen() << " "
-                                  << rclust->firstRefPos() << " " << maxFragmentLength << "\n";
-          }*/
+          } 
+					//else {
+          //  std::cerr << "fragmentlen issue: " << lclust->lastRefPos()
+          //      << " " << lclust->lastMemLen() << " "
+          //                        << rclust->firstRefPos() << " " << maxFragmentLength << "\n";
+          //}
         }
 
               //minPosIt += lastPtr;
@@ -511,27 +512,27 @@ bool MemClusterer::findOptChain(std::map<std::pair<pufferfish::common_types::Ref
     std::cerr << "WTF IS GOING ON\n" << tmpScore << " " << globalScore << "\n";
     std::exit(1);
   }
-  /*if (jointMemsList.size() >= 7) {
-    uint32_t cntr=0;
-    for (auto &j : jointMemsList) {
-      std::cerr << "\n" << cntr++ << " --> ";
-      std::cerr << "tid:" << j.tid << "\n" ;
-      std::cerr << "left:" << j.leftClust->isFw << " size:" << j.leftClust->mems.size() << " score:" << j.leftClust->coverage << " --> ";
-      for (size_t i = 0; i < j.leftClust->mems.size(); i++) {
-        std::cerr << "t" << j.leftClust->mems[i].tpos <<
-            " r" << j.leftClust->mems[i].memInfo->rpos <<
-            " l" << j.leftClust->mems[i].memInfo->memlen << "\t";
-      }
-      std::cerr << "\nright:" << j.rightClust->isFw << " size:" << j.rightClust->mems.size() << " score:" << j.rightClust->coverage << " --> ";
-      for (size_t i = 0; i < j.rightClust->mems.size(); i++) {
-        std::cerr << "t" << j.rightClust->mems[i].tpos <<
-            " r" << j.rightClust->mems[i].memInfo->rpos <<
-            " l" << j.rightClust->mems[i].memInfo->memlen << "\t";
-      }
-    }
-  }*/
+  //if (jointMemsList.size() >= 7) {
+  // uint32_t cntr=0;
+  //   for (auto &j : jointMemsList) {
+  //    std::cerr << "\n" << cntr++ << " --> ";
+  //   std::cerr << "tid:" << j.tid << "\n" ;
+  //    std::cerr << "left:" << j.leftClust->isFw << " size:" << j.leftClust->mems.size() << " score:" << j.leftClust->coverage << " --> ";
+  //    for (size_t i = 0; i < j.leftClust->mems.size(); i++) {
+  //      std::cerr << "t" << j.leftClust->mems[i].tpos <<
+  //          " r" << j.leftClust->mems[i].memInfo->rpos <<
+  //          " l" << j.leftClust->mems[i].memInfo->memlen << "\t";
+  //    }
+  //    std::cerr << "\nright:" << j.rightClust->isFw << " size:" << j.rightClust->mems.size() << " score:" << j.rightClust->coverage << " --> ";
+  //    for (size_t i = 0; i < j.rightClust->mems.size(); i++) {
+  //      std::cerr << "t" << j.rightClust->mems[i].tpos <<
+  //          " r" << j.rightClust->mems[i].memInfo->rpos <<
+  //          " l" << j.rightClust->mems[i].memInfo->memlen << "\t";
+  //    }
+  // }
+  //}
   return true;
-}
+}*/
 
 bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
     std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
@@ -1089,8 +1090,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
           seen[bestChainEnd] = true;
           bestChainEnd = lastPtr;
           lastPtr = p[bestChainEnd];
-//                    lastPtr = bestChainEnd;
-//                    bestChainEnd = p[bestChainEnd];
+          //lastPtr = bestChainEnd;
+          //bestChainEnd = p[bestChainEnd];
         }
         if (seen[bestChainEnd]) {
           shouldBeAdded = false;
@@ -1104,7 +1105,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
           }
           memClusters[tid][0].coverage = bestScore;
         }
-//                minPosIt += lastPtr;
+        //minPosIt += lastPtr;
       } else {
         // should not happen
         std::cerr << "[FATAL] : Cannot find any valid chain for quasi-mapping\n";

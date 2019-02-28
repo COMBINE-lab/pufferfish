@@ -249,11 +249,11 @@ enum class MateStatus : uint8_t {
     std::vector<MemInfo> mems;
     bool isFw;
     bool isVisited = false;
-      double coverage{0};
+    double coverage{0};
     std::vector<std::pair<std::string,std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
     int score ;
     std::string cigar ;
-	bool perfectChain = false;
+    bool perfectChain = false;
     //bool isValid = true;
     MemCluster(bool isFwIn): isFw(isFwIn) {}
     /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
@@ -277,9 +277,6 @@ enum class MateStatus : uint8_t {
           coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen)-(int)(mems.back().tpos + mems.back().memInfo->memlen), 0);
       }
         mems.emplace_back(uniMemInfo, tpos, isFw);
-      /*if (coverage > 100) {
-        std::cout << "fuck: " << mems.size() << " " << coverage <<"\n";
-        }*/
     }
 
     // Add the new mem to the list and update the coverage
@@ -337,16 +334,16 @@ enum class MateStatus : uint8_t {
               std::vector<util::MemCluster>::iterator rightClustIn,
               size_t fragmentLenIn,
               MateStatus mateStatusIn = MateStatus::PAIRED_END_PAIRED) : 
-              tid(tidIn), leftClust(leftClustIn), 
-              rightClust(rightClustIn), fragmentLen(fragmentLenIn),
-              mateStatus(mateStatusIn) {
-        if (!leftClust->mems.size() and !rightClust->mems.size()) {
-            std::cerr << "ERROR: Both read end mem lists cannot be empty.\n";
-            std::exit(1);
-        }
-        if (leftClust->mems.size() == 0) mateStatus = MateStatus::PAIRED_END_RIGHT;
-        if (rightClust->mems.size() == 0) mateStatus = MateStatus::PAIRED_END_LEFT;
-//        std::cerr << "[jointMem] " << leftClust->mems.size() << " " << rightClust->mems.size() << " " << (uint32_t)mateStatus << "\n";
+              tid(tidIn), leftClust(leftClustIn), rightClust(rightClustIn), 
+              fragmentLen(fragmentLenIn), mateStatus(mateStatusIn) {
+			/*if (leftClust and rightClust) {
+				if (!leftClust->mems.size() and !rightClust->mems.size()) {
+					std::cerr << "ERROR: Both read end mem lists cannot be empty.\n";
+					std::exit(1);
+				}
+			}*/
+      //if (leftClust->mems.size() == 0) mateStatus = MateStatus::PAIRED_END_RIGHT;
+      //if (rightClust->mems.size() == 0) mateStatus = MateStatus::PAIRED_END_LEFT;
     }
 
       double coverage() {

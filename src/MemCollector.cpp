@@ -381,31 +381,38 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
   ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
 
   while (kit1 != kit_end) {
-  auto phits = pfi_->getRefPos(kit1->first, qc);
+    auto phits = pfi_->getRefPos(kit1->first, qc);
 
-  skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
-  if (!phits.empty()) {
-    // kit1 gets updated inside expandHitEfficient function
-    // stamping the reasPos
-    // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
-    size_t readPosOld = kit1->second ;
-    expandHitEfficient(phits, kit1, et);
-
-    rawHits.push_back(std::make_pair(readPosOld, phits));
+    skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
+    if (!phits.empty()) {
+      // kit1 gets updated inside expandHitEfficient function
+      // stamping the reasPos
+      // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
+      size_t readPosOld = kit1->second ;
+      expandHitEfficient(phits, kit1, et);
+			if (verbose){
+				std::cerr<<"readPosOld:"<<readPosOld<<"\n";
+				auto &refs = phits.refRange;
+        for (auto &posIt : refs) {
+          auto refPosOri = phits.decodeHit(posIt);
+					std::cerr<<"tid:" << posIt.transcript_id() << " refpos:"<<refPosOri.pos<<" refFw:"<<refPosOri.isFW<<"\n";
+        }
+			}
+      rawHits.push_back(std::make_pair(readPosOld, phits));
     
-    basesSinceLastHit = 1;
-    skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
-    kit1 += (skip-1);
-   //} else {
-   //  ++kit1;
-   //}
-   //++pos;
-  } else {
-   // ++pos;
-   basesSinceLastHit += skip;
-   kit1 += skip;
-   //++kit1;
-  }
+      basesSinceLastHit = 1;
+      skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
+      kit1 += (skip-1);
+     //} else {
+     //  ++kit1;
+     //}
+     //++pos;
+    } else {
+     // ++pos;
+     basesSinceLastHit += skip;
+     kit1 += skip;
+     //++kit1;
+    }
   }
 
   // if this is the right end of a paired-end read, use memCollectionRight,
@@ -415,12 +422,12 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
   &memCollectionRight : &memCollectionLeft;
   if (rawHits.size() > 0) {
     //if (mateStatus == util::MateStatus::PAIRED_END_LEFT)
-    //  mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT, verbose);
+    //	mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::LEFT, verbose);
     //else
     //  mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT, verbose);
 
     mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
-    mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+    //mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
     if (verbose) {
       std::cerr << "lets see what we have\n";
       for (auto kv : trMemMap) {
@@ -450,12 +457,12 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
   
 
-template <typename PufferfishIndexT>
+/*template <typename PufferfishIndexT>
 void MemCollector<PufferfishIndexT>::findBestChain(std::vector<util::JointMems> &jointHits,
                        std::vector<util::MemCluster> &all,
                        uint32_t maxSpliceGap, uint32_t maxFragmentLength, bool verbose) {
       mc.findOptChain(trMemMap, jointHits, all, maxSpliceGap, maxFragmentLength, verbose);
-}
+}*/
 
 template <typename PufferfishIndexT>
 void MemCollector<PufferfishIndexT>::findOptChainAllowingOneJumpBetweenTheReadEnds(std::vector<util::JointMems> &jointHits,
