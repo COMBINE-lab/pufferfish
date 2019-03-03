@@ -1,9 +1,12 @@
+#include <utility>
+
 #ifndef __MAPPINGS_H__
 #define __MAPPINGS_H__
 
 #include "spdlog/spdlog.h"
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include "taxa.h"
 
 class Chunk {
@@ -48,6 +51,7 @@ public:
         currByte_ += len;
         //std::cerr << "fill: " << len << "," << val << "," << currByte_ << "," << chunkSize_ <<"\n";
     }
+
     std::vector<char> chunk_;
     //char *chunk_ = new char[allocatedSize_];
 private:
@@ -57,153 +61,200 @@ private:
 
 };
 
-class PuffMappingReader {
-    public:
-        PuffMappingReader() {}
-        void load(std::string mfileName,
-                std::shared_ptr<spdlog::logger> loggerIn) {
-            logger = loggerIn;
+class PAMReader {
+public:
+    PAMReader(std::string mfileName,
+              std::shared_ptr<spdlog::logger> loggerIn) {
+        logger = loggerIn;
+        if (!inFile.is_open()) {
             inFile.open(mfileName, std::ios::binary);
-            if (!readHeader()) {
-                logger->error("Invalid header for mapping output file.");
-                std::exit(1);
-            }
+        }
+        if (!readHeader()) {
+            logger->error("Invalid header for mapping output file.");
+            std::exit(1);
+        }
+    }
+    bool readHeader() {
+        size_t refCount;
+        inFile.read(reinterpret_cast<char *>(&isPaired), sizeof(bool));
+        inFile.read(reinterpret_cast<char *>(&refCount), sizeof(size_t));
+        logger->info("Total # of References: {}", refCount);
+        refLengths.resize(refCount);
+        refNames.resize(refCount);
+        uint8_t refNameSize;
+        refLenType refLen;
+        //std::cout << "is paired: " << isPaired << "\n";
+        for (size_t i = 0; i < refCount; i++) {
+            inFile.read(reinterpret_cast<char *>(&refNameSize), sizeof(refNameSize));
+            char *strChar = new char[refNameSize];
+            inFile.read(strChar, refNameSize);
+            std::string refName(strChar, refNameSize);
+            inFile.read(reinterpret_cast<char *>(&refLen), sizeof(refLenType));
+            refNames[i] = refName;
+            refLengths[i] = refLen;
+            //std::cout << refName << " " << refLen << "\n";
+        }
+        return true;
+    }
+
+    bool readChunk(Chunk &chunk, std::mutex& iomutex) {
+        std::lock_guard<std::mutex> l(iomutex);
+        if (hasNext()) {
+            uint64_t chunksize;
+            inFile.read(reinterpret_cast<char *>(&chunksize), sizeof(chunksize));
+            if (!hasNext()) return false; // because you need to read last chunk from file first before the flag is set
+            chunk.allocate(chunksize); // only allocates new space if chunksize > chunk.size()
+            inFile.read(chunk.chunk_.data(), chunksize);
+            return true;
+        }
+        return false;
+    }
+
+    bool hasNext() { return inFile.is_open() && inFile.good(); }
+
+
+    std::ifstream inFile;
+    bool isPaired = true;
+    std::vector<refLenType> refLengths;
+    std::vector<std::string> refNames;
+    std::shared_ptr<spdlog::logger> logger;
+
+};
+
+class PuffMappingReader {
+public:
+    PuffMappingReader() {}
+
+    PuffMappingReader(PAMReader* pr,
+                      std::shared_ptr<spdlog::logger> loggerIn) {
+        pamReader = pr;
+        logger = loggerIn;
+    }
+
+    void load(std::string mfileName,
+              std::shared_ptr<spdlog::logger> loggerIn) {
+        logger = loggerIn;
+        pamReader = new PAMReader(std::move(mfileName), loggerIn);
+    }
+
+    PAMReader* getReader() {return pamReader;}
+
+    bool nextAlignmentGroup(std::vector<ReadInfo> &alignmentGrp,
+                            std::mutex &iomutex,
+                            bool needReadName = false) {
+        uint32_t readsLeft{0};
+        for (ReadInfo& rinfo: alignmentGrp) {
+            if (nextRead(rinfo, iomutex, needReadName))
+                readsLeft++;
+            else
+                break;
+        }
+        if (readsLeft < alignmentGrp.size())
+            alignmentGrp.resize(readsLeft);
+        return readsLeft > 0;
+    }
+
+    bool nextRead(ReadInfo &rinf, std::mutex& iomutex, bool needReadName = false) {
+        if (!chunk.hasNext()) {// try to read a new chunk from file
+            if (!pamReader->readChunk(chunk, iomutex)) // if nothing left to process return false
+                return false;
+        }
+        rinf.mappings.clear();
+
+        uint32_t puff_id, mcnt;
+        rLenType rlen{0}, lcnt{0}, rcnt{0};//, ibeg{0}, ilen{0};
+        refLenType refPos;
+        std::string readName;
+        uint8_t readNameLength;
+        // read name
+        chunk.fill(readNameLength);
+        if (!pamReader->hasNext()) { return false; }
+        chunk.fill(readName, readNameLength);
+
+        // NOTE: do we actually care about the read name?
+        if (needReadName) {
+            rinf.rid = readName;
         }
 
-        bool hasNext() {return  inFile.is_open() && inFile.good();}
-
-        bool nextRead(ReadInfo& rinf, bool needReadName=false) {
-            if (!chunk.hasNext()) {// try to read a new chunk from file
-                if (!readChunk(chunk)) // if nothing left to process return false
-                    return false;
-            }
-            rinf.mappings.clear();
-
-            uint32_t puff_id, mcnt; 
-            rLenType rlen{0}, lcnt{0}, rcnt{0};//, ibeg{0}, ilen{0};
-            refLenType refPos;
-            std::string readName;
-            uint8_t readNameLength;
-            // read name
-            chunk.fill(readNameLength);
-            if(!hasNext()) { return false; }
-            chunk.fill(readName, readNameLength);
-
-            // NOTE: do we actually care about the read name?
-            if (needReadName) {
-              rinf.rid = readName;
-            }
-
-            // mapping count
-            chunk.fill(mcnt);
-            chunk.fill(rlen); // left read len
-            rinf.cnt = mcnt;
-            rinf.len = rlen;
-            if (isPaired) {
-                chunk.fill(rlen); // right read len
-                rinf.len += rlen;
-            }
+        // mapping count
+        chunk.fill(mcnt);
+        chunk.fill(rlen); // left read len
+        rinf.cnt = mcnt;
+        rinf.len = rlen;
+        if (pamReader->isPaired) {
+            chunk.fill(rlen); // right read len
+            rinf.len += rlen;
+        }
 //            std::cerr << rinf.rid << " " << rinf.cnt << " " << rinf.len << "\n";
-            rinf.mappings.reserve(rinf.cnt);
-            TaxaNode dummy;
-            TaxaNode *taxaPtr = &dummy;
+        rinf.mappings.reserve(rinf.cnt);
+        TaxaNode dummy;
+        TaxaNode *taxaPtr = &dummy;
 
-            for (size_t mappingCntr = 0; mappingCntr < rinf.cnt; mappingCntr++) {
-                double rscore{0.0}, lscore{0.0};
-                chunk.fill(puff_id);
-                // fetch the taxon from the map
+        for (size_t mappingCntr = 0; mappingCntr < rinf.cnt; mappingCntr++) {
+            double rscore{0.0}, lscore{0.0};
+            chunk.fill(puff_id);
+            // fetch the taxon from the map
 //                std::cerr << "puff_id: " << puff_id << " ";
-                rinf.mappings.emplace_back(puff_id);
-                taxaPtr = &rinf.mappings.back();
-                chunk.fill(lcnt);
+            rinf.mappings.emplace_back(puff_id);
+            taxaPtr = &rinf.mappings.back();
+            chunk.fill(lcnt);
 //                std::cerr << "left intrvls:" << lcnt << " ";
-                if (isPaired) {
-                    chunk.fill(rcnt);
+            if (pamReader->isPaired) {
+                chunk.fill(rcnt);
 //                    std::cerr << "right intrvls:" << rcnt << " ";
-                }
-                    if (lcnt) {
-                    chunk.fill(lscore);
-                    chunk.fill(refPos);
-                    taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::LEFT);
-                    taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::LEFT);
+            }
+            if (lcnt) {
+                chunk.fill(lscore);
+                chunk.fill(refPos);
+                taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::LEFT);
+                taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::LEFT);
 //                    std::cerr << "left score:" << lscore << " ";
 //                    std::cout << "left pos:" << taxaPtr->getPos(ReadEnd::LEFT) << " " << taxaPtr->isFw(ReadEnd::LEFT) << "\n";
-                }
+            }
 
-                if (isPaired) {
-                    if (rcnt) {
-                        ReadEnd currRe = ReadEnd::RIGHT;
-                        // NOTE, IMPORTANT! There is this implicit untold!!! assumption that
-                        // if a mapping is orphan (one end is only mapped), we're gonna see that as the LEFT end!!
-                        if (!lcnt) {
-                            currRe = ReadEnd::LEFT;
-                        }
-                        chunk.fill(rscore);
-                        chunk.fill(refPos);
-                        taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, currRe);
-                        taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, currRe);
+            if (pamReader->isPaired) {
+                if (rcnt) {
+                    ReadEnd currRe = ReadEnd::RIGHT;
+                    // NOTE, IMPORTANT! There is this implicit untold!!! assumption that
+                    // if a mapping is orphan (one end is only mapped), we're gonna see that as the LEFT end!!
+                    if (!lcnt) {
+                        currRe = ReadEnd::LEFT;
+                    }
+                    chunk.fill(rscore);
+                    chunk.fill(refPos);
+                    taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, currRe);
+                    taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, currRe);
 //                        std::cerr << "right score:" << rscore << " ";
 //                        std::cout << "right pos: " << taxaPtr->getPos(currRe) << " " << taxaPtr->isFw(currRe) << "\n";
-                    }
                 }
-                //std::cout << "here\n";
-                taxaPtr->cleanIntervals(ReadEnd::LEFT);
-                taxaPtr->cleanIntervals(ReadEnd::RIGHT);
-                taxaPtr->setScore(lscore + rscore);
-                //taxaPtr->updateScore();
-                //std::cout << "here\n";
             }
-            return true;
+            //std::cout << "here\n";
+            taxaPtr->cleanIntervals(ReadEnd::LEFT);
+            taxaPtr->cleanIntervals(ReadEnd::RIGHT);
+            taxaPtr->setScore(lscore + rscore);
+            //taxaPtr->updateScore();
+            //std::cout << "here\n";
         }
+        return true;
+    }
 
-        const std::string& refName(size_t id) {return refNames[id];}
-        size_t refLength(size_t id) {return refLengths[id];}
-        size_t numRefs() const { return refNames.size(); }
-        bool isMappingPaired() {return isPaired;}
-    private:
-        bool readHeader() {
-            size_t refCount;
-            inFile.read(reinterpret_cast<char*>(&isPaired), sizeof(bool));
-            inFile.read(reinterpret_cast<char*>(&refCount), sizeof(size_t));
-            logger->info("Total # of References: {}", refCount);
-            refLengths.reserve(refCount);
-            refNames.reserve(refCount);
-            uint8_t refNameSize;
-            refLenType refLen;
-            //std::cout << "is paired: " << isPaired << "\n";
-            for (size_t i = 0; i < refCount; i++) {
-                inFile.read(reinterpret_cast<char*>(&refNameSize), sizeof(refNameSize));
-                char* strChar = new char[refNameSize];
-                inFile.read(strChar, refNameSize);
-                std::string refName(strChar, refNameSize);
-                inFile.read(reinterpret_cast<char*>(&refLen), sizeof(refLenType));
-                refNames.push_back(refName);
-                refLengths.push_back(refLen);
-                //std::cout << refName << " " << refLen << "\n";
-            }
-            return true;
-        }
-        bool readChunk(Chunk &chunk) {
-                if (hasNext()) {
-                    uint64_t chunksize;
-                    inFile.read(reinterpret_cast<char *>(&chunksize), sizeof(chunksize));
-                    if (!hasNext()) return false; // because you need to read last chunk from file first before the flag is set
-                    chunk.allocate(chunksize); // only allocates new space if chunksize > chunk.size()
-                    inFile.read(chunk.chunk_.data(), chunksize);
-                    return true;
-                }
-                return false;
-            }
+    const std::string &refName(size_t id) { return pamReader->refNames[id]; }
 
-        Chunk chunk;
-        std::ifstream inFile;
-        bool isPaired = true;
-        std::vector<refLenType> refLengths;
-        std::vector<std::string> refNames;
-        std::shared_ptr<spdlog::logger> logger;
-        static constexpr const refLenType HighBitMask = 1u << (sizeof(refLenType)*8-1); 
-        static constexpr const refLenType LowBitsMask = HighBitMask -1;
-  //ReadInfo readInfo;   
+    size_t refLength(size_t id) { return pamReader->refLengths[id]; }
+
+    size_t numRefs() const { return pamReader->refNames.size(); }
+
+    bool isMappingPaired() { return pamReader->isPaired; }
+
+private:
+
+    Chunk chunk;
+    PAMReader* pamReader;
+    std::shared_ptr<spdlog::logger> logger;
+    static constexpr const refLenType HighBitMask = 1u << (sizeof(refLenType) * 8 - 1);
+    static constexpr const refLenType LowBitsMask = HighBitMask - 1;
+
+    //ReadInfo readInfo;
 };
 
 #endif

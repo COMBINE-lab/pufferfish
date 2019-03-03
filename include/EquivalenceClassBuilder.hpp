@@ -87,6 +87,20 @@ public:
     }
   }
 
+  inline void mergeUnfinishedEQB(EquivalenceClassBuilder& eqb) {
+    for (auto &kv : eqb.countMap_) {
+      auto it = countMap_.find(kv.first);
+      if (it != countMap_.end()) {
+        it->second.count+=kv.second.count;
+        for (size_t i = 0; i < it->second.weights.size(); ++i) {
+          it->second.weights[i] += kv.second.weights[i];
+        }
+      } else {
+        countMap_.insert(std::make_pair(kv.first,kv.second));
+      }
+    }
+  }
+
   std::vector<std::pair<const TargetGroup, TGValue>>& eqVec() {
     return countVec_;
   }
