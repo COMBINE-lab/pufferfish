@@ -348,13 +348,18 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                   << "\n";
         std::cerr << jointMemsList.size() << "\n";
         for (auto &jointMems : jointMemsList) {
-            std::cerr << " -->" << pfi.refName(jointMems.tid) << "\n\t\t";
-            for (auto &cl : jointMems.leftClust->mems) {
+            std::cerr << " -->" << jointMems.tid << " " << pfi.refName(jointMems.tid) << "\n\t\t";
+            std::vector<util::MemCluster> dummyCluster;
+            if (jointMems.leftClust != dummyCluster.end()) {
+              for (auto &cl : jointMems.leftClust->mems) {
                 std::cerr << cl.tpos << " ";
+              }
             }
             std::cerr << "\n\t\t";
-            for (auto &cl : jointMems.rightClust->mems) {
+            if (jointMems.rightClust != dummyCluster.end()) {
+              for (auto &cl : jointMems.rightClust->mems) {
                 std::cerr << cl.tpos << " ";
+              }
             }
             std::cerr << "\n";
         }
@@ -443,7 +448,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 	if (mems.size() == 0)
 		return alignmentScore;
 	auto mem = mems[0];
-	currHitStart_read = mem.isFw ? mem.memInfo->rpos : read.length() - (mem.memInfo->rpos + mem.memInfo->memlen);
+	currHitStart_read = isFw ? mem.memInfo->rpos : read.length() - (mem.memInfo->rpos + mem.memInfo->memlen);
 	if (currHitStart_read < 0 or currHitStart_read >= (int32_t)read.length() )
 		std::cerr<<"Should not happen!\n";
 
@@ -473,6 +478,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
     // if so, we know the alignment score
     if (hit != alnCache.end()) {
     	alignmentScore = hit->second;
+      alignment = alignmentScore;
    	}
   }
 	if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
@@ -482,209 +488,209 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 			hctr.skippedAlignments_byCov += 1;
 		} else {
 
-		alignmentScore = 0;
-		for (auto mem : mems) {
-			// To work around seg fault from mems
-			if (!firstMem and mem.tpos + mem.memInfo->memlen - refStart > read.length()) {
-				break;
-			}
-			int score = 0;
-			currHitStart_read = mem.isFw ? mem.memInfo->rpos : read.length() - (mem.memInfo->rpos + mem.memInfo->memlen);
-			currHitStart_ref = mem.tpos;
-			if (verbose) {
-				std::cerr<<"currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n"; 
-				std::cerr<<"lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref << "\n"; 
-			}
-			if (firstMem) {
-				lastHitEnd_ref = currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
-			} else {
-				// To work around a possible bug in the chaining algorithm, next kmer match occuring earlier
-				// Example -> CGGGCATGGTGGCTCACACCTGTAATCCCAGCACTTTGGGAGGCCAAGGTGGGTGGATCATGAGGTCAGGAATTCGAGAATAGCCTGGCCAACATGGTGA
-				if (currHitStart_read <= lastHitEnd_read - (int32_t)k + 1) {
-					if (verbose)
-					  std::cerr<<"bugg!!\t" << original_read<<"\n";
-					//std::cerr<<"1\n";
-					//break;
-				}
-				// To work aroud a case where repetative sequence on reference cause the mems map to the same locations in reference
-				// Example -> verbose = (read_orphan == "AACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAAACCGCTAA") and (tid == 166316); on i100 dataset mapping to whole NCBI bacterias
-				if (currHitStart_ref <= lastHitEnd_ref - (int32_t)k + 1) {
-					//std::cerr<<"2\n";
-					//break;
-				}
-				// To work around a possible bug in the chaining algorithm, next kmer match far from the current match
-				// Example -> GATGCAGTGGCTCATGCCTGTAATCCCAGCACTTTGGGAGGCCAAGGCAGGCAGATCACTTGAGATCAGGAGTTCGAGACAAGCCTGGCTAAAATGGTGA
-				if (currHitStart_ref > lastHitEnd_ref + (int32_t)read.length()) {
-					//std::cerr<<"3\n";
-					//break;
-				}
-				// Example -> (read_orphan == "TCGAGCTTCGAGCTTCGAGCTTCGAGCTTCGAGCTTCTAGCTTCGAGCTTCGAGCTTCGAGCTTCGAGCTTC") and (tid == 166340); on i100 dataset mapping to whole NCBI bacterias
-				if (currHitStart_read <= lastHitEnd_read and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-					//std::cerr<<"4\n";
-					//break;
-				}
-				if (currHitStart_ref <= lastHitEnd_ref and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-					//std::cerr<<"5\n";
-					//break;
-				}
-			}
+		  alignmentScore = 0;
+		  for (auto mem : mems) {
+			  // To work around seg fault from mems
+			  if (!firstMem and mem.tpos + mem.memInfo->memlen - refStart > read.length()) {
+				  break;
+			  }
+			  int score = 0;
+			  currHitStart_read = isFw ? mem.memInfo->rpos : read.length() - (mem.memInfo->rpos + mem.memInfo->memlen);
+			  currHitStart_ref = mem.tpos;
+			  if (verbose) {
+				  std::cerr<<"currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n"; 
+				  std::cerr<<"lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref << "\n"; 
+			  }
+			  if (firstMem) {
+				  lastHitEnd_ref = currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
+			  } else {
+				  if (currHitStart_read <= lastHitEnd_read - (int32_t)k + 1) {
+            //if (verbose)
+              std::cerr<<"bugg1!!\t" << original_read<<"\n";
+					  //break;
+				  }
+				  if (currHitStart_ref <= lastHitEnd_ref - (int32_t)k + 1) {
+            //if (verbose)
+              std::cerr<<"bugg2!!\t" << original_read<<"\n";
+					  //break;
+				  }
+				  if (currHitStart_ref > lastHitEnd_ref + (int32_t)read.length()) {
+            std::cerr<<"bugg3!!\t" << original_read<<"\n";
+					  //break;
+				  }
+				  //if (currHitStart_read < lastHitEnd_read and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
+          //  if (verbose)
+				  //    std::cerr<<"bugg4!!\t" << original_read<<"\n";
+				  //  break;
+			  	//}
+				  //if (currHitStart_ref < lastHitEnd_ref and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
+				  //  if (verbose)
+				  //  	std::cerr<<"bugg5!!\t" << original_read<<"\n";
+				  //  break;
+				  //}
+			  }
 
+			  // Performing full alignment to validate the socres
+			  if (verbose and firstMem) {
+				  uint32_t refStart, readStart;
+				  if ( currHitStart_ref > currHitStart_read) {
+					  refStart = currHitStart_ref - currHitStart_read;
+			 		  readStart = 0;
+				  } else if (currHitStart_ref < currHitStart_read) {
+					  readStart = currHitStart_read - currHitStart_ref;
+					  refStart = 0;
+				  } else{
+					  readStart = currHitStart_read;
+					  refStart = currHitStart_ref;
+				  }
+				  auto refLength = (refStart + read.length()*2 < refTotalLength ) ? read.length()*2 : refTotalLength - refStart;
 
-			// Performing full alignment to validate the socres
-			if (verbose and firstMem) {
-				uint32_t refStart, readStart;
-				if ( currHitStart_ref > currHitStart_read) {
-					refStart = currHitStart_ref - currHitStart_read;
-			 		readStart = 0;
-				} else if (currHitStart_ref < currHitStart_read) {
-					readStart = currHitStart_read - currHitStart_ref;
-					refStart = 0;
-				} else{
-					readStart = currHitStart_read;
-					refStart = currHitStart_ref;
-				}
-				auto refLength = (refStart + read.length()*2 < refTotalLength ) ? read.length()*2 : refTotalLength - refStart;
+				  tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
+				  auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, read.length(), 1) : read;
 
-				tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
-				auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, read.length(), 1) : read;
+				  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+				  alignment = std::max(ez.mqe, ez.mte);
+				  if (verbose) {
+					  std::cerr << "Original read seq:\t" << original_read << "\n";
+					  std::cerr << "Total alignment with the score\t"<< alignment <<"\t from position\t" << readStart << "\t on the read:\n" << readSeq <<"\n";
+					  std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n" << tseq << "\n";
+				 	  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+						  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
+					  std::cerr<<"\n";
+				  }
+			  }
+			  // If there is a gap in the read or reference or both
+        bool gapAligned = false;
+		 	  if (currHitStart_read > lastHitEnd_read + 1 or currHitStart_ref > lastHitEnd_ref + 1) {
+          gapAligned = true;
+				  auto readGapLength = currHitStart_read - lastHitEnd_read - 1;
+				  auto refGapLength = currHitStart_ref - lastHitEnd_ref - 1;
+				  if(verbose)
+					  std::cerr<<"readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n";
+				  auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+				  if (verbose) {
+					  for (size_t x=0; x<50; ++x)
+						  std::cerr<<"+";
+					  std::cerr<<" start gap alignment\n";
+					  std::cerr<<"read from " << lastHitEnd_read+1 << " for length " << readGapLength << " of the read:\t " << readSeq << "\n";
+					  std::cerr << "currHitStart_read: " << currHitStart_read << " lastHitEnd_read: " << lastHitEnd_read << " currHitStart_ref: " << currHitStart_ref << " lastHitEnd_ref: " << lastHitEnd_ref<< "\n";
+				  }
+				  if (firstMem) {
+					  ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
+					  // Not extending the reference beyond its beginning
+					  auto refStartSeq = lastHitEnd_ref > refExtLength ?  lastHitEnd_ref + 1 - refExtLength : 0;
+					  refGapLength = currHitStart_ref - refStartSeq;
+					  // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
+					  if (refGapLength > 0) {
+						  // We reverse the strings because of ksw force alignment from the beginning of the sequences
+						  std::reverse(readSeq.begin(), readSeq.end());
+						  tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+						  std::reverse(tseq.begin(), tseq.end());
 
-				aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-				alignment = std::max(ez.mqe, ez.mte);
-				if (verbose) {
-					std::cerr << "Original read seq:\t" << original_read << "\n";
-					std::cerr << "Total alignment with the score\t"<< alignment <<"\t from position\t" << readStart << "\t on the read:\n" << readSeq <<"\n";
-					std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n" << tseq << "\n";
-					for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-						printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-					std::cerr<<"\n";
-				}
-			}
-			// If there is a gap in the read or reference or both
-			if (currHitStart_read > lastHitEnd_read + 1 or currHitStart_ref > lastHitEnd_ref + 1) {
-				auto readGapLength = currHitStart_read - lastHitEnd_read - 1;
-				auto refGapLength = currHitStart_ref - lastHitEnd_ref - 1;
-				if(verbose)
-					std::cerr<<"readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n";
-				auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
-				if (verbose) {
-					for (size_t x=0; x<50; ++x)
-						std::cerr<<"+";
-					std::cerr<<" start gap alignment\n";
-					std::cerr<<"read from " << lastHitEnd_read+1 << " for length " << readGapLength << " of the read:\t " << readSeq << "\n";
-					std::cerr << "currHitStart_read: " << currHitStart_read << " lastHitEnd_read: " << lastHitEnd_read << " currHitStart_ref: " << currHitStart_ref << " lastHitEnd_ref: " << lastHitEnd_ref<< "\n";
-				}
-				if (firstMem) {
-					///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
-					// Not extending the reference beyond its beginning
-					auto refStartSeq = lastHitEnd_ref > refExtLength ?  lastHitEnd_ref + 1 - refExtLength : 0;
-					refGapLength = currHitStart_ref - refStartSeq;
-					// SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
-					if (refGapLength > 0) {
-						// We reverse the strings because of ksw force alignment from the beginning of the sequences
-						std::reverse(readSeq.begin(), readSeq.end());
-						tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
-						std::reverse(tseq.begin(), tseq.end());
+						  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+						  score = std::max(ez.mqe, ez.mte);
+						  if (verbose){
+							  std::cerr<<"It's a gap at the beginning, so the reverse read from "<<lastHitEnd_read + 1<< " is\t"<<readSeq<<"\n";
+							  std::cerr<<"The reverse reference from " << refStartSeq << " with the length " << refGapLength << " is\t" << tseq << "\n";
+							  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+								  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
+							  std::cout<<"\n";
+						  }
+					  } else {
+						  score = 0;
+					  }
+				  } else {
+					  //Considering the case where the gap in either the read or reference is empty
+					  if (readGapLength <= 0) {
+						  if (verbose)
+						  	std::cerr<< "read gap lengths was of length 0 for the ref gap length of \t" <<refGapLength << "\n";
+						  score = (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(refGapLength + std::abs(readGapLength));
+					  } else if (refGapLength <= 0) {
+						  if (verbose)
+							  std::cerr<< "ref gap lengths was of length 0 for the read gap length of \t" <<readGapLength << "\n";
+						  score = (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(readGapLength + std::abs(refGapLength));
+					  } else {
+						  //tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
+						  //auto score1 = aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
+						  if (lastHitEnd_ref+1-refStart < 0 or lastHitEnd_ref+1-refStart >= (int32_t)std::strlen(refSeq))
+							  std::cerr<<"Shoud not happen: lastHitEnd_ref is " << lastHitEnd_ref << "and refStart is " << refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
+						  char* refSeq1 = refSeq + lastHitEnd_ref + 1 - refStart;
+						  score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
+						  if (verbose) {
+						    tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
+							  std::cerr<<"read from "<<lastHitEnd_read + 1<< " with the gap length of " << readGapLength << " is \t"<< readSeq <<"\n";
+							  std::cerr<<"reference from " << lastHitEnd_ref + 1 << " with the length " << refGapLength << " is \t" << tseq << "\n";
+							  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+								  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
+							  std::cout<<"\n";
+						  }
+					  }
+				  }
+				  alignmentScore += score;
+				  if (verbose) {
+					  std::cerr<<isFw<<" at "<<currHitStart_ref<<" on "<<tid<<" for "<<refGapLength<<"\n";
+					  std::cerr<<"curr score2:\t" << score << "\n";
+					  for (size_t x=0; x<50; ++x)
+						  std::cerr<<"+";
+					  std::cerr<<" end gap alignments\n";
+				  }
+			  }
 
-						aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-						score = std::max(ez.mqe, ez.mte);
-						if (verbose){
-							std::cerr<<"It's a gap at the beginning, so the reverse read from "<<lastHitEnd_read + 1<< " is\t"<<readSeq<<"\n";
-							std::cerr<<"The reverse reference from " << refStartSeq << " with the length " << refGapLength << " is\t" << tseq << "\n";
-							for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-								printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-							std::cout<<"\n";
-						}
-					} else {
-						score = 0;
-					}
-				} else {
-					//Considering the case where the gap in either the read or reference is empty
-					//Example -> AAACGCCCCTCTTCGTCTGATCCGTCCTAATCACAGCAGTCCTACTTCTCCTCTCTCCCAGTCCTAGCTGCTGGCATCACTATACTACTAACAGACCGCA
-					if (readGapLength <= 0) {
-						if (verbose)
-							std::cerr<< "read gap lengths was of length 0 for the ref gap length of \t" <<refGapLength << "\n";
-						score = (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(refGapLength-1);
-					} else if (refGapLength <= 0) {
-						if (verbose)
-							std::cerr<< "ref gap lengths was of length 0 for the read gap length of \t" <<readGapLength << "\n";
-						score = (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(readGapLength-1);
-					} else {
-						//tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
-						//auto score1 = aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-						if (lastHitEnd_ref+1-refStart < 0 or lastHitEnd_ref+1-refStart >= (int32_t)std::strlen(refSeq))
-							std::cerr<<"Shoud not happen: lastHitEnd_ref is " << lastHitEnd_ref << "and refStart is " << refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
-						char* refSeq1 = refSeq + lastHitEnd_ref + 1 - refStart;
-						score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-						if (verbose) {
-							std::cerr<<"read from "<<lastHitEnd_read + 1<< " with the gap length of " << readGapLength << " is \t"<< readSeq <<"\n";
-							std::cerr<<"reference from " << lastHitEnd_ref + 1 << " with the length " << refGapLength << " is \t" << tseq << "\n";
-						}
-					}
-				}
-				alignmentScore += score;
-				if (verbose) {
-					std::cerr<<mem.isFw<<" at "<<currHitStart_ref<<" on "<<tid<<" for "<<refGapLength<<"\n";
-					std::cerr<<"curr score2:\t" << score << "\n";
-					for (size_t x=0; x<50; ++x)
-						std::cerr<<"+";
-					std::cerr<<" end gap alignments\n";
-				}
-			}
+			  score = (currHitStart_ref <= lastHitEnd_ref /*and !gapAligned*/) ? mopts->matchScore * (currHitStart_ref + mem.memInfo->memlen - lastHitEnd_ref - 1) : mopts->matchScore * mem.memInfo->memlen;
+			  if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
+				  alignmentScore += score;
+				  if ( verbose ) {
+					  auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + mem.memInfo->memlen, 1);
+					  auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, mem.memInfo->memlen);
+					  std::cerr<<"read from "<<currHitStart_read<< "\t with the sequence \n"<<readSeq<<"\n";
+					  std::cerr<<"orientation of\t" <<isFw<<" at "<<currHitStart_ref<<" on reference "<<tid<<" for the length of "<<mem.memInfo->memlen<<"\t with sequence:\n"<<tseq1<<"\n";
+					  std::cerr<<"with the score1:\t" << score << "\n";
+				  }
+			  } else {
+				  int32_t gapLength = std::abs(lastHitEnd_ref - currHitStart_ref - lastHitEnd_read + currHitStart_read);
+				  int32_t penalty = mopts->gapOpenPenalty + mopts->gapExtendPenalty*gapLength;
+				  if (!gapAligned)
+            score -= penalty;// + gapLength*mopts->matchScore;
+				  if (verbose){
+					  if (!gapAligned) 
+              std::cerr<<"penalty\t" << penalty << "\n";
+					  auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + mem.memInfo->memlen, 1);
+					  auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, mem.memInfo->memlen);
+					  std::cerr<<"read from "<<currHitStart_read<< "\t with the sequence \n"<<readSeq<<"\n";
+					  std::cerr<<"orientation of\t" <<isFw<<" at "<<currHitStart_ref<<" on reference "<<tid<<" for the length of "<<mem.memInfo->memlen<<"\t with sequence:\n"<<tseq1<<"\n";
+					  std::cerr<<"with the score1:\t" << score << "\n";
+				  }
+				  alignmentScore += score;
+			  }
 
-			score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (currHitStart_ref + mem.memInfo->memlen - lastHitEnd_ref - 1) : mopts->matchScore * mem.memInfo->memlen;
-			if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
-				alignmentScore += score;
-				if ( verbose ) {
-					auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + mem.memInfo->memlen, 1);
-					auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, mem.memInfo->memlen);
-					std::cerr<<"read from "<<currHitStart_read<< "\t with the sequence \n"<<readSeq<<"\n";
-					std::cerr<<"orientation of\t" <<mem.isFw<<" at "<<currHitStart_ref<<" on reference "<<tid<<" for the length of "<<mem.memInfo->memlen<<"\t with sequence:\n"<<tseq1<<"\n";
-					std::cerr<<"with the score1:\t" << score << "\n";
-				}
-			} else {
-				int32_t gapLength = std::abs(lastHitEnd_ref - currHitStart_ref - lastHitEnd_read + currHitStart_read);
-				int32_t penalty = -mopts->gapOpenPenalty - mopts->gapExtendPenalty*(gapLength-1);
-				score += penalty - gapLength*mopts->matchScore;
-				if (verbose){
-					std::cerr<<"penalty\t" << penalty << "\n";
-					auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + mem.memInfo->memlen, 1);
-					auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, mem.memInfo->memlen);
-					std::cerr<<"read from "<<currHitStart_read<< "\t with the sequence \n"<<readSeq<<"\n";
-					std::cerr<<"orientation of\t" <<mem.isFw<<" at "<<currHitStart_ref<<" on reference "<<tid<<" for the length of "<<mem.memInfo->memlen<<"\t with sequence:\n"<<tseq1<<"\n";
-					std::cerr<<"with the score1:\t" << score << "\n";
-				}
-				alignmentScore += score;
-			}
+			  lastHitEnd_read = currHitStart_read + mem.memInfo->memlen - 1;
+			  lastHitEnd_ref = mem.tpos + mem.memInfo->memlen - 1;
+			  if (lastHitEnd_ref - refStart + 1 > (int32_t)std::strlen(refSeq)+1 )
+				  std::cerr<<"Shoud not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is " <<refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
+		    firstMem = false;
+      }  
 
-			lastHitEnd_read = currHitStart_read + mem.memInfo->memlen - 1;
-			lastHitEnd_ref = mem.tpos + mem.memInfo->memlen - 1;
-			if (lastHitEnd_ref - refStart + 1 > (int32_t)std::strlen(refSeq)+1 )
-				std::cerr<<"Shoud not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is " <<refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
-			firstMem = false;
-		}
+		  // Try and align any remaining sequence on the read
+		  if (lastHitEnd_read  < (int32_t)read.length() - 1) {
+		    auto readGapLength = read.length() - 1 - lastHitEnd_read;
+			  auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ? readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
 
-		// Try and align any remaining sequence on the read
-		if (lastHitEnd_read  < (int32_t)read.length() - 1) {
-			auto readGapLength = read.length() - 1 - lastHitEnd_read;
-			auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ? readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
-
-			// SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
-			if (refGapLength != 0) {
-				auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
-				auto refStartSeq = lastHitEnd_ref + 1;
-				tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
-				aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), refGapLength, &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-				auto score = std::max(ez.mqe, ez.mte);
-				alignmentScore += score;
-				if (verbose) {
-					std::cerr<<"read from "<<lastHitEnd_read + 1<< "\t\t\t"<<readSeq<<"\n";
-					std::cerr<<"at "<<lastHitEnd_ref<<" for "<<refGapLength<<"\t"<<tseq<<"\n";
-					std::cerr<<"curr score3:\t"<<score<<"\n";
-				}
-			}
-		}
-
-		}
+			  // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
+			  if (refGapLength != 0) {
+				  auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+				  auto refStartSeq = lastHitEnd_ref + 1;
+				  tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+				  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), refGapLength, &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+				  auto score = std::max(ez.mqe, ez.mte);
+				  alignmentScore += score;
+				  if (verbose) {
+					  std::cerr<<"read from "<<lastHitEnd_read + 1<< "\t\t\t"<<readSeq<<"\n";
+					  std::cerr<<"at "<<lastHitEnd_ref<<" for "<<refGapLength<<"\t"<<tseq<<"\n";
+					  std::cerr<<"curr score3:\t"<<score<<"\n";
+				  }
+        }
+		  }
+    }
     if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
 	  	if (!didHash)
 				MetroHash64::Hash(reinterpret_cast<uint8_t*>(refSeq), keyLen, reinterpret_cast<uint8_t*>(&hashKey), 0);
@@ -693,11 +699,11 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 	} else {
 		hctr.skippedAlignments_byCache += 1;
 	}
-
+	delete refSeq;
 	if (verbose)
 		std::cerr<<"alignmentScore\t"<<alignmentScore<< "\talignmment\t" << alignment <<"\n";
-
-	delete refSeq;
+  //if (alignmentScore > 150 and alignment > alignmentScore and std::abs(alignmentScore - alignment) > 0)
+  //  std::cerr<< alignmentScore << " " << alignment << " " << original_read << "\n";
 
 	return alignmentScore;
 }
@@ -726,7 +732,6 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		if (verbose)
 			std::cerr<<"left\n";
 		int32_t score_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain, jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, verbose);
-		verbose = false;
 		if (verbose)
 			std::cerr<<"right\n";
 		//if (read_right == "CGAACAGCCCAACCCTTGGGACCGACCACAGCCCCAGGATGCGACGAGCCGACATCGAGGTGCCAAACCTCCCC" and tid==70566) verbose = true;
@@ -735,7 +740,6 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		//verbose = (read_left == "TCGAGCTTCGAGCTTCGAGCTTCGAGCTTCGAGCTTCTAGCTTCGAGCTTCGAGCTTCGAGCTTCGAGCTTC") and (tid == 166340);
 		//verbose = (read_left == "CTCTTCTCTTCTCTTCTCTTCTCTTCTCTTCTCTTCTCTTCTCTTCTCTTCTCTTCCGCAGCGCAGGCGGCA") and (tid == 166242); not puffalign problem, but interesting case
 		int32_t score_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain, jointHit.rightClust->isFw, tid, alnCacheRight, hctr,  verbose);
-		verbose = false;
 		jointHit.leftClust->coverage = score_left;
 		jointHit.rightClust->coverage = score_right;
 		int32_t total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
@@ -1139,13 +1143,11 @@ void processReadsPair(paired_parser *parser,
       readLen = rpair.first.seq.length();
       mateLen = rpair.second.seq.length();
       totLen = readLen + mateLen;
-      //bool verbose = false;
-      //bool verbose = true;
-			bool verbose = rpair.first.seq == "ACTTAACAATACAAAATGGGAATAAAGCAATTAATTGCTTTATTCCCAGACTCTAATTTGCTTAAACAAGTTCTT" or
-										rpair.second.seq == "ACTTAACAATACAAAATGGGAATAAAGCAATTAATTGCTTTATTCCCAGACTCTAATTTGCTTAAACAAGTTCTT";
+      bool verbose = false;
+      //verbose = rpair.first.seq == "TTTTTACCTCGTTGCACTGCTGAGAGCAAGATGGGTCACCAGCAGCTGTACTGGAGCCACCCGCGAAAATTCGGCCAGGGTTCTCGCTCTTGTCGTGTCT" or 
+      //						rpair.second.seq == "TTTTTACCTCGTTGCACTGCTGAGAGCAAGATGGGTCACCAGCAGCTGTACTGGAGCCACCCGCGAAAATTCGGCCAGGGTTCTCGCTCTTGTCGTGTCT";
       //bool verbose = rpair.first.name == "read23609701/ENST00000335698;mate1:763-862;mate2:871-969";
       if (verbose) std::cerr << rpair.first.name << "\n";
-      //std::cerr << "read: " << rpair.first.name << "\n\n";
 
       ++hctr.numReads;
 
@@ -1160,19 +1162,13 @@ void processReadsPair(paired_parser *parser,
                               mopts->maxSpliceGap,
                               MateStatus::PAIRED_END_LEFT,
                               qc,
-                              verbose
-                    /*
-                    mopts->consistentHits,
-                   refBlocks*/);
+                              verbose);
       bool rh = memCollector(rpair.second.seq,
                                rightHits,
                                mopts->maxSpliceGap,
                                MateStatus::PAIRED_END_RIGHT,
                                qc,
-                               verbose
-                    /*,
-                    mopts->consistentHits,
-                    refBlocks*/);
+                               verbose);
 
       all.clear();
       // Second one, described in slack for Fatemeh verbose = "read10059738/ENST00000247866.8:ENSG00000090266.12;mate1:102-201;mate2:257-356" == rpair.first.name;

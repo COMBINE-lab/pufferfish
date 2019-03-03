@@ -283,56 +283,55 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& h
      (cCurrPos > cStartPos) and
      readSeqOffset < readSeqLen) { 
 
-  if (hit.contigOrientation_) { // if fw match, compare read last base with
+    if (hit.contigOrientation_) { // if fw match, compare read last base with
                   // contig first base and move fw in the
                   // contig
-    auto baseCnt = k < cEndPos - cCurrPos ? k : cEndPos - cCurrPos;
-    uint64_t fk = allContigs.get_int(2 * (cCurrPos), 2 * baseCnt);
-    cCurrPos += baseCnt;
-    for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
-    // be dirty and peek into the underlying read
-    fastNextReadCode = kmers::codeForChar(readSeqView[readSeqOffset]);
-    int contigCode = (fk >> (2 * i)) & 0x3;
-    if (fastNextReadCode != contigCode) {
-      stillMatch = false;
-      et = ExpansionTerminationType::MISMATCH;
-      foundTermCondition = true;
-      break;
-    }
-    hit.k_++;
-    readSeqOffset++;
-    readSeqStart++;
-    }
-  } else { // if rc match, compare read last base with contig last base and
+      auto baseCnt = k < cEndPos - cCurrPos ? k : cEndPos - cCurrPos;
+      uint64_t fk = allContigs.get_int(2 * (cCurrPos), 2 * baseCnt);
+      cCurrPos += baseCnt;
+      for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
+        // be dirty and peek into the underlying read
+        fastNextReadCode = kmers::codeForChar(readSeqView[readSeqOffset]);
+        int contigCode = (fk >> (2 * i)) & 0x3;
+        if (fastNextReadCode != contigCode) {
+          stillMatch = false;
+          et = ExpansionTerminationType::MISMATCH;
+          foundTermCondition = true;
+          break;
+        }
+        hit.k_++;
+        readSeqOffset++;
+        readSeqStart++;
+      }
+    } else { // if rc match, compare read last base with contig last base and
        // move backward in the contig
-    auto baseCnt = k < cCurrPos - cStartPos ? k : cCurrPos - cStartPos;
-    uint64_t fk = allContigs.get_int(2 * (cCurrPos - baseCnt), 2 * baseCnt);
-    cCurrPos -= baseCnt;
-    for (int i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
-    // be dirty and peek into the underlying read
-    fastNextReadCode = kmers::codeForChar(kmers::complement(readSeqView[readSeqOffset]));
-    int contigCode = (fk >> (2 * i)) & 0x3;
-    if (fastNextReadCode != contigCode) {
-      stillMatch = false;
-      et = ExpansionTerminationType::MISMATCH;
-      foundTermCondition = true;
-      break;
+      auto baseCnt = k < cCurrPos - cStartPos ? k : cCurrPos - cStartPos;
+      uint64_t fk = allContigs.get_int(2 * (cCurrPos - baseCnt), 2 * baseCnt);
+      cCurrPos -= baseCnt;
+      for (int i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
+        // be dirty and peek into the underlying read
+        fastNextReadCode = kmers::codeForChar(kmers::complement(readSeqView[readSeqOffset]));
+        int contigCode = (fk >> (2 * i)) & 0x3;
+        if (fastNextReadCode != contigCode) {
+          stillMatch = false;
+          et = ExpansionTerminationType::MISMATCH;
+          foundTermCondition = true;
+          break;
+        }
+        hit.k_++;
+        readSeqOffset++;
+        readSeqStart++;
+      }
     }
-    hit.k_++;
-    readSeqOffset++;
-    readSeqStart++;
-    }
-  }
   }
 
   if (!foundTermCondition) {
-  et = (cCurrPos >= cEndPos or cCurrPos <= cStartPos) ? 
+    et = (cCurrPos >= cEndPos or cCurrPos <= cStartPos) ? 
     ExpansionTerminationType::CONTIG_END : ExpansionTerminationType::READ_END;
   }
-
   if (!hit.contigOrientation_) {
-  hit.contigPos_ -= (hit.k_ - k);
-  hit.globalPos_ -= (hit.k_ - k);
+    hit.contigPos_ -= (hit.k_ - k);
+    hit.globalPos_ -= (hit.k_ - k);
   }
   kit.jumpTo(readSeqStart);
   return currReadStart;
@@ -386,17 +385,18 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
     skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
     if (!phits.empty()) {
       // kit1 gets updated inside expandHitEfficient function
-      // stamping the reasPos
+      // stamping the readPos
       // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
-      size_t readPosOld = kit1->second ;
+      size_t readPosOld = kit1->second;
       expandHitEfficient(phits, kit1, et);
 			if (verbose){
-				std::cerr<<"readPosOld:"<<readPosOld<<"\n";
-				auto &refs = phits.refRange;
-        for (auto &posIt : refs) {
-          auto refPosOri = phits.decodeHit(posIt);
-					std::cerr<<"tid:" << posIt.transcript_id() << " refpos:"<<refPosOri.pos<<" refFw:"<<refPosOri.isFW<<"\n";
-        }
+			  std::cerr<<"after expansion\n";
+				std::cerr<<"readPosOld:"<<readPosOld<<" kmer:"<< kit1->first.to_str() <<"\n";
+				//auto &refs = phits.refRange;
+        //for (auto &posIt : refs) {
+        //  auto refPosOri = phits.decodeHit(posIt);
+				//	std::cerr<<"tid:" << posIt.transcript_id() << " refpos:"<<refPosOri.pos<<" refFw:"<<refPosOri.isFW<<"\n";
+        //}
 			}
       rawHits.push_back(std::make_pair(readPosOld, phits));
     
@@ -426,7 +426,7 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
     //else
     //  mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT, verbose);
 
-    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), verbose);
     //mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
     if (verbose) {
       std::cerr << "lets see what we have\n";

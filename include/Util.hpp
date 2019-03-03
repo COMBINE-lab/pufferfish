@@ -19,7 +19,6 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
-#include "CanonicalKmer.hpp"
 
 #ifndef __DEFINE_LIKELY_MACRO__
 #define __DEFINE_LIKELY_MACRO__

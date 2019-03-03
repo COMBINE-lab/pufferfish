@@ -219,7 +219,7 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
       auto memItr = std::prev(memCollection.end());
       for (auto &posIt : refs) {
         auto refPosOri = projHits.decodeHit(posIt);
-        trMemMap[std::make_pair(posIt.transcript_id(), true)]
+        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
             .emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
       }
 
@@ -947,7 +947,7 @@ bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
 
 bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>> &hits,
           spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>> &memClusters,
-          uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, bool verbose) {
+          uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen, bool verbose) {
 
 
   using namespace pufferfish::common_types;
@@ -1001,7 +1001,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
       }
       double l = qdiff - rdiff;
       int32_t al = std::abs(l);
-      return (l == 0) ? 0.0 : (0.01 * avgseed * al + 0.5 * fastlog2(static_cast<float>(al)));
+			// To penalize cases with organized gaps for reads such as
+      // CTCCTCATCCTCCTCATCCTCCTCCTCCTCCTCCTCCTCCGCTGCCGCCGCCGACCGACTGAACCGCACCCGCCGCGCCGCACCGCCTCCAAGTCCCGGC
+      // polyester simulated on human transcriptome. 0.01 -> 0.05
+      return (l == 0) ? 0.0 : (0.05 * avgseed * al + 0.5 * fastlog2(static_cast<float>(al)));
     };
     double bottomScore = std::numeric_limits<double>::lowest();
     double bestScore = bottomScore;
@@ -1030,11 +1033,13 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         auto qposj = hj.memInfo->rpos + hj.memInfo->memlen;
         auto rposj = hj.tpos + hj.memInfo->memlen;
 
-        auto qdiff = isFw ? qposi - qposj :
+        int32_t qdiff = isFw ? qposi - qposj :
                (qposj - hj.memInfo->memlen) - (qposi - hi.memInfo->memlen);
-        auto rdiff = rposi - rposj;
-
+        int32_t rdiff = rposi - rposj;
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.memInfo->memlen) - beta(qdiff, rdiff, avgseed);
+        //To fix cases where there are repetting sequences in the read or reference
+        if (rdiff == 0 or qdiff == 0)
+          extensionScore = -std::numeric_limits<double>::infinity();
         if (verbose) {
           std::cerr << i << " " << j <<
                 " f[i]:" << f[i] << " f[j]:" << f[j] <<
@@ -1056,10 +1061,13 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         // here we take this to the extreme, and stop at the first j to which we chain.
         // we can add a parameter "h" as in the minimap paper.  But here we expect the
         // chains of matches in short reads to be short enough that this may not be worth it.
-        if (p[i] < i) {
-          numRounds--;
-          if (numRounds <= 0) { break; }
-        }
+        //if (p[i] < i) {
+        //  numRounds--;
+        //  if (numRounds <= 0) { break; }
+        //}
+        // Mohsen: This heuristic hurts the accuracy of the chain in the case of this read:
+        // TGAACGCTCTATGATGTCAGCCTACGAGCGCTCTATGATGTTAGCCTACGAGCGCTCTATGATGTCCCCTATGGCTGAGCGCTCTATGATGTCAGCTTAT
+        // from Polyester simalted sample aligning to the human transcriptome
       }
       if (f[i] > bestScore) {
         bestScore = f[i];
@@ -1084,7 +1092,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         while (lastPtr < bestChainEnd) {
           if (seen[bestChainEnd]) {
             shouldBeAdded = false;
-            break;
+            //break;
           }
           memIndicesInReverse.push_back(bestChainEnd);
           seen[bestChainEnd] = true;
@@ -1102,8 +1110,16 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
             memClusters[tid][0].addMem(memList[*it].memInfo,
                            memList[*it].tpos);
+            if (verbose)
+              std::cerr<<"tid:" << tid << " tpos:" << memList[*it].tpos << " bestChainEnd:" << bestChainEnd << " lstPtr:" << lastPtr << " shouldBeAdded:" << shouldBeAdded << "\n";
           }
           memClusters[tid][0].coverage = bestScore;
+          if (memClusters[tid][0].coverage == readLen)
+            memClusters[tid][0].perfectChain = true;
+        } else {
+          if (verbose)
+            for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) 
+              std::cerr<<"tid:" << tid << " tpos:" << memList[*it].tpos << " bestChainEnd:" << bestChainEnd << " lstPtr:" << lastPtr << " shouldBeAdded:" << shouldBeAdded << "\n";
         }
         //minPosIt += lastPtr;
       } else {
