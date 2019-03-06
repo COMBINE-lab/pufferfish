@@ -24,18 +24,18 @@ enum class ExpansionTerminationType : uint8_t { MISMATCH = 0, CONTIG_END, READ_E
 public:
   MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
-  void recoverGaps(spp::sparse_hash_map<pufferfish::common_types::ReferenceID, 
+  /*void recoverGaps(spp::sparse_hash_map<pufferfish::common_types::ReferenceID, 
                                         std::vector<util::MemCluster>>& memClustersMap,
                                         std::vector<util::UniMemInfo>& memCollection,
                                         size_t rlen, 
-                                        bool verbose=false);
+                                        bool verbose=false);*/
 
   size_t expandHitEfficient(util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
                           ExpansionTerminationType& et);
     
   bool operator()(std::string &read,
-                  //spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
                   util::QueryCache& qc,
