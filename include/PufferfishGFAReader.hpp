@@ -49,9 +49,6 @@ private:
   std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str,
                                                  const char& ch);
 
-  /** Added for the new requirements to build semiCompacted DBG **/
-  // spp::sparse_hash_map<std::string, bool> pathStart;
-  // spp::sparse_hash_map<std::string, bool> pathEnd;
   std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathStart;
   std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathEnd;
 

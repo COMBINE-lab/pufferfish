@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 //#include "OurGFAReader.hpp"
-//#include "semiCompactedCompactor.hpp"
 #include "CLI/CLI.hpp"
 #include "Util.hpp"
 #include "sparsepp/spp.h"
