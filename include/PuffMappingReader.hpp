@@ -168,7 +168,6 @@ public:
         uint8_t readNameLength;
         // read name
         chunk.fill(readNameLength);
-        if (!pamReader->hasNext()) { return false; }
         chunk.fill(readName, readNameLength);
 
         // NOTE: do we actually care about the read name?
