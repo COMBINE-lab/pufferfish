@@ -141,8 +141,6 @@ void Cedar<ReaderType, FileReaderType>::processAlignmentBatch(uint32_t threadID,
                                               std::vector<ReadInfo> &alignmentGrp,
                                               Stats &stats,
                                               EquivalenceClassBuilder& eqb,
-                                              spp::sparse_hash_map<uint32_t, double>& cov,
-                                              spp::sparse_hash_map<uint32_t, double>& strain,
                                               std::mutex &iomutex,
                                               bool requireConcordance,
                                               bool onlyUniq,
@@ -203,6 +201,10 @@ void Cedar<ReaderType, FileReaderType>::processAlignmentBatch(uint32_t threadID,
                         }*/
                         auto tid = flatAbund ? mapping.getId() : refId2taxId[refNam];
                         //std::cerr << "c0:" << cov[tid] << " " << mapping.getScore() << " ";
+                        if (cov.contains(tid) == 0) {
+                            std::cerr << tid <<" doesn't exist in cov\n";
+                            std::exit(1);
+                        }
                         util::incLoop(cov[tid], mapping.getScore());
                         //std::cerr << "c1:" << cov[tid] << "\n";
                         readPerStrainProbInst.emplace_back(mapping.getId(),
@@ -236,6 +238,10 @@ void Cedar<ReaderType, FileReaderType>::processAlignmentBatch(uint32_t threadID,
                     double probsum{0.0};
                     for (auto it = readPerStrainProbInst.begin(); it != readPerStrainProbInst.end(); it++) {
                         it->second = it->second / readMappingsScoreSum; // normalize the probabilities for each read
+                        if (strain.contains(it->first) == 0) {
+                            std::cerr << it->first << " doesn't exist in strain\n";
+                            std::exit(1);
+                        }
                         util::incLoop(strain[it->first], 1.0 / static_cast<double>(readPerStrainProbInst.size()));
                         probsum += 1.0 / static_cast<double>(readPerStrainProbInst.size());
                     }
@@ -305,6 +311,7 @@ void Cedar<ReaderType, FileReaderType>::loadMappingInfo(std::string mapperOutput
         if (binCnt == 0) binCnt = 1;
         std::vector<uint32_t> bins(binCnt, 0);
         strain_coverage_bins[i] = bins;
+        strain[i] = 0;
         auto tid = flatAbund ? i : refId2taxId[fileReader.refName(i)];
         seqToTaxMap[i] = static_cast<uint32_t>(tid);
         cov[tid] = 0;
@@ -318,20 +325,14 @@ void Cedar<ReaderType, FileReaderType>::loadMappingInfo(std::string mapperOutput
     std::vector<Stats> statsPerThread(nThreads);
     std::vector<EquivalenceClassBuilder> eqbPerThread(nThreads);
     std::vector<std::vector<ReadInfo>> alignmentGroups(nThreads);
-    std::vector<spp::sparse_hash_map<uint32_t, double>> covs(nThreads);
-    std::vector<spp::sparse_hash_map<uint32_t, double>> strains(nThreads);
     for (uint32_t i = 0; i < nThreads; ++i) alignmentGroups[i].resize(ALIGNMENTS_PER_BATCH);
     std::mutex iomutex;
     for (uint32_t i = 0; i < nThreads; ++i) {
-        for (auto& kv: cov) {covs[i][kv.first] = kv.second;}
-        for (auto& kv: strain) {strains[i][kv.first] = kv.second;}
             auto threadFun = [&, i]() -> void {
             processAlignmentBatch(i,
                                   alignmentGroups[i],
                                   statsPerThread[i],
                                   eqbPerThread[i],
-                                  covs[i],
-                                  strains[i],
                                   iomutex,
                                   requireConcordance,
                                   onlyUniq,
@@ -347,20 +348,20 @@ void Cedar<ReaderType, FileReaderType>::loadMappingInfo(std::string mapperOutput
     }
     for (auto& s: statsPerThread) {stats.update(s);}
     readCnt = stats.readCnt;
-    for (auto &s: strains) {
+   /* for (auto &s: strains) {
         for (auto& kv: s) {
             if (strain.find(kv.first) == strain.end())
                 strain[kv.first] = 0;
-            strain[kv.first] = kv.second;
+            strain[kv.first] += kv.second;
         }
     }
     for (auto &s: covs) {
         for (auto& kv: s) {
             if (cov.find(kv.first) == cov.end())
                 cov[kv.first] = 0;
-            cov[kv.first] = kv.second;
+            cov[kv.first] += kv.second;
         }
-    }
+    }*/
     for (auto &eq: eqbPerThread) {
         eqb.mergeUnfinishedEQB(eq);
     }

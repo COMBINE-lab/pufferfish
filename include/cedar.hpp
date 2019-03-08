@@ -131,8 +131,6 @@ private:
                                std::vector<ReadInfo> &alignmentGrp,
                                Stats &stats,
                                EquivalenceClassBuilder& eqb,
-                               spp::sparse_hash_map<uint32_t, double>& cov,
-                               spp::sparse_hash_map<uint32_t, double>& strain,
                                std::mutex &iomutex,
                                bool requireConcordance,
                                bool onlyUniq,
