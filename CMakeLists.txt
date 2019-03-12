@@ -27,6 +27,23 @@ set(OPT_FLAGS "-O3;-ffast-math;-fPIC;-DNDEBUG;-funroll-loops;-mmmx;-msse;-msse2;
 set(DEBUG_FLAGS "-pg;-g;-gstabs")
 
 ##
+# OSX is strange (some might say, stupid in this regard).  Deal with it's quirkines here.
+##
+if(APPLE)
+    # To allow ourselves to build a dynamic library, we have to tell the compiler
+    # that, yes, the symbols will be around at runtime.
+    list(APPEND TGT_COMPILE_FLAGS "-undefined dynamic_lookup;-Wno-unused-command-line-argument")
+    set(LIBSALMON_LINKER_FLAGS "-all_load")
+    # In order to "think different", we also have to use non-standard suffixes
+    # for our shared libraries
+    set(SHARED_LIB_EXTENSION "dylib")
+else()
+    # We're in sane linux world
+    set(SHARED_LIB_EXTENSION "so")
+    set(LIBSALMON_LINKER_FLAGS "")
+endif()
+
+##
 # Let us check the sha sum of our packages if we have the right tools
 ##
 set(SHASUM ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_shasum.sh)
