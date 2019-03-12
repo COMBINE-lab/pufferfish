@@ -18,7 +18,7 @@ check_ipo_supported(RESULT HAS_IPO)
 
 link_directories(
 		${CMAKE_CURRENT_SOURCE_DIR}/../external/install/lib
-		${TBB_LIBRARY_DIRS}
+		${TBB_LIBRARIES}
 )
 
 set (KSW2PP_BASIC_LIB_SRCS
@@ -124,8 +124,6 @@ target_include_directories(cedar PRIVATE
 )
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-add_dependencies(cedar libseqlib)
-add_dependencies(cedar libtbb)
 
 add_executable(filtersam testing/SAMFilter.cpp)
 target_include_directories(filtersam PRIVATE
