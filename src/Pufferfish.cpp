@@ -104,38 +104,40 @@ int main(int argc, char* argv[]) {
                     command("align").set(selected, mode::align),
                     (required("-i", "--index") & value("index", alignmentOpt.indexDir)) % "directory where the pufferfish index is stored",
                     (
-                     (
-                      ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
-                      ((required("--mate2", "-2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
-                     ) |
-                     ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
+                      (
+                        ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
+                        ((required("--mate2", "-2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
+                      ) 
+                      |
+                      ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
                     ),
                     (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=1.0)",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
                     (
                       (required("--noOutput").set(alignmentOpt.noOutput, true)) % "run without writing SAM file"
-                        |
+                      |
                       (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "output file where the alignment results will be stored"
                     ),
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "specify maximum splice gap that two uni-MEMs should have",
-                    (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
+                    (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
+                            "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "write Orphans flag",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "write Orphans flag",
-		    (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "compress (gzip) the output file",
+		                (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "compress (gzip) the output file",
                     (
-                    (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
-                    |
-                    (option("-s", "--salmon").set(alignmentOpt.salmonOut, true)) % "write output in the format required for salmon"
+                      (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
+                      |
+                      (option("-s", "--salmon").set(alignmentOpt.salmonOut, true)) % "write output in the format required for salmon"
                     ),
-					(option("--verbose").set(alignmentOpt.verbose, true) % "print out auxilary information to trace program's flow"
-					),
-					(option("--validateMappings").set(alignmentOpt.validateMappings, true) % "calculate alignment scores to filter spurious mappings"
-                    ),
-					(option("--strictFilter").set(alignmentOpt.strictFilter, true) % "keep only the hits with best score for each read"
-					),
+					          (option("--verbose").set(alignmentOpt.verbose, true)) % "print out auxilary information to trace program's flow",
+					          (option("--validateMappings").set(alignmentOpt.validateMappings, true)) % "calculate alignment scores to filter spurious mappings",
+                    (option("--fullAlignment").set(alignmentOpt.fullAlignment, true)) % "perform full aligment insteadof gapped alignment",
+                    (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Wheather or not perform only 2 rounds of chaining",
+                    (option("--mergeMems").set(alignmentOpt.mergeMems, true)) % "Merge mems before finding the best chains",
+					          (option("--strictFilter").set(alignmentOpt.strictFilter, true)) % "keep only the hits with best score for each read",
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "minScoreFraction"
-                    );
+  );
 
   auto cli = (
               (indexMode | validateMode | lookupMode | alignMode | command("help").set(selected,mode::help) ),

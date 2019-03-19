@@ -237,10 +237,17 @@ enum class MateStatus : uint8_t {
   struct MemInfo {
     std::vector<UniMemInfo>::iterator memInfo;
     size_t tpos;
-      bool isFw;
+    bool isFw;
+    uint32_t extendedlen;
+    uint32_t rpos;
 
-      MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn, bool isFwIn = true) : memInfo(
-              uniMemInfoIn), tpos(tposIn), isFw(isFwIn) {}
+    //MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn, bool isFwIn = true) : 
+    //        memInfo(uniMemInfoIn), tpos(tposIn), isFw(isFwIn) {}
+    MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn, bool isFwIn = true) :
+            memInfo(uniMemInfoIn), tpos(tposIn), isFw(isFwIn) { extendedlen = uniMemInfoIn->memlen; rpos = uniMemInfoIn->rpos;}
+
+    MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn, uint32_t extendedlenIn, uint32_t rposIn, bool isFwIn = true) :
+            memInfo(uniMemInfoIn), tpos(tposIn), isFw(isFwIn), extendedlen(extendedlenIn), rpos(rposIn) { }
   };
 
   struct MemCluster {
@@ -269,15 +276,27 @@ enum class MateStatus : uint8_t {
     void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, bool isFw = true) {
       if (mems.empty())
         coverage = uniMemInfo->memlen;
-	  else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
-	  	coverage += (uniMemInfo->memlen);
-	  }
+	    else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
+	   	  coverage += (uniMemInfo->memlen);
+	    }
       else { // they overlap
           coverage += (uint32_t) std::max((int)(tpos + uniMemInfo->memlen)-(int)(mems.back().tpos + mems.back().memInfo->memlen), 0);
       }
-        mems.emplace_back(uniMemInfo, tpos, isFw);
+      mems.emplace_back(uniMemInfo, tpos, isFw);
     }
 
+    // Add the new mem to the list and update the coverage, designed for clustered Mems
+    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, uint32_t extendedlen, uint32_t rpos, bool isFw = true) {
+      if (mems.empty())
+        coverage = extendedlen;
+	    else if (tpos > mems.back().tpos + mems.back().extendedlen) {
+	   	  coverage += extendedlen;
+	    }
+      else { // they overlap
+          coverage += (uint32_t) std::max((int)(tpos + extendedlen)-(int)(mems.back().tpos + mems.back().extendedlen), 0);
+      }
+      mems.emplace_back(uniMemInfo, tpos, extendedlen, rpos, isFw);
+    }
     // Add the new mem to the list and update the coverage
     void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, size_t i) {
       mems.insert(mems.begin() + i, MemInfo(uniMemInfo, tpos));
@@ -289,7 +308,8 @@ enum class MateStatus : uint8_t {
       return mems.empty()?0:mems.back().tpos;
     }
     size_t getTrLastMemLen() const {
-      return mems.empty()?0:mems.back().memInfo->memlen;
+      //return mems.empty()?0:mems.back().memInfo->memlen;
+      return mems.empty()?0:mems.back().extendedlen;
     }
     size_t getTrFirstHitPos() const { return mems.empty()?0:mems[0].tpos;}
     inline size_t firstRefPos() const { return getTrFirstHitPos(); }
@@ -304,10 +324,12 @@ enum class MateStatus : uint8_t {
       auto lstart = mems.begin();
       size_t offset = 0;
       auto prev = lstart;
-      coverage = mems[0].memInfo->memlen;
+      //coverage = mems[0].memInfo->memlen;
+      coverage = mems[0].extendedlen;
       for (auto&& mem : mems) {
         ++offset;
-        coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
+        //coverage += std::max((int)(mem.tpos+mem.memInfo->memlen) - (int)(prev->tpos+prev->memInfo->memlen), 0);
+        coverage += std::max((int)(mem.tpos+mem.extendedlen) - (int)(prev->tpos+prev->extendedlen), 0);
         prev = lstart + offset;
       }
     }

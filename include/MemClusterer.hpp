@@ -47,7 +47,7 @@ public:
 
   bool findOptChain(std::vector<std::pair<int, util::ProjectedHits>> &hits,
                       spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>> &memClusters,
-                      uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen, bool verbose = false);
+                      uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen, bool hChain, bool mergeMems, bool verbose = false);
 };
 
 #endif //PUFFERFISH_CHAINFINDER_H
