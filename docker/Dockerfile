@@ -1,12 +1,12 @@
-# image: COMBINE-lab/salmon
+# image: COMBINE-lab/pufferfish
 # This dockerfile is based on the one created by
 # Titus Brown (available at https://github.com/ctb/2015-docker-building/blob/master/salmon/Dockerfile)
 #FROM insilicodb/bioconductor 
 FROM ubuntu:16.04
 
-ENV PACKAGES git gcc make g++ cmake libboost-all-dev liblzma-dev libbz2-dev \
+ENV PACKAGES git gcc make g++ libboost-all-dev liblzma-dev libbz2-dev \
     ca-certificates zlib1g-dev curl unzip autoconf vim wget time bzip2
-ENV SALMON_VERSION 0.9.0
+ENV PUFFERFISH_VERSION 0.9.0
 
 # pufferfish executable will be available in /home/pufferfish/build/src
 # salmon binary will be installed in /home/salmon/bin/salmon
@@ -14,6 +14,11 @@ ENV SALMON_VERSION 0.9.0
 ### don't modify things below here for version updates etc.
 
 WORKDIR /home
+
+ADD https://cmake.org/files/v3.9/cmake-3.9.5-Linux-x86_64.sh /cmake-3.9.5-Linux-x86_64.sh
+RUN mkdir /opt/cmake && \
+	sh /cmake-3.9.5-Linux-x86_64.sh --prefix=/opt/cmake --skip-license && \
+	ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ${PACKAGES} && \
@@ -45,7 +50,6 @@ cd .. && \
 rm -rf tbb2018_20180411oss
 
 RUN git clone https://github.com/fataltes/TwoPaCo.git
-
 RUN cd TwoPaCo && \
 	mkdir build && \
 	cd build && \
@@ -53,17 +57,6 @@ RUN cd TwoPaCo && \
 	make
 
 RUN git clone https://github.com/COMBINE-lab/pufferfish.git
-
-# SeqLib, the c++ wrapper for htslib
-RUN cd pufferfish && \
-	mkdir -p external_dependencies && \
-	cd external_dependencies && \
-	git clone --recursive https://github.com/walaj/SeqLib.git && \
-	cd SeqLib && \
-	./configure && \
-	make CXXFLAGS='-std=c++11' && \ 
-	make install && \
-	make seqtools
 
 # sdsl-lite
 RUN	cd pufferfish && \
