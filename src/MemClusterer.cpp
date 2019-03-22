@@ -1086,10 +1086,13 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         int32_t rdiff = rposi - rposj;
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
         //To fix cases where there are repetting sequences in the read or reference
-        if (rdiff == 0 or qdiff == 0 or hi.tpos == hj.tpos)
+        int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
+        int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos+hi.extendedlen);
+        if (rdiff==0 or qdiff==0 or rdiff*qdiff<0 or rdiff_mem*qdiff_mem<0 or hi.rpos == hj.rpos or hi.tpos == hj.tpos)
           extensionScore = -std::numeric_limits<double>::infinity();
         if (verbose) {
           std::cerr << i << " " << j <<
+                " extendedleni:" << hi.extendedlen << " extendedlenj:" << hj.extendedlen <<
                 " f[i]:" << f[i] << " f[j]:" << f[j] <<
                 " readDiff:" << qdiff << " refDiff:" << rdiff <<
                 " alpha:" << alpha(qdiff, rdiff, hi.extendedlen) <<

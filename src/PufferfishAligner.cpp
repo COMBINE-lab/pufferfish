@@ -288,7 +288,8 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                                           }),
                            jointMemsList.end());
     }
-    else  */{// Now, we will go with the heuristic that just keep those mappings that have at least
+    else  */
+    {// Now, we will go with the heuristic that just keep those mappings that have at least
         // the required fraction of the best coverage.
 
 				//std::cerr<<jointMemsList.size()<<"\n";
@@ -418,7 +419,8 @@ std::string getRefSeq(sdsl::int_vector<2>& refseq, uint64_t refAccPos, size_t tp
 	return tseq;
 }
 
-int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose) {
+int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, 
+                                    size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose) {
 	uint32_t refExtLength = mopts->refExtendLength;
 	bool firstMem = true;
 	int32_t lastHitEnd_read = -1;
@@ -556,18 +558,18 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 				  }
 				  if (currHitStart_read < lastHitEnd_read and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
             if (verbose)
-				      std::cerr<<"bugg4!!\t" << original_read<<"\n";
+				      std::cerr<<"to align reads with indels\t" << original_read<<"\n";
 				    break;
 			  	}
 				  if (currHitStart_ref < lastHitEnd_ref and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
 				    if (verbose)
-				    	std::cerr<<"bugg5!!\t" << original_read<<"\n";
+				    	std::cerr<<"to align reads with indels\t" << original_read<<"\n";
 				    break;
 				  }
 			  }
 
 			  // Performing full alignment to validate the socres
-			  if (firstMem) {
+			  if (verbose and firstMem) {
 				  uint32_t refStart, readStart;
 				  if ( currHitStart_ref > currHitStart_read) {
 					  refStart = currHitStart_ref - currHitStart_read;
@@ -630,16 +632,9 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 						  if (verbose){
 							  std::cerr<<"It's a gap at the beginning, so the reverse read from "<<lastHitEnd_read + 1<< " is\t"<<readSeq<<"\n";
 							  std::cerr<<"The reverse reference from " << refStartSeq << " with the length " << refGapLength << " is\t" << tseq << "\n";
-                std::cerr<<ez.mqe << "\t " << ez.mte << "\n";
-                std::cerr<<ez.mqe_t << "\t " << ez.mte_q << "\n";
 							  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
 								  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
                 std::cerr<<"\n";
-      				  for (int i = 0; i < ez.m_cigar; ++i) // print CIGAR
-	      				  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-                std::cerr<<"\n";
-                printf("%s\t%s\t%d", "first", "second", ez.score);
-                printf("\t%d\t%d\t%d\n", ez.max, ez.max_t, ez.max_q);
 						  }
 					  } else {
 						  score = 0;
@@ -681,7 +676,9 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 				  }
 			  }
 
-			  score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (currHitStart_ref + memlen - lastHitEnd_ref - 1) : mopts->matchScore * memlen;
+        auto longest_match_extension = currHitStart_ref + memlen - lastHitEnd_ref > currHitStart_read + memlen - lastHitEnd_read ? 
+                                   currHitStart_ref + memlen - lastHitEnd_ref : currHitStart_read + memlen - lastHitEnd_read;
+			  score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (longest_match_extension - 1) : mopts->matchScore * memlen;
 			  if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
 				  alignmentScore += score;
 				  if ( verbose ) {
@@ -750,7 +747,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 	delete refSeq;
 	if (verbose)
 		std::cerr<<"alignmentScore\t"<<alignmentScore<< "\talignmment\t" << alignment <<"\n";
-  //if (alignmentScore > 150 and alignment != alignmentScore and mems[0].rpos==0 and isFw)// != and std::abs(alignmentScore - alignment) > 5)
+  //if (alignmentScore > 150 and alignment > alignmentScore)// != and std::abs(alignmentScore - alignment) > 5)
   //  std::cerr<< alignmentScore << " " << alignment << " " << original_read << "\n";
 
 	return alignmentScore;
@@ -1187,8 +1184,6 @@ void processReadsPair(paired_parser *parser,
       mateLen = rpair.second.seq.length();
       totLen = readLen + mateLen;
       bool verbose = false;
-      //verbose = rpair.first.seq == "GATCCTCTCTGTCGTGGTGACCAAGATGAAGATGCAGAGGACCATTGTCATCCGCCGAGACTATCTGCACTACATCCGCAAGTACAACCGNTTCGAGAAG" or
-      //          rpair.second.seq == "GATCCTCTCTGTCGTGGTGACCAAGATGAAGATGCAGAGGACCATTGTCATCCGCCGAGACTATCTGCACTACATCCGCAAGTACAACCGNTTCGAGAAG";
 
       ++hctr.numReads;
 
@@ -1196,6 +1191,15 @@ void processReadsPair(paired_parser *parser,
       leftHits.clear();
       rightHits.clear();
       memCollector.clear();
+
+      // There is no way to revocer the following case other than aligning indels
+      //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
+      //          rpair.second.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT";
+
+      // The only way to get it right is with non-heuristic chaining
+      // verbose = rpair.first.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
+      //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
+
 
       //readLen = rpair.first.seq.length() ;
       bool lh = memCollector(rpair.first.seq,
@@ -1216,8 +1220,6 @@ void processReadsPair(paired_parser *parser,
                                verbose);
 
       all.clear();
-      // Second one, described in slack for Fatemeh verbose = "read10059738/ENST00000247866.8:ENSG00000090266.12;mate1:102-201;mate2:257-356" == rpair.first.name;
-      //First one 302 verbose = rpair.first.name == "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
       /*memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/findBestChain/(jointHits,
                                                                                         all,
                                                                                         mopts->maxSpliceGap,
@@ -1254,8 +1256,6 @@ void processReadsPair(paired_parser *parser,
       std::vector<QuasiAlignment> jointAlignments;
 
 			hctr.peHits += jointHits.size();
-      //verbose = rpair.first.seq == "TGCTGGAGAGCCTTGAATATTTCACTTTACTACTGGGGATTCCAGTAGCCAGGTTGGTACGGGACGGCATCATAACACGCTGACACGGGTTATTCTCCTA" or
-      //          rpair.second.seq == "TGCTGGAGAGCCTTGAATATTTCACTTTACTACTGGGGATTCCAGTAGCCAGGTTGGTACGGGACGGCATCATAACACGCTGACACGGGTTATTCTCCTA";
 
 
 			if (mopts->validateMappings) {
@@ -1272,7 +1272,6 @@ void processReadsPair(paired_parser *parser,
 					//bool verbose = rpair.first.seq == "CCATTTTATTTTATTTTATTTTATTTTATTTTNTTTTATTTTATTTTTGAGAAAGGGTCTCACTCTGTCACCCAGGCTGAAGTGCAGTGGTGCCATCATA" and jointHit.tid == 25088;
 					//bool verbose = (rpair.first.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA" or
 					//                rpair.second.seq == "ACTGGGAGGCAGGAGGAGCTGGGCCTGGAGAGGCTGACTCGAGGAAGTTTTGCACCTGGAGAGGCCGTCGAGAGGACGGAGCTGGGCCCAGGGAGGCCGA") and	jointHit.tid == 44366;
-					//bool verbose =rpair.first.name== "read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991" or rpair.second.name=="read9998077/ENST00000223215.8:ENSG00000106484.14;mate1:757-856;mate2:892-991";
 					auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, verbose);
 					if (hitScore < 0)
 						hitScore = std::numeric_limits<int32_t>::min();
@@ -1816,7 +1815,7 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
                      (100.0 * static_cast<float>(hctrs.numOfOrphans)) / hctrs.numReads);
     consoleLog->info("Total reads Mapped: {}", (hctrs.numMapped));
     consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
-    consoleLog->info("Average # hits per read : {}", hctrs.totHits / static_cast<float>(hctrs.numReads));
+    consoleLog->info("Average # hits per read : {}", hctrs.totAlignment / static_cast<float>(hctrs.numReads));
     consoleLog->info("Total # of alignments : {}", hctrs.totAlignment);
     consoleLog->info("Total # of orphans : {}", hctrs.numOfOrphans);
     consoleLog->info("Total # of pe hits : {}", hctrs.peHits);
