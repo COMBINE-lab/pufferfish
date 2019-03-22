@@ -454,7 +454,6 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 
 	if (mems.size() == 0)
 		return alignmentScore;
-	auto mem = mems[0];
 	currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
 	if (currHitStart_read < 0 or currHitStart_read >= (int32_t)readLen )
 		std::cerr<<"Should not happen!\n";
