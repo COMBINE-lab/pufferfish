@@ -411,7 +411,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   if (!indexOpts.isSparse and !indexOpts.lossySampling) {  
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
     // sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
-    sdsl::int_vector<> posVec(nkeys, 0, w);
+    //sdsl::int_vector<> posVec(nkeys, 0, w);
+    std::cerr<< w << "w:nkeys" << nkeys << "\n";
+    compact::vector<uint64_t> posVec(w, nkeys);
     {
 
       struct ContigVecChunk {
@@ -510,7 +512,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     }
     descStream.close();
 
-    sdsl::store_to_file(posVec, outdir + "/pos.bin");
+    //sdsl::store_to_file(posVec, outdir + "/pos.bin");
+    std::ofstream posFile(outdir + "/pos.bin", std::ios::binary);
+    posVec.serialize(posFile);
+    posFile.close();
     std::ofstream hstream(outdir + "/mphf.bin");
     bphf->save(hstream);
     hstream.close();
