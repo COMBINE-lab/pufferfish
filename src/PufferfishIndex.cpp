@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <future>
 
 #include "CLI/Timer.hpp"
 #include "CanonicalKmerIterator.hpp"
@@ -97,10 +98,10 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     CLI::AutoTimer timer{"Loading positions", CLI::Timer::Big};
     std::string pfile = indexDir + "/pos.bin";
     //sdsl::load_from_file(pos_, pfile);
-    //std::cerr<<"bits per element:\t" << compact::get_bits_per_element(pfile) << "\n";
     auto bits_per_element = compact::get_bits_per_element(pfile);
-    pos_.set_m_size(bits_per_element);
-    pos_.deserialize(pfile, false);
+    pos_.set_m_bits(bits_per_element);
+    pos_.deserialize(pfile, true);
+    auto f = std::async(std::launch::async, &pos_vector_t::touch_all_pages, &pos_, bits_per_element);
   }
 
   {

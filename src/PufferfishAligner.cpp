@@ -1877,7 +1877,7 @@ bool alignReads(
         }
     }
 
-    uint32_t nthread = mopts->numThreads;
+    uint32_t nthread = mopts->numThreads - 1;
     std::unique_ptr<paired_parser> pairParserPtr{nullptr};
     std::unique_ptr<single_parser> singleParserPtr{nullptr};
 

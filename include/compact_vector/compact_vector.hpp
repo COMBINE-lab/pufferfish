@@ -38,7 +38,6 @@ class vector {
   mio::mmap_source ro_mmap;
 
 public:
-  void set_m_size(size_t m) { m_size = m; }
   // Number of bits required for indices/values in the range [0, s).
   static unsigned required_bits(size_t s) {
     unsigned res = bitsof<size_t>::val - 1 - clz(s);
@@ -202,6 +201,18 @@ public:
     }
 
   }
+  void touch_all_pages(uint64_t bits_per_element) {                                                                                                        
+    uint64_t sum = 0;
+    std::cerr<<"number of elements:"<<this->size() << "\n";
+    std::cerr<<"page size:"<<mio::page_size() << "\n";
+    auto elements_per_page = 8 * mio::page_size() / bits_per_element;
+    std::cerr<<"elements per page:"<<elements_per_page<<"\n";
+    std::cerr<<"bits per element:"<<bits_per_element<<"\n";
+    for ( size_t i = 0; i<this->size(); i+=elements_per_page ) {
+      sum += (*this)[i];
+    }
+    std::cerr<<sum << "\n";
+  }
 
 protected:
   void enlarge() {
@@ -220,7 +231,7 @@ class vector_dyn
   : public vector_imp::vector<vector_dyn<IDX, W, Allocator, UB, TS>, IDX, 0, W, Allocator, UB, TS>
 {
   typedef vector_imp::vector<vector_dyn<IDX, W, Allocator, UB, TS>, IDX, 0, W, Allocator, UB, TS> super;
-  const unsigned m_bits;    // Number of bits in an element
+  unsigned m_bits;    // Number of bits in an element
 
 public:
   typedef typename super::iterator              iterator;
@@ -247,6 +258,7 @@ public:
   { }
 
   inline unsigned bits() const { return m_bits; }
+  void set_m_bits(size_t m) { m_bits = m; }
 };
 
 } // namespace vector_imp
