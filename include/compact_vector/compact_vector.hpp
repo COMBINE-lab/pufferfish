@@ -38,6 +38,7 @@ class vector {
   mio::mmap_source ro_mmap;
 
 public:
+  void set_m_size(size_t m) { m_size = m; }
   // Number of bits required for indices/values in the range [0, s).
   static unsigned required_bits(size_t s) {
     unsigned res = bitsof<size_t>::val - 1 - clz(s);
