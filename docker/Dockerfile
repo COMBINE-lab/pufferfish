@@ -51,6 +51,7 @@ rm -rf tbb2018_20180411oss
 
 RUN git clone https://github.com/fataltes/TwoPaCo.git
 RUN cd TwoPaCo && \
+	git checkout pufferize && \
 	mkdir build && \
 	cd build && \
 	cmake ../src && \
@@ -67,19 +68,20 @@ RUN	cd pufferfish && \
 # Pufferfish
 RUN cd pufferfish && \	
 	git checkout develop && \
+	git checkout b7f383519d6fcad1d6392d7502e1bef23c0c36ed && \
 	mkdir build && \
 	cd build && \
 	cmake ../ && \
 	make
 
 # Salmon
-RUN git clone https://github.com/fataltes/salmon.git && \
-	cd salmon && \
-	git checkout salpuf && \
-	mkdir build && \
-	cd build && \
-	cmake -DFETCH_BOOST=TRUE ../ && \
-	make && \
-	make install
+#RUN git clone https://github.com/fataltes/salmon.git && \
+#	cd salmon && \
+#	git checkout salpuf && \
+#	mkdir build && \
+#	cd build && \
+#	cmake -DFETCH_BOOST=TRUE ../ && \
+#	make && \
+#	make install
 
 RUN ldconfig
