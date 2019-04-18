@@ -68,6 +68,9 @@ public:
   int32_t missMatchScore{-4};
   uint32_t refExtendLength{8};
   double minScoreFraction{0.65};
+  bool fullAlignment{false};
+  bool heuristicChaining{true};
+  bool mergeMems{true};
 };
 
 

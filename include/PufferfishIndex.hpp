@@ -14,12 +14,13 @@
 #include "CanonicalKmerIterator.hpp"
 #include "Util.hpp"
 #include "PufferfishBaseIndex.hpp"
+#include "compact_vector/compact_vector.hpp"
 
 class PufferfishIndex : public PufferfishBaseIndex<PufferfishIndex> {
   friend PufferfishBaseIndex;
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
-  using pos_vector_t = PufferfishBaseIndex<PufferfishIndex>::pos_vector_t;
+  using pos_vector_t = compact::vector<uint64_t>; //PufferfishBaseIndex<PufferfishIndex>::pos_vector_t;
   using seq_vector_t = PufferfishBaseIndex<PufferfishIndex>::seq_vector_t;
   using edge_vector_t = PufferfishBaseIndex<PufferfishIndex>::edge_vector_t;
   using bit_vector_t = PufferfishBaseIndex<PufferfishIndex>::bit_vector_t;
@@ -42,7 +43,7 @@ private:
   sdsl::bit_vector::select_1_type contigSelect_;
   seq_vector_t seq_;
   edge_vector_t edge_;
-  pos_vector_t pos_;
+  pos_vector_t pos_{16};
 
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
@@ -51,7 +52,8 @@ private:
 public:
   PufferfishIndex();
   PufferfishIndex(const std::string& indexPath);
-
+  ~PufferfishIndex();
+ 
   sdsl::int_vector<2> refseq_;
   std::vector<uint64_t> refAccumLengths_;
 

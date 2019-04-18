@@ -344,6 +344,8 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
                   util::QueryCache& qc,
+                  bool hChain,
+                  bool mergeMems,
                   bool verbose) {
 
   // currently unused:
@@ -426,7 +428,7 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
     //else
     //  mc.fillMemCollection(rawHits, trMemMap, *memCollection, util::ReadEnd::RIGHT, verbose);
 
-    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), verbose);
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), hChain, mergeMems, verbose);
     //mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
     if (verbose) {
       std::cerr << "lets see what we have\n";

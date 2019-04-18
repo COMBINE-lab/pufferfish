@@ -947,7 +947,7 @@ bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
 
 bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>> &hits,
           spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>> &memClusters,
-          uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen, bool verbose) {
+          uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen, bool hChain, bool mergeMems, bool verbose) {
 
 
   using namespace pufferfish::common_types;
@@ -1014,13 +1014,61 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
     f.clear();
     p.clear();
     //auto lastHitId = static_cast<int32_t>(memList.size() - 1);
+    if (mergeMems){
+    std::vector<util::MemInfo> newMemList;
+    uint32_t prev_qposi=0;
+    uint32_t prev_rposi=0;
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
 
-      auto qposi = hi.memInfo->rpos + hi.memInfo->memlen;
-      auto rposi = hi.tpos + hi.memInfo->memlen;
+      auto qposi = hi.isFw ? hi.memInfo->rpos + hi.extendedlen :  readLen - hi.rpos;
+      auto rposi = hi.tpos + hi.extendedlen;
+      if (i>0 and std::abs(qposi - prev_qposi) == std::abs(rposi - prev_rposi) and hi.tpos < prev_rposi) {
+        auto& lastMem = newMemList.back();
+        uint32_t extension = rposi - prev_rposi;
+        //lastMem.memInfo->memlen += extension;
+        lastMem.extendedlen += extension;
+        if (!isFw){
+          lastMem.rpos = hi.memInfo->rpos;
+        }
+          //lastMem.rpos -= extension;
+      } else {
+        //memCollection.emplace_back(hi.memInfo->cid, hi.memInfo->cIsFw, hi.memInfo->rpos, hi.memInfo->memlen, hi.memInfo->cpos, hi.memInfo->cGlobalPos,
+        //                           hi.memInfo->clen, hi.memInfo->readEnd);
+        //auto memItr = std::prev(memCollection.end()); 
+        //newMemList.emplace_back(memItr, hi.tpos, hi.isFw);
 
-      double baseScore = static_cast<double>(hi.memInfo->memlen);
+        newMemList.emplace_back(hi.memInfo, hi.tpos, hi.isFw);
+      }
+      prev_qposi = qposi;
+      prev_rposi = rposi;
+    }
+    auto before = memList.size();
+    if (memList.size() != newMemList.size()) {
+      trMem.second = newMemList;
+      memList = trMem.second;
+    }
+    auto after = newMemList.size();
+    if (verbose and after != before){
+      std::cerr<< before << "\t" << after << "\t"<< memList.size() << "\n";
+    }
+    if (verbose) {
+      std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
+      for (auto &m : memList) {
+        std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.rpos << " len:" << m.extendedlen
+              << "\n";
+      }
+    }
+    }
+    for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
+      auto &hi = memList[i];
+      //if (hi.extendedlen != hi.memInfo->memlen)
+      //  std::cerr<< hi.extendedlen << "  " <<  hi.memInfo->memlen << "\n";
+
+      auto qposi = hi.rpos + hi.extendedlen;
+      auto rposi = hi.tpos + hi.extendedlen;
+
+      double baseScore = static_cast<double>(hi.extendedlen);
       p.push_back(i);
       f.push_back(baseScore);
 
@@ -1030,21 +1078,24 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
       for (int32_t j = i - 1; j >= 0; --j) {
         auto &hj = memList[j];
 
-        auto qposj = hj.memInfo->rpos + hj.memInfo->memlen;
-        auto rposj = hj.tpos + hj.memInfo->memlen;
+        auto qposj = hj.rpos + hj.extendedlen;
+        auto rposj = hj.tpos + hj.extendedlen;
 
         int32_t qdiff = isFw ? qposi - qposj :
-               (qposj - hj.memInfo->memlen) - (qposi - hi.memInfo->memlen);
+               (qposj - hj.extendedlen) - (qposi - hi.extendedlen);
         int32_t rdiff = rposi - rposj;
-        auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.memInfo->memlen) - beta(qdiff, rdiff, avgseed);
+        auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
         //To fix cases where there are repetting sequences in the read or reference
-        if (rdiff == 0 or qdiff == 0)
+        int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
+        int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos+hi.extendedlen);
+        if (rdiff==0 or qdiff==0 or rdiff*qdiff<0 or rdiff_mem*qdiff_mem<0 or hi.rpos == hj.rpos or hi.tpos == hj.tpos)
           extensionScore = -std::numeric_limits<double>::infinity();
         if (verbose) {
           std::cerr << i << " " << j <<
+                " extendedleni:" << hi.extendedlen << " extendedlenj:" << hj.extendedlen <<
                 " f[i]:" << f[i] << " f[j]:" << f[j] <<
                 " readDiff:" << qdiff << " refDiff:" << rdiff <<
-                " alpha:" << alpha(qdiff, rdiff, hi.memInfo->memlen) <<
+                " alpha:" << alpha(qdiff, rdiff, hi.extendedlen) <<
                 " beta:" << beta(qdiff, rdiff, avgseed) <<
                 " extensionScore: " << extensionScore << "\n";
         }
@@ -1061,10 +1112,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         // here we take this to the extreme, and stop at the first j to which we chain.
         // we can add a parameter "h" as in the minimap paper.  But here we expect the
         // chains of matches in short reads to be short enough that this may not be worth it.
-        //if (p[i] < i) {
-        //  numRounds--;
-        //  if (numRounds <= 0) { break; }
-        //}
+        if (hChain and p[i] < i) {
+          numRounds--;
+          if (numRounds <= 0) { break; }
+        }
         // Mohsen: This heuristic hurts the accuracy of the chain in the case of this read:
         // TGAACGCTCTATGATGTCAGCCTACGAGCGCTCTATGATGTTAGCCTACGAGCGCTCTATGATGTCCCCTATGGCTGAGCGCTCTATGATGTCAGCTTAT
         // from Polyester simalted sample aligning to the human transcriptome
@@ -1078,8 +1129,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         bestChainEndList.push_back(i);
       }
     }
-
-
 
     // Do backtracking
     std::vector<bool> seen(f.size());
@@ -1108,18 +1157,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         if (shouldBeAdded) {
           memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw));
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
-            memClusters[tid][0].addMem(memList[*it].memInfo,
-                           memList[*it].tpos);
-            if (verbose)
-              std::cerr<<"tid:" << tid << " tpos:" << memList[*it].tpos << " bestChainEnd:" << bestChainEnd << " lstPtr:" << lastPtr << " shouldBeAdded:" << shouldBeAdded << "\n";
+            memClusters[tid][0].addMem(memList[*it].memInfo, memList[*it].tpos,
+                                       memList[*it].extendedlen, memList[*it].rpos);
           }
           memClusters[tid][0].coverage = bestScore;
           if (memClusters[tid][0].coverage == readLen)
             memClusters[tid][0].perfectChain = true;
-        } else {
-          if (verbose)
-            for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) 
-              std::cerr<<"tid:" << tid << " tpos:" << memList[*it].tpos << " bestChainEnd:" << bestChainEnd << " lstPtr:" << lastPtr << " shouldBeAdded:" << shouldBeAdded << "\n";
         }
         //minPosIt += lastPtr;
       } else {
