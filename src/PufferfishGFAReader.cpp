@@ -190,7 +190,15 @@ void GFAReader::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
   }
 }
 
-sdsl::int_vector<2>& GFAReader::getContigSeqVec() { return seqVec_; }
+void GFAReader::encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
+                          stx::string_view str) {
+  for (size_t i = 0; i < str.length(); ++i) {
+    auto c = kmers::codeForChar(str[i]);
+    seqVec[offset + i] = c;
+  }
+}
+
+compact::vector<uint64_t, 2>& GFAReader::getContigSeqVec() { return seqVec_; }
 sdsl::int_vector<8>& GFAReader::getEdgeVec() { return edgeVec_; }
 //sdsl::int_vector<8>& GFAReader::getEdgeVec2() { return edgeVec2_; }
 
@@ -203,7 +211,8 @@ void GFAReader::parseFile() {
   file.reset(new zstr::ifstream(filename_));
   logger_->info("total contig length = {} ", total_len);
   logger_->info("packing contigs into contig vector");
-  seqVec_ = sdsl::int_vector<2>(total_len, 0);
+  //seqVec_ = sdsl::int_vector<2>(total_len, 0);
+  seqVec_.set_capacity(total_len);
 
   std::string ln;
   std::string tag, id, value;
@@ -212,7 +221,6 @@ void GFAReader::parseFile() {
 
   k = k + 1 ;
   CanonicalKmer::k(k) ;
-
 
   // start and end kmer-hash over the contigs
   // might get deprecated later

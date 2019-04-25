@@ -8,6 +8,8 @@
 #include <system_error> // for std::error_code
 #include "mio.hpp"
 #include "compact_iterator.hpp"
+#include <bitset>
+#include <iostream>
 
 namespace compact {
 
@@ -111,6 +113,7 @@ public:
   size_t size() const { return m_size; }
   bool empty() const { return m_size == 0; }
   size_t capacity() const { return m_capacity; }
+  W* get_words() { return m_mem; }
 
   void push_back(IDX x) {
     if(m_size == m_capacity)
@@ -146,7 +149,7 @@ public:
     uint64_t w_capacity = m_capacity;
     of.write(reinterpret_cast<char*>(&w_capacity), sizeof(w_capacity));
     of.write(reinterpret_cast<char*>(m_mem), bytes());
-    std::cerr << "wrote " << bytes() << " bytes of data at the end\n";
+    //std::cerr << "wrote " << bytes() << " bytes of data at the end\n";
   }
 
   void deserialize(const std::string& fname, bool mmap) {
@@ -212,6 +215,24 @@ public:
       sum += (*this)[i];
     }
     std::cerr<<sum << "\n";
+  }
+  uint64_t get_int(uint64_t from, uint64_t len) {
+    uint64_t result = 0;
+    for(uint64_t i=0; i<=(len-1); i++) {
+      uint64_t current = (*this)[from+i];
+      auto shift_bits = (i)*BITS;
+      result += (current<<shift_bits);
+    }
+    return result;
+  }
+  void set_capacity(size_t m) { m_size = m; m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
+
+  vector& operator=(vector &vec){
+    m_allocator = vec.m_allocator;
+    m_size = vec.m_size;
+    m_capacity = vec.m_capacity;
+    m_mem = vec.m_mem;
+    return *this;
   }
 
 protected:

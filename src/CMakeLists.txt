@@ -73,6 +73,7 @@ set(pufferfish_lib_srcs
 		MemCollector.cpp
 		MemClusterer.cpp
 		PufferfishAligner.cpp
+    rank9sel.cpp
     #edlib.cpp
 		RefSeqConstructor.cpp
 		metro/metrohash64.cpp

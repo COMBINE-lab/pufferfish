@@ -88,7 +88,8 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
     std::string sfile = indexDir + "/seq.bin";
-    sdsl::load_from_file(seq_, sfile);
+    //sdsl::load_from_file(seq_, sfile);
+    seq_.deserialize(sfile, true);
     lastSeqPos_ = seq_.size() - k_;
   }
 

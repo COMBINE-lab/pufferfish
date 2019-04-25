@@ -15,15 +15,16 @@
 #include "Util.hpp"
 #include "PufferfishBaseIndex.hpp"
 #include "compact_vector/compact_vector.hpp"
+#include "rank9sel.hpp"
 
 class PufferfishIndex : public PufferfishBaseIndex<PufferfishIndex> {
   friend PufferfishBaseIndex;
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
-  using pos_vector_t = compact::vector<uint64_t>; //PufferfishBaseIndex<PufferfishIndex>::pos_vector_t;
-  using seq_vector_t = PufferfishBaseIndex<PufferfishIndex>::seq_vector_t;
+  using pos_vector_t = compact::vector<uint64_t>;
+  using seq_vector_t = compact::vector<uint64_t, 2>;
   using edge_vector_t = PufferfishBaseIndex<PufferfishIndex>::edge_vector_t;
-  using bit_vector_t = PufferfishBaseIndex<PufferfishIndex>::bit_vector_t;
+  using bit_vector_t = compact::vector<uint64_t, 1>;
 
 private:
   uint32_t k_{0};
@@ -38,9 +39,8 @@ private:
   std::vector<uint64_t> contigOffsets_;
 
   uint64_t numContigs_{0};
-  bit_vector_t contigBoundary_;
-  sdsl::bit_vector::rank_1_type contigRank_;
-  sdsl::bit_vector::select_1_type contigSelect_;
+  bit_vector_t  contigBoundary_;
+  std::unique_ptr<rank9sel> rankSelDict{nullptr};
   seq_vector_t seq_;
   edge_vector_t edge_;
   pos_vector_t pos_{16};
@@ -55,6 +55,7 @@ public:
   ~PufferfishIndex();
  
   sdsl::int_vector<2> refseq_;
+  //compact::vector<uint64_t, 2> refseq_;
   std::vector<uint64_t> refAccumLengths_;
 
 

@@ -25,6 +25,7 @@
 #include "sdsl/select_support.hpp"
 #include "spdlog/spdlog.h"
 #include "Kmer.hpp" // currently requires k <= 32
+#include "compact_vector/compact_vector.hpp"
 
 namespace kmers = combinelib::kmers;
 
@@ -47,12 +48,12 @@ public:
   using iterator_category = std::forward_iterator_tag;
   using difference_type = int64_t;
 
-  ContigKmerIterator(sdsl::int_vector<2>* storage, sdsl::bit_vector* rank,
+  ContigKmerIterator(compact::vector<uint64_t, 2>* storage, compact::vector<uint64_t, 1>* rank,
                      uint8_t k, uint64_t startAt)
       : storage_(storage), rank_(rank), k_(k), curr_(startAt) {
     if (curr_ + k_ <= rank_->size()) {
       //nextValidPosition_();
-      mer_.fromNum(storage_->get_int(2 * curr_, 2 * k_));
+      mer_.fromNum(storage_->get_int(curr_, k_));
       // mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
     }
     // rcMer_ = mer_.get_reverse_complement();
@@ -157,13 +158,13 @@ private:
       }
       // At this point, either curr_ points to the next valid
       // start position, or we have skipped over to the endPos label.
-      mer_.fromNum(storage_->get_int(2 * curr_, 2 * k_));
+      mer_.fromNum(storage_->get_int(curr_, k_));
       return;
     }
 
   endPos:
     // Fallthrough if we couldn't find a valid position.
-    mer_.fromNum(storage_->get_int(2 * (rank_->size() - k_), 2 * k_));
+    mer_.fromNum(storage_->get_int((rank_->size() - k_), k_));
     curr_ = storage_->size() - k_ + 1;
   }
 
@@ -171,21 +172,21 @@ private:
     size_t endPos = curr_ + k_ - 1;
     if (endPos + 1 < rank_->size() and (*rank_)[endPos] == 1) {
       curr_ += k_;
-      mer_.fromNum(storage_->get_int(2 * curr_, 2 * k_));
+      mer_.fromNum(storage_->get_int(curr_, k_));
     } else {
       if (curr_ + k_ < rank_->size()) {
         int c = (*storage_)[curr_ + k_];
         mer_.shiftFw(c);
         ++curr_;
       } else {
-        mer_.fromNum(storage_->get_int(2 * (rank_->size() - k_), 2 * k_));
+        mer_.fromNum(storage_->get_int((rank_->size() - k_), k_));
         curr_ = storage_->size() - k_ + 1;
         //curr_ = rank_->size();
       }
     }
   }
-  sdsl::int_vector<2>* storage_{nullptr};
-  sdsl::bit_vector* rank_{nullptr};
+  compact::vector<uint64_t, 2>* storage_{nullptr};
+  compact::vector<uint64_t, 1>* rank_{nullptr};
   uint8_t k_{0};
   uint64_t curr_{0};
   CanonicalKmer mer_;
@@ -229,7 +230,7 @@ void computeSampledPositions(size_t tlen, uint32_t k, int sampleSize, std::vecto
     sampledInds.push_back(lastCovered) ;
 }
 
-std::string packedToString(sdsl::int_vector<2>& seqVec, uint64_t offset, uint32_t len) {
+std::string packedToString(compact::vector<uint64_t, 2>& seqVec, uint64_t offset, uint32_t len) {
   std::stringstream s;
   for (size_t i = offset; i < offset + len; ++i) {
     auto c = seqVec[i];
@@ -241,7 +242,7 @@ std::string packedToString(sdsl::int_vector<2>& seqVec, uint64_t offset, uint32_
 
 enum class NextSampleDirection : uint8_t { FORWARD = 0, REVERSE=1 };
 
-uint32_t getEncodedExtension(sdsl::int_vector<2>& seqVec, uint64_t firstSampPos, uint64_t distToSamplePos,
+uint32_t getEncodedExtension(compact::vector<uint64_t, 2>& seqVec, uint64_t firstSampPos, uint64_t distToSamplePos,
                              uint32_t maxExt, NextSampleDirection dir) {
   uint32_t encodedNucs{0};
   uint32_t bitsPerCode{2};
@@ -295,7 +296,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
-
   {
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {
@@ -329,6 +329,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     }
     //sdsl 2bit vector
     sdsl::int_vector<2> refseq = sdsl::int_vector<2>(refAccumLengths.back(), 0);
+    //compact::vector<uint64_t, 2> refseq(refAccumLengths.back());
     // go over all the reference files
     console->info("Reading the reference files ...");
     std::vector<std::string> ref_files = {rfile};
@@ -336,6 +337,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     parser.start();
     auto rg = parser.getReadGroup();
     // read the reference sequences and encode them into the refseq int_vector
+
     while (parser.refill(rg)) {
       for (auto &rp : rg) {
         stx::string_view seqv(rp.seq);
@@ -344,6 +346,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         pf.encodeSeq(refseq, offset, seqv);
       }
     }
+
     parser.stop();
     // store the 2bit-encoded references
     // store reference accumulative lengths
@@ -354,18 +357,22 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
     // store reference sequences
     sdsl::store_to_file(refseq, outdir + "/refseq.bin");
+    //std::ofstream seqFile(outdir + "/refseq.bin", std::ios::binary);
+    //refseq.serialize(seqFile);
+    //seqFile.close();
+
   }
   pf.clearContigTable();
 
   // now we know the size we need --- create our bitvectors and pack!
   size_t w = std::log2(tlen) + 1;
   console->info("positional integer width = {:n}", w);
-  // sdsl::int_vector<> seqVec(tlen, 0, 2);
 
   auto& seqVec = pf.getContigSeqVec();
   auto& edgeVec = pf.getEdgeVec() ;
 
-  sdsl::bit_vector rankVec(tlen);
+  compact::vector<uint64_t, 1> rankVec(tlen);
+  for(uint64_t i=0; i<tlen; i++) rankVec[i]=0;//if(rankVec[i]!=0) {std::cerr<<"Not zero\n"; break;}
   auto& cnmap = pf.getContigNameMap();
   for (auto& kv : cnmap) {
     rankVec[kv.second.offset + kv.second.length - 1] = 1;
@@ -373,8 +380,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   size_t nkeys{numKmers};
   size_t numContigs{cnmap.size()};
 
-  console->info("seqSize = {}", sdsl::size_in_mega_bytes(seqVec));
-  console->info("rankSize = {}", sdsl::size_in_mega_bytes(rankVec));
+  console->info("seqSize = {}", seqVec.size());
+  console->info("rankSize = {}", rankVec.size());
+
   console->info("edgeVecSize = {}", sdsl::size_in_mega_bytes(edgeVec));
 
   console->info("num keys = {:n}", nkeys);
@@ -398,8 +406,13 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
   console->info("mphf size = {}", (bphf->totalBitSize() / 8) / std::pow(2, 20));
 
-  sdsl::store_to_file(seqVec, outdir + "/seq.bin");
-  sdsl::store_to_file(rankVec, outdir + "/rank.bin");
+  std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);
+  seqVec.serialize(seqFile);
+  seqFile.close();
+
+  std::ofstream rankFile(outdir + "/rank.bin", std::ios::binary);
+  rankVec.serialize(rankFile);
+  rankFile.close();
 
   bool haveEdgeVec = edgeVec.size() > 0;
   if (haveEdgeVec) {
@@ -411,8 +424,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   if (!indexOpts.isSparse and !indexOpts.lossySampling) {  
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
     // sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
-    //sdsl::int_vector<> posVec(nkeys, 0, w);
-    std::cerr<< w << "w:nkeys" << nkeys << "\n";
     compact::vector<uint64_t> posVec(w, nkeys);
     {
 
@@ -469,7 +480,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           posVec[idx] = kb1.pos();
           // validate
 #ifdef PUFFER_DEBUG
-          uint64_t kn = seqVec.get_int(2 * kb1.pos(), 2 * k);
+          uint64_t kn = seqVec.get_int(kb1.pos(), k);
           CanonicalKmer sk;
           sk.fromNum(kn);
           if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
@@ -512,7 +523,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     }
     descStream.close();
 
-    //sdsl::store_to_file(posVec, outdir + "/pos.bin");
     std::ofstream posFile(outdir + "/pos.bin", std::ios::binary);
     posVec.serialize(posFile);
     posFile.close();
@@ -716,7 +726,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   }
   descStream.close();
 
-  //sdsl::store_to_file(posVec, outdir + "/pos.bin");
   std::ofstream hstream(outdir + "/mphf.bin");
   sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
   sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");

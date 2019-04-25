@@ -14,6 +14,7 @@
 #include "BooPHF.h"
 #include "Util.hpp"
 #include "PufferfishBaseIndex.hpp"
+#include "rank9sel.hpp"
 
 class PufferfishSparseIndex : public PufferfishBaseIndex<PufferfishSparseIndex> {
   friend PufferfishBaseIndex;
@@ -42,6 +43,7 @@ private:
   bit_vector_t contigBoundary_;
   sdsl::bit_vector::rank_1_type contigRank_;
   sdsl::bit_vector::select_1_type contigSelect_;
+  std::unique_ptr<rank9sel> rankSelDict{nullptr};
 
   seq_vector_t seq_;
   edge_vector_t edge_;

@@ -268,7 +268,6 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& h
                 // contig
   cCurrPos += k;
   }
-
   int currReadStart = kit->second + 1;
   auto readSeqView = kit.seq();
   auto readSeqLen = readSeqView.size();
@@ -287,7 +286,7 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& h
                   // contig first base and move fw in the
                   // contig
       auto baseCnt = k < cEndPos - cCurrPos ? k : cEndPos - cCurrPos;
-      uint64_t fk = allContigs.get_int(2 * (cCurrPos), 2 * baseCnt);
+      uint64_t fk = allContigs.get_int(cCurrPos, baseCnt);
       cCurrPos += baseCnt;
       for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
         // be dirty and peek into the underlying read
@@ -306,7 +305,7 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& h
     } else { // if rc match, compare read last base with contig last base and
        // move backward in the contig
       auto baseCnt = k < cCurrPos - cStartPos ? k : cCurrPos - cStartPos;
-      uint64_t fk = allContigs.get_int(2 * (cCurrPos - baseCnt), 2 * baseCnt);
+      uint64_t fk = allContigs.get_int(cCurrPos - baseCnt, baseCnt);
       cCurrPos -= baseCnt;
       for (int i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
         // be dirty and peek into the underlying read

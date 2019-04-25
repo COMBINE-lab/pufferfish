@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <future>
+#include <stdlib.h> 
 
 #include "CLI/Timer.hpp"
 #include "CanonicalKmerIterator.hpp"
@@ -74,9 +75,8 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
     std::string bfile = indexDir + "/rank.bin";
-    sdsl::load_from_file(contigBoundary_, bfile);
-    contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
-    contigSelect_ = decltype(contigBoundary_)::select_1_type(&contigBoundary_);
+    contigBoundary_.deserialize(bfile, false);
+    rankSelDict.reset(new rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size()));
   }
   /*
   selectPrecomp_.reserve(numContigs_+1);
@@ -90,23 +90,23 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
     std::string sfile = indexDir + "/seq.bin";
-    sdsl::load_from_file(seq_, sfile);
+    seq_.deserialize(sfile, false);
     lastSeqPos_ = seq_.size() - k_;
   }
 
   {
     CLI::AutoTimer timer{"Loading positions", CLI::Timer::Big};
     std::string pfile = indexDir + "/pos.bin";
-    //sdsl::load_from_file(pos_, pfile);
     auto bits_per_element = compact::get_bits_per_element(pfile);
     pos_.set_m_bits(bits_per_element);
-    pos_.deserialize(pfile, true);
-    auto f = std::async(std::launch::async, &pos_vector_t::touch_all_pages, &pos_, bits_per_element);
+    pos_.deserialize(pfile, false);
+    //auto f = std::async(std::launch::async, &pos_vector_t::touch_all_pages, &pos_, bits_per_element);
   }
 
   {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
     std::string pfile = indexDir + "/refseq.bin";
+    //refseq_.deserialize(pfile, false);
     sdsl::load_from_file(refseq_, pfile);
   }
 
@@ -162,14 +162,13 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
           core::range<IterT>{}};
     }
     */
-    uint64_t twopos = pos << 1;
-    uint64_t fk = seq_.get_int(twopos, twok_);
+    uint64_t fk = seq_.get_int(pos, k_);
     // say how the kmer fk matches mer; either
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = contigRank_(pos);
+      auto rank = rankSelDict->rank(pos);//contigRank_(pos);
       // the reference information in the contig table
       auto contigIterRange = contigRange(rank);
       // start position of this contig
@@ -179,8 +178,8 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
-        sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
-        contigEnd = contigSelect_(rank + 1);
+        sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
+        contigEnd = rankSelDict->select(rank);
         qc.prevRank = rank;
         qc.contigStart = sp;
         qc.contigEnd = contigEnd;
@@ -232,20 +231,19 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
     uint64_t pos = const_cast<const pos_vector_t&>(pos_)[res];
-    uint64_t twopos = pos << 1;
-    uint64_t fk = seq_.get_int(twopos, twok_);
+    uint64_t fk = seq_.get_int(pos, k_);
     // say how the kmer fk matches mer; either
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = contigRank_(pos);
+      auto rank = rankSelDict->rank(pos);//contigRank_(pos);
       // the reference information in the contig table
       auto contigIterRange = contigRange(rank);
       // start position of this contig
       uint64_t sp =
-          (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
-      uint64_t contigEnd = contigSelect_(rank + 1);
+          (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
+      uint64_t contigEnd = rankSelDict->select(rank);
 
       // relative offset of this k-mer in the contig
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
