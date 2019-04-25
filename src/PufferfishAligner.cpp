@@ -652,7 +652,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 						  //tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
 						  //auto score1 = aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
 						  if (lastHitEnd_ref+1-refStart < 0 or lastHitEnd_ref+1-refStart >= (int32_t)std::strlen(refSeq))
-							  std::cerr<<"Shoud not happen: lastHitEnd_ref is " << lastHitEnd_ref << "and refStart is " << refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
+							  std::cerr<<"Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << "and refStart is " << refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
 						  char* refSeq1 = refSeq + lastHitEnd_ref + 1 - refStart;
 						  score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
 						  if (verbose) {
@@ -707,7 +707,7 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 			  lastHitEnd_read = currHitStart_read + memlen - 1;
 			  lastHitEnd_ref = tpos + memlen - 1;
 			  if (lastHitEnd_ref - refStart + 1 > (int32_t)std::strlen(refSeq)+1 )
-				  std::cerr<<"Shoud not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is " <<refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
+				  std::cerr<<"Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is " <<refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
 		    firstMem = false;
       }  
 
