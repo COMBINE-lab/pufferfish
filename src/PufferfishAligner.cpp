@@ -436,8 +436,8 @@ int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo
 		std::cerr<<" start mems\n";
 	}
 
-	uint64_t refAccPos = refAccumLengths[tid-1];
-	uint64_t refTotalLength = refAccumLengths[tid] - refAccumLengths[tid-1];
+	uint64_t refAccPos = tid > 0 ? refAccumLengths[tid-1] : 0;
+	uint64_t refTotalLength = refAccumLengths[tid] - refAccPos;
 
 	std::string original_read = read;
 	if ( !isFw )
