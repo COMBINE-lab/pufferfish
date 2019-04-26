@@ -381,7 +381,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   console->info("seqSize = {}", seqVec.size());
   console->info("rankSize = {}", rankVec.size());
 
-  console->info("edgeVecSize = {}", sdsl::size_in_mega_bytes(edgeVec));
+  console->info("edgeVecSize = {}", edgeVec.size());
 
   console->info("num keys = {:n}", nkeys);
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
@@ -414,14 +414,15 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   bool haveEdgeVec = edgeVec.size() > 0;
   if (haveEdgeVec) {
-    sdsl::store_to_file(edgeVec, outdir + "/edge.bin");
+    std::ofstream edgeFile(outdir + "/edge.bin", std::ios::binary);
+    edgeVec.serialize(edgeFile);
+    edgeFile.close();
   }
 
   // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
   //uint32_t hashBits = 4;
   if (!indexOpts.isSparse and !indexOpts.lossySampling) {  
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
-    // sdsl::int_vector<> posVec(nkeys, 0, w + hashBits);
     compact::vector<uint64_t> posVec(w, nkeys);
     {
 

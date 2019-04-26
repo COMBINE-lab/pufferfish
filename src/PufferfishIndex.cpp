@@ -124,7 +124,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   if (haveEdges_) {
     CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
     std::string pfile = indexDir + "/edge.bin";
-    sdsl::load_from_file(edge_, pfile);
+    edge_.deserialize(pfile, false);
   }
   /*
   {

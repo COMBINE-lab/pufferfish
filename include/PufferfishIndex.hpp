@@ -22,7 +22,7 @@ class PufferfishIndex : public PufferfishBaseIndex<PufferfishIndex> {
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
   using pos_vector_t = compact::vector<uint64_t>;
-  using seq_vector_t = compact::vector<uint64_t, 2>;
+  using seq_vector_t = PufferfishBaseIndex<PufferfishIndex>::seq_vector_t;
   using edge_vector_t = PufferfishBaseIndex<PufferfishIndex>::edge_vector_t;
   using bit_vector_t = compact::vector<uint64_t, 1>;
 

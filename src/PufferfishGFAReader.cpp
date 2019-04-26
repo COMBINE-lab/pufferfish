@@ -199,7 +199,7 @@ void GFAReader::encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
 }
 
 compact::vector<uint64_t, 2>& GFAReader::getContigSeqVec() { return seqVec_; }
-sdsl::int_vector<8>& GFAReader::getEdgeVec() { return edgeVec_; }
+compact::vector<uint64_t, 8>& GFAReader::getEdgeVec() { return edgeVec_; }
 //sdsl::int_vector<8>& GFAReader::getEdgeVec2() { return edgeVec2_; }
 
 
@@ -280,7 +280,8 @@ void GFAReader::parseFile() {
   //Initialize edgeVec_
   //bad way, have to re-think
   if (buildEdgeVec_) {
-    edgeVec_ = sdsl::int_vector<8>(contig_cnt, 0) ;
+    edgeVec_.set_capacity(contig_cnt);
+    for(uint64_t i=0; i<contig_cnt; i++) edgeVec_[i]=0;
 
     for(auto const& ent: path){
       const std::vector<std::pair<uint64_t, bool>>& contigs = ent.second;
@@ -331,8 +332,8 @@ void GFAReader::parseFile() {
         // The character to prepend / append to next contig to get to contig
         const char nextContigChar = lastKmerInContig.to_str()[0];
 
-        edgeVec_[forder] |= encodeEdge(contigChar, contigDirection);
-        edgeVec_[nextForder] |= encodeEdge(nextContigChar, nextContigDirection);
+        edgeVec_[forder] = edgeVec_[forder] | encodeEdge(contigChar, contigDirection);
+        edgeVec_[nextForder] = edgeVec_[nextForder] | encodeEdge(nextContigChar, nextContigDirection);
       }
     }
   }

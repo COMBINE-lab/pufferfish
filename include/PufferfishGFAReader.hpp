@@ -57,7 +57,7 @@ private:
 
   //edge table
   //ATGC|ATGC = 8 bits
-  sdsl::int_vector<8> edgeVec_;
+  compact::vector<uint64_t, 8> edgeVec_;
   //predecessor,stores the same
   //transcript in reverse order
   //improve walkability
@@ -85,6 +85,7 @@ public:
 
   void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
                  stx::string_view str);
+ 
   void encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
                  stx::string_view str);
   // spp::sparse_hash_map<uint64_t, std::string>& getContigNameMap();
@@ -98,8 +99,8 @@ public:
   std::map<std::pair<std::string, bool>, bool, util::cmpByPair>& getPathEnd();
   std::vector<std::pair<std::string, std::string>>& getNewSegments();
   compact::vector<uint64_t, 2>& getContigSeqVec();
-  sdsl::int_vector<8>& getEdgeVec();
-  sdsl::int_vector<8>& getEdgeVec2();
+  compact::vector<uint64_t, 8>& getEdgeVec();
+  compact::vector<uint64_t, 8>& getEdgeVec2();
   
   // spp::sparse_hash_map<std::string, std::vector< std::pair<std::string, bool>
   // > >& getPaths() {return path;}
