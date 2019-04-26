@@ -218,6 +218,10 @@ public:
   }
   uint64_t get_int(uint64_t from, uint64_t len) {
     uint64_t result = 0;
+    if (len == 0) {
+      std::cerr<<"get_int with length of zero is meaningless!";
+      exit(1);
+    }
     for(uint64_t i=0; i<=(len-1); i++) {
       uint64_t current = (*this)[from+i];
       auto shift_bits = (i)*BITS;

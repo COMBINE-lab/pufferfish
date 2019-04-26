@@ -327,9 +327,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       refAccumLengths[i] = prev + refLengths[i];
       prev = refAccumLengths[i];
     }
-    //sdsl 2bit vector
-    sdsl::int_vector<2> refseq = sdsl::int_vector<2>(refAccumLengths.back(), 0);
-    //compact::vector<uint64_t, 2> refseq(refAccumLengths.back());
+    //compact 2bit vector
+    compact::vector<uint64_t, 2> refseq(refAccumLengths.back());
     // go over all the reference files
     console->info("Reading the reference files ...");
     std::vector<std::string> ref_files = {rfile};
@@ -356,10 +355,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     ralAr(refAccumLengths);
 
     // store reference sequences
-    sdsl::store_to_file(refseq, outdir + "/refseq.bin");
-    //std::ofstream seqFile(outdir + "/refseq.bin", std::ios::binary);
-    //refseq.serialize(seqFile);
-    //seqFile.close();
+    std::ofstream seqFile(outdir + "/refseq.bin", std::ios::binary);
+    refseq.serialize(seqFile);
+    seqFile.close();
 
   }
   pf.clearContigTable();
@@ -471,8 +469,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         for (; kb1 < ke1; ++kb1) {
           auto idx = bphf->lookup(*kb1); // fkm.word(0));
           if (idx >= posVec.size()) {
+            std::cerr<<*kb1<<"\n";
             console->info("seq size = {:n}, idx = {:n}, pos size = {:n}",
                           seqVec.size(), idx, posVec.size());
+            std::cerr<<*kb1<<"\n";
           }
           // ContigKmerIterator::value_type mer = *kb1;
           // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)

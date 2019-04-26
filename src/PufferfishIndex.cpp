@@ -106,8 +106,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
     std::string pfile = indexDir + "/refseq.bin";
-    //refseq_.deserialize(pfile, false);
-    sdsl::load_from_file(refseq_, pfile);
+    refseq_.deserialize(pfile, false);
   }
 
   {

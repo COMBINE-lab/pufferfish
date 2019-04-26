@@ -68,7 +68,8 @@ private:
     0xe00000000000000, 0x7000000000000000};
 
 public:
-  sdsl::int_vector<2> refseq_;
+  //sdsl::int_vector<2> refseq_;
+  compact::vector<uint64_t, 2> refseq_;
   std::vector<uint64_t> refAccumLengths_;
 
 

@@ -25,8 +25,7 @@ using AlnCacheMap = tsl::hopscotch_map<uint64_t, int32_t, PassthroughHash>;
 
 class PufferfishAligner {
 public:
-	PufferfishAligner(sdsl::int_vector<2>& ar, std::vector<uint64_t>& ral, uint32_t k_, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : allRefSeq(ar), refAccumLengths(ral), k(k_), mopts(m), aligner(a), multiMapping(mult) {
-	//PufferfishAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : allRefSeq(ar), refAccumLengths(ral), k(k_), mopts(m), aligner(a), multiMapping(mult) {
+	PufferfishAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : allRefSeq(ar), refAccumLengths(ral), k(k_), mopts(m), aligner(a), multiMapping(mult) {
 		ksw2pp::KSW2Config config;
 		config.dropoff = -1;
 		config.gapo = mopts->gapOpenPenalty;
@@ -44,8 +43,7 @@ public:
 	int32_t alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
 	void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
 private:
-	sdsl::int_vector<2>& allRefSeq;
-	//compact::vector<uint64_t, 2>& allRefSeq;
+	compact::vector<uint64_t, 2>& allRefSeq;
 	std::vector<uint64_t>& refAccumLengths;
 	uint32_t k;
 	AlignmentOpts* mopts;

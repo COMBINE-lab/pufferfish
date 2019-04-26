@@ -54,8 +54,7 @@ public:
   PufferfishIndex(const std::string& indexPath);
   ~PufferfishIndex();
  
-  sdsl::int_vector<2> refseq_;
-  //compact::vector<uint64_t, 2> refseq_;
+  compact::vector<uint64_t, 2> refseq_;
   std::vector<uint64_t> refAccumLengths_;
 
 

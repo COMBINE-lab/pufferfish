@@ -395,28 +395,29 @@ std::string cigar2str(const ksw_extz_t *ez) {
     return cigar;
 }
 
-
-std::string getRefSeq(sdsl::int_vector<2>& refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
-	std::string tseq = "";
-	uint64_t bucket_offset = (refAccPos+tpos)*2;
-	auto len_on_vector = memlen * 2;
-	for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
-		uint32_t len = std::min((uint32_t)64, len_on_vector - w*64);
-		uint64_t word = refseq.get_int(bucket_offset, len);
-		for (uint32_t i=0; i < len; i += 2) {
-			uint8_t next_bits = ( (word >> i) & 0x03);
-			char next = 'A';
-			if (next_bits == 1)
-				next = 'C';
-			else if(next_bits == 2)
-				next = 'G';
-			else if(next_bits == 3)
-				next = 'T';
-			tseq += next;
-		}
-		bucket_offset += len;
-	}
-	return tseq;
+std::string getRefSeq(compact::vector<uint64_t,2>& refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
+  if (memlen == 0) return "";
+  std::string tseq = "";
+  uint64_t bucket_offset = (refAccPos+tpos)*2;
+  auto len_on_vector = memlen * 2;
+  for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
+    uint32_t len = std::min((uint32_t)64, len_on_vector - w*64);
+    if (len==0) continue;
+    uint64_t word = refseq.get_int(bucket_offset/2, len/2);
+    for (uint32_t i=0; i < len; i += 2) {
+      uint8_t next_bits = ( (word >> i) & 0x03);
+      char next = 'A';
+      if (next_bits == 1)
+        next = 'C';
+      else if(next_bits == 2)
+        next = 'G';
+      else if(next_bits == 3)
+        next = 'T';
+      tseq += next;
+    }
+    bucket_offset += len;
+  }
+  return tseq;
 }
 
 int32_t PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, 
