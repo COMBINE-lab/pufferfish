@@ -1406,9 +1406,9 @@ void processReadsPair(paired_parser *parser,
 				} else if (mopts->salmonOut) {
 					writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
 				} else if (jointAlignments.size() > 0) {
-					writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap);
+					writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, true);//mopts->justMap);
 				} else if (jointAlignments.size() == 0) {
-					writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap);
+					writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, true);//mopts->justMap);
 			  }
 			}
 
@@ -1654,10 +1654,6 @@ void processReadsSingle(single_parser *parser,
             }
 
             for (auto &jointHit : jointHits) {
-				//if (read.name.find(txpNames[jointHit.tid]) != std::string::npos) {
-				//} else {
-				//}
-
                 jointAlignments.emplace_back(jointHit.tid,           // reference id
                                                      jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
                                                      jointHit.orphanClust()->isFw,     // fwd direction
@@ -1685,12 +1681,11 @@ void processReadsSingle(single_parser *parser,
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
-                                              !mopts->noOrphan, mopts->justMap);
+                                              !mopts->noOrphan, true);//mopts->justMap);
             } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
                 writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
-                                                      sstream, !mopts->noOrphan,
-                                                      mopts->justMap);
+                                                      sstream, !mopts->noOrphan, true);//mopts->justMap);
             }
 
             // write them on cmd
