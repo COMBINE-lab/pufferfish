@@ -68,7 +68,7 @@ RUN	cd pufferfish && \
 # Pufferfish
 RUN cd pufferfish && \	
 	git checkout develop && \
-	git checkout b7f383519d6fcad1d6392d7502e1bef23c0c36ed && \
+	#git checkout b7f383519d6fcad1d6392d7502e1bef23c0c36ed && \
 	mkdir build && \
 	cd build && \
 	cmake ../ && \
