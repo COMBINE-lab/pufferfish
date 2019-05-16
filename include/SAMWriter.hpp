@@ -755,16 +755,6 @@ inline uint32_t writeAlignmentsToStream(
 
       // If the fragment overhangs the right end of the reference
       // adjust fragLen (overhanging the left end is already handled).
-      int32_t read1Pos = qa.pos;
-      int32_t read2Pos = qa.matePos;
-      //const bool read1First{read1Pos < read2Pos};
-
-      // TODO : We don't have access to the txp len yet
-      //const int32_t minPos = read1First ? read1Pos : read2Pos;
-      //if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
-
-      // get the fragment length as a signed int
-      const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
 
       sstream << alignedName->c_str() << '\t'                    // QNAME
               << flags << '\t'                              // FLAGS
@@ -774,8 +764,7 @@ inline uint32_t writeAlignmentsToStream(
               << (justMappings ? (*cigarStr).c_str() : qa.cigar) << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << /* qa.matePos */ qa.pos + 1 << '\t'                      // PNEXT
-              << 0 << '\t'
-              //<< ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
+              << 0 << '\t'                                     // TLEN
               << *readSeq << '\t'                           // SEQ
               << "*\t"                                       // QUAL
               << numHitFlag << '\n';
@@ -788,8 +777,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.pos + 1 << '\t'                          // PNEXT
-              << 0 << '\t'
-              //<< ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
+              << 0 << '\t'                                   // TLEN
               << *unalignedSeq << '\t'                           // SEQ
               << "*\t"                                       // QUAL
               << numHitFlag << '\n';

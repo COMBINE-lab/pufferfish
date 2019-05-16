@@ -552,7 +552,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       }
       console->info("# sampled kmers = {:n}", sampledKmers) ;
       console->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
-   }
+    }
 
     //fill up the vectors
     uint32_t extSymbolWidth = 2;
