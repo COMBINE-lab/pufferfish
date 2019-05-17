@@ -59,7 +59,6 @@ public:
   bool noOrphan{false};
   bool compressedOutput{false};
   bool verbose{false};
-
   bool validateMappings{false};
   bool strictFilter{false};
   int32_t gapOpenPenalty{5};
@@ -71,6 +70,7 @@ public:
   bool fullAlignment{false};
   bool heuristicChaining{true};
   bool mergeMems{true};
+  bool genomicReads{false};
 };
 
 

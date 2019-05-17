@@ -1278,17 +1278,19 @@ void processReadsPair(paired_parser *parser,
           if (verbose)
             std::cerr<< txpNames[jointHit.tid] << " " << jointHit.coverage() << " " << jointHit.leftClust->mems[0].tpos << "\n";
           verbose = false;
-          if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
-            std::vector<int32_t> coverage_hit;
-            transcript_set[jointHit.tid] = coverage_hit;
-            transcript_set[jointHit.tid].push_back(jointHit.coverage());
-            transcript_set[jointHit.tid].push_back(idx);
-          } else if (jointHit.coverage() > transcript_set[jointHit.tid][0] ) {
-            transcript_set[jointHit.tid][0] = jointHit.coverage();
-            scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
-            transcript_set[jointHit.tid][1] = idx;
-          } else {
-            scores[idx] = std::numeric_limits<int32_t>::min();
+          if(!mopts->genomicReads) {
+            if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
+              std::vector<int32_t> coverage_hit;
+              transcript_set[jointHit.tid] = coverage_hit;
+              transcript_set[jointHit.tid].push_back(jointHit.coverage());
+              transcript_set[jointHit.tid].push_back(idx);
+            } else if (jointHit.coverage() > transcript_set[jointHit.tid][0] ) {
+              transcript_set[jointHit.tid][0] = jointHit.coverage();
+              scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
+              transcript_set[jointHit.tid][1] = idx;
+            } else {
+              scores[idx] = std::numeric_limits<int32_t>::min();
+            }
           }
           ++idx;
         }

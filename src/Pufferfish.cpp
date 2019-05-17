@@ -136,6 +136,7 @@ int main(int argc, char* argv[]) {
                     (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Wheather or not perform only 2 rounds of chaining",
                     (option("--mergeMems").set(alignmentOpt.mergeMems, true)) % "Merge mems before finding the best chains",
 					          (option("--strictFilter").set(alignmentOpt.strictFilter, true)) % "keep only the hits with best score for each read",
+					          (option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Aligning genomic dna-seq reads, not RNA-seq reads",
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "minScoreFraction"
   );
 
