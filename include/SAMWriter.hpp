@@ -666,6 +666,7 @@ inline uint32_t writeAlignmentsToStream(
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
               << *readSeq1 << '\t'                           // SEQ
               << "*\t"                                       // QUAL
+              << "AS:i:"<< qa.score << ' '
               << numHitFlag << '\n';
 
       sstream << mateName.c_str() << '\t'                    // QNAME
@@ -681,6 +682,7 @@ inline uint32_t writeAlignmentsToStream(
               << ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
               << *readSeq2 << '\t'                           // SEQ
               << "*\t"                                       // QUAL
+              << "AS:i:"<< qa.mateScore << ' '
               << numHitFlag << '\n';
 
     }
@@ -767,6 +769,7 @@ inline uint32_t writeAlignmentsToStream(
               << 0 << '\t'                                     // TLEN
               << *readSeq << '\t'                           // SEQ
               << "*\t"                                       // QUAL
+              << "AS:i:"<< qa.score << ' '
               << numHitFlag << '\n';
 
       sstream << unalignedName->c_str() << '\t'                    // QNAME
@@ -780,6 +783,7 @@ inline uint32_t writeAlignmentsToStream(
               << 0 << '\t'                                   // TLEN
               << *unalignedSeq << '\t'                           // SEQ
               << "*\t"                                       // QUAL
+              << "AS:i:"<< qa.mateScore << ' '
               << numHitFlag << '\n';
 
     }

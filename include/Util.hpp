@@ -180,7 +180,45 @@ template <typename T> string str(T& container) {
   return ContainerPrinter<T, has_key<T>::value>::str(container);
 }
 
+struct cigarGenerator {
+  std::vector<uint32_t> cigar_counts;
+  std::vector<std::string> cigar_types;
 
+  void add_item(uint32_t count, std::string type){
+    cigar_counts.push_back(count);
+    cigar_types.push_back(type);
+  }
+
+  std::string get_cigar() {
+    std::string cigar = "";
+    if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0)
+      return "NOT VALID";
+    if (cigar_counts.size() == 0)
+      return NULL;
+    if (cigar_counts.size() == 1) {
+      cigar += std::to_string(cigar_counts[0]);
+      cigar += cigar_types[0];
+      return cigar;
+    }
+    uint32_t count = cigar_counts[0];
+    std::string type = cigar_types[0];
+    for(size_t i=1; i<cigar_counts.size(); i++) {
+      if(type == cigar_types[i]) {
+        count += cigar_counts[i];
+      } else {
+        cigar += std::to_string(count);
+        cigar += type;
+        count = cigar_counts[i];
+        type = cigar_types[i];
+      }
+      if (i == cigar_counts.size()-1) {
+        cigar += std::to_string(count);
+        cigar += type;
+      }
+    }
+    return cigar;
+  }
+};
 
 //Mapped object contains all the information
 //about mapping the struct is a bit changed from
@@ -260,8 +298,10 @@ enum class MateStatus : uint8_t {
     int score ;
     std::string cigar ;
     bool perfectChain = false;
+    uint32_t readLen;
+    uint32_t openGapLen{0};
     //bool isValid = true;
-    MemCluster(bool isFwIn): isFw(isFwIn) {}
+    MemCluster(bool isFwIn, uint32_t readLenIn): isFw(isFwIn), readLen(readLenIn) {}
     /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
       mems.push_back(memIn);
       }*/
@@ -273,7 +313,7 @@ enum class MateStatus : uint8_t {
     MemCluster() {}
 
     // Add the new mem to the list and update the coverage
-    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, bool isFw = true) {
+    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, bool isFw) {
       if (mems.empty())
         coverage = uniMemInfo->memlen;
 	    else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
@@ -286,7 +326,7 @@ enum class MateStatus : uint8_t {
     }
 
     // Add the new mem to the list and update the coverage, designed for clustered Mems
-    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, uint32_t extendedlen, uint32_t rpos, bool isFw = true) {
+    void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, uint32_t extendedlen, uint32_t rpos, bool isFw) {
       if (mems.empty())
         coverage = extendedlen;
 	    else if (tpos > mems.back().tpos + mems.back().extendedlen) {
@@ -311,7 +351,10 @@ enum class MateStatus : uint8_t {
       //return mems.empty()?0:mems.back().memInfo->memlen;
       return mems.empty()?0:mems.back().extendedlen;
     }
-    size_t getTrFirstHitPos() const { return mems.empty()?0:mems[0].tpos;}
+    size_t getTrFirstHitPos() const { 
+      return mems.empty() ? 0 : mems[0].tpos - openGapLen; 
+      //return mems.empty() ? 0 : (mems[0].isFw ? mems[0].tpos-mems[0].rpos : mems[0].tpos - (readLen-mems[0].rpos-mems[0].extendedlen)); 
+    }
     inline size_t firstRefPos() const { return getTrFirstHitPos(); }
     inline size_t lastRefPos() const { return getTrLastHitPos(); }
     inline size_t lastMemLen() const { return getTrLastMemLen(); }
@@ -460,7 +503,10 @@ struct QuasiAlignment {
   std::string cigar;
   std::string mateCigar;
 
-        MateStatus mateStatus;
+  uint32_t score;
+  uint32_t mateScore;
+
+  MateStatus mateStatus;
   bool active = true;
   uint32_t numHits = 0;
  };
@@ -622,7 +668,7 @@ struct ProjectedHits {
   uint32_t contigIdx_;
   // The relative position of the k-mer inducing this hit on the
   // contig
-  uint64_t globalPos_ ;
+  uint64_t globalPos_;
 
   uint32_t contigPos_;
   // How the k-mer inducing this hit maps to the contig
@@ -675,6 +721,7 @@ struct ProjectedHits {
       rpos = p.pos() + contigLen_ - (contigPos_ + k_);
       rfw = true;
     }
+
     return {rpos, rfw};
   }
 };

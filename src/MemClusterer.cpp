@@ -123,7 +123,7 @@ bool MemClusterer::clusterMems(std::vector<std::pair<int, util::ProjectedHits>> 
                     (hit.memInfo->rpos + hit.memInfo->memlen - prevClus->getReadLastHitPos()))
               ) {
             // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
-            prevClus->addMem(hit.memInfo, hit.tpos);
+            prevClus->addMem(hit.memInfo, hit.tpos, isFw);
             //if(verbose){std::cerr << "len after putting in cluster: "<<hit.memInfo->memlen<<"\n";}
             foundAtLeastOne = true;
             //foundPrev = true;
@@ -140,7 +140,8 @@ bool MemClusterer::clusterMems(std::vector<std::pair<int, util::ProjectedHits>> 
       if (addNewCluster) {
         //auto prevLastIndex = static_cast<int32_t>(currMemClusters.size()) - 1;
         // Create the new clusters on the end of the currMemClusters vector
-        currMemClusters.emplace_back(isFw);
+        //TODO readLen value should be passed here instead of 0
+        currMemClusters.emplace_back(isFw, 0);
         auto &newClus = currMemClusters.back();
         /*if ((prevLastIndex > 0) and gapIsSmall) {
           auto& lastClus = currMemClusters[prevLastIndex];
@@ -150,7 +151,7 @@ bool MemClusterer::clusterMems(std::vector<std::pair<int, util::ProjectedHits>> 
           }
           }*/
         // NOTE: Adds a new mem to the list of cluster mems and updates the coverage
-        newClus.addMem(hit.memInfo, hit.tpos);
+        newClus.addMem(hit.memInfo, hit.tpos, isFw);
         //if(verbose){std::cerr << "len after putting in cluster: "<<hit.memInfo->memlen<<"\n";}
       }
     }
@@ -225,7 +226,6 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
 
       if (verbose)
         std::cerr << "total number of mappings found: " << refs.size() << "\n";
-
     }
   }
   return true;
@@ -554,9 +554,8 @@ bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
   std::vector<int32_t> p;
   std::vector<int32_t> pswitch;
   all.reserve(maxAllowedRefsPerHit * 2 * trMemMap.size()+10);
-  all.emplace_back(1);
+  all.emplace_back(1, 0);
   bool no = trMemMap.size() == 0;
-  //verbose = true;
   for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
     auto &trOri = trMem.first;
     auto &tid = trOri.first;
@@ -785,8 +784,8 @@ bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
         }
         memIndicesInReverse.push_back(bestChainEnd);
         if (shouldBeAdded) {
-          all.emplace_back(isFw);
-          all.emplace_back(isFw);
+          all.emplace_back(isFw, readLenLeft);
+          all.emplace_back(isFw, readLenRight);
           auto lclust = all.end() - 2;
           auto rclust = all.end() - 1;
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
@@ -948,8 +947,6 @@ bool MemClusterer::findOptChainAllowingOneJumpBetweenTheReadEnds(
 bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>> &hits,
           spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>> &memClusters,
           uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen, bool hChain, bool mergeMems, bool verbose) {
-
-
   using namespace pufferfish::common_types;
   //(void)verbose;
 
@@ -1015,50 +1012,49 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
     p.clear();
     //auto lastHitId = static_cast<int32_t>(memList.size() - 1);
     if (mergeMems){
-    std::vector<util::MemInfo> newMemList;
-    uint32_t prev_qposi=0;
-    uint32_t prev_rposi=0;
-    for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
-      auto &hi = memList[i];
-
-      auto qposi = hi.isFw ? hi.memInfo->rpos + hi.extendedlen :  readLen - hi.rpos;
-      auto rposi = hi.tpos + hi.extendedlen;
-      if (i>0 and std::abs(qposi - prev_qposi) == std::abs(rposi - prev_rposi) and hi.tpos < prev_rposi) {
-        auto& lastMem = newMemList.back();
-        uint32_t extension = rposi - prev_rposi;
-        //lastMem.memInfo->memlen += extension;
-        lastMem.extendedlen += extension;
-        if (!isFw){
-          lastMem.rpos = hi.memInfo->rpos;
-        }
+      std::vector<util::MemInfo> newMemList;
+      uint32_t prev_qposi=0;
+      uint32_t prev_rposi=0;
+      for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
+        auto &hi = memList[i];
+        auto qposi = hi.isFw ? hi.memInfo->rpos + hi.extendedlen :  readLen - hi.rpos;
+        auto rposi = hi.tpos + hi.extendedlen;
+        if (i>0 and std::abs(qposi - prev_qposi) == std::abs(rposi - prev_rposi) and hi.tpos < prev_rposi) {
+          auto& lastMem = newMemList.back();
+          uint32_t extension = rposi - prev_rposi;
+          //lastMem.memInfo->memlen += extension;
+          lastMem.extendedlen += extension;
+          if (!isFw){
+            lastMem.rpos = hi.memInfo->rpos;
+          }
           //lastMem.rpos -= extension;
-      } else {
-        //memCollection.emplace_back(hi.memInfo->cid, hi.memInfo->cIsFw, hi.memInfo->rpos, hi.memInfo->memlen, hi.memInfo->cpos, hi.memInfo->cGlobalPos,
-        //                           hi.memInfo->clen, hi.memInfo->readEnd);
-        //auto memItr = std::prev(memCollection.end()); 
-        //newMemList.emplace_back(memItr, hi.tpos, hi.isFw);
+        } else {
+          //memCollection.emplace_back(hi.memInfo->cid, hi.memInfo->cIsFw, hi.memInfo->rpos, hi.memInfo->memlen, hi.memInfo->cpos, hi.memInfo->cGlobalPos,
+          //                           hi.memInfo->clen, hi.memInfo->readEnd);
+          //auto memItr = std::prev(memCollection.end()); 
+          //newMemList.emplace_back(memItr, hi.tpos, hi.isFw);
 
-        newMemList.emplace_back(hi.memInfo, hi.tpos, hi.isFw);
+          newMemList.emplace_back(hi.memInfo, hi.tpos, hi.isFw);
+        }
+        prev_qposi = qposi;
+        prev_rposi = rposi;
       }
-      prev_qposi = qposi;
-      prev_rposi = rposi;
-    }
-    auto before = memList.size();
-    if (memList.size() != newMemList.size()) {
-      trMem.second = newMemList;
-      memList = trMem.second;
-    }
-    auto after = newMemList.size();
-    if (verbose and after != before){
-      std::cerr<< before << "\t" << after << "\t"<< memList.size() << "\n";
-    }
-    if (verbose) {
-      std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
-      for (auto &m : memList) {
+      auto before = memList.size();
+      if (memList.size() != newMemList.size()) {
+        trMem.second = newMemList;
+        memList = trMem.second;
+      }
+      auto after = newMemList.size();
+      if (verbose and after != before) {
+        std::cerr<< before << "\t" << after << "\t"<< memList.size() << "\n";
+      }
+      if (verbose) {
+        std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
+        for (auto &m : memList) {
         std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.rpos << " len:" << m.extendedlen
               << "\n";
+        }
       }
-    }
     }
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
@@ -1084,6 +1080,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         int32_t qdiff = isFw ? qposi - qposj :
                (qposj - hj.extendedlen) - (qposi - hi.extendedlen);
         int32_t rdiff = rposi - rposj;
+
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
         //To fix cases where there are repetting sequences in the read or reference
         int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
@@ -1155,10 +1152,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         }
         memIndicesInReverse.push_back(bestChainEnd);
         if (shouldBeAdded) {
-          memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw));
+          memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw, readLen));
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
             memClusters[tid][0].addMem(memList[*it].memInfo, memList[*it].tpos,
-                                       memList[*it].extendedlen, memList[*it].rpos);
+                                       memList[*it].extendedlen, memList[*it].rpos, isFw);
           }
           memClusters[tid][0].coverage = bestScore;
           if (memClusters[tid][0].coverage == readLen)

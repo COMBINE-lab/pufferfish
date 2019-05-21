@@ -21,7 +21,15 @@ using HitCounters = util::HitCounters;
 struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
 };
-using AlnCacheMap = tsl::hopscotch_map<uint64_t, int32_t, PassthroughHash>;
+struct AlignmentResult {
+  AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn) : 
+      score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn) {}
+  AlignmentResult() : score(0), cigar(""), openGapLen(0) {}
+  int32_t score;
+  std::string cigar;
+  uint32_t openGapLen;
+};
+using AlnCacheMap = tsl::hopscotch_map<uint64_t, AlignmentResult, PassthroughHash>;
 
 class PufferfishAligner {
 public:
@@ -40,7 +48,7 @@ public:
 		alnCacheRight.reserve(32);
 	};
 	int32_t calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, HitCounters& hctr, bool verbose);
-	int32_t alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
+	AlignmentResult alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
 	void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
 private:
 	compact::vector<uint64_t, 2>& allRefSeq;
