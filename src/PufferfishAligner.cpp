@@ -1242,9 +1242,7 @@ void processReadsPair(paired_parser *parser,
       // The only way to get it right is with non-heuristic chaining
       // verbose = rpair.first.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
       //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
-
-
-      //readLen = rpair.first.seq.length() ;
+      
       bool lh = memCollector(rpair.first.seq,
                               leftHits,
                               mopts->maxSpliceGap,
@@ -1253,11 +1251,6 @@ void processReadsPair(paired_parser *parser,
                               mopts->heuristicChaining,
                               mopts->mergeMems,
                               verbose);
-          /*verbose = rpair.first.name == "mason_sample1.fasta.000001119/1" or rpair.second.name == "mason_sample1.fasta.000001119/1";
-          if (verbose)
-            for (auto hit : leftHits)
-              std::cerr<< txpNames[hit.first] << "\n";
-          verbose = false;*/
       bool rh = memCollector(rpair.second.seq,
                                rightHits,
                                mopts->maxSpliceGap,
@@ -1291,10 +1284,6 @@ void processReadsPair(paired_parser *parser,
                            mopts->noOrphan,
                            pfi,
                            verbose);
-          /*if (verbose)
-            for (auto hit : jointHits)
-              std::cerr<< "-" << txpNames[hit.tid] << "\n";
-          verbose = false;*/
       //} else {
       //ignore orphans for now
       //}

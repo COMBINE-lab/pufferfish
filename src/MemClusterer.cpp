@@ -1113,6 +1113,9 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
           numRounds--;
           if (numRounds <= 0) { break; }
         }
+        // If the last two hits are too far from each other, we are sure that 
+        // every other hit will be even further since the mems are sorted
+        if (rdiff > readLen*2) { break; }
         // Mohsen: This heuristic hurts the accuracy of the chain in the case of this read:
         // TGAACGCTCTATGATGTCAGCCTACGAGCGCTCTATGATGTTAGCCTACGAGCGCTCTATGATGTCCCCTATGGCTGAGCGCTCTATGATGTCAGCTTAT
         // from Polyester simalted sample aligning to the human transcriptome
@@ -1126,7 +1129,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         bestChainEndList.push_back(i);
       }
     }
-
     // Do backtracking
     std::vector<bool> seen(f.size());
     for (uint64_t i = 0; i < seen.size(); i++) seen[i] = false;
