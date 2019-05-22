@@ -660,6 +660,7 @@ inline uint32_t writeAlignmentsToStream(
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
               << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
+              //<< "100M" << '\t'
               //<< qa.cigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.matePos + 1 << '\t'                      // PNEXT
@@ -676,6 +677,7 @@ inline uint32_t writeAlignmentsToStream(
               << qa.matePos + 1 << '\t'                      // POS (1-based)
               << 1 << '\t'                                   // MAPQ
               << (justMappings ? cigarStr2.c_str() : qa.mateCigar) << '\t'                   // CIGAR
+              //<< "100M" << '\t'
               //<< qa.mateCigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.pos + 1 << '\t'                          // PNEXT
@@ -764,6 +766,7 @@ inline uint32_t writeAlignmentsToStream(
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
               << (justMappings ? (*cigarStr).c_str() : qa.cigar) << '\t'                   // CIGAR
+              //<< "100M" << '\t' 
               << '=' << '\t'                                 // RNEXT
               << /* qa.matePos */ qa.pos + 1 << '\t'                      // PNEXT
               << 0 << '\t'                                     // TLEN
