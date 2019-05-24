@@ -390,9 +390,9 @@ std::string cigar2str(const ksw_extz_t *ez) {
     return cigar;
 }
 
-uint32_t addCigar(util::cigarGenerator& cigarGen, ksw_extz_t ez, bool beginGap) {
-  uint32_t insertionDeletion = 0;
+int32_t addCigar(util::cigarGenerator& cigarGen, ksw_extz_t ez, bool beginGap) {
   if (beginGap) {
+    int32_t insertionDeletion = 0;
     for (int i = 0; i < ez.n_cigar; ++i) {
 	    std::string cigar_type = "";
 	    if ((ez.cigar[i] & 0xf) == 0) cigar_type = "M";
@@ -400,16 +400,18 @@ uint32_t addCigar(util::cigarGenerator& cigarGen, ksw_extz_t ez, bool beginGap) 
 	    if ((ez.cigar[i] & 0xf) == 2) { cigar_type = "D"; insertionDeletion -= ez.cigar[i] >> 4; }
 	    cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
     }
+    return insertionDeletion;
   } else {
+   uint32_t gapSize = 0;
    for (int i = ez.n_cigar-1; i >= 0; --i) {
 	    std::string cigar_type = "";
-	    if ((ez.cigar[i] & 0xf) == 0) { cigar_type = "M"; }
-	    if ((ez.cigar[i] & 0xf) == 1) { cigar_type = "I"; insertionDeletion += ez.cigar[i] >> 4; }
-	    if ((ez.cigar[i] & 0xf) == 2) { cigar_type = "D"; insertionDeletion -= ez.cigar[i] >> 4; }
+	    if ((ez.cigar[i] & 0xf) == 0) { cigar_type = "M"; gapSize += ez.cigar[i] >> 4; }
+	    if ((ez.cigar[i] & 0xf) == 1) { cigar_type = "I"; }
+	    if ((ez.cigar[i] & 0xf) == 2) { cigar_type = "D"; gapSize += ez.cigar[i] >> 4; }
 	    cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
     }
+    return gapSize;
   }
-  return insertionDeletion;
 }
 
 std::string getRefSeq(compact::vector<uint64_t,2>& refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
@@ -504,7 +506,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
     if (hit != alnCache.end()) {
     	alignmentScore = hit->second.score;
       cigar = hit->second.cigar;
-      //openGapLen = hit->second.openGapLen;
+      openGapLen = hit->second.openGapLen;
       alignment = alignmentScore;
    	}
   }
@@ -649,7 +651,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
               ksw_reset_extz(&ez);
 						  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
 						  score = std::max(ez.mqe, ez.mte);
-              auto insertionDeletion = addCigar(cigarGen, ez, false);
+              openGapLen = addCigar(cigarGen, ez, false);
 						  if (verbose) {
 							  std::cerr<<"It's a gap at the beginning, so the reverse read from "<<lastHitEnd_read + 1<< " is\t"<<readSeq<<"\n";
 							  std::cerr<<"The reverse reference from " << refStartSeq << " with the length " << refGapLength << " is\t" << tseq << "\n";
@@ -658,6 +660,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
 								  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
                 std::cerr<<"\n"<< score << "\n";
 						  }
+              int32_t insertionDeletion = 0; //TODO should be fixed for cigars
               if (readGapLength > refGapLength + insertionDeletion) {
                 int32_t startHang = readGapLength - refGapLength - insertionDeletion;
                 alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(startHang);
@@ -793,7 +796,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
       AlignmentResult aln;
       aln.score = alignmentScore;
       aln.cigar = cigar;
-      //aln.openGapLen = openGapLen;
+      aln.openGapLen = openGapLen;
      	alnCache[hashKey] = aln;
     }
 	} else {
@@ -807,7 +810,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
   //if (alignmentScore > 150 and alignment > alignmentScore)// != and std::abs(alignmentScore - alignment) > 5)
   //  std::cerr<< alignmentScore << " " << alignment << " " << original_read << "\n";
 
-	return AlignmentResult{alignmentScore, cigar};
+	return AlignmentResult{alignmentScore, cigar, openGapLen};
 }
 
 int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
@@ -824,7 +827,7 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain, jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, verbose);
 		jointHit.orphanClust()->coverage = ar.score > (optFrac * maxScore) ? ar.score : std::numeric_limits<decltype(ar.score)>::min();
     jointHit.orphanClust()->cigar = ar.cigar;
-    //jointHit.orphanClust()->openGapLen = ar.openGapLen;
+    jointHit.orphanClust()->openGapLen = ar.openGapLen;
 		jointHit.alignmentScore = jointHit.orphanClust()->coverage;
 		return jointHit.orphanClust()->coverage;
 	}
@@ -840,10 +843,10 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain, jointHit.rightClust->isFw, tid, alnCacheRight, hctr,  verbose);
 		jointHit.leftClust->coverage = ar_left.score;
     jointHit.leftClust->cigar = ar_left.cigar;
-    //jointHit.leftClust->openGapLen = ar_left.openGapLen;
+    jointHit.leftClust->openGapLen = ar_left.openGapLen;
 		jointHit.rightClust->coverage = ar_right.score;
 		jointHit.rightClust->cigar = ar_right.cigar;
-    //jointHit.rightClust->openGapLen = ar_right.openGapLen;
+    jointHit.rightClust->openGapLen = ar_right.openGapLen;
     auto score_left = ar_left.score;
     auto score_right = ar_right.score;
 		int32_t total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
@@ -1355,7 +1358,7 @@ void processReadsPair(paired_parser *parser,
         if (mopts->strictFilter) {
           int myctr = 0;
           for(auto& jointHit : jointHits) {
-            if(jointHit.orphanClust()->coverage < bestScore)
+            if(jointHit.coverage() < bestScore)
               scores[myctr] = std::numeric_limits<int32_t>::min();
             myctr++;
           }
@@ -1470,9 +1473,9 @@ void processReadsPair(paired_parser *parser,
 				} else if (mopts->salmonOut) {
 					writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
 				} else if (jointAlignments.size() > 0) {
-					writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, false);//mopts->justMap
+					writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap);
 				} else if (jointAlignments.size() == 0) {
-					writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, false);//mopts->justMap
+					writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap);
 			  }
 			}
 
@@ -1745,11 +1748,11 @@ void processReadsSingle(single_parser *parser,
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
-                                              !mopts->noOrphan, true);//mopts->justMap);
+                                              !mopts->noOrphan, mopts->justMap);
             } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
                 writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
-                                                      sstream, !mopts->noOrphan, true);//mopts->justMap);
+                                                      sstream, !mopts->noOrphan, mopts->justMap);
             }
 
             // write them on cmd

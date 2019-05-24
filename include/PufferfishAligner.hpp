@@ -22,12 +22,12 @@ struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
 };
 struct AlignmentResult {
-  AlignmentResult(int32_t scoreIn, std::string cigarIn) : 
-      score(scoreIn), cigar(cigarIn) {}
-  AlignmentResult() : score(0), cigar("") {}
+  AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn) : 
+      score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn) {}
+  AlignmentResult() : score(0), cigar(""), openGapLen(0) {}
   int32_t score;
   std::string cigar;
-  //uint32_t openGapLen;
+  uint32_t openGapLen;
 };
 using AlnCacheMap = tsl::hopscotch_map<uint64_t, AlignmentResult, PassthroughHash>;
 
