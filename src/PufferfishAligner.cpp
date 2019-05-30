@@ -441,6 +441,7 @@ std::string getRefSeq(compact::vector<uint64_t,2>& refseq, uint64_t refAccPos, s
 
 AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, 
                                     size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose) {
+                                    //size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, int& cigar_fixed_count, bool verbose) {
 	uint32_t refExtLength = mopts->refExtendLength;
 	bool firstMem = true;
 	int32_t lastHitEnd_read = -1;
@@ -466,7 +467,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
 	if ( !isFw )
 		read = util::reverseComplement(read);
 
-	int32_t keyLen;
+	int32_t keyLen = 0;
 	char* refSeq;
 	std::string tseq = "";
 
@@ -503,13 +504,14 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
     // see if we have this hash
     auto hit = alnCache.find(hashKey);
     // if so, we know the alignment score
-    if (hit != alnCache.end()) {
+    if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
     	alignmentScore = hit->second.score;
       cigar = hit->second.cigar;
       openGapLen = hit->second.openGapLen;
       alignment = alignmentScore;
    	}
   }
+  
 	if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
 		if (perfectChain) {
 			alignmentScore = readLen * mopts->matchScore;
@@ -535,6 +537,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
 
 			aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
 			alignmentScore = std::max(ez.mqe, ez.mte);
+      openGapLen = addCigar(cigarGen, ez, false);
 			if (verbose) {
 				std::cerr << "Original read seq:\t" << original_read << "\n";
 				std::cerr << "Total alignment with the score\t"<< alignment <<"\t from position\t" << readStart << "\t on the read:\n" << readSeq <<"\n";
@@ -638,10 +641,34 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
             std::cerr << mems[0].rpos << "\t" << readLen << "\t" << rpos  << "\t" << memlen << "\n";
 				  }
 				  if (firstMem) {
+            /*if (readGapLength > refGapLength) {
+              uint32_t startHang = readGapLength - refGapLength;
+              alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(startHang);
+              cigarGen.add_item(startHang, "I");
+            }
+            if (refGapLength > 0) {
+              if (readGapLength > refGapLength) {
+                readGapLength = refGapLength;
+              }
+				      readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+						  std::reverse(readSeq.begin(), readSeq.end());
+					    auto refStartSeq = lastHitEnd_ref > refExtLength + refGapLength ?  lastHitEnd_ref + 1 - refExtLength - refGapLength : 0;
+              refGapLength = lastHitEnd_ref - refStartSeq;
+						  tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+						  std::reverse(tseq.begin(), tseq.end());
+						  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+						  score = std::max(ez.mqe, ez.mte);
+              addCigar(cigarGen, ez, false);
+            }*/
 					  ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
 					  // Not extending the reference beyond its beginning
 					  auto refStartSeq = lastHitEnd_ref > refExtLength ?  lastHitEnd_ref + 1 - refExtLength : 0;
 					  refGapLength = currHitStart_ref - refStartSeq;
+            if (lastHitEnd_ref <= readGapLength) {
+              AlignmentResult aln;
+              aln.score = -1;
+              return aln;
+            }
 					  // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
 					  if (refGapLength > 0) {
 						  // We reverse the strings because of ksw force alignment from the beginning of the sequences
@@ -759,7 +786,14 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
 		  if (lastHitEnd_read  < (int32_t)readLen - 1) {
 		    auto readGapLength = readLen - 1 - lastHitEnd_read;
 			  auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ? readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
-
+        if (lastHitEnd_ref + readGapLength  > refTotalLength) {
+          AlignmentResult aln;
+          aln.score = -1;
+          aln.cigar = cigar;
+          aln.openGapLen = openGapLen;
+          return aln;
+        }
+        
 			  // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
 			  if (refGapLength != 0) {
 				  auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
@@ -789,7 +823,10 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
         }
 		  }
     }
-    cigar = cigarGen.get_cigar(readLen);
+    bool cigar_fixed{false};
+    cigar = cigarGen.get_cigar(readLen, cigar_fixed);
+    //std::cerr << cigar << " " << readLen << "\n";
+    //if (cigar_fixed) cigar_fixed_count++;
     if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
 	  	if (!didHash)
 				MetroHash64::Hash(reinterpret_cast<uint8_t*>(refSeq), keyLen, reinterpret_cast<uint8_t*>(&hashKey), 0);
@@ -813,6 +850,7 @@ AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util:
 	return AlignmentResult{alignmentScore, cigar, openGapLen};
 }
 
+//int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, HitCounters& hctr, int& cigar_fixed_count, bool verbose) {
 int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
 	auto tid = jointHit.tid;
 	double optFrac{mopts->minScoreFraction};
@@ -824,6 +862,7 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 
 		std::string read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
 		int32_t maxScore = mopts->matchScore * read_orphan.length();
+		//AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain, jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, cigar_fixed_count, verbose);
 		AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain, jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, verbose);
 		jointHit.orphanClust()->coverage = ar.score > (optFrac * maxScore) ? ar.score : std::numeric_limits<decltype(ar.score)>::min();
     jointHit.orphanClust()->cigar = ar.cigar;
@@ -837,19 +876,25 @@ int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::stri
 		int32_t maxRightScore = mopts->matchScore * read_right.length();
 		if (verbose)
 			std::cerr<<"left\n";
+		//AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain, jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, cigar_fixed_count, verbose);
 		AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain, jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, verbose);
 		if (verbose)
 			std::cerr<<"right\n";
-		AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain, jointHit.rightClust->isFw, tid, alnCacheRight, hctr,  verbose);
-		jointHit.leftClust->coverage = ar_left.score;
-    jointHit.leftClust->cigar = ar_left.cigar;
-    jointHit.leftClust->openGapLen = ar_left.openGapLen;
-		jointHit.rightClust->coverage = ar_right.score;
-		jointHit.rightClust->cigar = ar_right.cigar;
-    jointHit.rightClust->openGapLen = ar_right.openGapLen;
+		//AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain, jointHit.rightClust->isFw, tid, alnCacheRight, hctr, cigar_fixed_count, verbose);
+		AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain, jointHit.rightClust->isFw, tid, alnCacheRight, hctr, verbose);
     auto score_left = ar_left.score;
     auto score_right = ar_right.score;
-		int32_t total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
+		//jointHit.leftClust->coverage = ar_left.score;
+		jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score : std::numeric_limits<decltype(score_left)>::min();
+    jointHit.leftClust->cigar = ar_left.cigar;
+		jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score : std::numeric_limits<decltype(score_left)>::min();
+    jointHit.leftClust->openGapLen = ar_left.openGapLen;
+		//jointHit.rightClust->coverage = ar_right.score;
+		jointHit.rightClust->coverage = ar_right.score > optFrac * maxRightScore ? ar_right.score : std::numeric_limits<decltype(score_right)>::min();
+		jointHit.rightClust->cigar = ar_right.cigar;
+    jointHit.rightClust->openGapLen = ar_right.openGapLen;
+    int32_t total_score = jointHit.leftClust->coverage + jointHit.rightClust->coverage;
+    //int32_t total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
 		jointHit.alignmentScore = total_score;
 		return total_score;
 	}
@@ -1208,6 +1253,8 @@ void processReadsPair(paired_parser *parser,
                       MutexT *iomutex,
                       std::shared_ptr<spdlog::logger> outQueue,
                       HitCounters &hctr,
+                      std::unordered_set<std::string> gene_names,
+                      //int& cigar_fixed_count,
                       AlignmentOpts *mopts) {
   MemCollector<PufferfishIndexT> memCollector(&pfi);
 
@@ -1258,7 +1305,7 @@ void processReadsPair(paired_parser *parser,
       leftHits.clear();
       rightHits.clear();
       memCollector.clear();
-
+      bool filterGenomics = mopts->filterGenomics;
       // There is no way to revocer the following case other than aligning indels
       //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
       //          rpair.second.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT";
@@ -1308,6 +1355,8 @@ void processReadsPair(paired_parser *parser,
                            mopts->noOrphan,
                            pfi,
                            verbose);
+
+      //verbose = rpair.first.name == "SRR2964092.289888";
       //} else {
       //ignore orphans for now
       //}
@@ -1328,12 +1377,36 @@ void processReadsPair(paired_parser *parser,
 				std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
 				size_t idx{0};
 
+        bool bestScoreGenomic{false};
+        bool bestScoreTxpomic{false};
         std::map<int32_t, std::vector<int32_t>> transcript_set;
         for (auto &jointHit : jointHits) {
+          //auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, cigar_fixed_count, verbose);
           auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, verbose);
           if (hitScore < 0)
             hitScore = std::numeric_limits<int32_t>::min();
           scores[idx] = hitScore;
+
+          std::string ref_name = txpNames[jointHit.tid];
+          if (filterGenomics) {
+            if (hitScore > bestScore ) {
+              if (gene_names.find(ref_name) != gene_names.end()) {
+                bestScoreGenomic = true;
+                bestScoreTxpomic = false;
+              } else {
+                bestScoreGenomic = false;
+                bestScoreTxpomic = true;
+              }
+            } else if (hitScore == bestScore) {
+              if (gene_names.find(ref_name) != gene_names.end()) 
+                bestScoreGenomic = true;
+              else
+                bestScoreTxpomic = true;
+            }
+            // Genomic alignments should not be reported in this case
+            if (gene_names.find(ref_name) != gene_names.end())
+              scores[idx] = std::numeric_limits<int32_t>::min();
+          }
           bestScore = (hitScore > bestScore) ? hitScore : bestScore;
 
           if (verbose)
@@ -1354,12 +1427,24 @@ void processReadsPair(paired_parser *parser,
           }
           ++idx;
         }
+        if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
+          // This read is likely come from the genome and should be discarded from txptomic alignments
+          continue;
+        }
 
-        if (mopts->strictFilter) {
+        if (mopts->strictFilter or mopts->primaryAlignment) {
+          bool primaryDetected = false;
           int myctr = 0;
-          for(auto& jointHit : jointHits) {
-            if(jointHit.coverage() < bestScore)
+          for (auto& jointHit : jointHits) {
+            if (primaryDetected and mopts->primaryAlignment) {
               scores[myctr] = std::numeric_limits<int32_t>::min();
+            }
+            if (jointHit.coverage() < bestScore)
+              scores[myctr] = std::numeric_limits<int32_t>::min();
+            else {
+              primaryDetected = true;
+            }
+
             myctr++;
           }
         }
@@ -1524,6 +1609,7 @@ void processReadsSingle(single_parser *parser,
                         MutexT *iomutex,
                         std::shared_ptr<spdlog::logger> outQueue,
                         HitCounters &hctr,
+                        std::unordered_set<std::string> gene_names,
                         AlignmentOpts *mopts) {
     MemCollector<PufferfishIndexT> memCollector(&pfi);
 
@@ -1656,6 +1742,8 @@ void processReadsSingle(single_parser *parser,
 					//bool verbose = read.name == "read100154/ENST00000358779.9:ENSG00000008128.22;mate1:1983-2082;mate2:2149-2248";
 					//bool verbose = read.name == "read16599250/ENST00000540351.1:ENSG00000150991.14;mate1:210-309;mate2:371-470" and txpNames[jointHit.tid] == "ENST00000541645.1:ENSG00000150991.14";
 
+          int dummy;
+					//int32_t hitScore = puffaligner.calculateAlignments(read.seq, read.seq, jointHit, hctr, dummy, verbose);
 					int32_t hitScore = puffaligner.calculateAlignments(read.seq, read.seq, jointHit, hctr, verbose);
 					scores[idx] = hitScore;
 					++idx;
@@ -1807,6 +1895,8 @@ bool spawnProcessReadsthreads(
         MutexT &iomutex,
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
+        std::unordered_set<std::string> gene_names,
+        //int& cigar_fixed_count,
         AlignmentOpts *mopts) {
 
     std::vector<std::thread> threads;
@@ -1819,6 +1909,8 @@ bool spawnProcessReadsthreads(
                              &iomutex,
                              outQueue,
                              std::ref(hctr),
+                             gene_names,
+                             //cigar_fixed_count,
                              mopts);
     }
     for (auto &t : threads) { t.join(); }
@@ -1834,6 +1926,7 @@ bool spawnProcessReadsthreads(
         MutexT &iomutex,
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
+        std::unordered_set<std::string> gene_names,
         AlignmentOpts *mopts) {
 
     std::vector<std::thread> threads;
@@ -1846,6 +1939,7 @@ bool spawnProcessReadsthreads(
                              &iomutex,
                              outQueue,
                              std::ref(hctr),
+                             gene_names,
                              mopts);
     }
     for (auto &t : threads) { t.join(); }
@@ -1883,12 +1977,28 @@ bool alignReads(
         std::shared_ptr<spdlog::logger> consoleLog,
         AlignmentOpts *mopts) {
 
-
     std::streambuf *outBuf;
     std::ofstream outFile;
     std::unique_ptr<std::ostream> outStream{nullptr};
     //bool haveOutputFile{false} ;
     std::shared_ptr<spdlog::logger> outLog{nullptr};
+    
+    std::unordered_set<std::string> gene_names;
+    if (mopts->filterGenomics) {
+      std::ifstream gene_names_file;
+      std::string gene_name;
+      gene_names_file.open(mopts->genesNamesFile);
+      if (!gene_names_file) {
+        std::cerr<< "Genomic file does not exist\n";
+        exit(1);
+      } 
+      while ( gene_names_file >> gene_name ) {
+        gene_names.insert(gene_name);
+      }
+      gene_names_file.close();
+    }
+
+
     if (!mopts->noOutput) {
         if (mopts->outname == "-") {
             outBuf = std::cout.rdbuf();
@@ -1923,7 +2033,7 @@ bool alignReads(
         if (mopts->krakOut || mopts->salmonOut) {
             writeKrakOutHeader(pfi, outLog, mopts);
         } else {
-            writeSAMHeader(pfi, outLog);
+            writeSAMHeader(pfi, outLog, mopts->filterGenomics, gene_names);
         }
     }
 
@@ -1950,10 +2060,11 @@ bool alignReads(
         uint32_t nprod = (read1Vec.size() > 1) ? 2 : 1;
         pairParserPtr.reset(new paired_parser(read1Vec, read2Vec, nthread, nprod, chunkSize));
         pairParserPtr->start();
-
+        int cigar_fixed_count{0};
         spawnProcessReadsthreads(nthread, pairParserPtr.get(), pfi, iomutex,
-                                 outLog, hctrs, mopts);
-
+                                 outLog, hctrs, gene_names, mopts);
+                                 //outLog, hctrs, gene_names, cigar_fixed_count, mopts);
+        consoleLog->info("Number of cigar strings which are fixed: {}", (cigar_fixed_count));
         pairParserPtr->stop();
         consoleLog->info("flushing output queue.");
         printAlignmentSummary(hctrs, consoleLog);
@@ -1969,7 +2080,7 @@ bool alignReads(
         singleParserPtr->start();
 
         spawnProcessReadsthreads(nthread, singleParserPtr.get(), pfi, iomutex,
-                                 outLog, hctrs, mopts);
+                                 outLog, hctrs, gene_names, mopts);
 
         singleParserPtr->stop();
         consoleLog->info("flushing output queue.");
@@ -1997,7 +2108,6 @@ int pufferfishAligner(AlignmentOpts &alnargs) {
     if (indexType == "dense") {
         PufferfishIndex pfi(indexDir);
         success = alignReads(pfi, consoleLog, &alnargs);
-
     } else if (indexType == "sparse") {
         PufferfishSparseIndex pfi(indexDir);
         success = alignReads(pfi, consoleLog, &alnargs);

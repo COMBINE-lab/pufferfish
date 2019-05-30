@@ -71,6 +71,9 @@ public:
   bool heuristicChaining{true};
   bool mergeMems{true};
   bool genomicReads{false};
+  std::string genesNamesFile{""};
+  bool filterGenomics{false};
+  bool primaryAlignment{false};
 };
 
 

@@ -189,7 +189,8 @@ struct cigarGenerator {
     cigar_types.push_back(type);
   }
 
-  std::string get_cigar(uint32_t readLen) {
+  std::string get_cigar(uint32_t readLen, bool& cigar_fixed) {
+    cigar_fixed = false;
     std::string cigar = "";
     if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0)
       return "NOT VALID";
@@ -200,10 +201,10 @@ struct cigarGenerator {
     uint32_t count = cigar_counts[0];
 
     if (cigar_counts.size() == 1) {
-      cigar_length = cigar_counts[0];
-      count = cigar_counts[0];
-      if (cigar_length < readLen)
-        count += readLen - cigar_length; 
+      if (count != readLen) {
+        count = readLen; 
+        cigar_fixed = true;
+      }
       cigar += std::to_string(count);
       cigar += cigar_types[0];
       return cigar;
@@ -224,10 +225,19 @@ struct cigarGenerator {
         type = cigar_types[i];
       }
       if (i == cigar_counts.size()-1) {
-        if (cigar_length < readLen)
-          count += readLen - cigar_length; 
         cigar += std::to_string(count);
         cigar += type;
+        if (cigar_length < readLen) {
+          cigar_fixed = true;
+          count = readLen - cigar_length;
+          cigar += std::to_string(count);
+          cigar += "I";
+        } else if (cigar_length > readLen) {
+          cigar_fixed = true;
+          count = cigar_length - readLen;
+          cigar += std::to_string(count);
+          cigar += "I";
+        }
       }
     }
     return cigar;

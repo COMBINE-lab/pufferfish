@@ -103,7 +103,7 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
 }
 
 template <typename IndexT>
-inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
+inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, bool filterGenomics, std::unordered_set<std::string> gene_names) {
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
@@ -111,10 +111,13 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   auto& txpLens = pfi.getRefLengths();
 
   auto numRef = txpNames.size();
+
   // for now go with constant length
   // TODO read reference information
   // while reading the index
   for (size_t i = 0; i < numRef; ++i) {
+    if (filterGenomics and gene_names.find(txpNames[i]) != gene_names.end())
+      continue; 
     hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
   }
   // Eventually output a @PG line

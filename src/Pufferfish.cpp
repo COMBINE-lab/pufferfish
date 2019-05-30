@@ -137,6 +137,12 @@ int main(int argc, char* argv[]) {
                     (option("--mergeMems").set(alignmentOpt.mergeMems, true)) % "Merge mems before finding the best chains",
 					          (option("--strictFilter").set(alignmentOpt.strictFilter, true)) % "keep only the hits with best score for each read",
 					          (option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Aligning genomic dna-seq reads, not RNA-seq reads",
+					          (option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true)) % "Reporting at most one alingmnent per read",
+					          (
+                      ((option("--filterGenomics").set(alignmentOpt.filterGenomics, true)) % "Filter genomic alignments while mapping to both genome and txptome")
+                      &
+                      ((required("--genesNamesFile") & value("genes names file", alignmentOpt.genesNamesFile)) % "path to the file containing gene names")
+                    ),
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "minScoreFraction"
   );
 
