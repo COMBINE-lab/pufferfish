@@ -40,9 +40,8 @@ private:
   std::vector<util::Position> contigTable_;
   std::vector<uint64_t> contigOffsets_;
   uint64_t numContigs_{0};
-  bit_vector_t contigBoundary_;
-  sdsl::bit_vector::rank_1_type contigRank_;
-  sdsl::bit_vector::select_1_type contigSelect_;
+  compact::vector<uint64_t, 1> contigBoundary_;
+  //bit_vector_t contigBoundary_;
   std::unique_ptr<rank9sel> rankSelDict{nullptr};
 
   seq_vector_t seq_;

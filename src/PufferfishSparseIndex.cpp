@@ -80,9 +80,8 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
     std::string bfile = indexDir + "/rank.bin";
-    sdsl::load_from_file(contigBoundary_, bfile);
-    contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
-    contigSelect_ = decltype(contigBoundary_)::select_1_type(&contigBoundary_);
+    contigBoundary_.deserialize(bfile, false);
+    rankSelDict.reset(new rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size()));
   }
 
   {
@@ -163,14 +162,13 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
     -> util::ProjectedHits {
   using IterT = std::vector<util::Position>::iterator;
   if (pos <= lastSeqPos_) {
-    uint64_t twopos = pos << 1;
-    uint64_t fk = seq_.get_int(twopos, twok_);
+    uint64_t fk = seq_.get_int(pos, k_);
     // say how the kmer fk matches mer; either
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = contigRank_(pos);
+      auto rank = rankSelDict->rank(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
       auto rankInterval =
@@ -194,8 +192,8 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
-        sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
-        contigEnd = contigSelect_(rank + 1);
+        sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
+        contigEnd = rankSelDict->select(rank);
         qc.prevRank = rank;
         qc.contigStart = sp;
         qc.contigEnd = contigEnd;
@@ -247,14 +245,13 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
 
   using IterT = std::vector<util::Position>::iterator;
   if (pos <= lastSeqPos_) {
-    uint64_t twopos = pos << 1;
-    uint64_t fk = seq_.get_int(twopos, twok_);
+    uint64_t fk = seq_.get_int(pos, k_);
     // say how the kmer fk matches mer; either
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = contigRank_(pos);
+      auto rank = rankSelDict->rank(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
       auto rankInterval =
@@ -274,9 +271,9 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
       auto contigIterRange = contigRange(rank);
 
       // start position of this contig
-      uint64_t sp =
-          (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
-      uint64_t contigEnd = contigSelect_(rank + 1);
+      uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
+      uint64_t contigEnd = rankSelDict->select(rank);
+
 
       // relative offset of this k-mer in the contig
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
