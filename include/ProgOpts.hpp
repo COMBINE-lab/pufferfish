@@ -73,6 +73,7 @@ public:
   bool genomicReads{false};
   std::string genesNamesFile{""};
   bool filterGenomics{false};
+  bool filterMicrobiom{false};
   bool primaryAlignment{false};
 };
 

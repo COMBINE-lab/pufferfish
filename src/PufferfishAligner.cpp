@@ -1334,6 +1334,8 @@ void processReadsPair(paired_parser *parser,
       rightHits.clear();
       memCollector.clear();
       bool filterGenomics = mopts->filterGenomics;
+      bool filterMicrobiom = mopts->filterMicrobiom;
+
       // There is no way to revocer the following case other than aligning indels
       //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
       //          rpair.second.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT";
@@ -1415,7 +1417,7 @@ void processReadsPair(paired_parser *parser,
           scores[idx] = hitScore;
 
           std::string ref_name = txpNames[jointHit.tid];
-          if (filterGenomics) {
+          if (filterGenomics or filterMicrobiom) {
             if (hitScore > bestScore ) {
               if (gene_names.find(ref_name) != gene_names.end()) {
                 bestScoreGenomic = true;
@@ -1458,6 +1460,9 @@ void processReadsPair(paired_parser *parser,
         }
         if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
           // This read is likely come from the genome and should be discarded from txptomic alignments
+          continue;
+        }
+        if (filterMicrobiom and bestScoreGenomic) {
           continue;
         }
 
@@ -1685,6 +1690,8 @@ void processReadsSingle(single_parser *parser,
 
 
       bool filterGenomics = mopts->filterGenomics;
+      bool filterMicrobiom = mopts->filterMicrobiom;
+
       bool lh = memCollector(read.seq,
                             leftHits,
                             mopts->maxSpliceGap,
@@ -1776,7 +1783,7 @@ void processReadsSingle(single_parser *parser,
 					scores[idx] = hitScore;
 
           std::string ref_name = txpNames[jointHit.tid];
-          if (filterGenomics) {
+          if (filterGenomics or filterMicrobiom) {
             if (hitScore > bestScore ) {
               if (gene_names.find(ref_name) != gene_names.end()) {
                 bestScoreGenomic = true;
@@ -1817,8 +1824,12 @@ void processReadsSingle(single_parser *parser,
           }
 					++idx;
 				}
+
         if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
           // This read is likely come from the genome and should be discarded from txptomic alignments
+          continue;
+        } 
+        if (filterMicrobiom and bestScoreGenomic) {
           continue;
         }
 
@@ -2047,7 +2058,7 @@ bool alignReads(
     std::shared_ptr<spdlog::logger> outLog{nullptr};
     
     std::unordered_set<std::string> gene_names;
-    if (mopts->filterGenomics) {
+    if (mopts->filterGenomics or mopts->filterMicrobiom) {
       std::ifstream gene_names_file;
       std::string gene_name;
       gene_names_file.open(mopts->genesNamesFile);
@@ -2096,7 +2107,7 @@ bool alignReads(
         if (mopts->krakOut || mopts->salmonOut) {
             writeKrakOutHeader(pfi, outLog, mopts);
         } else {
-            writeSAMHeader(pfi, outLog, mopts->filterGenomics, gene_names);
+            writeSAMHeader(pfi, outLog, mopts->filterGenomics or mopts->filterMicrobiom, gene_names);
         }
     }
 

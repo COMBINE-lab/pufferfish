@@ -138,11 +138,9 @@ int main(int argc, char* argv[]) {
 					          (option("--strictFilter").set(alignmentOpt.strictFilter, true)) % "keep only the hits with best score for each read",
 					          (option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Aligning genomic dna-seq reads, not RNA-seq reads",
 					          (option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true)) % "Reporting at most one alingmnent per read",
-					          (
-                      ((option("--filterGenomics").set(alignmentOpt.filterGenomics, true)) % "Filter genomic alignments while mapping to both genome and txptome")
-                      &
-                      ((required("--genesNamesFile") & value("genes names file", alignmentOpt.genesNamesFile)) % "path to the file containing gene names")
-                    ),
+                    (option("--filterGenomics").set(alignmentOpt.filterGenomics, true) & value("genes names file", alignmentOpt.genesNamesFile)) % 
+                         "Filter genomic alignments while mapping to both genome and txptome, please specify the path to the file containing gene names",
+                    (option("--filterMicrobiom").set(alignmentOpt.filterMicrobiom, true) & value("genes names file", alignmentOpt.genesNamesFile)) % "path to the file containing gene names",
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "minScoreFraction"
   );
 
