@@ -110,31 +110,31 @@ void printMemInfo(size_t tid,
 
 template<typename PufferfishIndexT>
 void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &leftMemClusters,
-                        std::vector<util::JointMems> &jointMemsList,
-                        uint32_t perfectCoverage,
-                        double coverageRatio,
-                        PufferfishIndexT &pfi,
-                        bool verbose) {
+                              std::vector<util::JointMems> &jointMemsList,
+                              uint32_t perfectCoverage,
+                              double coverageRatio,
+                              PufferfishIndexT &pfi,
+                              bool verbose) {
 
-  uint32_t maxCoverage{0};
-  for (auto &leftClustItr : leftMemClusters) {
-    // reference id
-    size_t tid = leftClustItr.first;
-    // left mem clusters
-    auto &lClusts = leftClustItr.second;
-    // Compare the left clusters to the right clusters to filter by positional constraints
-    std::vector<util::MemCluster> dummyCluster;
-    for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
-      auto totalCoverage = lclust->coverage;
-      if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage) {
-        jointMemsList.emplace_back(tid, lclust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
-        uint32_t currCoverage = jointMemsList.back().coverage();
-        if (maxCoverage < currCoverage) {
-          maxCoverage = currCoverage;
+    uint32_t maxCoverage{0};
+    for (auto &leftClustItr : leftMemClusters) {
+        // reference id
+        size_t tid = leftClustItr.first;
+        // left mem clusters
+        auto &lClusts = leftClustItr.second;
+        // Compare the left clusters to the right clusters to filter by positional constraints
+        std::vector<util::MemCluster> dummyCluster;
+        for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
+            auto totalCoverage = lclust->coverage;
+            if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage) {
+                jointMemsList.emplace_back(tid, lclust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
+                uint32_t currCoverage = jointMemsList.back().coverage();
+                if (maxCoverage < currCoverage) {
+                    maxCoverage = currCoverage;
+                }
+            }
         }
-      }
     }
-  }
 }
 
 
@@ -236,7 +236,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                         fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
                     }
                     if (fragmentLen < 0) {
-                        std::cerr<<"Fragment length cannot be smaller than zero!\n";
+                        std::cerr << "Fragment length cannot be smaller than zero!\n";
                         exit(1);
                     }
                     // FILTERING fragments with size smaller than maxFragmentLength
@@ -280,17 +280,17 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                 // left mem clusters
                 auto &Clusts = clustItr.second;
                 for (auto clust = Clusts.begin(); clust != Clusts.end(); clust++) {
-                  if (clust->coverage > coverageRatio * maxLeftOrRight) {
-                    if (isLeft) {
-                      jointMemsList.emplace_back(tid, clust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
-                    } else {
-                      jointMemsList.emplace_back(tid, dummyCluster.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
+                    if (clust->coverage > coverageRatio * maxLeftOrRight) {
+                        if (isLeft) {
+                            jointMemsList.emplace_back(tid, clust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
+                        } else {
+                            jointMemsList.emplace_back(tid, dummyCluster.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
+                        }
+                        uint32_t currCoverage = jointMemsList.back().coverage();
+                        if (maxCoverage < currCoverage) {
+                            maxCoverage = currCoverage;
+                        }
                     }
-                    uint32_t currCoverage = jointMemsList.back().coverage();
-                    if (maxCoverage < currCoverage) {
-                      maxCoverage = currCoverage;
-                    }
-                  }
                 }
             }
         };
@@ -303,10 +303,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
     }
 
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                           [&maxCoverage, coverageRatio](util::JointMems &pairedReadMems) -> bool {
-                                               return pairedReadMems.coverage() < coverageRatio * maxCoverage;
-                                           }),
-                            jointMemsList.end());
+                                       [&maxCoverage, coverageRatio](util::JointMems &pairedReadMems) -> bool {
+                                           return pairedReadMems.coverage() < coverageRatio * maxCoverage;
+                                       }),
+                        jointMemsList.end());
 
     // FILTER 2
     // filter read pairs that don't have enough base coverage
@@ -383,15 +383,15 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
             std::cerr << " -->" << jointMems.tid << " " << pfi.refName(jointMems.tid) << "\n\t\t";
             std::vector<util::MemCluster> dummyCluster;
             if (jointMems.leftClust != dummyCluster.end()) {
-              for (auto &cl : jointMems.leftClust->mems) {
-                std::cerr << cl.tpos << " ";
-              }
+                for (auto &cl : jointMems.leftClust->mems) {
+                    std::cerr << cl.tpos << " ";
+                }
             }
             std::cerr << "\n\t\t";
             if (jointMems.rightClust != dummyCluster.end()) {
-              for (auto &cl : jointMems.rightClust->mems) {
-                std::cerr << cl.tpos << " ";
-              }
+                for (auto &cl : jointMems.rightClust->mems) {
+                    std::cerr << cl.tpos << " ";
+                }
             }
             std::cerr << "\n";
         }
@@ -420,513 +420,578 @@ std::string cigar2str(const ksw_extz_t *ez) {
     return cigar;
 }
 
-int32_t addCigar(util::cigarGenerator& cigarGen, ksw_extz_t ez, bool beginGap) {
-  if (beginGap) {
-    int32_t insertionDeletion = 0;
-    for (int i = 0; i < ez.n_cigar; ++i) {
-	    std::string cigar_type = "";
-	    if ((ez.cigar[i] & 0xf) == 0) cigar_type = "M";
-	    if ((ez.cigar[i] & 0xf) == 1) { cigar_type = "I"; insertionDeletion += ez.cigar[i] >> 4; }
-	    if ((ez.cigar[i] & 0xf) == 2) { cigar_type = "D"; insertionDeletion -= ez.cigar[i] >> 4; }
-	    cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
-    }
-    return insertionDeletion;
-  } else {
-   uint32_t gapSize = 0;
-   for (int i = ez.n_cigar-1; i >= 0; --i) {
-	    std::string cigar_type = "";
-	    if ((ez.cigar[i] & 0xf) == 0) { cigar_type = "M"; gapSize += ez.cigar[i] >> 4; }
-	    if ((ez.cigar[i] & 0xf) == 1) { cigar_type = "I"; }
-	    if ((ez.cigar[i] & 0xf) == 2) { cigar_type = "D"; gapSize += ez.cigar[i] >> 4; }
-	    cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
-    }
-    return gapSize;
-  }
-}
-
-std::string getRefSeq(compact::vector<uint64_t,2>& refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
-  if (memlen == 0) return "";
-  std::string tseq = "";
-  uint64_t bucket_offset = (refAccPos+tpos)*2;
-  auto len_on_vector = memlen * 2;
-  for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
-    uint32_t len = std::min((uint32_t)64, len_on_vector - w*64);
-    if (len==0) continue;
-    uint64_t word = refseq.get_int(bucket_offset/2, len/2);
-    for (uint32_t i=0; i < len; i += 2) {
-      uint8_t next_bits = ( (word >> i) & 0x03);
-      char next = 'A';
-      if (next_bits == 1)
-        next = 'C';
-      else if(next_bits == 2)
-        next = 'G';
-      else if(next_bits == 3)
-        next = 'T';
-      tseq += next;
-    }
-    bucket_offset += len;
-  }
-  return tseq;
-}
-
-AlignmentResult PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, 
-                                    size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose) {
-	uint32_t refExtLength = mopts->refExtendLength;
-	bool firstMem = true;
-	int32_t lastHitEnd_read = -1;
-	int32_t currHitStart_read = 0;
-	int64_t lastHitEnd_ref = -1;
-	int64_t currHitStart_ref = 0;
-	int32_t alignmentScore {std::numeric_limits<int32_t>::lowest()};
-	int32_t alignment{0};
-	uint32_t openGapLen{0};
-	util::cigarGenerator cigarGen;
-	std::string cigar = "";
-
-	if (verbose){
-		for(size_t x=0; x<50; ++x)
-			std::cerr<<"-";
-		std::cerr<<" start mems\n";
-	}
-
-	uint64_t refAccPos = tid > 0 ? refAccumLengths[tid-1] : 0;
-	uint64_t refTotalLength = refAccumLengths[tid] - refAccPos;
-
-	std::string original_read = read;
-	if ( !isFw )
-		read = util::reverseComplement(read);
-
-	int32_t keyLen = 0;
-	char* refSeq;
-	std::string tseq = "";
-
-  auto rpos = mems[0].rpos; //memInfo->rpos;
-  auto memlen = mems[0].extendedlen;
-  auto readLen = read.length();
-  auto tpos = mems[0].tpos;  
-
-	if (mems.size() == 0)
-		return AlignmentResult();
-	currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
-	if (currHitStart_read < 0 or currHitStart_read >= (int32_t)readLen )
-		std::cerr<<"Should not happen!\n";
-
-	currHitStart_ref = tpos;
-	uint32_t refStart;
-	if ( currHitStart_ref >= currHitStart_read) {
-		refStart = currHitStart_ref - currHitStart_read;
-	} else if (currHitStart_ref < currHitStart_read) {
-		refStart = 0;
-	} 
-
-	keyLen = (refStart + readLen < refTotalLength ) ? readLen : refTotalLength - refStart;
-	tseq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen);
-
-	refSeq = new char[tseq.length() + 1];
-	strcpy(refSeq, tseq.c_str());
-  uint64_t hashKey{0};
-  bool didHash{false};
-  if (!alnCache.empty()) {
-		// hash the reference string
-    MetroHash64::Hash(reinterpret_cast<uint8_t*>(refSeq), keyLen, reinterpret_cast<uint8_t*>(&hashKey), 0);
-    didHash = true;
-    // see if we have this hash
-    auto hit = alnCache.find(hashKey);
-    // if so, we know the alignment score
-    if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
-    	alignmentScore = hit->second.score;
-      cigar = hit->second.cigar;
-      openGapLen = hit->second.openGapLen;
-      alignment = alignmentScore;
-   	}
-  }
-  
-	if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
-		if (perfectChain ) {
-			alignmentScore = readLen * mopts->matchScore;
-			alignment = alignmentScore;
-      cigarGen.add_item(readLen, "M");
-			hctr.skippedAlignments_byCov += 1;
-		} else if (mopts->fullAlignment) {
-			uint32_t refStart, readStart;
-			if ( currHitStart_ref > currHitStart_read) {
-				refStart = currHitStart_ref - currHitStart_read;
-				readStart = 0;
-			} else if (currHitStart_ref < currHitStart_read) {
-				readStart = currHitStart_read - currHitStart_ref;
-				refStart = 0;
-			} else{
-				readStart = currHitStart_read;
-				refStart = currHitStart_ref;
-			}
-			auto refLength = (refStart + readLen*2 < refTotalLength ) ? readLen*2 : refTotalLength - refStart;
-
-			tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
-			auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
-
-			aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-			alignmentScore = std::max(ez.mqe, ez.mte);
-      openGapLen = addCigar(cigarGen, ez, false);
-			if (verbose) {
-				std::cerr << "Original read seq:\t" << original_read << "\n";
-				std::cerr << "Total alignment with the score\t"<< alignment <<"\t from position\t" << readStart << "\t on the read:\n" << readSeq <<"\n";
-				std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n" << tseq << "\n";
-				for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-					printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-				std::cerr<<"\n";
-			}
+int32_t addCigar(util::cigarGenerator &cigarGen, ksw_extz_t ez, bool beginGap) {
+    if (beginGap) {
+        int32_t insertionDeletion = 0;
+        for (int i = 0; i < ez.n_cigar; ++i) {
+            std::string cigar_type = "";
+            if ((ez.cigar[i] & 0xf) == 0) cigar_type = "M";
+            if ((ez.cigar[i] & 0xf) == 1) {
+                cigar_type = "I";
+                insertionDeletion += ez.cigar[i] >> 4;
+            }
+            if ((ez.cigar[i] & 0xf) == 2) {
+                cigar_type = "D";
+                insertionDeletion -= ez.cigar[i] >> 4;
+            }
+            cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
+        }
+        return insertionDeletion;
     } else {
-
-		  alignmentScore = 0;
-		  for (auto mem : mems) {
-        rpos = mem.rpos; //memInfo->rpos;
-        memlen = mem.extendedlen;
-        tpos = mem.tpos;  
-
-			  // To work around seg fault from mems
-			  if (!firstMem and tpos + memlen - refStart > readLen) {
-				  break;
-			  }
-			  int score = 0;
-			  currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
-			  currHitStart_ref = tpos;
-			  if (verbose) {
-				  std::cerr<<"currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n"; 
-				  std::cerr<<"lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref << "\n"; 
-			  }
-			  if (firstMem) {
-				  lastHitEnd_ref = currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
-			  } else {
-				  if (currHitStart_read <= lastHitEnd_read - (int32_t)k + 1) {
-            if (verbose)
-						  std::cerr<<"The mems on read and reference are not consistent(1)\t" << original_read<<"\n";
-					  break;
-				  }
-				  if (currHitStart_ref <= lastHitEnd_ref - (int32_t)k + 1) {
-            if (verbose)
-              std::cerr<<"The mems on read and reference are not consistent(2)\t" << original_read<<"\n";
-					  break;
-				  }
-				  if (currHitStart_ref > lastHitEnd_ref + (int32_t)readLen) {
-            if (verbose)
-              std::cerr<<"The mems on read and reference are not consistent(3)\t" << original_read<<"\n";
-					  break;
-				  }
-				  if (currHitStart_read <= lastHitEnd_read and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-            if (verbose)
-				      std::cerr<<"to align reads with indels\t" << original_read<<"\n";
-				    break;
-			  	}
-				  if (currHitStart_ref <= lastHitEnd_ref and lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-				    if (verbose)
-				    	std::cerr<<"to align reads with indels\t" << original_read<<"\n";
-				    break;
-				  }
-			  }
-
-			  // Performing full alignment to validate the socres
-			  if (verbose and firstMem) {
-				  uint32_t refStart, readStart;
-				  if ( currHitStart_ref > currHitStart_read) {
-					  refStart = currHitStart_ref - currHitStart_read;
-			 		  readStart = 0;
-				  } else if (currHitStart_ref < currHitStart_read) {
-					  readStart = currHitStart_read - currHitStart_ref;
-					  refStart = 0;
-				  } else{
-					  readStart = currHitStart_read;
-					  refStart = currHitStart_ref;
-				  }
-				  auto refLength = (refStart + readLen*2 < refTotalLength ) ? readLen*2 : refTotalLength - refStart;
-
-				  tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
-				  auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
-
-				  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-				  alignment = std::max(ez.mqe, ez.mte);
-				  if (verbose) {
-					  std::cerr << "Original read seq:\t" << original_read << "\n";
-					  std::cerr << "Total alignment with the score\t"<< alignment <<"\t from position\t" << readStart << "\t on the read:\n" << readSeq <<"\n";
-					  std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n" << tseq << "\n";
-				 	  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-						  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-					  std::cerr<<"\n";
-				  }
-			  }
-			  // If there is a gap in the read or reference or both
-        bool gapAligned = false;
-		 	  if (currHitStart_read > lastHitEnd_read + 1 or currHitStart_ref > lastHitEnd_ref + 1) {
-          gapAligned = true;
-				  auto readGapLength = currHitStart_read - lastHitEnd_read - 1;
-				  auto refGapLength = currHitStart_ref - lastHitEnd_ref - 1;
-				  if(verbose)
-					  std::cerr<<"readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n";
-				  auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
-				  if (verbose) {
-					  for (size_t x=0; x<50; ++x)
-						  std::cerr<<"+";
-					  std::cerr << " start gap alignment\n";
-					  std::cerr << "read from " << lastHitEnd_read+1 << " for length " << readGapLength << " of the read:\t " << readSeq << "\n";
-					  std::cerr << "currHitStart_read: " << currHitStart_read << " lastHitEnd_read: " << lastHitEnd_read << " currHitStart_ref: " << currHitStart_ref << " lastHitEnd_ref: " << lastHitEnd_ref<< "\n";
-            std::cerr << mems[0].rpos << "\t" << readLen << "\t" << rpos  << "\t" << memlen << "\n";
-				  }
-				  if (firstMem) {
-            /*if (readGapLength > refGapLength) {
-              uint32_t startHang = readGapLength - refGapLength;
-              alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(startHang);
-              cigarGen.add_item(startHang, "I");
+        uint32_t gapSize = 0;
+        for (int i = ez.n_cigar - 1; i >= 0; --i) {
+            std::string cigar_type = "";
+            if ((ez.cigar[i] & 0xf) == 0) {
+                cigar_type = "M";
+                gapSize += ez.cigar[i] >> 4;
             }
-            if (refGapLength > 0) {
-              if (readGapLength > refGapLength) {
-                readGapLength = refGapLength;
-              }
-				      readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
-						  std::reverse(readSeq.begin(), readSeq.end());
-					    auto refStartSeq = lastHitEnd_ref > refExtLength + refGapLength ?  lastHitEnd_ref + 1 - refExtLength - refGapLength : 0;
-              refGapLength = lastHitEnd_ref - refStartSeq;
-						  tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
-						  std::reverse(tseq.begin(), tseq.end());
-						  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-						  score = std::max(ez.mqe, ez.mte);
-              addCigar(cigarGen, ez, false);
-            }*/
-					  ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
-					  // Not extending the reference beyond its beginning
-					  auto refStartSeq = lastHitEnd_ref > refExtLength ?  lastHitEnd_ref + 1 - refExtLength : 0;
-					  refGapLength = currHitStart_ref - refStartSeq;
-            if (lastHitEnd_ref <= readGapLength) {
-              AlignmentResult aln;
-              aln.score = -1;
-              return aln;
+            if ((ez.cigar[i] & 0xf) == 1) { cigar_type = "I"; }
+            if ((ez.cigar[i] & 0xf) == 2) {
+                cigar_type = "D";
+                gapSize += ez.cigar[i] >> 4;
             }
-					  // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
-					  if (refGapLength > 0) {
-						  // We reverse the strings because of ksw force alignment from the beginning of the sequences
-						  std::reverse(readSeq.begin(), readSeq.end());
-						  tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
-						  std::reverse(tseq.begin(), tseq.end());
-              ksw_reset_extz(&ez);
-						  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-						  score = std::max(ez.mqe, ez.mte);
-              openGapLen = addCigar(cigarGen, ez, false);
-						  if (verbose) {
-							  std::cerr<<"It's a gap at the beginning, so the reverse read from "<<lastHitEnd_read + 1<< " is\t"<<readSeq<<"\n";
-							  std::cerr<<"The reverse reference from " << refStartSeq << " with the length " << refGapLength << " is\t" << tseq << "\n";
-                std::cerr<< ez.mqe << "\t" << ez.mte << "\n";
-							  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-								  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-                std::cerr<<"\n"<< score << "\n";
-						  }
-              int32_t insertionDeletion = 0; //TODO should be fixed for cigars
-              if (readGapLength > refGapLength + insertionDeletion) {
-                int32_t startHang = readGapLength - refGapLength - insertionDeletion;
-                alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(startHang);
-                cigarGen.add_item(startHang, "I");
-              }
-					  } else {
-						  score = 0;
-              int32_t startHang = readGapLength-refGapLength;
-              alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(startHang);
-              cigarGen.add_item(startHang, "I");
-					  }
-				  } else {
-					  //Considering the case where the gap in either the read or reference is empty
-					  if (readGapLength <= 0) {
-						  if (verbose)
-						  	std::cerr<< "read gap lengths was of length 0 for the ref gap length of \t" <<refGapLength << "\n";
-						  score = (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(refGapLength + std::abs(readGapLength));
-              cigarGen.add_item(refGapLength, "D");
-					  } else if (refGapLength <= 0) {
-						  if (verbose)
-							  std::cerr<< "ref gap lengths was of length 0 for the read gap length of \t" <<readGapLength << "\n";
-						  score = (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(readGapLength + std::abs(refGapLength));
-              cigarGen.add_item(readGapLength, "I");
-					  } else {
-						  //tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
-						  //auto score1 = aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-						  if (lastHitEnd_ref+1-refStart < 0 or lastHitEnd_ref+1-refStart >= (int32_t)std::strlen(refSeq))
-							  std::cerr<<"Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << "and refStart is " << refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
-						  char* refSeq1 = refSeq + lastHitEnd_ref + 1 - refStart;
-						  score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-              addCigar(cigarGen, ez, true);
-						  if (verbose) {
-						    tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
-							  std::cerr<<"read from "<<lastHitEnd_read + 1<< " with the gap length of " << readGapLength << " is \t"<< readSeq <<"\n";
-							  std::cerr<<"reference from " << lastHitEnd_ref + 1 << " with the length " << refGapLength << " is \t" << tseq << "\n";
-							  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-								  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-							  std::cout<<"\n";
-						  }
-					  }
-				  }
-				  alignmentScore += score;
-				  if (verbose) {
-					  std::cerr<<isFw<<" at "<<currHitStart_ref<<" on "<<tid<<" for "<<refGapLength<<"\n";
-					  std::cerr<<"curr score2:\t" << score << "\n";
-					  for (size_t x=0; x<50; ++x)
-						  std::cerr<<"+";
-					  std::cerr<<" end gap alignments\n";
-				  }
-			  }
-
-        auto longest_match_extension = currHitStart_ref + memlen - lastHitEnd_ref > currHitStart_read + memlen - lastHitEnd_read ? 
-                                   currHitStart_ref + memlen - lastHitEnd_ref : currHitStart_read + memlen - lastHitEnd_read;
-			  score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (longest_match_extension - 1) : mopts->matchScore * memlen;
-        auto num_match =  (currHitStart_ref <= lastHitEnd_ref) ? (longest_match_extension - 1) : memlen; 
-			  if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
-				  if ( verbose ) {
-					  auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
-					  auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
-					  std::cerr<<"read from "<<currHitStart_read<< "\t with the sequence \n"<<readSeq<<"\n";
-					  std::cerr<<"orientation of\t" <<isFw<<" at "<<currHitStart_ref<<" on reference "<<tid<<" for the length of "<<memlen<<"\t with sequence:\n"<<tseq1<<"\n";
-					  std::cerr<<"with the score1:\t" << score << "\n";
-				  }
-			  } else {
-				  int32_t gapLength = std::abs(lastHitEnd_ref - currHitStart_ref - lastHitEnd_read + currHitStart_read);
-          
-				int32_t penalty = mopts->gapOpenPenalty + mopts->gapExtendPenalty*gapLength;
-				  if (!gapAligned) {
-            score -= penalty;
-            if (currHitStart_ref - lastHitEnd_ref > currHitStart_read - lastHitEnd_read)
-              cigarGen.add_item(gapLength, "D");
-            else
-              cigarGen.add_item(gapLength, "I");
-          }
-				  if (verbose){
-					  if (!gapAligned) 
-              std::cerr<<"penalty\t" << penalty << "\n";
-					  auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
-					  auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
-					  std::cerr<<"read from "<<currHitStart_read<< "\t with the sequence \n"<<readSeq<<"\n";
-					  std::cerr<<"orientation of\t" <<isFw<<" at "<<currHitStart_ref<<" on reference "<<tid<<" for the length of "<<memlen<<"\t with sequence:\n"<<tseq1<<"\n";
-					  std::cerr<<"with the score1:\t" << score << "\n";
-				  }
-			  }
-				alignmentScore += score;
-        cigarGen.add_item(num_match, "M");
-
-			  lastHitEnd_read = currHitStart_read + memlen - 1;
-			  lastHitEnd_ref = tpos + memlen - 1;
-			  if (lastHitEnd_ref - refStart + 1 > (int32_t)std::strlen(refSeq)+1 )
-				  std::cerr<<"Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is " <<refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
-		    firstMem = false;
-      } 
-
-		  // Try and align any remaining sequence on the read
-		  if (lastHitEnd_read  < (int32_t)readLen - 1) {
-		    auto readGapLength = readLen - 1 - lastHitEnd_read;
-			  auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ? readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
-        if (lastHitEnd_ref + readGapLength  > refTotalLength) {
-          AlignmentResult aln;
-          aln.score = -1;
-          aln.cigar = cigar;
-          aln.openGapLen = openGapLen;
-          return aln;
+            cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
         }
-        
-			  // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
-			  if (refGapLength != 0) {
-				  auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
-				  auto refStartSeq = lastHitEnd_ref + 1;
-				  tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
-				  aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), refGapLength, &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-				  auto score = std::max(ez.mqe, ez.mte);
-				  alignmentScore += score;
-          auto insertionDeletion = addCigar(cigarGen, ez, true);
-				  if (verbose) {
-					  std::cerr<<"read from "<<lastHitEnd_read + 1<< "\t\t\t"<<readSeq<<"\n";
-					  std::cerr<<"at "<<lastHitEnd_ref<<" for "<<refGapLength<<"\t"<<tseq<<"\n";
-  				  for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-	  				  printf("%d%c", ez.cigar[i]>>4, "MID"[ez.cigar[i]&0xf]);
-					  std::cerr<<"\ncurr score3:\t"<<score<<"\n";
-            std::cerr<<ez.mqe << "\t " << ez.mte << "\n";
-				  }
-          if (readGapLength > refGapLength + insertionDeletion) {
-            int32_t endHang = readGapLength - refGapLength - insertionDeletion;
-            alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(endHang);
-            cigarGen.add_item(endHang, "I");
-          }
-        } else {
-          int32_t endHang = readGapLength;
-          alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(endHang);
-          cigarGen.add_item(endHang, "I");
-        }
-		  }
+        return gapSize;
     }
-    bool cigar_fixed{false};
-    cigar = cigarGen.get_cigar(readLen, cigar_fixed);
-    /*if (cigar_fixed) {
-      std::cerr<<read<<"\n";
-    } */
-    //std::cerr << cigar << " " << readLen << "\n";
-    if (cigar_fixed) hctr.cigar_fixed_count++;
-    if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
-	  	if (!didHash)
-				MetroHash64::Hash(reinterpret_cast<uint8_t*>(refSeq), keyLen, reinterpret_cast<uint8_t*>(&hashKey), 0);
-      AlignmentResult aln;
-      aln.score = alignmentScore;
-      aln.cigar = cigar;
-      aln.openGapLen = openGapLen;
-     	alnCache[hashKey] = aln;
-    }
-	} else {
-		hctr.skippedAlignments_byCache += 1;
-	}
-	delete refSeq;
-	if (verbose) { 
-		std::cerr<<"alignmentScore\t"<<alignmentScore<< "\talignmment\t" << alignment <<"\n";
-    std::cerr<<"cigar\t" << cigar << "\n";
-  }
-  //if (alignmentScore > 150 and alignment > alignmentScore)// != and std::abs(alignmentScore - alignment) > 5)
-  //  std::cerr<< alignmentScore << " " << alignment << " " << original_read << "\n";
-
-	return AlignmentResult{alignmentScore, cigar, openGapLen};
 }
 
-int32_t PufferfishAligner::calculateAlignments(std::string& read_left, std::string& read_right, util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
-	auto tid = jointHit.tid;
-	double optFrac{mopts->minScoreFraction};
+std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
+    if (memlen == 0) return "";
+    std::string tseq = "";
+    uint64_t bucket_offset = (refAccPos + tpos) * 2;
+    auto len_on_vector = memlen * 2;
+    for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
+        uint32_t len = std::min((uint32_t) 64, len_on_vector - w * 64);
+        if (len == 0) continue;
+        uint64_t word = refseq.get_int(bucket_offset / 2, len / 2);
+        for (uint32_t i = 0; i < len; i += 2) {
+            uint8_t next_bits = ((word >> i) & 0x03);
+            char next = 'A';
+            if (next_bits == 1)
+                next = 'C';
+            else if (next_bits == 2)
+                next = 'G';
+            else if (next_bits == 3)
+                next = 'T';
+            tseq += next;
+        }
+        bucket_offset += len;
+    }
+    return tseq;
+}
 
-	if (jointHit.isOrphan()) {
-		if (verbose)
-			std::cerr<<"orphan\n";
-		hctr.totalAlignmentAttempts += 1;
+AlignmentResult
+PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo> &mems, bool perfectChain, bool isFw,
+                             size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
+    uint32_t refExtLength = mopts->refExtendLength;
+    bool firstMem = true;
+    int32_t lastHitEnd_read = -1;
+    int32_t currHitStart_read = 0;
+    int64_t lastHitEnd_ref = -1;
+    int64_t currHitStart_ref = 0;
+    int32_t alignmentScore{std::numeric_limits<int32_t>::lowest()};
+    int32_t alignment{0};
+    uint32_t openGapLen{0};
+    util::cigarGenerator cigarGen;
+    std::string cigar = "";
 
-		std::string read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
-		int32_t maxScore = mopts->matchScore * read_orphan.length();
-		AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain, jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, verbose);
-		jointHit.orphanClust()->coverage = ar.score > (optFrac * maxScore) ? ar.score : std::numeric_limits<decltype(ar.score)>::min();
-    jointHit.orphanClust()->cigar = ar.cigar;
-    jointHit.orphanClust()->openGapLen = ar.openGapLen;
-		jointHit.alignmentScore = jointHit.orphanClust()->coverage;
-		return jointHit.orphanClust()->coverage;
-	}
-	else {
-		hctr.totalAlignmentAttempts += 2;
-		int32_t maxLeftScore = mopts->matchScore * read_left.length();
-		int32_t maxRightScore = mopts->matchScore * read_right.length();
-		if (verbose)
-			std::cerr<<"left\n";
-		AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain, jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, verbose);
-		if (verbose)
-			std::cerr<<"right\n";
-		AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain, jointHit.rightClust->isFw, tid, alnCacheRight, hctr, verbose);
-    auto score_left = ar_left.score;
-    auto score_right = ar_right.score;
-		//jointHit.leftClust->coverage = ar_left.score;
-		jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score : std::numeric_limits<decltype(score_left)>::min();
-    jointHit.leftClust->cigar = ar_left.cigar;
-		jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score : std::numeric_limits<decltype(score_left)>::min();
-    jointHit.leftClust->openGapLen = ar_left.openGapLen;
-		//jointHit.rightClust->coverage = ar_right.score;
-		jointHit.rightClust->coverage = ar_right.score > optFrac * maxRightScore ? ar_right.score : std::numeric_limits<decltype(score_right)>::min();
-		jointHit.rightClust->cigar = ar_right.cigar;
-    jointHit.rightClust->openGapLen = ar_right.openGapLen;
-    int32_t total_score = jointHit.leftClust->coverage + jointHit.rightClust->coverage;
-    //int32_t total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
-		jointHit.alignmentScore = total_score;
-		return total_score;
-	}
+    if (verbose) {
+        for (size_t x = 0; x < 50; ++x)
+            std::cerr << "-";
+        std::cerr << " start mems\n";
+    }
+
+    uint64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
+    uint64_t refTotalLength = refAccumLengths[tid] - refAccPos;
+
+    std::string original_read = read;
+    if (!isFw)
+        read = util::reverseComplement(read);
+
+    int32_t keyLen = 0;
+    char *refSeq;
+    std::string tseq = "";
+
+    auto rpos = mems[0].rpos; //memInfo->rpos;
+    auto memlen = mems[0].extendedlen;
+    auto readLen = read.length();
+    auto tpos = mems[0].tpos;
+
+    if (mems.size() == 0)
+        return AlignmentResult();
+    currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
+    if (currHitStart_read < 0 or currHitStart_read >= (int32_t) readLen)
+        std::cerr << "Should not happen!\n";
+
+    currHitStart_ref = tpos;
+    uint32_t refStart;
+    if (currHitStart_ref >= currHitStart_read) {
+        refStart = currHitStart_ref - currHitStart_read;
+    } else if (currHitStart_ref < currHitStart_read) {
+        refStart = 0;
+    }
+
+    keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
+    tseq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen);
+
+    refSeq = new char[tseq.length() + 1];
+    strcpy(refSeq, tseq.c_str());
+    uint64_t hashKey{0};
+    bool didHash{false};
+    if (!alnCache.empty()) {
+        // hash the reference string
+        MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
+        didHash = true;
+        // see if we have this hash
+        auto hit = alnCache.find(hashKey);
+        // if so, we know the alignment score
+        if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
+            alignmentScore = hit->second.score;
+            cigar = hit->second.cigar;
+            openGapLen = hit->second.openGapLen;
+            alignment = alignmentScore;
+        }
+    }
+
+    if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
+        if (perfectChain) {
+            alignmentScore = readLen * mopts->matchScore;
+            alignment = alignmentScore;
+            cigarGen.add_item(readLen, "M");
+            hctr.skippedAlignments_byCov += 1;
+        } else if (mopts->fullAlignment) {
+            uint32_t refStart, readStart;
+            if (currHitStart_ref > currHitStart_read) {
+                refStart = currHitStart_ref - currHitStart_read;
+                readStart = 0;
+            } else if (currHitStart_ref < currHitStart_read) {
+                readStart = currHitStart_read - currHitStart_ref;
+                refStart = 0;
+            } else {
+                readStart = currHitStart_read;
+                refStart = currHitStart_ref;
+            }
+            auto refLength = (refStart + readLen * 2 < refTotalLength) ? readLen * 2 : refTotalLength - refStart;
+
+            tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
+            auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
+
+            aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
+                    ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+            alignmentScore = std::max(ez.mqe, ez.mte);
+            openGapLen = addCigar(cigarGen, ez, false);
+            if (verbose) {
+                std::cerr << "Original read seq:\t" << original_read << "\n";
+                std::cerr << "Total alignment with the score\t" << alignment << "\t from position\t" << readStart
+                          << "\t on the read:\n" << readSeq << "\n";
+                std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n" << tseq
+                          << "\n";
+                for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+                    printf("%d%c", ez.cigar[i] >> 4, "MID"[ez.cigar[i] & 0xf]);
+                std::cerr << "\n";
+            }
+        } else {
+
+            alignmentScore = 0;
+            for (auto mem : mems) {
+                rpos = mem.rpos; //memInfo->rpos;
+                memlen = mem.extendedlen;
+                tpos = mem.tpos;
+
+                // To work around seg fault from mems
+                if (!firstMem and tpos + memlen - refStart > readLen) {
+                    break;
+                }
+                int score = 0;
+                currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
+                currHitStart_ref = tpos;
+                if (verbose) {
+                    std::cerr << "currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref
+                              << "\n";
+                    std::cerr << "lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref
+                              << "\n";
+                }
+                if (firstMem) {
+                    lastHitEnd_ref =
+                            currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
+                } else {
+                    if (currHitStart_read <= lastHitEnd_read - (int32_t) k + 1) {
+                        if (verbose)
+                            std::cerr << "The mems on read and reference are not consistent(1)\t" << original_read
+                                      << "\n";
+                        break;
+                    }
+                    if (currHitStart_ref <= lastHitEnd_ref - (int32_t) k + 1) {
+                        if (verbose)
+                            std::cerr << "The mems on read and reference are not consistent(2)\t" << original_read
+                                      << "\n";
+                        break;
+                    }
+                    if (currHitStart_ref > lastHitEnd_ref + (int32_t) readLen) {
+                        if (verbose)
+                            std::cerr << "The mems on read and reference are not consistent(3)\t" << original_read
+                                      << "\n";
+                        break;
+                    }
+                    if (currHitStart_read <= lastHitEnd_read and
+                        lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
+                        if (verbose)
+                            std::cerr << "to align reads with indels\t" << original_read << "\n";
+                        break;
+                    }
+                    if (currHitStart_ref <= lastHitEnd_ref and
+                        lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
+                        if (verbose)
+                            std::cerr << "to align reads with indels\t" << original_read << "\n";
+                        break;
+                    }
+                }
+
+                // Performing full alignment to validate the socres
+                if (verbose and firstMem) {
+                    uint32_t refStart, readStart;
+                    if (currHitStart_ref > currHitStart_read) {
+                        refStart = currHitStart_ref - currHitStart_read;
+                        readStart = 0;
+                    } else if (currHitStart_ref < currHitStart_read) {
+                        readStart = currHitStart_read - currHitStart_ref;
+                        refStart = 0;
+                    } else {
+                        readStart = currHitStart_read;
+                        refStart = currHitStart_ref;
+                    }
+                    auto refLength = (refStart + readLen * 2 < refTotalLength) ? readLen * 2 : refTotalLength -
+                                                                                               refStart;
+
+                    tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
+                    auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
+
+                    aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
+                            ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+                    alignment = std::max(ez.mqe, ez.mte);
+                    if (verbose) {
+                        std::cerr << "Original read seq:\t" << original_read << "\n";
+                        std::cerr << "Total alignment with the score\t" << alignment << "\t from position\t"
+                                  << readStart << "\t on the read:\n" << readSeq << "\n";
+                        std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n"
+                                  << tseq << "\n";
+                        for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+                            printf("%d%c", ez.cigar[i] >> 4, "MID"[ez.cigar[i] & 0xf]);
+                        std::cerr << "\n";
+                    }
+                }
+                // If there is a gap in the read or reference or both
+                bool gapAligned = false;
+                if (currHitStart_read > lastHitEnd_read + 1 or currHitStart_ref > lastHitEnd_ref + 1) {
+                    gapAligned = true;
+                    auto readGapLength = currHitStart_read - lastHitEnd_read - 1;
+                    auto refGapLength = currHitStart_ref - lastHitEnd_ref - 1;
+                    if (verbose)
+                        std::cerr << "readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n";
+                    auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+                    if (verbose) {
+                        for (size_t x = 0; x < 50; ++x)
+                            std::cerr << "+";
+                        std::cerr << " start gap alignment\n";
+                        std::cerr << "read from " << lastHitEnd_read + 1 << " for length " << readGapLength
+                                  << " of the read:\t " << readSeq << "\n";
+                        std::cerr << "currHitStart_read: " << currHitStart_read << " lastHitEnd_read: "
+                                  << lastHitEnd_read << " currHitStart_ref: " << currHitStart_ref << " lastHitEnd_ref: "
+                                  << lastHitEnd_ref << "\n";
+                        std::cerr << mems[0].rpos << "\t" << readLen << "\t" << rpos << "\t" << memlen << "\n";
+                    }
+                    if (firstMem) {
+                        /*if (readGapLength > refGapLength) {
+                          uint32_t startHang = readGapLength - refGapLength;
+                          alignmentScore += (-1)*mopts->gapOpenPenalty + (-1)*mopts->gapExtendPenalty*(startHang);
+                          cigarGen.add_item(startHang, "I");
+                        }
+                        if (refGapLength > 0) {
+                          if (readGapLength > refGapLength) {
+                            readGapLength = refGapLength;
+                          }
+                                  readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+                                      std::reverse(readSeq.begin(), readSeq.end());
+                                    auto refStartSeq = lastHitEnd_ref > refExtLength + refGapLength ?  lastHitEnd_ref + 1 - refExtLength - refGapLength : 0;
+                          refGapLength = lastHitEnd_ref - refStartSeq;
+                                      tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+                                      std::reverse(tseq.begin(), tseq.end());
+                                      aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+                                      score = std::max(ez.mqe, ez.mte);
+                          addCigar(cigarGen, ez, false);
+                        }*/
+                        ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
+                        // Not extending the reference beyond its beginning
+                        auto refStartSeq = lastHitEnd_ref > refExtLength ? lastHitEnd_ref + 1 - refExtLength : 0;
+                        refGapLength = currHitStart_ref - refStartSeq;
+                        if (lastHitEnd_ref <= readGapLength) {
+                            AlignmentResult aln;
+                            aln.score = -1;
+                            return aln;
+                        }
+                        // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
+                        if (refGapLength > 0) {
+                            // We reverse the strings because of ksw force alignment from the beginning of the sequences
+                            std::reverse(readSeq.begin(), readSeq.end());
+                            tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+                            std::reverse(tseq.begin(), tseq.end());
+                            ksw_reset_extz(&ez);
+                            aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
+                                    ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+                            score = std::max(ez.mqe, ez.mte);
+                            openGapLen = addCigar(cigarGen, ez, false);
+                            if (verbose) {
+                                std::cerr << "It's a gap at the beginning, so the reverse read from "
+                                          << lastHitEnd_read + 1 << " is\t" << readSeq << "\n";
+                                std::cerr << "The reverse reference from " << refStartSeq << " with the length "
+                                          << refGapLength << " is\t" << tseq << "\n";
+                                std::cerr << ez.mqe << "\t" << ez.mte << "\n";
+                                for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+                                    printf("%d%c", ez.cigar[i] >> 4, "MID"[ez.cigar[i] & 0xf]);
+                                std::cerr << "\n" << score << "\n";
+                            }
+                            int32_t insertionDeletion = 0; //TODO should be fixed for cigars
+                            if (readGapLength > refGapLength + insertionDeletion) {
+                                int32_t startHang = readGapLength - refGapLength - insertionDeletion;
+                                alignmentScore +=
+                                        (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (startHang);
+                                cigarGen.add_item(startHang, "I");
+                            }
+                        } else {
+                            score = 0;
+                            int32_t startHang = readGapLength - refGapLength;
+                            alignmentScore +=
+                                    (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (startHang);
+                            cigarGen.add_item(startHang, "I");
+                        }
+                    } else {
+                        //Considering the case where the gap in either the read or reference is empty
+                        if (readGapLength <= 0) {
+                            if (verbose)
+                                std::cerr << "read gap lengths was of length 0 for the ref gap length of \t"
+                                          << refGapLength << "\n";
+                            score = (-1) * mopts->gapOpenPenalty +
+                                    (-1) * mopts->gapExtendPenalty * (refGapLength + std::abs(readGapLength));
+                            cigarGen.add_item(refGapLength, "D");
+                        } else if (refGapLength <= 0) {
+                            if (verbose)
+                                std::cerr << "ref gap lengths was of length 0 for the read gap length of \t"
+                                          << readGapLength << "\n";
+                            score = (-1) * mopts->gapOpenPenalty +
+                                    (-1) * mopts->gapExtendPenalty * (readGapLength + std::abs(refGapLength));
+                            cigarGen.add_item(readGapLength, "I");
+                        } else {
+                            //tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
+                            //auto score1 = aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
+                            if (lastHitEnd_ref + 1 - refStart < 0 or
+                                lastHitEnd_ref + 1 - refStart >= (int32_t) std::strlen(refSeq))
+                                std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref
+                                          << "and refStart is " << refStart << ", but refSeq length is "
+                                          << std::strlen(refSeq) << "\n";
+                            char *refSeq1 = refSeq + lastHitEnd_ref + 1 - refStart;
+                            score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez,
+                                            ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
+                            addCigar(cigarGen, ez, true);
+                            if (verbose) {
+                                tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
+                                std::cerr << "read from " << lastHitEnd_read + 1 << " with the gap length of "
+                                          << readGapLength << " is \t" << readSeq << "\n";
+                                std::cerr << "reference from " << lastHitEnd_ref + 1 << " with the length "
+                                          << refGapLength << " is \t" << tseq << "\n";
+                                for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+                                    printf("%d%c", ez.cigar[i] >> 4, "MID"[ez.cigar[i] & 0xf]);
+                                std::cout << "\n";
+                            }
+                        }
+                    }
+                    alignmentScore += score;
+                    if (verbose) {
+                        std::cerr << isFw << " at " << currHitStart_ref << " on " << tid << " for " << refGapLength
+                                  << "\n";
+                        std::cerr << "curr score2:\t" << score << "\n";
+                        for (size_t x = 0; x < 50; ++x)
+                            std::cerr << "+";
+                        std::cerr << " end gap alignments\n";
+                    }
+                }
+
+                auto longest_match_extension =
+                        currHitStart_ref + memlen - lastHitEnd_ref > currHitStart_read + memlen - lastHitEnd_read ?
+                        currHitStart_ref + memlen - lastHitEnd_ref : currHitStart_read + memlen - lastHitEnd_read;
+                score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (longest_match_extension - 1) :
+                        mopts->matchScore * memlen;
+                auto num_match = (currHitStart_ref <= lastHitEnd_ref) ? (longest_match_extension - 1) : memlen;
+                if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
+                    if (verbose) {
+                        auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
+                        auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
+                        std::cerr << "read from " << currHitStart_read << "\t with the sequence \n" << readSeq << "\n";
+                        std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
+                                  << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
+                        std::cerr << "with the score1:\t" << score << "\n";
+                    }
+                } else {
+                    int32_t gapLength = std::abs(
+                            lastHitEnd_ref - currHitStart_ref - lastHitEnd_read + currHitStart_read);
+
+                    int32_t penalty = mopts->gapOpenPenalty + mopts->gapExtendPenalty * gapLength;
+                    if (!gapAligned) {
+                        score -= penalty;
+                        if (currHitStart_ref - lastHitEnd_ref > currHitStart_read - lastHitEnd_read)
+                            cigarGen.add_item(gapLength, "D");
+                        else
+                            cigarGen.add_item(gapLength, "I");
+                    }
+                    if (verbose) {
+                        if (!gapAligned)
+                            std::cerr << "penalty\t" << penalty << "\n";
+                        auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
+                        auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
+                        std::cerr << "read from " << currHitStart_read << "\t with the sequence \n" << readSeq << "\n";
+                        std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
+                                  << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
+                        std::cerr << "with the score1:\t" << score << "\n";
+                    }
+                }
+                alignmentScore += score;
+                cigarGen.add_item(num_match, "M");
+
+                lastHitEnd_read = currHitStart_read + memlen - 1;
+                lastHitEnd_ref = tpos + memlen - 1;
+                if (lastHitEnd_ref - refStart + 1 > (int32_t) std::strlen(refSeq) + 1)
+                    std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is "
+                              << refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
+                firstMem = false;
+            }
+
+            // Try and align any remaining sequence on the read
+            if (lastHitEnd_read < (int32_t) readLen - 1) {
+                auto readGapLength = readLen - 1 - lastHitEnd_read;
+                auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ? readGapLength +
+                                                                                                         refExtLength :
+                                    refTotalLength - lastHitEnd_ref - 1;
+                if (lastHitEnd_ref + readGapLength > refTotalLength) {
+                    AlignmentResult aln;
+                    aln.score = -1;
+                    aln.cigar = cigar;
+                    aln.openGapLen = openGapLen;
+                    return aln;
+                }
+
+                // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
+                if (refGapLength != 0) {
+                    auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+                    auto refStartSeq = lastHitEnd_ref + 1;
+                    tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+                    aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), refGapLength, &ez,
+                            ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+                    auto score = std::max(ez.mqe, ez.mte);
+                    alignmentScore += score;
+                    auto insertionDeletion = addCigar(cigarGen, ez, true);
+                    if (verbose) {
+                        std::cerr << "read from " << lastHitEnd_read + 1 << "\t\t\t" << readSeq << "\n";
+                        std::cerr << "at " << lastHitEnd_ref << " for " << refGapLength << "\t" << tseq << "\n";
+                        for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+                            printf("%d%c", ez.cigar[i] >> 4, "MID"[ez.cigar[i] & 0xf]);
+                        std::cerr << "\ncurr score3:\t" << score << "\n";
+                        std::cerr << ez.mqe << "\t " << ez.mte << "\n";
+                    }
+                    if (readGapLength > refGapLength + insertionDeletion) {
+                        int32_t endHang = readGapLength - refGapLength - insertionDeletion;
+                        alignmentScore += (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (endHang);
+                        cigarGen.add_item(endHang, "I");
+                    }
+                } else {
+                    int32_t endHang = readGapLength;
+                    alignmentScore += (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (endHang);
+                    cigarGen.add_item(endHang, "I");
+                }
+            }
+        }
+        bool cigar_fixed{false};
+        cigar = cigarGen.get_cigar(readLen, cigar_fixed);
+        /*if (cigar_fixed) {
+          std::cerr<<read<<"\n";
+        } */
+        //std::cerr << cigar << " " << readLen << "\n";
+        if (cigar_fixed) hctr.cigar_fixed_count++;
+        if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
+            if (!didHash)
+                MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq), keyLen, reinterpret_cast<uint8_t *>(&hashKey),
+                                  0);
+            AlignmentResult aln;
+            aln.score = alignmentScore;
+            aln.cigar = cigar;
+            aln.openGapLen = openGapLen;
+            alnCache[hashKey] = aln;
+        }
+    } else {
+        hctr.skippedAlignments_byCache += 1;
+    }
+    delete refSeq;
+    if (verbose) {
+        std::cerr << "alignmentScore\t" << alignmentScore << "\talignmment\t" << alignment << "\n";
+        std::cerr << "cigar\t" << cigar << "\n";
+    }
+    //if (alignmentScore > 150 and alignment > alignmentScore)// != and std::abs(alignmentScore - alignment) > 5)
+    //  std::cerr<< alignmentScore << " " << alignment << " " << original_read << "\n";
+
+    return AlignmentResult{alignmentScore, cigar, openGapLen};
+}
+
+int32_t
+PufferfishAligner::calculateAlignments(std::string &read_left, std::string &read_right, util::JointMems &jointHit,
+                                       HitCounters &hctr, bool verbose) {
+    auto tid = jointHit.tid;
+    double optFrac{mopts->minScoreFraction};
+
+    if (jointHit.isOrphan()) {
+        if (verbose)
+            std::cerr << "orphan\n";
+        hctr.totalAlignmentAttempts += 1;
+
+        std::string read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
+        int32_t maxScore = mopts->matchScore * read_orphan.length();
+        AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
+                                       jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, verbose);
+        jointHit.orphanClust()->coverage =
+                ar.score > (optFrac * maxScore) ? ar.score : std::numeric_limits<decltype(ar.score)>::min();
+        jointHit.orphanClust()->cigar = ar.cigar;
+        jointHit.orphanClust()->openGapLen = ar.openGapLen;
+        jointHit.alignmentScore = jointHit.orphanClust()->coverage;
+        return jointHit.orphanClust()->coverage;
+    } else {
+        hctr.totalAlignmentAttempts += 2;
+        int32_t maxLeftScore = mopts->matchScore * read_left.length();
+        int32_t maxRightScore = mopts->matchScore * read_right.length();
+        if (verbose)
+            std::cerr << "left\n";
+        AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
+                                            jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, verbose);
+        if (verbose)
+            std::cerr << "right\n";
+        AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
+                                             jointHit.rightClust->isFw, tid, alnCacheRight, hctr, verbose);
+        auto score_left = ar_left.score;
+        auto score_right = ar_right.score;
+        //jointHit.leftClust->coverage = ar_left.score;
+        jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score
+                                                                              : std::numeric_limits<decltype(score_left)>::min();
+        jointHit.leftClust->cigar = ar_left.cigar;
+        jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score
+                                                                              : std::numeric_limits<decltype(score_left)>::min();
+        jointHit.leftClust->openGapLen = ar_left.openGapLen;
+        //jointHit.rightClust->coverage = ar_right.score;
+        jointHit.rightClust->coverage = ar_right.score > optFrac * maxRightScore ? ar_right.score
+                                                                                 : std::numeric_limits<decltype(score_right)>::min();
+        jointHit.rightClust->cigar = ar_right.cigar;
+        jointHit.rightClust->openGapLen = ar_right.openGapLen;
+        int32_t total_score = jointHit.leftClust->coverage + jointHit.rightClust->coverage;
+        //int32_t total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
+        jointHit.alignmentScore = total_score;
+        return total_score;
+    }
 }
 
 std::string calculateCigar(std::string &read,
@@ -1284,353 +1349,358 @@ void processReadsPair(paired_parser *parser,
                       HitCounters &hctr,
                       std::unordered_set<std::string> gene_names,
                       AlignmentOpts *mopts) {
-  MemCollector<PufferfishIndexT> memCollector(&pfi);
+    MemCollector<PufferfishIndexT> memCollector(&pfi);
 
-  //create aligner
-  spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
-  RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
+    //create aligner
+    spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
+    RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
-  std::vector<std::string> refBlocks;
+    std::vector<std::string> refBlocks;
 
-  auto logger = spdlog::get("stderrLog");
-  fmt::MemoryWriter sstream;
-  BinWriter bstream;
-  //size_t batchSize{2500} ;
-  size_t readLen{0}, mateLen{0};
-  size_t totLen{0};
+    auto logger = spdlog::get("stderrLog");
+    fmt::MemoryWriter sstream;
+    BinWriter bstream;
+    //size_t batchSize{2500} ;
+    size_t readLen{0}, mateLen{0};
+    size_t totLen{0};
 
-  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
-  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
-  std::vector<util::JointMems> jointHits;
-  PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
-  util::QueryCache qc;
-  std::vector<util::MemCluster> all;
+    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
+    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
+    std::vector<util::JointMems> jointHits;
+    PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
+    util::QueryCache qc;
+    std::vector<util::MemCluster> all;
 
-  //@fatemeh Initialize aligner ksw
-  ksw2pp::KSW2Config config;
-  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
+    //@fatemeh Initialize aligner ksw
+    ksw2pp::KSW2Config config;
+    ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
-  config.gapo = -1 * GAP_SCORE;
-  config.gape = -1 * GAP_SCORE;
-  config.bandwidth = -1;
-  config.flag = KSW_EZ_RIGHT;
-  aligner.config() = config;
+    config.gapo = -1 * GAP_SCORE;
+    config.gape = -1 * GAP_SCORE;
+    config.bandwidth = -1;
+    config.flag = KSW_EZ_RIGHT;
+    aligner.config() = config;
 
-  auto rg = parser->getReadGroup();
+    auto rg = parser->getReadGroup();
 
-	//For filtering reads
-	auto& txpNames = pfi.getRefNames();
-  while (parser->refill(rg)) {
-    for (auto &rpair : rg) {
-      readLen = rpair.first.seq.length();
-      mateLen = rpair.second.seq.length();
-      totLen = readLen + mateLen;
-      bool verbose = mopts->verbose;
+    //For filtering reads
+    auto &txpNames = pfi.getRefNames();
+    while (parser->refill(rg)) {
+        for (auto &rpair : rg) {
+            readLen = rpair.first.seq.length();
+            mateLen = rpair.second.seq.length();
+            totLen = readLen + mateLen;
+            bool verbose = mopts->verbose;
 
-      ++hctr.numReads;
+            ++hctr.numReads;
 
-      jointHits.clear();
-      leftHits.clear();
-      rightHits.clear();
-      memCollector.clear();
-      bool filterGenomics = mopts->filterGenomics;
-      bool filterMicrobiom = mopts->filterMicrobiom;
+            jointHits.clear();
+            leftHits.clear();
+            rightHits.clear();
+            memCollector.clear();
+            bool filterGenomics = mopts->filterGenomics;
+            bool filterMicrobiom = mopts->filterMicrobiom;
 
-      // There is no way to revocer the following case other than aligning indels
-      //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
-      //          rpair.second.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT";
+            // There is no way to revocer the following case other than aligning indels
+            //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
+            //          rpair.second.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT";
 
-      // The only way to get it right is with non-heuristic chaining
-      // verbose = rpair.first.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
-      //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
-      
-      bool lh = memCollector(rpair.first.seq,
-                              leftHits,
-                              mopts->maxSpliceGap,
-                              MateStatus::PAIRED_END_LEFT,
-                              qc,
-                              mopts->heuristicChaining,
-                              mopts->mergeMems,
-                              verbose);
-      bool rh = memCollector(rpair.second.seq,
-                               rightHits,
-                               mopts->maxSpliceGap,
-                               MateStatus::PAIRED_END_RIGHT,
-                               qc,
-                               mopts->heuristicChaining,
-                               mopts->mergeMems,
+            // The only way to get it right is with non-heuristic chaining
+            // verbose = rpair.first.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
+            //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
+
+            bool lh = memCollector(rpair.first.seq,
+                                   leftHits,
+                                   mopts->maxSpliceGap,
+                                   MateStatus::PAIRED_END_LEFT,
+                                   qc,
+                                   mopts->heuristicChaining,
+                                   mopts->mergeMems,
+                                   verbose);
+            bool rh = memCollector(rpair.second.seq,
+                                   rightHits,
+                                   mopts->maxSpliceGap,
+                                   MateStatus::PAIRED_END_RIGHT,
+                                   qc,
+                                   mopts->heuristicChaining,
+                                   mopts->mergeMems,
+                                   verbose);
+
+            all.clear();
+            /*memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/findBestChain/(jointHits,
+                                                                                              all,
+                                                                                              mopts->maxSpliceGap,
+                                                                                              mopts->maxFragmentLength,
+                                                                                              rpair.first.seq.length(),
+                                                                                              rpair.second.seq.length(),
+                                                                                              verbose);*/
+            //hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0;
+            hctr.numMappedAtLeastAKmer += (leftHits.size() > 0 || rightHits.size() > 0) ? 1 : 0;
+            //do intersection on the basis of
+            //performance, or going towards selective alignment
+            //otherwise orphan
+
+            // We also handle orphans inside this function
+            //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
+            joinReadsAndFilter(leftHits, rightHits, jointHits,
+                               mopts->maxFragmentLength,
+                               totLen,
+                               mopts->scoreRatio,
+                               mopts->noDiscordant,
+                               mopts->noOrphan,
+                               pfi,
                                verbose);
 
-      all.clear();
-      /*memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/findBestChain/(jointHits,
-                                                                                        all,
-                                                                                        mopts->maxSpliceGap,
-                                                                                        mopts->maxFragmentLength,
-                                                                                        rpair.first.seq.length(),
-                                                                                        rpair.second.seq.length(),
-                                                                                        verbose);*/
-      //hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0; 
-			hctr.numMappedAtLeastAKmer += (leftHits.size()>0 || rightHits.size()>0) ? 1 : 0;
-      //do intersection on the basis of
-      //performance, or going towards selective alignment
-      //otherwise orphan
+            //verbose = rpair.first.name == "SRR2964092.289888";
+            //} else {
+            //ignore orphans for now
+            //}
+            //jointHits is a vector
+            //this can be used for BFS
+            //NOTE sanity check
+            //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache)
 
-      // We also handle orphans inside this function
-      //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
-      joinReadsAndFilter(leftHits, rightHits, jointHits,
-                           mopts->maxFragmentLength,
-                           totLen,
-                           mopts->scoreRatio,
-                           mopts->noDiscordant,
-                           mopts->noOrphan,
-                           pfi,
-                           verbose);
+            std::vector<QuasiAlignment> jointAlignments;
 
-      //verbose = rpair.first.name == "SRR2964092.289888";
-      //} else {
-      //ignore orphans for now
-      //}
-      //jointHits is a vector
-      //this can be used for BFS
-      //NOTE sanity check
-      //void traverseGraph(std::string& leftReadSeq, std::string& rightReadSeq, util::JointMems& hit, PufferfishIndexT& pfi,   std::map<uint32_t, std::string>& contigSeqCache)
-
-      std::vector<QuasiAlignment> jointAlignments;
-
-			hctr.peHits += jointHits.size();
+            hctr.peHits += jointHits.size();
 
 
-			if (mopts->validateMappings) {
-				ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
-				PufferfishAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner, jointHits.size()>1);
-				int32_t bestScore = std::numeric_limits<int32_t>::min() ;
-				std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
-				size_t idx{0};
+            if (mopts->validateMappings) {
+                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
+                PufferfishAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner,
+                                              jointHits.size() > 1);
+                int32_t bestScore = std::numeric_limits<int32_t>::min();
+                std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
+                size_t idx{0};
 
-        bool bestScoreGenomic{false};
-        bool bestScoreTxpomic{false};
-        std::map<int32_t, std::vector<int32_t>> transcript_set;
-        for (auto &jointHit : jointHits) {
-          auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, verbose);
-          if (hitScore < 0)
-            hitScore = std::numeric_limits<int32_t>::min();
-          scores[idx] = hitScore;
+                bool bestScoreGenomic{false};
+                bool bestScoreTxpomic{false};
+                std::map<int32_t, std::vector<int32_t>> transcript_set;
+                for (auto &jointHit : jointHits) {
+                    auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr,
+                                                                    verbose);
+                    if (hitScore < 0)
+                        hitScore = std::numeric_limits<int32_t>::min();
+                    scores[idx] = hitScore;
 
-          std::string ref_name = txpNames[jointHit.tid];
-          if (filterGenomics or filterMicrobiom) {
-            if (hitScore > bestScore ) {
-              if (gene_names.find(ref_name) != gene_names.end()) {
-                bestScoreGenomic = true;
-                bestScoreTxpomic = false;
-              } else {
-                bestScoreGenomic = false;
-                bestScoreTxpomic = true;
-              }
-            } else if (hitScore == bestScore) {
-              if (gene_names.find(ref_name) != gene_names.end()) 
-                bestScoreGenomic = true;
-              else
-                bestScoreTxpomic = true;
+                    std::string ref_name = txpNames[jointHit.tid];
+                    if (filterGenomics or filterMicrobiom) {
+                        if (hitScore > bestScore) {
+                            if (gene_names.find(ref_name) != gene_names.end()) {
+                                bestScoreGenomic = true;
+                                bestScoreTxpomic = false;
+                            } else {
+                                bestScoreGenomic = false;
+                                bestScoreTxpomic = true;
+                            }
+                        } else if (hitScore == bestScore) {
+                            if (gene_names.find(ref_name) != gene_names.end())
+                                bestScoreGenomic = true;
+                            else
+                                bestScoreTxpomic = true;
+                        }
+                        // Genomic alignments should not be reported in this case
+                        if (gene_names.find(ref_name) != gene_names.end())
+                            scores[idx] = std::numeric_limits<int32_t>::min();
+                    }
+
+                    bestScore = (hitScore > bestScore) ? hitScore : bestScore;
+
+                    if (verbose)
+                        std::cerr << txpNames[jointHit.tid] << " " << jointHit.coverage() << " "
+                                  << jointHit.leftClust->mems[0].tpos << "\n";
+                    if (!mopts->genomicReads) {
+                        // removing dupplicate hits from a read to the same transcript
+                        if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
+                            std::vector<int32_t> coverage_hit;
+                            transcript_set[jointHit.tid] = coverage_hit;
+                            transcript_set[jointHit.tid].push_back(jointHit.coverage());
+                            transcript_set[jointHit.tid].push_back(idx);
+                        } else if (jointHit.coverage() > transcript_set[jointHit.tid][0]) {
+                            transcript_set[jointHit.tid][0] = jointHit.coverage();
+                            scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
+                            transcript_set[jointHit.tid][1] = idx;
+                        } else {
+                            scores[idx] = std::numeric_limits<int32_t>::min();
+                        }
+                    }
+                    ++idx;
+                }
+                if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
+                    // This read is likely come from the genome and should be discarded from txptomic alignments
+                    continue;
+                }
+                if (filterMicrobiom and bestScoreGenomic) {
+                    continue;
+                }
+
+                if (mopts->strictFilter or mopts->primaryAlignment) {
+                    bool primaryDetected = false;
+                    int myctr = 0;
+                    for (auto &jointHit : jointHits) {
+                        if (primaryDetected and mopts->primaryAlignment) {
+                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                        }
+                        if (jointHit.coverage() < bestScore)
+                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                        else {
+                            primaryDetected = true;
+                        }
+                        myctr++;
+                    }
+                }
+
+                // Filter out these alignments with low scores
+                uint32_t ctr{0};
+                if (bestScore > std::numeric_limits<int32_t>::min()) {
+                    jointHits.erase(
+                            std::remove_if(jointHits.begin(), jointHits.end(),
+                                           [&ctr, &scores, bestScore](util::JointMems &) -> bool {
+                                               bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
+                                               ++ctr;
+                                               return rem;
+                                           }),
+                            jointHits.end()
+                    );
+                } else {
+                    // There is no alignment with high quality for this read, so we skip this reads' alignments
+                    jointHits.clear();
+                }
             }
-            // Genomic alignments should not be reported in this case
-            if (gene_names.find(ref_name) != gene_names.end())
-              scores[idx] = std::numeric_limits<int32_t>::min();
-          }
 
-          bestScore = (hitScore > bestScore) ? hitScore : bestScore;
+            if (jointHits.size() > 200) {
+                std::sort(jointHits.begin(), jointHits.end(),
+                          [](const auto &lhs, const auto &rhs) {
+                              return lhs.alignmentScore < rhs.alignmentScore;
+                          });
+                jointHits.erase(jointHits.begin() + 200, jointHits.end());
+            }
 
-          if (verbose)
-            std::cerr<< txpNames[jointHit.tid] << " " << jointHit.coverage() << " " << jointHit.leftClust->mems[0].tpos << "\n";
-          if(!mopts->genomicReads) {
-					  // removing dupplicate hits from a read to the same transcript
-            if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
-              std::vector<int32_t> coverage_hit;
-              transcript_set[jointHit.tid] = coverage_hit;
-              transcript_set[jointHit.tid].push_back(jointHit.coverage());
-              transcript_set[jointHit.tid].push_back(idx);
-            } else if (jointHit.coverage() > transcript_set[jointHit.tid][0] ) {
-              transcript_set[jointHit.tid][0] = jointHit.coverage();
-              scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
-              transcript_set[jointHit.tid][1] = idx;
+            hctr.totHits += !jointHits.empty() && !jointHits.back().isOrphan() ? 1 : 0;;
+            hctr.numMapped += !jointHits.empty() ? 1 : 0;
+            if (mopts->noOrphan)
+                hctr.numOfOrphans += jointHits.empty() && (lh || rh);
+            else
+                hctr.numOfOrphans += !jointHits.empty() && (jointHits.back().isOrphan()) ? 1 : 0;
+
+            if (jointHits.size() > hctr.maxMultimapping)
+                hctr.maxMultimapping = jointHits.size();
+
+            for (auto &jointHit : jointHits) {
+                //FIXME : This part needs to be taken care of
+                //If graph returned failure for one of the ends --> should be investigated more.
+                /*if (!mopts->justMap and ((!jointHit.isOrphan() and (jointHit.leftClust->score == std::numeric_limits<int>::min()
+                             or jointHit.rightClust->score == std::numeric_limits<int>::min()))
+                             or (jointHit.isLeftAvailable() and jointHit.leftClust->score == std::numeric_limits<int>::min())
+                             or (jointHit.isRightAvailable() and jointHit.rightClust->score == std::numeric_limits<int>::min()))
+                                ) {
+                  if (verbose)
+                    std::cerr << "Failed: " << rpair.first.name << "\n";
+                  continue;
+                }*/
+                if (jointHit.isOrphan()) {
+                    if (verbose) {
+                        std::cerr << "orphan\t";
+                        std::cerr << jointHit.tid << "\t";
+                        std::cerr << jointHit.orphanClust()->getTrFirstHitPos() << "\t";     // reference pos
+                        std::cerr << (uint32_t) jointHit.orphanClust()->isFw << "\t";     // fwd direction
+                        std::cerr << readLen << "\t"; // read length
+                        std::cerr << jointHit.orphanClust()->cigar << "\t"; // cigar string
+                        std::cerr << jointHit.fragmentLen << "\n";
+                    }
+                    jointAlignments.emplace_back(jointHit.tid,           // reference id
+                                                 jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
+                                                 jointHit.orphanClust()->isFw,     // fwd direction
+                                                 readLen, // read length
+                                                 jointHit.orphanClust()->cigar, // cigar string
+                                                 jointHit.fragmentLen,       // fragment length
+                                                 false);
+                    auto &qaln = jointAlignments.back();
+                    qaln.numHits = jointHit.orphanClust()->coverage;
+                    qaln.mateStatus = jointHit.mateStatus;
+                } else {
+                    if (verbose) {
+                        std::cerr << "paired\t";
+                        std::cerr << jointHit.tid << "\t";
+                        std::cerr << jointHit.leftClust->getTrFirstHitPos() << "\t";     // reference pos
+                        std::cerr << (uint32_t) jointHit.leftClust->isFw << "\t";     // fwd direction
+                        std::cerr << readLen << "\t"; // read length
+                        std::cerr << jointHit.leftClust->cigar << "\t"; // cigar string
+                        std::cerr << jointHit.fragmentLen << "\n";
+                    }
+                    jointAlignments.emplace_back(jointHit.tid,           // reference id
+                                                 jointHit.leftClust->getTrFirstHitPos(),     // reference pos
+                                                 jointHit.leftClust->isFw,     // fwd direction
+                                                 readLen, // read length
+                                                 jointHit.leftClust->cigar, // cigar string
+                                                 jointHit.fragmentLen,       // fragment length
+                                                 true);         // properly paired
+                    // Fill in the mate info
+                    auto &qaln = jointAlignments.back();
+                    qaln.mateLen = mateLen;
+                    qaln.mateCigar = jointHit.rightClust->cigar;
+                    qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
+                    qaln.mateIsFwd = jointHit.rightClust->isFw;
+                    qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
+                    qaln.numHits = jointHit.coverage();
+                    qaln.score = jointHit.leftClust->coverage;
+                    qaln.mateScore = jointHit.rightClust->coverage;
+                }
+                //}
+            }
+
+            hctr.totAlignment += jointAlignments.size();
+            if (verbose) {
+                std::cerr << " passed filling jointAlignments:" << hctr.totAlignment << "\n";
+            }
+            if (!mopts->noOutput) {
+                if (mopts->krakOut) {
+                    writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
+                } else if (mopts->salmonOut) {
+                    writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
+                } else if (jointAlignments.size() > 0) {
+                    writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan,
+                                            mopts->justMap);
+                } else if (jointAlignments.size() == 0) {
+                    writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan,
+                                                    mopts->justMap);
+                }
+            }
+
+            // write them on cmd
+            if (hctr.numReads > hctr.lastPrint + 1000000) {
+                hctr.lastPrint.store(hctr.numReads.load());
+                if (!mopts->quiet and iomutex->try_lock()) {
+                    if (hctr.numReads > 0) {
+                        std::cerr << "\r\r";
+                    }
+                    std::cerr << "saw " << hctr.numReads << " reads : "
+                              << "pe / read = " << hctr.peHits / static_cast<float>(hctr.numReads)
+                              << " : se / read = " << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
+                    iomutex->unlock();
+                }
+            }
+        } // for all reads in this job
+        // dump output
+        if (!mopts->noOutput) {
+            // Get rid of last newline
+            if (mopts->salmonOut) {
+                BinWriter sbw(sizeof(uint64_t));
+                sbw << bstream.getBytes();
+                outQueue->info("{}{}", sbw, bstream);
+            } else if (mopts->krakOut) {
+                outQueue->info("{}", bstream);
             } else {
-              scores[idx] = std::numeric_limits<int32_t>::min();
+                std::string outStr(sstream.str());
+                if (!outStr.empty()) {
+                    outStr.pop_back();
+                    outQueue->info(std::move(outStr));
+                }
             }
-          }
-          ++idx;
+            sstream.clear();
+            bstream.clear();
         }
-        if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
-          // This read is likely come from the genome and should be discarded from txptomic alignments
-          continue;
-        }
-        if (filterMicrobiom and bestScoreGenomic) {
-          continue;
-        }
-
-        if (mopts->strictFilter or mopts->primaryAlignment) {
-          bool primaryDetected = false;
-          int myctr = 0;
-          for (auto& jointHit : jointHits) {
-            if (primaryDetected and mopts->primaryAlignment) {
-              scores[myctr] = std::numeric_limits<int32_t>::min();
-            }
-            if (jointHit.coverage() < bestScore)
-              scores[myctr] = std::numeric_limits<int32_t>::min();
-            else {
-              primaryDetected = true;
-            }
-            myctr++;
-          }
-        }
-
-        // Filter out these alignments with low scores
-        uint32_t ctr{0};
-        if (bestScore > std::numeric_limits<int32_t>::min()) {
-          jointHits.erase(
-            std::remove_if(jointHits.begin(), jointHits.end(),
-            [&ctr, &scores, bestScore] (util::JointMems&) -> bool{
-              bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
-              ++ctr;
-              return rem;
-            }),
-            jointHits.end()
-          );
-        } else {
-          // There is no alignment with high quality for this read, so we skip this reads' alignments
-          jointHits.clear();
-        }
-      }
-
-      if (jointHits.size()>200) {
-        std::sort(jointHits.begin(), jointHits.end(), 
-        [] (const auto& lhs, const auto& rhs) {
-          return lhs.alignmentScore < rhs.alignmentScore;
-        });
-        jointHits.erase(jointHits.begin()+200, jointHits.end());
-      }
-
-      hctr.totHits += !jointHits.empty() && !jointHits.back().isOrphan() ? 1 : 0;;
-      hctr.numMapped += !jointHits.empty() ? 1 : 0;
-      if (mopts->noOrphan)
-        hctr.numOfOrphans += jointHits.empty() && (lh || rh);
-      else
-        hctr.numOfOrphans += !jointHits.empty() && (jointHits.back().isOrphan()) ? 1 : 0;
-
-      if (jointHits.size() > hctr.maxMultimapping)
-        hctr.maxMultimapping = jointHits.size();
-
-      for (auto &jointHit : jointHits) {
-        //FIXME : This part needs to be taken care of
-        //If graph returned failure for one of the ends --> should be investigated more.
-        /*if (!mopts->justMap and ((!jointHit.isOrphan() and (jointHit.leftClust->score == std::numeric_limits<int>::min()
-                     or jointHit.rightClust->score == std::numeric_limits<int>::min()))
-                     or (jointHit.isLeftAvailable() and jointHit.leftClust->score == std::numeric_limits<int>::min())
-                     or (jointHit.isRightAvailable() and jointHit.rightClust->score == std::numeric_limits<int>::min()))
-                        ) {
-          if (verbose)
-            std::cerr << "Failed: " << rpair.first.name << "\n";
-          continue;
-        }*/
-        if (jointHit.isOrphan()) {
-          if (verbose) {
-            std::cerr << "orphan\t";
-            std::cerr << jointHit.tid << "\t"; 
-            std::cerr << jointHit.orphanClust()->getTrFirstHitPos() << "\t";     // reference pos
-            std::cerr << (uint32_t) jointHit.orphanClust()->isFw << "\t";     // fwd direction
-            std::cerr << readLen << "\t"; // read length
-            std::cerr << jointHit.orphanClust()->cigar << "\t"; // cigar string
-            std::cerr << jointHit.fragmentLen << "\n";
-          }
-				  jointAlignments.emplace_back(jointHit.tid,           // reference id
-                                     jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
-                                     jointHit.orphanClust()->isFw,     // fwd direction
-                                     readLen, // read length
-                                     jointHit.orphanClust()->cigar, // cigar string
-                                     jointHit.fragmentLen,       // fragment length
-                                     false);
-          auto &qaln = jointAlignments.back();
-          qaln.numHits =jointHit.orphanClust()->coverage;
-          qaln.mateStatus = jointHit.mateStatus;
-        } else {
-				  if (verbose) {
-            std::cerr << "paired\t";
-            std::cerr << jointHit.tid << "\t";
-            std::cerr << jointHit.leftClust->getTrFirstHitPos() << "\t";     // reference pos
-            std::cerr << (uint32_t) jointHit.leftClust->isFw << "\t";     // fwd direction
-            std::cerr << readLen << "\t"; // read length
-            std::cerr << jointHit.leftClust->cigar << "\t"; // cigar string
-            std::cerr << jointHit.fragmentLen << "\n";
-          }
-	        jointAlignments.emplace_back(jointHit.tid,           // reference id
-                                     jointHit.leftClust->getTrFirstHitPos(),     // reference pos
-                                     jointHit.leftClust->isFw,     // fwd direction
-                                     readLen, // read length
-                                     jointHit.leftClust->cigar, // cigar string
-                                     jointHit.fragmentLen,       // fragment length
-                                     true);         // properly paired
-          // Fill in the mate info
-          auto &qaln = jointAlignments.back();
-          qaln.mateLen = mateLen;
-          qaln.mateCigar = jointHit.rightClust->cigar;
-          qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
-          qaln.mateIsFwd = jointHit.rightClust->isFw;
-          qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
-          qaln.numHits = jointHit.coverage();
-          qaln.score = jointHit.leftClust->coverage; 
-          qaln.mateScore = jointHit.rightClust->coverage; 
-        }
-        //}
-      }
-
-			hctr.totAlignment += jointAlignments.size();
-			if (verbose) {
-				std::cerr << " passed filling jointAlignments:" << hctr.totAlignment << "\n";
-			}
-			if (!mopts->noOutput) {
-				if (mopts->krakOut) {
-					writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream);
-				} else if (mopts->salmonOut) {
-					writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
-				} else if (jointAlignments.size() > 0) {
-					writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap);
-				} else if (jointAlignments.size() == 0) {
-					writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, mopts->justMap);
-			  }
-			}
-
-			// write them on cmd
-			if (hctr.numReads > hctr.lastPrint + 1000000) {
-				hctr.lastPrint.store(hctr.numReads.load());
-				if (!mopts->quiet and iomutex->try_lock()) {
-					if (hctr.numReads > 0) {
-						std::cerr << "\r\r";
-					}
-					std::cerr << "saw " << hctr.numReads << " reads : "
-										<< "pe / read = " << hctr.peHits / static_cast<float>(hctr.numReads)
-										<< " : se / read = " << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
-					iomutex->unlock();
-				}
-			}
-		} // for all reads in this job
-    // dump output
-    if (!mopts->noOutput) {
-      // Get rid of last newline
-      if (mopts->salmonOut) {
-        BinWriter sbw(sizeof(uint64_t));
-        sbw << bstream.getBytes();
-        outQueue->info("{}{}", sbw, bstream);
-      } else if (mopts->krakOut) {
-        outQueue->info("{}", bstream);
-      } else {
-         std::string outStr(sstream.str());
-        if (!outStr.empty()) {
-          outStr.pop_back();
-          outQueue->info(std::move(outStr));
-        }
-      }
-      sstream.clear();
-      bstream.clear();
-    }
-  } // processed all reads
+    } // processed all reads
 }
 
 //===========
@@ -1644,69 +1714,69 @@ void processReadsSingle(single_parser *parser,
                         HitCounters &hctr,
                         std::unordered_set<std::string> gene_names,
                         AlignmentOpts *mopts) {
-  MemCollector<PufferfishIndexT> memCollector(&pfi);
+    MemCollector<PufferfishIndexT> memCollector(&pfi);
 
-  //create aligner
-  spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
-  RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
-  std::vector<std::string> refBlocks;
+    //create aligner
+    spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
+    RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
+    std::vector<std::string> refBlocks;
 
-  auto logger = spdlog::get("stderrLog");
-  fmt::MemoryWriter sstream;
-  BinWriter bstream;
-  //size_t batchSize{2500} ;
-  size_t readLen{0};
-  //size_t totLen{0};
+    auto logger = spdlog::get("stderrLog");
+    fmt::MemoryWriter sstream;
+    BinWriter bstream;
+    //size_t batchSize{2500} ;
+    size_t readLen{0};
+    //size_t totLen{0};
 
-  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
-  std::vector<util::JointMems> jointHits;
-  PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
-  util::QueryCache qc;
-  std::vector<util::MemCluster> all;
+    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
+    std::vector<util::JointMems> jointHits;
+    PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
+    util::QueryCache qc;
+    std::vector<util::MemCluster> all;
 
-  //@fatemeh Initialize aligner ksw
-  /*ksw2pp::KSW2Config config;
-  ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
+    //@fatemeh Initialize aligner ksw
+    /*ksw2pp::KSW2Config config;
+    ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
-  config.gapo = -1 * GAP_SCORE;
-  config.gape = -1 * GAP_SCORE;
-  config.bandwidth = -1;
-  config.flag = KSW_EZ_RIGHT;
-  aligner.config() = config;*/
+    config.gapo = -1 * GAP_SCORE;
+    config.gape = -1 * GAP_SCORE;
+    config.bandwidth = -1;
+    config.flag = KSW_EZ_RIGHT;
+    aligner.config() = config;*/
 
-	auto& txpNames = pfi.getRefNames();
-  auto rg = parser->getReadGroup();
-  while (parser->refill(rg)) {
-    for (auto &read : rg) {
-      readLen = read.seq.length();
-      auto totLen = readLen;
-      bool verbose = false;
-      if (verbose) std::cerr << read.name << "\n";
-      ++hctr.numReads;
+    auto &txpNames = pfi.getRefNames();
+    auto rg = parser->getReadGroup();
+    while (parser->refill(rg)) {
+        for (auto &read : rg) {
+            readLen = read.seq.length();
+            auto totLen = readLen;
+            bool verbose = false;
+            if (verbose) std::cerr << read.name << "\n";
+            ++hctr.numReads;
 
-      jointHits.clear();
-      leftHits.clear();
-      memCollector.clear();
+            jointHits.clear();
+            leftHits.clear();
+            memCollector.clear();
 
 
-      bool filterGenomics = mopts->filterGenomics;
-      bool filterMicrobiom = mopts->filterMicrobiom;
+            bool filterGenomics = mopts->filterGenomics;
+            bool filterMicrobiom = mopts->filterMicrobiom;
 
-      bool lh = memCollector(read.seq,
-                            leftHits,
-                            mopts->maxSpliceGap,
-                            MateStatus::SINGLE_END,
-                            qc,
-                            mopts->heuristicChaining,
-                            mopts->mergeMems,
-                            verbose);
-       (void) lh;
-       all.clear();
-       joinReadsAndFilterSingle(leftHits, jointHits,
-                           totLen,
-                           mopts->scoreRatio,
-                           pfi,
-                           verbose);
+            bool lh = memCollector(read.seq,
+                                   leftHits,
+                                   mopts->maxSpliceGap,
+                                   MateStatus::SINGLE_END,
+                                   qc,
+                                   mopts->heuristicChaining,
+                                   mopts->mergeMems,
+                                   verbose);
+            (void) lh;
+            all.clear();
+            joinReadsAndFilterSingle(leftHits, jointHits,
+                                     totLen,
+                                     mopts->scoreRatio,
+                                     pfi,
+                                     verbose);
 
 
             //memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/*findBestChain*/(jointHits,
@@ -1758,167 +1828,169 @@ void processReadsSingle(single_parser *parser,
                                                }), validHits.end());
             }*/
 
-      std::vector<QuasiAlignment> jointAlignments;
-      std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>> validHits;
+            std::vector<QuasiAlignment> jointAlignments;
+            std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>> validHits;
 
-			// Removing reads which contain N
-			/*if (read.seq.find('N') != std::string::npos){
-				jointHits.clear();
-				continue;
-			}*/
+            // Removing reads which contain N
+            /*if (read.seq.find('N') != std::string::npos){
+                jointHits.clear();
+                continue;
+            }*/
 
-			if (mopts->validateMappings) {
-				ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
-				PufferfishAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner, jointHits.size()>1);
+            if (mopts->validateMappings) {
+                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
+                PufferfishAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner,
+                                              jointHits.size() > 1);
 
-				int32_t bestScore = std::numeric_limits<int32_t>::min();
-				std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
-				size_t idx{0};
+                int32_t bestScore = std::numeric_limits<int32_t>::min();
+                std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
+                size_t idx{0};
 
-        bool bestScoreGenomic{false};
-        bool bestScoreTxpomic{false};
-				std::map<int32_t, std::vector<int32_t>> transcript_set;
-        for (auto &jointHit : jointHits) {
-					int32_t hitScore = puffaligner.calculateAlignments(read.seq, read.seq, jointHit, hctr, verbose);
-					scores[idx] = hitScore;
+                bool bestScoreGenomic{false};
+                bool bestScoreTxpomic{false};
+                std::map<int32_t, std::vector<int32_t>> transcript_set;
+                for (auto &jointHit : jointHits) {
+                    int32_t hitScore = puffaligner.calculateAlignments(read.seq, read.seq, jointHit, hctr, verbose);
+                    scores[idx] = hitScore;
 
-          std::string ref_name = txpNames[jointHit.tid];
-          if (filterGenomics or filterMicrobiom) {
-            if (hitScore > bestScore ) {
-              if (gene_names.find(ref_name) != gene_names.end()) {
-                bestScoreGenomic = true;
-                bestScoreTxpomic = false;
-              } else {
-                bestScoreGenomic = false;
-                bestScoreTxpomic = true;
-              }
-            } else if (hitScore == bestScore) {
-              if (gene_names.find(ref_name) != gene_names.end()) 
-                bestScoreGenomic = true;
-              else
-                bestScoreTxpomic = true;
+                    std::string ref_name = txpNames[jointHit.tid];
+                    if (filterGenomics or filterMicrobiom) {
+                        if (hitScore > bestScore) {
+                            if (gene_names.find(ref_name) != gene_names.end()) {
+                                bestScoreGenomic = true;
+                                bestScoreTxpomic = false;
+                            } else {
+                                bestScoreGenomic = false;
+                                bestScoreTxpomic = true;
+                            }
+                        } else if (hitScore == bestScore) {
+                            if (gene_names.find(ref_name) != gene_names.end())
+                                bestScoreGenomic = true;
+                            else
+                                bestScoreTxpomic = true;
+                        }
+                        // Genomic alignments should not be reported in this case
+                        if (gene_names.find(ref_name) != gene_names.end())
+                            scores[idx] = std::numeric_limits<int32_t>::min();
+                    }
+
+                    bestScore = (hitScore > bestScore) ? hitScore : bestScore;
+
+                    if (verbose)
+                        std::cerr << txpNames[jointHit.tid] << " " << jointHit.coverage() << " "
+                                  << jointHit.leftClust->mems[0].tpos << "\n";
+                    if (!mopts->genomicReads) {
+                        // removing dupplicate hits from a read to the same transcript
+                        if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
+                            std::vector<int32_t> coverage_hit;
+                            transcript_set[jointHit.tid] = coverage_hit;
+                            transcript_set[jointHit.tid].push_back(jointHit.orphanClust()->coverage);
+                            transcript_set[jointHit.tid].push_back(idx);
+                        } else if (jointHit.orphanClust()->coverage > transcript_set[jointHit.tid][0]) {
+                            transcript_set[jointHit.tid][0] = jointHit.orphanClust()->coverage;
+                            scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
+                            transcript_set[jointHit.tid][1] = idx;
+                        } else {
+                            scores[idx] = std::numeric_limits<int32_t>::min();
+                        }
+                    }
+                    ++idx;
+                }
+
+                if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
+                    // This read is likely come from the genome and should be discarded from txptomic alignments
+                    continue;
+                }
+                if (filterMicrobiom and bestScoreGenomic) {
+                    continue;
+                }
+
+                if (mopts->strictFilter or mopts->primaryAlignment) {
+                    bool primaryDetected = false;
+                    int myctr = 0;
+                    for (auto &jointHit : jointHits) {
+                        if (primaryDetected and mopts->primaryAlignment) {
+                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                        }
+                        if (jointHit.coverage() < bestScore)
+                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                        else {
+                            primaryDetected = true;
+                        }
+                        myctr++;
+                    }
+                }
+                // Filter out mappings with low alignment scores
+                uint32_t ctr{0};
+                if (bestScore > std::numeric_limits<int32_t>::min()) {
+                    jointHits.erase(
+                            std::remove_if(jointHits.begin(), jointHits.end(),
+                                           [&ctr, &scores, bestScore](util::JointMems &) -> bool {
+                                               bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
+                                               ++ctr;
+                                               return rem;
+                                           }),
+                            jointHits.end()
+                    );
+                } else {
+                    // There is no alignment with high quality for this read, so we skip this reads' alignments
+                    jointHits.clear();
+                }
             }
-            // Genomic alignments should not be reported in this case
-            if (gene_names.find(ref_name) != gene_names.end())
-              scores[idx] = std::numeric_limits<int32_t>::min();
-          }
 
-					bestScore = (hitScore > bestScore) ? hitScore : bestScore;
-
-          if (verbose)
-            std::cerr<< txpNames[jointHit.tid] << " " << jointHit.coverage() << " " << jointHit.leftClust->mems[0].tpos << "\n";
-          if(!mopts->genomicReads) {
-					  // removing dupplicate hits from a read to the same transcript
-					  if (transcript_set.find(jointHit.tid) == transcript_set.end()) {
-						  std::vector<int32_t> coverage_hit;
-						  transcript_set[jointHit.tid] = coverage_hit;
-						  transcript_set[jointHit.tid].push_back(jointHit.orphanClust()->coverage);
-						  transcript_set[jointHit.tid].push_back(idx);
-					  } else if (jointHit.orphanClust()->coverage > transcript_set[jointHit.tid][0] ) {
-						  transcript_set[jointHit.tid][0] = jointHit.orphanClust()->coverage;
-						  scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
-						  transcript_set[jointHit.tid][1] = idx;
-					  } else {
-						  scores[idx] = std::numeric_limits<int32_t>::min();
-					  }
-          }
-					++idx;
-				}
-
-        if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
-          // This read is likely come from the genome and should be discarded from txptomic alignments
-          continue;
-        } 
-        if (filterMicrobiom and bestScoreGenomic) {
-          continue;
-        }
-
-        if (mopts->strictFilter or mopts->primaryAlignment) {
-          bool primaryDetected = false;
-          int myctr = 0;
-          for (auto& jointHit : jointHits) {
-            if (primaryDetected and mopts->primaryAlignment) {
-              scores[myctr] = std::numeric_limits<int32_t>::min();
+            if (jointHits.size() > 200) {
+                std::sort(jointHits.begin(), jointHits.end(),
+                          [](const auto &lhs, const auto &rhs) {
+                              return lhs.alignmentScore < rhs.alignmentScore;
+                          });
+                jointHits.erase(jointHits.begin() + 200, jointHits.end());
             }
-            if (jointHit.coverage() < bestScore)
-              scores[myctr] = std::numeric_limits<int32_t>::min();
-            else {
-              primaryDetected = true;
+
+            hctr.numMappedAtLeastAKmer += jointHits.size() > 0 ? 1 : 0;
+            hctr.totHits += jointHits.size();
+            hctr.seHits += jointHits.size();
+            hctr.numMapped += !jointHits.empty() ? 1 : 0;
+            if (jointHits.size() > hctr.maxMultimapping) {
+                hctr.maxMultimapping = jointHits.size();
             }
-            myctr++;
-          }
-        }
-				// Filter out mappings with low alignment scores
-				uint32_t ctr{0};
-				if (bestScore > std::numeric_limits<int32_t>::min()) {
-					jointHits.erase(
-								std::remove_if(jointHits.begin(), jointHits.end(),
-									[&ctr, &scores, bestScore] (util::JointMems&) -> bool{
-										bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
-										++ctr;
-										return rem;
-									}),
-								jointHits.end()
-					);
-	      } else {
-					// There is no alignment with high quality for this read, so we skip this reads' alignments
-					jointHits.clear();
-        }
-			}
 
-			if (jointHits.size()>200) {
-				std::sort(jointHits.begin(), jointHits.end(), 
-					[] (const auto& lhs, const auto& rhs) {
-						return lhs.alignmentScore < rhs.alignmentScore;
-					});
-				jointHits.erase(jointHits.begin()+200, jointHits.end());
-			}
-
-      hctr.numMappedAtLeastAKmer += jointHits.size() > 0 ? 1:0;
-      hctr.totHits += jointHits.size();
-      hctr.seHits += jointHits.size();
-      hctr.numMapped += !jointHits.empty() ? 1 : 0;
-      if (jointHits.size() > hctr.maxMultimapping) {
-        hctr.maxMultimapping = jointHits.size();
-      }
-
-      for (auto &jointHit : jointHits) {
-               jointAlignments.emplace_back(jointHit.tid,           // reference id
-                                                     jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
-                                                     jointHit.orphanClust()->isFw,     // fwd direction
-                                                     readLen, // read length
-                                                     jointHit.orphanClust()->cigar, // cigar string
-                                                     readLen,       // fragment length
-                                                     false);
+            for (auto &jointHit : jointHits) {
+                jointAlignments.emplace_back(jointHit.tid,           // reference id
+                                             jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
+                                             jointHit.orphanClust()->isFw,     // fwd direction
+                                             readLen, // read length
+                                             jointHit.orphanClust()->cigar, // cigar string
+                                             readLen,       // fragment length
+                                             false);
                 auto &qaln = jointAlignments.back();
                 qaln.mateLen = readLen;
                 qaln.mateCigar = "";
                 qaln.matePos = 0;       // jointHit.rightClust->getTrFirstHitPos();
                 qaln.mateIsFwd = false; // jointHit.rightClust->isFw;
                 qaln.mateStatus = MateStatus::SINGLE_END;
-				        qaln.numHits = jointHit.orphanClust()->coverage;
+                qaln.numHits = jointHit.orphanClust()->coverage;
                 validHits.emplace_back(jointHit.tid, jointHit.orphanClust());
-      }
+            }
 
-      hctr.totAlignment += jointHits.size();
+            hctr.totAlignment += jointHits.size();
 
-      // write puffkrak format output
-      if (mopts->krakOut) {
+            // write puffkrak format output
+            if (mopts->krakOut) {
                 writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream);
-      } else if (mopts->salmonOut) {
+            } else if (mopts->salmonOut) {
                 writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream, false);
-      } else if (jointHits.size() > 0 and !mopts->noOutput) {
+            } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
                                               !mopts->noOrphan, mopts->justMap);
-      } else if (jointHits.size() == 0 and !mopts->noOutput) {
+            } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
                 writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
                                                       sstream, !mopts->noOrphan, mopts->justMap);
-      }
+            }
 
-      // write them on cmd
-      if (hctr.numReads > hctr.lastPrint + 1000000) {
+            // write them on cmd
+            if (hctr.numReads > hctr.lastPrint + 1000000) {
                 hctr.lastPrint.store(hctr.numReads.load());
                 if (!mopts->quiet and iomutex->try_lock()) {
                     if (hctr.numReads > 0) {
@@ -1931,19 +2003,19 @@ void processReadsSingle(single_parser *parser,
                               << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
                     iomutex->unlock();
                 }
-      }
-    } // for all reads in this job
+            }
+        } // for all reads in this job
 
 
-    // dump output
-    if (!mopts->noOutput) {
+        // dump output
+        if (!mopts->noOutput) {
             // Get rid of last newline
             if (mopts->krakOut || mopts->salmonOut) {
                 if (mopts->salmonOut && bstream.getBytes() > 0) {
                     BinWriter sbw(64);
                     sbw << bstream.getBytes();
                     outQueue->info("{}{}", sbw, bstream);
-                }else if (mopts->krakOut) {
+                } else if (mopts->krakOut) {
                     outQueue->info("{}", bstream);
                 }
                 bstream.clear();
@@ -1956,9 +2028,9 @@ void processReadsSingle(single_parser *parser,
                 }
                 sstream.clear();
             }
-    }
+        }
 
-  } // processed all reads
+    } // processed all reads
 }
 
 template<typename PufferfishIndexT>
@@ -2056,20 +2128,20 @@ bool alignReads(
     std::unique_ptr<std::ostream> outStream{nullptr};
     //bool haveOutputFile{false} ;
     std::shared_ptr<spdlog::logger> outLog{nullptr};
-    
+
     std::unordered_set<std::string> gene_names;
     if (mopts->filterGenomics or mopts->filterMicrobiom) {
-      std::ifstream gene_names_file;
-      std::string gene_name;
-      gene_names_file.open(mopts->genesNamesFile);
-      if (!gene_names_file) {
-        std::cerr<< "Genomic file does not exist\n";
-        exit(1);
-      } 
-      while ( gene_names_file >> gene_name ) {
-        gene_names.insert(gene_name);
-      }
-      gene_names_file.close();
+        std::ifstream gene_names_file;
+        std::string gene_name;
+        gene_names_file.open(mopts->genesNamesFile);
+        if (!gene_names_file) {
+            std::cerr << "Genomic file does not exist\n";
+            exit(1);
+        }
+        while (gene_names_file >> gene_name) {
+            gene_names.insert(gene_name);
+        }
+        gene_names_file.close();
     }
 
 
@@ -2175,7 +2247,7 @@ bool alignReadsWrapper(
                 unmatedReadsF >> mopts->unmatedReads;
                 uint64_t start = mopts->unmatedReads.find_last_of('/');
                 uint64_t end = mopts->unmatedReads.find_last_of('.');
-                mopts->outname += mopts->unmatedReads.substr(start+1, end-start-1);
+                mopts->outname += mopts->unmatedReads.substr(start + 1, end - start - 1);
                 res &= alignReads(pfi, consoleLog, mopts);
             }
         } else {
@@ -2189,15 +2261,14 @@ bool alignReadsWrapper(
                 readF2 >> mopts->read2;
                 uint64_t start = mopts->read1.find_last_of('/');
                 uint64_t end = mopts->read1.find_last_of('_');
-                mopts->outname = outname + mopts->read1.substr(start+1, end-start-1);
+                mopts->outname = outname + mopts->read1.substr(start + 1, end - start - 1);
                 std::cerr << mopts->read1 << "\n";
                 std::cerr << mopts->read2 << "\n";
                 std::cerr << mopts->outname << "\n";
                 res &= alignReads(pfi, consoleLog, mopts);
             }
         }
-    }
-    else res &= alignReads(pfi, consoleLog, mopts);
+    } else res &= alignReads(pfi, consoleLog, mopts);
     return res;
 }
 
