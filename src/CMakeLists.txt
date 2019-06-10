@@ -71,7 +71,7 @@ set(pufferfish_lib_srcs
     PufferFS.cpp
 		xxhash.c
 		MemCollector.cpp
-		MemClusterer.cpp
+		MemChainer.cpp
 		PufferfishAligner.cpp
     rank9sel.cpp
     #edlib.cpp

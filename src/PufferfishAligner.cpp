@@ -82,46 +82,20 @@ using MutexT = std::mutex;
 using AlnCacheMap = tsl::hopscotch_map<uint64_t, AlignmentResult, PassthroughHash>;
 
 template<typename PufferfishIndexT>
-void printMemInfo(size_t tid,
-                  const std::vector<util::MemCluster>::iterator lclust,
-                  const std::vector<util::MemCluster>::iterator rclust,
-                  PufferfishIndexT &pfi) {
-    std::cerr << "\ntid:" << tid << "\t" << pfi.refName(tid) << "\n";
-    std::cerr << "left:" << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-    for (size_t i = 0; i < lclust->mems.size(); i++) {
-        std::cerr << "--- t" << lclust->mems[i].tpos << " r"
-                  << lclust->mems[i].memInfo->rpos << " cid:"
-                  << lclust->mems[i].memInfo->cid << " cpos: "
-                  << lclust->mems[i].memInfo->cpos << " len:"
-                  << lclust->mems[i].memInfo->memlen << " fw:"
-                  << lclust->mems[i].memInfo->cIsFw << "\n";
-    }
-    std::cerr << "\nright:" << rclust->isFw << " size:" << rclust->mems.size() << " cov:" << rclust->coverage << "\n";
-    for (size_t i = 0; i < rclust->mems.size(); i++) {
-        std::cerr << "--- t" << rclust->mems[i].tpos << " r"
-                  << rclust->mems[i].memInfo->rpos << " cid:"
-                  << rclust->mems[i].memInfo->cid << " cpos: "
-                  << rclust->mems[i].memInfo->cpos << " len:"
-                  << rclust->mems[i].memInfo->memlen << " fw:"
-                  << rclust->mems[i].memInfo->cIsFw << "\n";
-    }
-}
-
-
-template<typename PufferfishIndexT>
 void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &leftMemClusters,
                               std::vector<util::JointMems> &jointMemsList,
                               uint32_t perfectCoverage,
                               double coverageRatio,
                               PufferfishIndexT &pfi,
                               bool verbose) {
-
     uint32_t maxCoverage{0};
     for (auto &leftClustItr : leftMemClusters) {
         // reference id
         size_t tid = leftClustItr.first;
         // left mem clusters
         auto &lClusts = leftClustItr.second;
+        if (verbose)
+            std::cerr << "\ntid:" << leftClustItr.first << "\t" << pfi.refName(leftClustItr.first) << "\n";
         // Compare the left clusters to the right clusters to filter by positional constraints
         std::vector<util::MemCluster> dummyCluster;
         for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
@@ -160,17 +134,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                 std::cerr << "\ntid:" << kv.first << "\t" << pfi.refName(kv.first) << "\n";
             auto &lClusts = kv.second;
             for (auto clust = lClusts.begin(); clust != lClusts.end(); clust++) {
-                if (verbose) {
-                    std::cerr << "left: " << clust->isFw << " cov " << clust->coverage << "\n";
-                    for (size_t i = 0; i < clust->mems.size(); i++) {
-                        std::cerr << "--- t" << clust->mems[i].tpos << " r"
-                                  << clust->mems[i].memInfo->rpos << " cid:"
-                                  << clust->mems[i].memInfo->cid << " cpos: "
-                                  << clust->mems[i].memInfo->cpos << " len:"
-                                  << clust->mems[i].memInfo->memlen << " fw:"
-                                  << clust->mems[i].isFw << "\n";
-                    }
-                }
                 if (maxLeft == clust->coverage) {
                     maxLeftCnt += 1;
                 } else if (maxLeft < clust->coverage) {
@@ -185,17 +148,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
 
             auto &rClusts = kv.second;
             for (auto clust = rClusts.begin(); clust != rClusts.end(); clust++) {
-                if (verbose) {
-                    std::cerr << "right: " << clust->isFw << " cov " << clust->coverage << "\n";
-                    for (size_t i = 0; i < clust->mems.size(); i++) {
-                        std::cerr << "--- t" << clust->mems[i].tpos << " r"
-                                  << clust->mems[i].memInfo->rpos << " cid:"
-                                  << clust->mems[i].memInfo->cid << " cpos: "
-                                  << clust->mems[i].memInfo->cpos << " len:"
-                                  << clust->mems[i].memInfo->memlen << " fw:"
-                                  << clust->mems[i].isFw << "\n";
-                    }
-                }
                 if (maxRight == clust->coverage) {
                     maxRightCnt += 1;
                 } else if (maxRight < clust->coverage) {
@@ -308,95 +260,6 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                                        }),
                         jointMemsList.end());
 
-    // FILTER 2
-    // filter read pairs that don't have enough base coverage
-    // (i.e. their coverage is less than coverage ratio times the max coverage for this read)
-    // if we've found a perfect match, we will erase any match that is not perfect
-    /* if (maxCoverage == perfectCoverage) {
-      jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                          [&maxCoverage](util::JointMems& pairedReadMems) -> bool {
-                                            return pairedReadMems.coverage() != maxCoverage;
-                                          }),
-                           jointMemsList.end());
-    }
-    else
-    {// Now, we will go with the heuristic that just keep those mappings that have at least
-        // the required fraction of the best coverage.
-
-				//std::cerr<<jointMemsList.size()<<"\n";
-        jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                           [&maxCoverage, coverageRatio](util::JointMems &pairedReadMems) -> bool {
-                                               return pairedReadMems.coverage() < coverageRatio * maxCoverage;
-                                           }),
-                            jointMemsList.end());
-				//std::cerr<<jointMemsList.size()<<"\n";
-
-
-         uint64_t minCoverage = 33;//0.8 * (perfectCoverage / 2);
-        jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                         [&minCoverage](util::JointMems& pairedReadMems) -> bool {
-                                           return pairedReadMems.coverage() < minCoverage ;
-                                         }),
-                          jointMemsList.end());
-    }
-    //TODO you should take care of this case later. Don't forget
-    if (coverageRatio == 1) {
-        std::set<std::vector<util::UniMemInfo>::iterator> lvalidUnimemSet, rvalidUnimemSet;
-        if (jointMemsList.size() > 0) {
-            auto &first = jointMemsList[0];
-            if (first.isLeftAvailable()) {
-                for (auto &mem : first.leftClust->mems) {
-                    lvalidUnimemSet.insert(mem.memInfo);
-                }
-            }
-            if (first.isRightAvailable()) {
-                for (auto &mem : first.rightClust->mems) {
-                    rvalidUnimemSet.insert(mem.memInfo);
-                }
-            }
-            for (auto &jointMem : jointMemsList) {
-                if (jointMem.isLeftAvailable()) {
-                    for (auto &mem : jointMem.leftClust->mems) {
-                        if (lvalidUnimemSet.find(mem.memInfo) == lvalidUnimemSet.end()) {
-                            jointMemsList.clear();
-                            return;
-                        }
-                    }
-                }
-                if (jointMem.isRightAvailable()) {
-                    for (auto &mem : jointMem.rightClust->mems) {
-                        if (rvalidUnimemSet.find(mem.memInfo) == rvalidUnimemSet.end()) {
-                            jointMemsList.clear();
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-    }*/
-
-    if (verbose) {
-        std::cerr << "\nFinal stat: " << jointMemsList.size() << " had coverage >= " << coverageRatio * maxCoverage
-                  << "\n";
-        std::cerr << jointMemsList.size() << "\n";
-        for (auto &jointMems : jointMemsList) {
-            std::cerr << " -->" << jointMems.tid << " " << pfi.refName(jointMems.tid) << "\n\t\t";
-            std::vector<util::MemCluster> dummyCluster;
-            if (jointMems.leftClust != dummyCluster.end()) {
-                for (auto &cl : jointMems.leftClust->mems) {
-                    std::cerr << cl.tpos << " ";
-                }
-            }
-            std::cerr << "\n\t\t";
-            if (jointMems.rightClust != dummyCluster.end()) {
-                for (auto &cl : jointMems.rightClust->mems) {
-                    std::cerr << cl.tpos << " ";
-                }
-            }
-            std::cerr << "\n";
-        }
-
-    }
     if (verbose)
         std::cerr << "\n[END OF JOINREADSANDFILTER]\n";
 }
@@ -994,350 +857,6 @@ PufferfishAligner::calculateAlignments(std::string &read_left, std::string &read
     }
 }
 
-std::string calculateCigar(std::string &read,
-                           std::string &ref,
-                           ksw2pp::KSW2Aligner &aligner,
-                           std::vector<util::MemCluster>::iterator clust,
-                           bool verbose = true) {
-    if (read.empty()) {
-        clust->cigar += (std::to_string(ref.length()) + "D");
-        clust->score += ref.length() * GAP_SCORE;
-    } else if (ref.empty()) {
-        clust->cigar += (std::to_string(read.length()) + "I");
-        clust->score += read.length() * GAP_SCORE;
-    } else {
-        auto score = aligner(read.c_str(),
-                             read.length(),
-                             ref.c_str(),
-                             ref.length(),
-                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-        clust->score += score;
-        if (verbose) {
-            std::cerr << "read str " << read << "\nref str " << ref << "\n";
-            std::cerr << "cigar before : " << clust->cigar << "\n";
-        }
-        clust->cigar += cigar2str(&aligner.result());
-        if (verbose) std::cerr << "cigar after : " << clust->cigar << "\n";
-    }
-    if (verbose) std::cerr << clust->cigar << "\n";
-    return clust->cigar;
-}
-
-template<typename PufferfishIndexT>
-util::ContigBlock getContigBlock(std::vector<util::UniMemInfo>::iterator memInfo,
-                                 PufferfishIndexT *pfi,
-                                 spp::sparse_hash_map<uint32_t, util::ContigBlock> *contigSeqCache) {
-    if (contigSeqCache->find(memInfo->cid) != contigSeqCache->end()) {
-        return (*contigSeqCache)[memInfo->cid];
-    } else
-        (*contigSeqCache)[memInfo->cid] = {memInfo->cid,
-                                           memInfo->cGlobalPos,
-                                           memInfo->clen,
-                                           pfi->getSeqStr(memInfo->cGlobalPos, memInfo->clen)};
-
-    return (*contigSeqCache)[memInfo->cid];
-}
-
-
-template<typename PufferfishIndexT>
-void createSeqPairs(PufferfishIndexT *pfi,
-                    std::vector<util::MemCluster>::iterator clust,
-                    fastx_parser::ReadSeq &read,
-                    RefSeqConstructor<PufferfishIndexT> &refSeqConstructor,
-                    spp::sparse_hash_map<uint32_t, util::ContigBlock> &contigSeqCache,
-                    uint32_t tid,
-                    ksw2pp::KSW2Aligner &aligner,
-                    bool verbose,
-                    bool naive = true) {
-
-    //(void)verbose;
-    (void) naive;
-    //std::string& readName = read.name ;
-    std::string &readSeq = read.seq;
-    auto clustSize = clust->mems.size();
-    clust->score = 0;
-    auto readLen = readSeq.length();
-
-    //@debug
-    if (verbose) std::cerr << "Clust size " << clustSize << "\n";
-
-    clust->cigar = "";
-    auto prevTPos = clust->mems[0].tpos;
-    size_t it = 0;
-    //FIXME why we have failures in graph!! if valid, discard the whole hit, otherwise, find the bug
-    for (it = 0; it < clust->mems.size() - 1; ++it) {
-        auto mmTstart = clust->mems[it].tpos + clust->mems[it].memInfo->memlen;
-        auto mmTend = clust->mems[it + 1].tpos;
-
-        // NOTE: Assume that consistency condition is met, merging the mems
-        if (mmTend <
-            mmTstart) { // this means the not matched seq is empty. i.e. we have exact match in transition from txp_i to txp_(i+1)
-            continue;
-        }
-
-        uint32_t rstart = (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
-        uint32_t rend = clust->mems[it + 1].memInfo->rpos;
-
-        if (!clust->isFw) {
-            rstart = (clust->mems[it + 1].memInfo->rpos + clust->mems[it + 1].memInfo->memlen);
-            rend = clust->mems[it].memInfo->rpos;
-        }
-        if (mmTend == mmTstart && rstart == rend) {
-            continue;
-        }
-
-        clust->cigar += (std::to_string(mmTstart - prevTPos) + "M");
-        clust->score += ((mmTstart - prevTPos) * MATCH_SCORE);
-        prevTPos = clust->mems[it + 1].tpos;
-
-        if (mmTend == mmTstart) { //Insertion in read
-            if (rend - rstart > 0) { //validity check TODO if passed should be removed for final version
-                //std::string tmp = extractReadSeq(readSeq, rstart, rend, clust->isFw) ;
-                std::string readSubstr = extractReadSeq(readSeq, rstart, rend, clust->isFw);
-                std::string refSeq = "";
-                calculateCigar(readSubstr, refSeq, aligner, clust, verbose);
-            } else {
-                std::cerr << "ERROR: in pufferfishAligner tstart = tend while rend < rstart\n" << read.name << "\n";
-            }
-        } else if (rstart == rend) { //deletion in read
-            if (mmTend - mmTstart > 0) { //validity check TODO if passed should be removed for final version
-                //std::string tmp = extractReadSeq(readSeq, rstart, rend, clust->isFw) ;
-                clust->cigar += (std::to_string(mmTend - mmTstart) + "D");
-                clust->score += (mmTend - mmTstart) * GAP_SCORE;
-                //calculateCigar(extractReadSeq(readSeq, rstart, rend, clust->isFw), "", aligner, clust);
-            } else {
-                std::cerr << "ERROR: in pufferfishAligner rstart = rend while tend < tstart\n" << read.name << "\n";
-            }
-        } else { // complex case
-            // Need to fetch reference string --> Doing graph traversal
-            std::string refSeq = "";
-            bool firstContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw; // true ~ (ref == contig)
-            bool secondContigDirWRTref = clust->mems[it + 1].memInfo->cIsFw == clust->isFw;
-            auto distOnTxp = clust->mems[it + 1].tpos - (clust->mems[it].tpos + clust->mems[it].memInfo->memlen);
-            uint32_t cstart = firstContigDirWRTref ? (clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen -
-                                                      1) : clust->mems[it].memInfo->cpos;
-            uint32_t cend = secondContigDirWRTref ? clust->mems[it + 1].memInfo->cpos : (
-                    clust->mems[it + 1].memInfo->cpos + clust->mems[it + 1].memInfo->memlen - 1);
-
-            // heuristic : length of mismatched parts of txp and read are both one??? It's a definite mismatch!!
-            if (distOnTxp == 1 && (rend - rstart) == 1) {
-                clust->cigar += "1M";
-                clust->score += MISMATCH_SCORE;
-            } else {
-
-                util::ContigBlock scb = getContigBlock(clust->mems[it].memInfo, pfi, &contigSeqCache);
-                util::ContigBlock ecb = getContigBlock(clust->mems[it + 1].memInfo, pfi, &contigSeqCache);
-
-                //NOTE In simplest form, assuming both start and end contigs are forward wrt the reference, then
-                // cstart and cend point to the last matched base in the start contig and first matched base in last contig
-                if (verbose) {
-                    std::cerr << " start contig: \ncid" << scb.contigIdx_ << " relpos" << clust->mems[it].memInfo->cpos
-                              << " len" << scb.contigLen_ << " ori" << firstContigDirWRTref
-                              << " hitlen" << clust->mems[it].memInfo->memlen << " start pos:" << cstart << "\n"
-                              << scb.seq << "\n";
-                    std::cerr << " last contig: \ncid" << ecb.contigIdx_ << " relpos"
-                              << clust->mems[it + 1].memInfo->cpos << " len" << ecb.contigLen_ << " ori"
-                              << secondContigDirWRTref
-                              << " hitlen" << clust->mems[it + 1].memInfo->memlen << " end pos:" << cend << "\n"
-                              << ecb.seq << "\n";
-                }
-                Task res = refSeqConstructor.fillSeq(tid,
-                                                     clust->mems[it].tpos + clust->mems[it].memInfo->memlen - 1,
-                                                     firstContigDirWRTref,
-                                                     scb, cstart, ecb, cend,
-                                                     secondContigDirWRTref,
-                                                     distOnTxp,
-                                                     refSeq);
-                if (res == Task::SUCCESS) {
-                    //std::cerr << "SUCCESS\n";
-                    //std::cerr << " part of read "<<extractReadSeq(readSeq, rstart, rend, clust->isFw)<<"\n"
-                    //         << " part of ref  " << refSeq << "\n";
-                    std::string readSubstr = extractReadSeq(readSeq, rstart, rend, clust->isFw);
-                    calculateCigar(readSubstr, refSeq, aligner, clust, verbose);
-                } else {
-                    //FIXME discard whole hit!!!
-                    clust->score = std::numeric_limits<int>::min();
-                    //std::cerr << "Graph searched FAILED \n" ;
-                }
-            }
-        }
-    }
-    // update cigar and add matches for last unimem(s)
-    // after the loop, "it" is pointing to the last unimem in the change
-    clust->cigar += (std::to_string(clust->mems[it].tpos + clust->mems[it].memInfo->memlen - prevTPos) + "M");
-    clust->score += ((clust->mems[it].tpos + clust->mems[it].memInfo->memlen - prevTPos) * MATCH_SCORE);
-
-
-    // Take care of left and right gaps/mismatches
-    util::ContigBlock dummy = {std::numeric_limits<uint64_t>::max(), 0, 0, "", true};
-
-    bool lastContigDirWRTref = clust->mems[it].memInfo->cIsFw == clust->isFw;
-    bool firstContigDirWRTref = clust->mems[0].memInfo->cIsFw == clust->isFw;
-
-
-    auto endRem = readLen - (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen);
-    auto startRem = clust->mems[0].memInfo->rpos;
-
-    std::string startReadSeq = "";
-    std::string endReadSeq = "";
-    if (clust->isFw) {
-        startReadSeq = extractReadSeq(readSeq, 0, clust->mems[0].memInfo->rpos, clust->isFw);
-        endReadSeq = extractReadSeq(readSeq, (clust->mems[it].memInfo->rpos + clust->mems[it].memInfo->memlen), readLen,
-                                    clust->isFw);
-    }
-
-    if (!clust->isFw) {
-        endRem = clust->mems[it].memInfo->rpos;
-        startRem = readLen - (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen);
-        startReadSeq = extractReadSeq(readSeq, (clust->mems[0].memInfo->rpos + clust->mems[0].memInfo->memlen), readLen,
-                                      clust->isFw);
-        endReadSeq = extractReadSeq(readSeq, 0, clust->mems[it].memInfo->rpos, clust->isFw);
-    }
-
-    /*if (verbose) std::cerr << firstContigDirWRTref << " " << startRem << " " << startReadSeq
-                           << " last " << lastContigDirWRTref << " " << endRem << " " << endReadSeq
-                         << "\n";
-    */
-    if (endRem > 0) {
-        //std::cerr << "RIIIGHT hangover\n";
-        std::string refSeq = "";
-        util::ContigBlock scb = getContigBlock(clust->mems[it].memInfo, pfi, &contigSeqCache);
-        uint32_t cstart = lastContigDirWRTref ? (clust->mems[it].memInfo->cpos + clust->mems[it].memInfo->memlen - 1)
-                                              : clust->mems[it].memInfo->cpos;
-
-        Task res = refSeqConstructor.fillSeq(tid,
-                                             clust->mems[it].tpos + clust->mems[it].memInfo->memlen - 1,
-                                             lastContigDirWRTref,
-                                             scb, cstart, dummy, 0,
-                                             lastContigDirWRTref,
-                                             endRem,
-                                             refSeq,
-                                             verbose);
-        if (res == Task::SUCCESS) {
-            if (verbose)
-                std::cerr << "\n\n\nSUCCESS   end extension::: " << read.name << "\n" << "read: " << endReadSeq
-                          << " ref: " << refSeq << "\n"
-                          << "tid " << tid << " starting from "
-                          << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << " endRem " << endRem << " cid "
-                          << scb.contigIdx_ << "\n";
-
-            //std::cerr << " part of read "<<endReadSeq<<"\n"
-            //          << " part of ref  " << refSeq << "\n";
-            calculateCigar(endReadSeq, refSeq, aligner, clust, verbose);
-        } else {
-            if (verbose)
-                std::cerr << "\n\n\nFAILURE   end extension::: " << read.name << "\n" << "read: " << endReadSeq
-                          << " ref: " << refSeq << "\n"
-                          << "tid " << tid << " starting from "
-                          << clust->mems[it].tpos + clust->mems[it].memInfo->memlen << " endRem " << endRem << " cid "
-                          << scb.contigIdx_ << "\n";
-            // discard whole hit!!!
-            clust->score = std::numeric_limits<int>::min();
-            //std::cerr << "Graph searched FAILED \n" ;
-        }
-    }
-    if (startRem > 0) {
-        //std::cerr << read.name << "\n";
-        //std::cerr << "LEEEFT hangover\n";
-        std::string refSeq = "";
-        util::ContigBlock ecb = getContigBlock(clust->mems[0].memInfo, pfi, &contigSeqCache);
-        if (verbose) {
-            std::cerr << firstContigDirWRTref << " " << clust->mems[0].memInfo->cpos
-                      << " " << (clust->mems[0].memInfo->cpos + clust->mems[0].memInfo->memlen - 1) << "\n";
-            std::cerr << ecb.seq.length() << "   " << ecb.seq << "\n";
-        }
-        uint32_t cend = firstContigDirWRTref ? clust->mems[0].memInfo->cpos : (clust->mems[0].memInfo->cpos +
-                                                                               clust->mems[0].memInfo->memlen - 1);
-
-        Task res = refSeqConstructor.fillSeq(tid,
-                                             clust->mems[0].tpos + clust->mems[0].memInfo->memlen - 1,
-                                             firstContigDirWRTref,
-                                             dummy, 0, ecb, cend,
-                                             firstContigDirWRTref,
-                                             startRem,
-                                             refSeq);
-        //if (verbose) std::cerr << "got here\n";
-        if (res == Task::SUCCESS) {
-            //std::cerr << " part of read "<<startReadSeq<<"\n"
-            //          << " part of ref  " << refSeq << "\n";
-            calculateCigar(endReadSeq, refSeq, aligner, clust, verbose);
-        } else {
-            std::cerr << "beginning extension::: " << read.name << "\n" << "read: " << endReadSeq << " ref: " << refSeq
-                      << "\n";
-            // discard whole hit!!!
-            clust->score = std::numeric_limits<int>::min();
-            //std::cerr << "Graph searched FAILED \n" ;
-        }
-    }
-    clust->isVisited = true;
-    if (verbose)
-        std::cerr << read.name << " " << clust->isFw << " " << clust->mems.size() << "\n" << read.seq << "\nSCORE: "
-                  << clust->score << "\nCIGAR: " << clust->cigar << "\n";
-}
-
-template<typename ReadPairT, typename PufferfishIndexT>
-void traverseGraph(ReadPairT &rpair,
-                   util::JointMems &hit,
-                   PufferfishIndexT &pfi,
-                   RefSeqConstructor<PufferfishIndexT> &refSeqConstructor,
-                   spp::sparse_hash_map<uint32_t, util::ContigBlock> &contigSeqCache,
-                   ksw2pp::KSW2Aligner &aligner,
-                   bool verbose,
-                   bool naive = false) {
-
-    size_t tid = hit.tid;
-    auto readLen = rpair.first.seq.length();
-    if (verbose) std::cerr << rpair.first.name << "\n";
-
-    if (hit.isOrphan()) {
-        if (!hit.orphanClust()->isVisited && hit.orphanClust()->coverage < readLen)
-            createSeqPairs(&pfi, hit.orphanClust(), rpair.first, refSeqConstructor, contigSeqCache, tid, aligner,
-                           verbose, naive);
-        else if (hit.orphanClust()->coverage == readLen) {
-            hit.orphanClust()->score += hit.orphanClust()->coverage * MATCH_SCORE;
-            hit.orphanClust()->cigar = std::to_string(hit.orphanClust()->coverage) + "M";
-        }
-    } else {
-        if (!hit.leftClust->isVisited && hit.leftClust->coverage < readLen)
-            createSeqPairs(&pfi, hit.leftClust, rpair.first, refSeqConstructor, contigSeqCache, tid, aligner, verbose,
-                           naive);
-        else if (hit.leftClust->coverage == readLen) {
-            hit.leftClust->score += hit.leftClust->coverage * MATCH_SCORE;
-            hit.leftClust->cigar = std::to_string(hit.leftClust->coverage) + "M";
-        }
-        //goOverClust(pfi, hit.leftClust, rpair.first, contigSeqCache, tid, verbose) ;
-        if (!hit.rightClust->isVisited && hit.rightClust->coverage < readLen)
-            createSeqPairs(&pfi, hit.rightClust, rpair.second, refSeqConstructor, contigSeqCache, tid, aligner, verbose,
-                           naive);
-        else if (hit.rightClust->coverage == readLen) {
-            hit.rightClust->score += hit.rightClust->coverage * MATCH_SCORE;
-            hit.rightClust->cigar = std::to_string(hit.rightClust->coverage) + "M";
-        }
-    }
-    //goOverClust(pfi, hit.rightClust, rpair.second, contigSeqCache, tid, verbose) ;
-}
-
-
-bool foundTruth(std::string &refName, std::string &readName) {
-    int cntr = 0;
-    //gi|456351576|dbj|AP012603.1|
-    size_t idx = 3;
-    char refchr = refName[idx];
-    char readchr = readName[idx];
-    while (cntr != 3 || idx == refName.size() || idx == readName.size()) {
-        if (refchr != readchr)
-            return false;
-        idx++;
-        refchr = refName[idx];
-        readchr = readName[idx];
-        if (refchr == '|')
-            cntr++;
-    }
-    if (readchr == '|')
-        return true;
-    return false;
-}
-
 /**
  * Main function for processing paired-end reads.
  **/
@@ -1427,14 +946,6 @@ void processReadsPair(paired_parser *parser,
                                    verbose);
 
             all.clear();
-            /*memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/findBestChain/(jointHits,
-                                                                                              all,
-                                                                                              mopts->maxSpliceGap,
-                                                                                              mopts->maxFragmentLength,
-                                                                                              rpair.first.seq.length(),
-                                                                                              rpair.second.seq.length(),
-                                                                                              verbose);*/
-            //hctr.numMappedAtLeastAKmer += jointHits.size() ? 1 : 0;
             hctr.numMappedAtLeastAKmer += (leftHits.size() > 0 || rightHits.size() > 0) ? 1 : 0;
             //do intersection on the basis of
             //performance, or going towards selective alignment
@@ -1778,64 +1289,8 @@ void processReadsSingle(single_parser *parser,
                                      pfi,
                                      verbose);
 
-
-            //memCollector.findOptChainAllowingOneJumpBetweenTheReadEnds/*findBestChain*/(jointHits,
-            /*                                                                            all,
-                                                                                        mopts->maxSpliceGap,
-                                                                                        mopts->maxFragmentLength,
-                                                                                        read.seq.length(),
-                                                                                        read.seq.length(),
-                                                                                        verbose);*/
-            // Filter left hits
-            /* uint32_t maxCoverage{0};
-            uint32_t perfectCoverage{static_cast<uint32_t>(totLen)};
-
-            std::vector<std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator>> validHits;
-            validHits.reserve(2 * leftHits.size());
-            for (auto &l : leftHits) {
-                auto &lclust = l.second;
-                for (auto clustIt = lclust.begin(); clustIt != lclust.end(); ++clustIt) {
-                    if (clustIt->coverage > maxCoverage) { maxCoverage = clustIt->coverage; }
-                    if (clustIt->coverage >= mopts->scoreRatio * maxCoverage or clustIt->coverage == perfectCoverage) {
-                        validHits.emplace_back(static_cast<uint32_t>(l.first), clustIt);
-                        
-                        if (read.name == "spj_1622951_1623126_68819/2") {
-                          std::cerr << "\ntid" << l.first << " " << pfi.refName(l.first) << " coverage:" << clustIt->coverage << "\n";
-                           for (auto& clus : lclust) {
-                             std::cerr << "mem size: " << clus.mems.size() << "\n";
-                             for (auto& mem : clus.mems) {
-                             std::cerr << "t" << mem.tpos << " r" << mem.memInfo->rpos << " cid" << mem.memInfo->cid << " -- ";
-                             }
-                             std::cerr << "\n";
-                             }
-                        }
-                    }
-                }
-                double thresh = mopts->scoreRatio * maxCoverage;
-                // sort the hits by coverage
-                std::sort(
-                        validHits.begin(), validHits.end(),
-                        [thresh](
-                                std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator> &
-                                e1, std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator> &e2) -> bool {
-                            return e1.second->coverage > e2.second->coverage;
-                        });
-                // remove those that don't achieve the threshold
-                validHits.erase(std::remove_if(validHits.begin(), validHits.end(),
-                                               [thresh](
-                                                       std::pair<uint32_t, decltype(leftHits)::mapped_type::iterator> &e) -> bool {
-                                                   return static_cast<double>(e.second->coverage) < thresh;
-                                               }), validHits.end());
-            }*/
-
             std::vector<QuasiAlignment> jointAlignments;
             std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>> validHits;
-
-            // Removing reads which contain N
-            /*if (read.seq.find('N') != std::string::npos){
-                jointHits.clear();
-                continue;
-            }*/
 
             if (mopts->validateMappings) {
                 ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
