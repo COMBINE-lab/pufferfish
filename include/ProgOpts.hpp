@@ -75,6 +75,7 @@ public:
   bool filterGenomics{false};
   bool filterMicrobiom{false};
   bool primaryAlignment{false};
+  bool listOfReads{false};
 };
 
 

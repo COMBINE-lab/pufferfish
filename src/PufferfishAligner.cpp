@@ -2161,6 +2161,46 @@ bool alignReads(
     return true;
 }
 
+template<typename PufferfishIndexT>
+bool alignReadsWrapper(
+        PufferfishIndexT &pfi,
+        std::shared_ptr<spdlog::logger> consoleLog,
+        AlignmentOpts *mopts) {
+    bool res = true;
+    if (mopts->listOfReads) {
+        if (mopts->singleEnd) {
+            std::string unmatedReadsFile = mopts->unmatedReads;
+            std::ifstream unmatedReadsF(unmatedReadsFile);
+            while (unmatedReadsF.good()) {
+                unmatedReadsF >> mopts->unmatedReads;
+                uint64_t start = mopts->unmatedReads.find_last_of('/');
+                uint64_t end = mopts->unmatedReads.find_last_of('.');
+                mopts->outname += mopts->unmatedReads.substr(start+1, end-start-1);
+                res &= alignReads(pfi, consoleLog, mopts);
+            }
+        } else {
+            std::string readFile1 = mopts->read1;
+            std::string readFile2 = mopts->read2;
+            std::ifstream readF1(readFile1);
+            std::ifstream readF2(readFile2);
+            std::string outname = mopts->outname;
+            while (readF1.good() and readF2.good()) {
+                readF1 >> mopts->read1;
+                readF2 >> mopts->read2;
+                uint64_t start = mopts->read1.find_last_of('/');
+                uint64_t end = mopts->read1.find_last_of('_');
+                mopts->outname = outname + mopts->read1.substr(start+1, end-start-1);
+                std::cerr << mopts->read1 << "\n";
+                std::cerr << mopts->read2 << "\n";
+                std::cerr << mopts->outname << "\n";
+                res &= alignReads(pfi, consoleLog, mopts);
+            }
+        }
+    }
+    else res &= alignReads(pfi, consoleLog, mopts);
+    return res;
+}
+
 int pufferfishAligner(AlignmentOpts &alnargs) {
 
     auto consoleLog = spdlog::stderr_color_mt("console");
@@ -2178,13 +2218,13 @@ int pufferfishAligner(AlignmentOpts &alnargs) {
 
     if (indexType == "dense") {
         PufferfishIndex pfi(indexDir);
-        success = alignReads(pfi, consoleLog, &alnargs);
+        success = alignReadsWrapper(pfi, consoleLog, &alnargs);
     } else if (indexType == "sparse") {
         PufferfishSparseIndex pfi(indexDir);
-        success = alignReads(pfi, consoleLog, &alnargs);
+        success = alignReadsWrapper(pfi, consoleLog, &alnargs);
     } else if (indexType == "lossy") {
         PufferfishLossyIndex pfi(indexDir);
-        success = alignReads(pfi, consoleLog, &alnargs);
+        success = alignReadsWrapper(pfi, consoleLog, &alnargs);
     }
 
     if (!success) {
