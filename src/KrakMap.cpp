@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include "CLI/CLI.hpp"
-#include "krakMap.h"
+#include "KrakMap.h"
 
 struct krakMapOpts {
     std::string taxonomyTree_filename;

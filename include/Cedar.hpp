@@ -8,7 +8,7 @@
 #include "EquivalenceClassBuilder.hpp"
 #include <thread>
 #include <mutex>
-#include "taxa.h"
+#include "Taxa.h"
 #include "tbb/tbb.h"
 
 constexpr uint32_t ALIGNMENTS_PER_BATCH{20};
