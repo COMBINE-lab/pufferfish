@@ -1019,7 +1019,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         auto &hi = memList[i];
         auto qposi = hi.isFw ? hi.memInfo->rpos + hi.extendedlen :  readLen - hi.rpos;
         auto rposi = hi.tpos + hi.extendedlen;
-        if (i>0 and std::abs(qposi - prev_qposi) == std::abs(rposi - prev_rposi) and hi.tpos < prev_rposi) {
+        if (i>0 and std::labs(qposi - prev_qposi) == std::labs(rposi - prev_rposi) and hi.tpos < prev_rposi) {
           auto& lastMem = newMemList.back();
           uint32_t extension = rposi - prev_rposi;
           //lastMem.memInfo->memlen += extension;

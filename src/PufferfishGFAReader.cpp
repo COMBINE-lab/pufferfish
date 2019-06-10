@@ -3,6 +3,7 @@
 #include "cereal/archives/binary.hpp"
 #include "xxhash.h"
 #include "Kmer.hpp"
+#include "string_view.hpp"
 #include <chrono>
 #include <algorithm>
 #include <string>

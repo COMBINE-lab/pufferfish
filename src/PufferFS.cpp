@@ -21,6 +21,7 @@
 
 #include "PufferFS.hpp"
 #include <cstring>
+#include <cstdlib>
 #include <sys/stat.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -79,7 +80,9 @@ int MakeDir(const char* path) { return mkdir(path, ACCESSPERMS); }
     if (!stat(dir, &sb))
       return 0;
 
-    MakePath(dirname(strdupa(dir)));
+    char* pname = strdup(dir);
+    MakePath(dirname(pname));
+    free(pname);
 
     return mkdir(dir, ACCESSPERMS);
   }
