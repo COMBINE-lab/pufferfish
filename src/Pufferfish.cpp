@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
                     (option("-b", "--batchOfReads").set(alignmentOpt.listOfReads, true)) % "Is each input a file containing the list of reads? (default=false)",
 
 
-                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=1.0)",
+                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.6)",
                     (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
                     (
