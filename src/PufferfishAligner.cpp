@@ -857,9 +857,9 @@ PufferfishAligner::calculateAlignments(std::string &read_left, std::string &read
     }
 }
 
-/**
- * Main function for processing paired-end reads.
- **/
+//===========
+// PAIRED END
+//============
 template<typename PufferfishIndexT>
 void processReadsPair(paired_parser *parser,
                       PufferfishIndexT &pfi,
@@ -1488,6 +1488,9 @@ void processReadsSingle(single_parser *parser,
     } // processed all reads
 }
 
+//===========
+// PAIRED END
+//============
 template<typename PufferfishIndexT>
 bool spawnProcessReadsthreads(
         uint32_t nthread,
@@ -1517,6 +1520,9 @@ bool spawnProcessReadsthreads(
     return true;
 }
 
+//===========
+// SINGLE END
+//============
 template<typename PufferfishIndexT>
 bool spawnProcessReadsthreads(
         uint32_t nthread,
