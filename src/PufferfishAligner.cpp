@@ -232,7 +232,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                 // left mem clusters
                 auto &Clusts = clustItr.second;
                 for (auto clust = Clusts.begin(); clust != Clusts.end(); clust++) {
-                    if (clust->coverage > coverageRatio * maxLeftOrRight) {
+                    if (clust->coverage >= coverageRatio * maxLeftOrRight) {
                         if (isLeft) {
                             jointMemsList.emplace_back(tid, clust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
                         } else {
