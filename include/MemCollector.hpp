@@ -34,7 +34,6 @@ public:
                   util::MateStatus mateStatus,
                   util::QueryCache& qc,
                   bool hChain=false,
-                  bool mergeMems=false,
                   bool verbose=false);
 
   void clear();

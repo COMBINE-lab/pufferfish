@@ -59,8 +59,8 @@ public:
   bool noOrphan{false};
   bool compressedOutput{false};
   bool verbose{false};
-  bool validateMappings{false};
-  bool strictFilter{false};
+  bool validateMappings{true};
+  bool bestStrata{false};
   int32_t gapOpenPenalty{5};
   int32_t gapExtendPenalty{3};
   int32_t matchScore{2};
@@ -69,7 +69,6 @@ public:
   double minScoreFraction{0.65};
   bool fullAlignment{false};
   bool heuristicChaining{true};
-  bool mergeMems{true};
   bool genomicReads{false};
   std::string genesNamesFile{""};
   bool filterGenomics{false};

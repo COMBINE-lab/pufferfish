@@ -934,7 +934,6 @@ void processReadsPair(paired_parser *parser,
                                    MateStatus::PAIRED_END_LEFT,
                                    qc,
                                    mopts->heuristicChaining,
-                                   mopts->mergeMems,
                                    verbose);
             bool rh = memCollector(rpair.second.seq,
                                    rightHits,
@@ -942,7 +941,6 @@ void processReadsPair(paired_parser *parser,
                                    MateStatus::PAIRED_END_RIGHT,
                                    qc,
                                    mopts->heuristicChaining,
-                                   mopts->mergeMems,
                                    verbose);
 
             all.clear();
@@ -976,7 +974,7 @@ void processReadsPair(paired_parser *parser,
             hctr.peHits += jointHits.size();
 
 
-            if (mopts->validateMappings) {
+            if (!mopts->justMap) {
                 ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
                 PufferfishAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner,
                                               jointHits.size() > 1);
@@ -1045,7 +1043,7 @@ void processReadsPair(paired_parser *parser,
                     continue;
                 }
 
-                if (mopts->strictFilter or mopts->primaryAlignment) {
+                if (mopts->bestStrata or mopts->primaryAlignment) {
                     bool primaryDetected = false;
                     int myctr = 0;
                     for (auto &jointHit : jointHits) {
@@ -1279,7 +1277,6 @@ void processReadsSingle(single_parser *parser,
                                    MateStatus::SINGLE_END,
                                    qc,
                                    mopts->heuristicChaining,
-                                   mopts->mergeMems,
                                    verbose);
             (void) lh;
             all.clear();
@@ -1292,7 +1289,7 @@ void processReadsSingle(single_parser *parser,
             std::vector<QuasiAlignment> jointAlignments;
             std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>> validHits;
 
-            if (mopts->validateMappings) {
+            if (mopts->justMap) {
                 ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
                 PufferfishAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner,
                                               jointHits.size() > 1);
@@ -1360,7 +1357,7 @@ void processReadsSingle(single_parser *parser,
                     continue;
                 }
 
-                if (mopts->strictFilter or mopts->primaryAlignment) {
+                if (mopts->bestStrata or mopts->primaryAlignment) {
                     bool primaryDetected = false;
                     int myctr = 0;
                     for (auto &jointHit : jointHits) {
