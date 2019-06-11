@@ -378,10 +378,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   size_t nkeys{numKmers};
   size_t numContigs{cnmap.size()};
 
-  console->info("seqSize = {}", seqVec.size());
-  console->info("rankSize = {}", rankVec.size());
+  console->info("seqSize = {:n}", seqVec.size());
+  console->info("rankSize = {:n}", rankVec.size());
 
-  console->info("edgeVecSize = {}", edgeVec.size());
+  console->info("edgeVecSize = {:n}", edgeVec.size());
 
   console->info("num keys = {:n}", nkeys);
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
@@ -402,7 +402,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   auto keyIt = boomphf::range(kb, ke);
   boophf_t* bphf =
       new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
-  console->info("mphf size = {}", (bphf->totalBitSize() / 8) / std::pow(2, 20));
+  console->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
 
   std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);
   seqVec.serialize(seqFile);
@@ -442,7 +442,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       }
 
       auto chunkSize = static_cast<uint64_t>(std::ceil(chunkSizeFrac));
-      console->info("chunk size = {}", chunkSize);
+      console->info("chunk size = {:n}", chunkSize);
 
       std::vector<ContigVecChunk> chunks;
       chunks.reserve(nthread);

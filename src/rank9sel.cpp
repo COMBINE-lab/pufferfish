@@ -55,7 +55,7 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 	}
 
 	counts[ num_counts ] = c;
-	fprintf( stderr,"Number of ones: %lld\n", c );	
+	fprintf( stderr,"Number of ones: %ld\n", c );	
 
 	assert( c <= num_bits );
 
@@ -82,15 +82,21 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 	assert( c == d );
 	inventory[ inventory_size ] = ( ( num_words + 3 ) & ~3ULL ) * 64;
 
-	fprintf( stderr, "Inventory entries filled: %lld\n", d / ONES_PER_INVENTORY + 1 );
+	fprintf( stderr, "Inventory entries filled: %ld\n", d / ONES_PER_INVENTORY + 1 );
 
 #ifdef DEBUG
 	printf( "First inventories: %lld %lld %lld %lld\n", inventory[ 0 ], inventory[ 1 ], inventory[ 2 ], inventory[ 3 ] );
 #endif
 
 	d = 0;
-	int state;
-	uint64_t *s, first_bit, index, span, block_span, block_left, counts_at_start;
+	int state{-1};
+	uint64_t *s{nullptr};
+  uint64_t first_bit{0};
+  uint64_t index{0};
+  uint64_t span{0};
+  uint64_t block_span{0};
+  uint64_t block_left{0};
+  uint64_t counts_at_start{0};
 	
 	for( uint64_t i = 0; i < num_words; i++ )
 		for( int j = 0; j < 64; j++ )
@@ -113,19 +119,19 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 						assert( ( block_span + 8 & -8LL ) + 8 <= span * 4 );
 
 						int k;
-						for( k = 0; k < block_span; k++ ) {
+						for( k = 0; k < static_cast<int64_t>(block_span); k++ ) {
 							assert( ((uint16_t *)s)[ k + 8 ] == 0 );
 							((uint16_t *)s)[ k + 8 ] = counts[ ( block_left + k + 1 ) * 2 ] - counts_at_start;
 						}
 
-						for( ; k < ( block_span + 8 & -8LL ); k++ ) {
+						for( ; k < static_cast<int64_t>( (block_span + 8) & -8LL ); k++ ) {
 							assert( ((uint16_t *)s)[ k + 8 ] == 0 );
 							((uint16_t *)s)[ k + 8 ] = 0xFFFFU;
 						}
 
 						assert( block_span / 8 <= 8 );
 
-						for( k = 0; k < block_span / 8; k++ ) {
+						for( k = 0; k < static_cast<int64_t>(block_span / 8); k++ ) {
 							assert( ((uint16_t *)s)[ k ] == 0 );
 							((uint16_t *)s)[ k ] = counts[ ( block_left + ( k + 1 ) * 8 ) * 2 ] - counts_at_start;
 						}
@@ -139,12 +145,12 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 						assert( ( block_span + 8 & -8LL ) <= span * 4 );
 
 						int k;
-						for( k = 0; k < block_span; k++ ) {
+						for( k = 0; k < static_cast<int64_t>(block_span); k++ ) {
 							assert( ((uint16_t *)s)[ k ] == 0 );
 							((uint16_t *)s)[ k ] = counts[ ( block_left + k + 1 ) * 2 ] - counts_at_start;
 						}
 
-						for( ; k < ( block_span + 8 & -8LL ); k++ ) {
+						for( ; k < static_cast<int64_t>( (block_span + 8) & -8LL ); k++ ) {
 							assert( ((uint16_t *)s)[ k ] == 0 );
 							((uint16_t *)s)[ k ] = 0xFFFFU;
 						}
@@ -207,7 +213,7 @@ uint64_t rank9sel::rank( const uint64_t k ) {
 	const uint64_t word = k / 64;
 	const uint64_t block = word / 4 & ~1;
 	const int offset = word % 8 - 1;
-	return counts[ block ] + ( counts[ block + 1 ] >> ( offset + ( offset >> sizeof offset * 8 - 4 & 0x8 ) ) * 9 & 0x1FF ) + __builtin_popcountll( (bits)[ word ] & ( ( 1ULL << k % 64 ) - 1 ) );
+	return counts[ block ] + ( counts[ block + 1 ] >> ( offset + ( offset >> (sizeof offset * 8 - 4) & 0x8 ) ) * 9 & 0x1FF ) + __builtin_popcountll( (bits)[ word ] & ( ( 1ULL << k % 64 ) - 1 ) );
 }
 
 
@@ -314,7 +320,7 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 	const uint64_t offset_in_block = ( ULEQ_STEP_9( subcounts, rank_in_block_step_9 ) * ONES_STEP_9 >> 54 & 0x7 );
 
 	const uint64_t word = block_left + offset_in_block;
-	const uint64_t rank_in_word = rank_in_block - ( subcounts >> ( offset_in_block - 1 & 7 ) * 9 & 0x1FF );
+	const uint64_t rank_in_word = rank_in_block - ( subcounts >> ( (offset_in_block - 1) & 7 ) * 9 & 0x1FF );
 #ifdef DEBUG
 	printf( "rank_in_block: %lld offset_in_block: %lld rank_in_word: %lld compare: %016llx shift: %lld\n", rank_in_block, offset_in_block, rank_in_word, UCOMPARE_STEP_9( rank_in_block_step_9, subcounts ), subcounts >> ( offset_in_block - 1 ) * 9 & 0x1FF );
 #endif
