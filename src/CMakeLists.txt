@@ -69,14 +69,13 @@ set(pufferfish_lib_srcs
     FastxParser.cpp 
     PufferfishGFAReader.cpp 
     PufferFS.cpp
-		xxhash.c
-		MemCollector.cpp
-		MemClusterer.cpp
-		PufferfishAligner.cpp
+	xxhash.c
+	MemCollector.cpp
+	MemChainer.cpp
+	PufferfishAligner.cpp
     rank9sel.cpp
-    #edlib.cpp
-		RefSeqConstructor.cpp
-		metro/metrohash64.cpp
+	RefSeqConstructor.cpp
+	metro/metrohash64.cpp
 )
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})
@@ -99,11 +98,6 @@ add_executable(fixFasta FixFasta.cpp FastxParser.cpp xxhash.c)
 target_compile_options(fixFasta PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(fixFasta PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
-add_executable(myGFAtester MyGFATester.cpp FastxParser.cpp)
-target_compile_options(myGFAtester PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(myGFAtester PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-
-#add_executable(myGraphtester MyGraphTester.cpp)
 add_executable(edgedensity EdgeDensity.cpp)
 target_compile_options(edgedensity PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(edgedensity PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
@@ -112,12 +106,12 @@ add_executable(edgedensity2 EdgeDensityCustom.cpp)
 target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
-add_executable(krakmap krakMap.cpp taxa.cpp)
+add_executable(krakmap KrakMap.cpp Taxa.cpp)
 target_compile_options(krakmap PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
 
-add_executable(cedar TargetGroup.cpp cedar.cpp taxa.cpp)
+add_executable(cedar TargetGroup.cpp Cedar.cpp Taxa.cpp)
 target_include_directories(cedar PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include/htslib
@@ -145,16 +139,9 @@ add_dependencies(filtersam libseqlib)
 target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2pp ${JEMALLOC_LIBRARIES} z)
 target_link_libraries(bcalm_pufferize Threads::Threads z)
 target_link_libraries(fixFasta Threads::Threads z)
-target_link_libraries(myGFAtester Threads::Threads z sdsl puffer)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
 target_link_libraries(krakmap Threads::Threads puffer)
 target_link_libraries(cedar ${TBB_LIBRARIES} Threads::Threads seqlib hts puffer bz2 lzma z SetCover)
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z )
-
-#target_link_libraries(pufferfish-index-old z sdsl)
-#target_link_libraries(kswcli Threads::Threads z ksw2pp)
-#target_link_libraries(readKrk puffer bz2 lzma z ${SEQLIB_DIR}/libseqlib.a ${SEQLIB_DIR}/libhts.a)
-#target_link_libraries(myGraphtester puffer)
-#add_executable(test-gfa OurGFAReader.cpp)
 

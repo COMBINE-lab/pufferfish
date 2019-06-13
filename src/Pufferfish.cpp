@@ -102,46 +102,49 @@ int main(int argc, char* argv[]) {
 
   auto alignMode = (
                     command("align").set(selected, mode::align),
-                    (required("-i", "--index") & value("index", alignmentOpt.indexDir)) % "directory where the pufferfish index is stored",
+                    (required("-i", "--index") & value("index", alignmentOpt.indexDir)) % "Directory where the Pufferfish index is stored",
                     (
                       (
-                        ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
-                        ((required("--mate2", "-2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
+                        ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "Path to the left end of the read files"),
+                        ((required("--mate2", "-2") & value("mate 2", alignmentOpt.read2)) % "Path to the right end of the read files")
                       ) 
                       |
-                      ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
+                      ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "Path to single-end read files")
                     ),
-                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=1.0)",
-                    (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
+                    (option("-b", "--batchOfReads").set(alignmentOpt.listOfReads, true)) % "Is each input a file containing the list of reads? (default=false)",
+
+
+                    (option("--coverageScoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "Discard mappings with a coverage score < scoreRatio * OPT (default=0.6)",
+                    (option("-t", "--threads") & value("num threads", alignmentOpt.numThreads)) % "Specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
                     (
-                      (required("--noOutput").set(alignmentOpt.noOutput, true)) % "run without writing SAM file"
+                      (required("--noOutput").set(alignmentOpt.noOutput, true)) % "Run without writing SAM file"
                       |
-                      (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "output file where the alignment results will be stored"
+                      (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "Output file where the alignment results will be stored"
                     ),
-                    (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "specify maximum splice gap that two uni-MEMs should have",
+                    (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
-                            "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
-                    (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "write Orphans flag",
-                    (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "write Orphans flag",
-		                (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "compress (gzip) the output file",
+                            "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
+                    (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
+                    (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
+		            (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
                     (
-                      (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
+                      (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "Write output in the format required for krakMap"
                       |
-                      (option("-s", "--salmon").set(alignmentOpt.salmonOut, true)) % "write output in the format required for salmon"
+                      (option("-p", "--pam").set(alignmentOpt.salmonOut, true)) % "Write output in the format required for salmon"
                     ),
-					          (option("--verbose").set(alignmentOpt.verbose, true)) % "print out auxilary information to trace program's flow",
-					          (option("--validateMappings").set(alignmentOpt.validateMappings, true)) % "calculate alignment scores to filter spurious mappings",
-                    (option("--fullAlignment").set(alignmentOpt.fullAlignment, true)) % "perform full aligment insteadof gapped alignment",
-                    (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Wheather or not perform only 2 rounds of chaining",
-                    (option("--mergeMems").set(alignmentOpt.mergeMems, true)) % "Merge mems before finding the best chains",
-					          (option("--strictFilter").set(alignmentOpt.strictFilter, true)) % "keep only the hits with best score for each read",
-					          (option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Aligning genomic dna-seq reads, not RNA-seq reads",
-					          (option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true)) % "Reporting at most one alingmnent per read",
+					(option("--verbose").set(alignmentOpt.verbose, true)) % "Print out auxilary information to trace program's flow",
+                    (option("--fullAlignment").set(alignmentOpt.fullAlignment, true)) % "Perform full alignment instead of gapped alignment",
+                    (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Whether or not perform only 2 rounds of chaining",
+                    (option("--bestStrata").set(alignmentOpt.bestStrata, true)) % "Keep only the alignments with the best score for each read",
+					(option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Align genomic dna-seq reads instead of RNA-seq reads",
+					(option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true)) % "Report at most one alignment per read",
                     (option("--filterGenomics").set(alignmentOpt.filterGenomics, true) & value("genes names file", alignmentOpt.genesNamesFile)) % 
-                         "Filter genomic alignments while mapping to both genome and txptome, please specify the path to the file containing gene names",
-                    (option("--filterMicrobiom").set(alignmentOpt.filterMicrobiom, true) & value("genes names file", alignmentOpt.genesNamesFile)) % "path to the file containing gene names",
-                    (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "minScoreFraction"
+                         "Path to the file containing gene IDs. Filters alignments to the IDs listed in the file. Used to filter genomic reads while aligning to both genome and transcriptome."
+                         "A read will be reported with only the valid gene ID alignments and will be discarded if the best alignment is to an invalid ID"
+                         "The IDs are the same as the IDs in the fasta file provided for the index construction phase",
+                    (option("--filterMicrobiom").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
+                    (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)"
   );
 
   auto cli = (

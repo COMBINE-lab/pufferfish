@@ -2,7 +2,7 @@
 #include <algorithm> // std::sort
 #include <iostream>
 
-#include "taxa.h"
+#include "Taxa.h"
 
 void TaxaNode::addInterval(uint64_t begin, uint64_t len, ReadEnd readEnd) {
     if (readEnd == ReadEnd::LEFT)

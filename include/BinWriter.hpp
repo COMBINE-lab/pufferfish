@@ -64,7 +64,7 @@ class BinWriter
                     std::back_inserter(_bin_data));
             return *this;
         }
-
+  
     BinWriter &operator<<(const double &inval) {
         char *inCharPtr = const_cast<char *>(reinterpret_cast<const char *>(&inval));
         std::copy(inCharPtr, inCharPtr + sizeof(inval),

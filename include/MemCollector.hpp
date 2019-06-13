@@ -15,20 +15,14 @@
 #include <iterator>
 #include <sparsepp/spp.h>
 
-#include "MemClusterer.hpp"
+#include "MemChainer.hpp"
 
 
 template <typename PufferfishIndexT> class MemCollector {
 enum class ExpansionTerminationType : uint8_t { MISMATCH = 0, CONTIG_END, READ_END };  
 
 public:
-  MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
-
-  /*void recoverGaps(spp::sparse_hash_map<pufferfish::common_types::ReferenceID, 
-                                        std::vector<util::MemCluster>>& memClustersMap,
-                                        std::vector<util::UniMemInfo>& memCollection,
-                                        size_t rlen, 
-                                        bool verbose=false);*/
+    explicit MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
   size_t expandHitEfficient(util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
@@ -40,19 +34,7 @@ public:
                   util::MateStatus mateStatus,
                   util::QueryCache& qc,
                   bool hChain=false,
-                  bool mergeMems=false,
                   bool verbose=false);
-
-  void findBestChain(std::vector<util::JointMems> &jointHits,
-                       std::vector<util::MemCluster> &all,
-                       uint32_t maxSpliceGap, uint32_t maxFragmentLength, bool verbose); 
-
-  void findOptChainAllowingOneJumpBetweenTheReadEnds(std::vector<util::JointMems> &jointHits,
-                                                       std::vector<util::MemCluster> &all,
-                                                       uint32_t maxSpliceGap, uint32_t maxFragmentLength,
-                                                       uint32_t readLenLeft,
-                                                       uint32_t readLenRight,
-                                                       bool verbose);
 
   void clear();
 

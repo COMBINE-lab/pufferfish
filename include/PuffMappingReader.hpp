@@ -7,7 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <mutex>
-#include "taxa.h"
+#include "Taxa.h"
 
 class Chunk {
 public:

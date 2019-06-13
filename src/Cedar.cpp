@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <list>
 
-#include "cedar.hpp"
+#include "Cedar.hpp"
 
 #include "clipp.h"
 #include "EquivalenceClassBuilder.hpp"

@@ -4,7 +4,7 @@
 #include <deque> // std::deque
 //#include <queue> // std::priority_queue
 #include "sparsepp/spp.h"
-#include "taxa.h"
+#include "Taxa.h"
 
 
 class KrakMap {

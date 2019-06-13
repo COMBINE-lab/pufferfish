@@ -3,6 +3,7 @@
 #include "cereal/archives/binary.hpp"
 #include "xxhash.h"
 #include "Kmer.hpp"
+#include "string_view.hpp"
 #include <chrono>
 #include <algorithm>
 #include <string>
@@ -207,9 +208,9 @@ void GFAReader::parseFile() {
   auto startTime = std::chrono::system_clock::now();
   size_t total_len = fillContigInfoMap_();
   auto now = std::chrono::system_clock::now();
-  logger_->info("filling the contig map tool {} seconds.", std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count());
+  logger_->info("filling the contig map tool {:n} seconds.", std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count());
   file.reset(new zstr::ifstream(filename_));
-  logger_->info("total contig length = {} ", total_len);
+  logger_->info("total contig length = {:n} ", total_len);
   logger_->info("packing contigs into contig vector");
   //seqVec_ = sdsl::int_vector<2>(total_len, 0);
   seqVec_.set_capacity(total_len);
@@ -338,8 +339,8 @@ void GFAReader::parseFile() {
     }
   }
   k = k - 1;
-  logger_->info("Total # of Contigs : {}", contig_cnt);
-  logger_->info("Total # of numerical Contigs : {}", contigid2seq.size());
+  logger_->info("Total # of Contigs : {:n}", contig_cnt);
+  logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
 }
 
 // spp::sparse_hash_map<uint64_t, std::string>& GFAReader::getContigNameMap() {
@@ -419,7 +420,7 @@ void GFAReader::mapContig2Pos() {
           .push_back(util::Position(tr, pos, contigs[i].second));
     }
   }
-  logger_->info("\nTotal # of segments we have position for : {}", total_output_lines);
+  logger_->info("\nTotal # of segments we have position for : {:n}", total_output_lines);
 }
 
 void GFAReader::clearContigTable() {
@@ -485,7 +486,7 @@ void GFAReader::serializeContigTable(const std::string& odir) {
       contigVecSize += contig2pos[kv.first].size();
     }
 
-    logger_->info("total contig vec entries {}", contigVecSize);
+    logger_->info("total contig vec entries {:n}", contigVecSize);
     std::vector<util::Position> cpos;
     cpos.reserve(contigVecSize);
     std::vector<uint64_t> cpos_offsets;
@@ -521,7 +522,7 @@ void GFAReader::serializeContigTable(const std::string& odir) {
       ct << '\n';
       */
     }
-    logger_->info("there were {}  equivalence classes", eqMap.size());
+    logger_->info("there were {:n}  equivalence classes", eqMap.size());
     eqAr(eqIDs);
     eqIDs.clear();
     eqIDs.shrink_to_fit();

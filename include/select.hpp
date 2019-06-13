@@ -162,6 +162,6 @@ __inline int select_in_word( const uint64_t x, const int k ) {
 	const int place = __builtin_popcountll( EASY_LEQ_STEP_8_MSBS( byte_sums, k_step_8 ) ) * 8;
 
 	// Phase 3: Locate the relevant byte and look up the result in select_in_byte
-	return place + select_in_byte[ x >> place & 0xFFULL | k - ( ( byte_sums << 8 ) >> place & 0xFFULL ) << 8 ];
+	return place + select_in_byte[ ( x >> place & 0xFFULL) | ( k - ( ( byte_sums << 8 ) >> place & 0xFFULL ) ) << 8 ];
 }
 #endif

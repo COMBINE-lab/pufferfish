@@ -41,7 +41,7 @@ public:
   uint32_t maxNumHits{200};
   uint32_t maxSpliceGap{100};
   uint32_t maxFragmentLength{1000};
-  double scoreRatio{1.0};
+  double scoreRatio{0.6};
   std::string outname;
   double quasiCov{0.0};
   bool pairedEnd{false};
@@ -59,8 +59,8 @@ public:
   bool noOrphan{false};
   bool compressedOutput{false};
   bool verbose{false};
-  bool validateMappings{false};
-  bool strictFilter{false};
+  bool validateMappings{true};
+  bool bestStrata{false};
   int32_t gapOpenPenalty{5};
   int32_t gapExtendPenalty{3};
   int32_t matchScore{2};
@@ -69,12 +69,12 @@ public:
   double minScoreFraction{0.65};
   bool fullAlignment{false};
   bool heuristicChaining{true};
-  bool mergeMems{true};
   bool genomicReads{false};
   std::string genesNamesFile{""};
   bool filterGenomics{false};
   bool filterMicrobiom{false};
   bool primaryAlignment{false};
+  bool listOfReads{false};
 };
 
 
