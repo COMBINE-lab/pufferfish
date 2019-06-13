@@ -114,6 +114,7 @@ public:
     }
   }
 
+  void setConfig(KSW2Config config) { config_ = config; }
 private:
   std::vector<uint8_t> query_;
   std::vector<uint8_t> target_;

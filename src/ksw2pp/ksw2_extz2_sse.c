@@ -290,17 +290,20 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 	}
 	kfree(km, mem);
   if (!approx_max) kfree(km, H);
+  ez->score_only = flag&KSW_EZ_SCORE_ONLY;
   if (with_cigar) { // backtrack
     int rev_cigar = !!(flag & KSW_EZ_REV_CIGAR);
-    /*if (ez->max_t >= 0 && ez->max_q >= 0) {
-      ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->max_t, ez->max_q, &ez->m_cigar, &ez->n_cigar, &ez->cigar);
-    } else if (!ez->zdropped && !(flag&KSW_EZ_EXTZ_ONLY)) {
-      ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, tlen-1, qlen-1, &ez->m_cigar, &ez->n_cigar, &ez->cigar);
-    } else if (!ez->zdropped && (flag&KSW_EZ_EXTZ_ONLY) && ez->mqe + end_bonus > (int)ez->max) {
+    if ((ez->max_t >= 0 && ez->max_q >= 0)) {
+      ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->max_t, ez->max_q, &ez->m_cigar1, &ez->n_cigar1, &ez->cigar1);
+    } 
+    if (!ez->zdropped && !(flag&KSW_EZ_EXTZ_ONLY)) {
+      ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, tlen-1, ez->mte_q, &ez->m_cigar2, &ez->n_cigar2, &ez->cigar2);
+    } 
+    if (!ez->zdropped){// && (flag&KSW_EZ_EXTZ_ONLY)) && ez->mqe + end_bonus > (int)ez->max) {
       ez->reach_end = 1;
-      ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->mqe_t, qlen-1, &ez->m_cigar, &ez->n_cigar, &ez->cigar);
-    }*/
-    if (ez->mqe >= ez->mte) {
+      ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->mqe_t, qlen-1, &ez->m_cigar3, &ez->n_cigar3, &ez->cigar3);
+    }
+    if (!(ez->mqe >= ez->mte)) {
       ez->reach_end = 1;
       ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->mqe_t, qlen-1, &ez->m_cigar, &ez->n_cigar, &ez->cigar);
     } else {

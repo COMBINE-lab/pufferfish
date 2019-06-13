@@ -41,7 +41,9 @@ public:
 		config.bandwidth = 10;
 		config.flag = 0;
 		aligner.config() = config;
-		config.flag |= KSW_EZ_SCORE_ONLY;
+		//config.flag |= KSW_EZ_SCORE_ONLY;
+  	config.flag |= KSW_EZ_RIGHT;
+    aligner.setConfig(config);
 		memset(&ez, 0, sizeof(ksw_extz_t));
 
 		alnCacheLeft.reserve(32);
