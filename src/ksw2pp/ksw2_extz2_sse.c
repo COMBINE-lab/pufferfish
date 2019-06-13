@@ -303,7 +303,7 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
       ez->reach_end = 1;
       ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->mqe_t, qlen-1, &ez->m_cigar3, &ez->n_cigar3, &ez->cigar3);
     }
-    if (!(ez->mqe >= ez->mte)) {
+    if (ez->mqe >= ez->mte) {
       ez->reach_end = 1;
       ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->mqe_t, qlen-1, &ez->m_cigar, &ez->n_cigar, &ez->cigar);
     } else {
