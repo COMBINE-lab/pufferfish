@@ -101,9 +101,6 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
   // currently unused:
   // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-  /*if (verbose) {
-  std::cerr << (mateStatus == util::MateStatus::PAIRED_END_RIGHT) << "\n";
-  } */
   (void) maxSpliceGap;
   util::ProjectedHits phits;
   std::vector<std::pair<int, util::ProjectedHits>> rawHits;
@@ -145,26 +142,15 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 			if (verbose){
 			  std::cerr<<"after expansion\n";
 				std::cerr<<"readPosOld:"<<readPosOld<<" kmer:"<< kit1->first.to_str() <<"\n";
-				//auto &refs = phits.refRange;
-        //for (auto &posIt : refs) {
-        //  auto refPosOri = phits.decodeHit(posIt);
-				//	std::cerr<<"tid:" << posIt.transcript_id() << " refpos:"<<refPosOri.pos<<" refFw:"<<refPosOri.isFW<<"\n";
-        //}
 			}
       rawHits.push_back(std::make_pair(readPosOld, phits));
     
       basesSinceLastHit = 1;
       skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
       kit1 += (skip-1);
-     //} else {
-     //  ++kit1;
-     //}
-     //++pos;
     } else {
-     // ++pos;
      basesSinceLastHit += skip;
      kit1 += skip;
-     //++kit1;
     }
   }
 
@@ -175,16 +161,11 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
   &memCollectionRight : &memCollectionLeft;
   if (rawHits.size() > 0) {
     mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), hChain, verbose);
-    //mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
     if (verbose) {
       std::cerr << "lets see what we have\n";
       for (auto kv : trMemMap) {
         std::cerr <<"tid:" <<  kv.first.first << "\n";
         for (auto mem : kv.second) {
-          //auto lclust = &clust;
-
-          //std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-          //for (size_t i = 0; i < lclust->mems.size(); i++) {
           std::cerr << "--- t" << mem.tpos << " r"
               << mem.memInfo->rpos << " cid:"
               << mem.memInfo->cid << " cpos: "
@@ -193,11 +174,9 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
               << mem.memInfo->readEnd << " fw:"
               << mem.isFw << "\n";
           std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
-          //}
         }
       }
     }
-    /*recoverGaps(memClusters, *memCollection, read.length(), verbose );*/
     return true;
   }
   return false;

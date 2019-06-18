@@ -87,7 +87,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
 
   std::vector<double> f;
   std::vector<int32_t> p;
-
   for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
     auto &trOri = trMem.first;
     auto &tid = trOri.first;
@@ -103,13 +102,13 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
                   return q1ref != q2ref ? q1ref < q2ref :
                          (isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
               });
-    if (verbose) {
+    /*if (verbose) {
       std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
         std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
                   << "\n";
       }
-    }
+    }*/
 
     //auto minPosIt = memList.begin();
     // find the valid chains
@@ -286,6 +285,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
           memClusters[tid][0].coverage = bestScore;
           if (memClusters[tid][0].coverage == readLen)
             memClusters[tid][0].perfectChain = true;
+          if (verbose)
+            std::cerr<<"Added position: " << memClusters[tid][0].coverage << " " << memClusters[tid][0].mems[0].tpos << "\n";
         }
         //minPosIt += lastPtr;
       } else {
