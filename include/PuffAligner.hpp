@@ -1,39 +1,25 @@
-#ifndef _PUFFERFISH_ALIGNER_
-#define _PUFFERFISH_ALIGNER_
-
-
-#include <vector>
-#include <string>
-
-#include "sdsl/int_vector.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
+#ifndef _PUFFALIGNER_
+#define _PUFFALIGNER_
 
 #include "tsl/hopscotch_map.h"
+#include "metro/metrohash64.h"
 
 #include "Util.hpp"
 #include "KSW2Aligner.hpp"
 #include "ProgOpts.hpp"
 #include "compact_vector/compact_vector.hpp"
 
-using HitCounters = util::HitCounters;
- 
 struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
 };
-struct AlignmentResult {
-  AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn) : 
-      score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn) {}
-  AlignmentResult() : score(0), cigar(""), openGapLen(0) {}
-  int32_t score;
-  std::string cigar;
-  uint32_t openGapLen;
-};
+
+using HitCounters = util::HitCounters;
+using AlignmentResult = util::AlignmentResult;
 using AlnCacheMap = tsl::hopscotch_map<uint64_t, AlignmentResult, PassthroughHash>;
 
-class PufferfishAligner {
+class PuffAligner {
 public:
-	PufferfishAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : allRefSeq(ar), refAccumLengths(ral), k(k_), mopts(m), aligner(a), multiMapping(mult) {
+	PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : allRefSeq(ar), refAccumLengths(ral), k(k_), mopts(m), aligner(a), multiMapping(mult) {
 		ksw2pp::KSW2Config config;
 		config.dropoff = -1;
 		config.gapo = mopts->gapOpenPenalty;
@@ -66,4 +52,4 @@ private:
 };
 
 
-#endif // _PUFFERFISH_ALIGNER_
+#endif // _PUFFALIGNER_

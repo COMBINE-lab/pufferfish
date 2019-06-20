@@ -751,6 +751,16 @@ struct ProjectedHits {
   }
 };
 
+struct AlignmentResult {
+  AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn) : 
+      score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn) {}
+  AlignmentResult() : score(0), cigar(""), openGapLen(0) {}
+  int32_t score;
+  std::string cigar;
+  uint32_t openGapLen;
+};
+
+
 char complement(char& c);
 std::string revcomp(std::string s);
 bool isRevcomp(std::string s);
