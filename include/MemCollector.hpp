@@ -22,21 +22,27 @@ template <typename PufferfishIndexT> class MemCollector {
 enum class ExpansionTerminationType : uint8_t { MISMATCH = 0, CONTIG_END, READ_END };  
 
 public:
-    explicit MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
+  explicit MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
   size_t expandHitEfficient(util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
                           ExpansionTerminationType& et);
     
   bool operator()(std::string &read,
+                  util::QueryCache& qc,
+                  bool isLeft=false,
+                  bool verbose=false);
+
+  bool findChains(std::string &read,
                   spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   util::MateStatus mateStatus,
-                  util::QueryCache& qc,
                   bool hChain=false,
+                  bool isLeft=false,
                   bool verbose=false);
-
   void clear();
+
+  void configureMemClusterer(uint32_t max);
 
 private:
   PufferfishIndexT* pfi_;
@@ -47,5 +53,11 @@ private:
   bool isSingleEnd = false;
   MemClusterer mc;
   std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> trMemMap;
+
+  spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;
+  spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> right_refs;
+
+  std::vector<std::pair<int, util::ProjectedHits>> left_rawHits;
+  std::vector<std::pair<int, util::ProjectedHits>> right_rawHits;
 };
 #endif

@@ -394,7 +394,7 @@ PufferfishAligner::alignRead(std::string read, std::vector<util::MemInfo> &mems,
     } else if (currHitStart_ref < currHitStart_read) {
         refStart = 0;
     }
-
+    if (verbose) std::cerr<< "tpos: " << refStart << "\n";
     keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
     tseq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen);
 
@@ -869,6 +869,7 @@ void processReadsPair(paired_parser *parser,
                       std::unordered_set<std::string> gene_names,
                       AlignmentOpts *mopts) {
     MemCollector<PufferfishIndexT> memCollector(&pfi);
+    memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
 
     //create aligner
     spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
@@ -929,20 +930,27 @@ void processReadsPair(paired_parser *parser,
             //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
 
             bool lh = memCollector(rpair.first.seq,
+                                   qc,
+                                   true, // isLeft
+                                   verbose);
+            bool rh = memCollector(rpair.second.seq,
+                                   qc,
+                                   false, // isLeft
+                                   verbose);
+            memCollector.findChains(rpair.first.seq,
                                    leftHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_LEFT,
-                                   qc,
                                    mopts->heuristicChaining,
+                                   true, // isLeft
                                    verbose);
-            bool rh = memCollector(rpair.second.seq,
+            memCollector.findChains(rpair.second.seq,
                                    rightHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_RIGHT,
-                                   qc,
                                    mopts->heuristicChaining,
+                                   false, // isLeft
                                    verbose);
-
             all.clear();
             hctr.numMappedAtLeastAKmer += (leftHits.size() > 0 || rightHits.size() > 0) ? 1 : 0;
             //do intersection on the basis of
@@ -1272,11 +1280,15 @@ void processReadsSingle(single_parser *parser,
             bool filterMicrobiom = mopts->filterMicrobiom;
 
             bool lh = memCollector(read.seq,
+                                   qc,
+                                   true, // isLeft
+                                   verbose);
+            memCollector.findChains(read.seq,
                                    leftHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::SINGLE_END,
-                                   qc,
                                    mopts->heuristicChaining,
+                                   true, // isLeft
                                    verbose);
             (void) lh;
             all.clear();

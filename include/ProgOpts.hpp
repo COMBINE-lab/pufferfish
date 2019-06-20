@@ -75,6 +75,7 @@ public:
   bool filterMicrobiom{false};
   bool primaryAlignment{false};
   bool listOfReads{false};
+  uint32_t maxAllowedRefsPerHit{1000};
 };
 
 

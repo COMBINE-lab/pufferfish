@@ -27,9 +27,18 @@ static inline float fasterlog2(float x) {
   return y - 126.94269504f;
 }
 
+void MemClusterer::setMaxAllowedRefsPerHit(uint32_t max){
+  maxAllowedRefsPerHit = max;
+}
+
+uint32_t MemClusterer::getMaxAllowedRefsPerHit() {
+  return maxAllowedRefsPerHit;
+}
+
 bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedHits>> &hits,
                                      std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
-                                     std::vector<util::UniMemInfo> &memCollection, util::ReadEnd re, bool verbose) {
+                                     std::vector<util::UniMemInfo> &memCollection, util::ReadEnd re,
+                                     spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs, bool verbose) {
   if (verbose)
     std::cerr << "\n[FIND_OPT_CHAIN]\n";
 
@@ -54,19 +63,23 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
     auto &refs = projHits.refRange;
     if (verbose)
       std::cerr << "total number of references found: " << refs.size() << "\n";
+    uint32_t mappings{0};
     if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit) {
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                  readPos, projHits.k_, projHits.contigPos_,
                                  projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_, re);
       auto memItr = std::prev(memCollection.end());
       for (auto &posIt : refs) {
+      //if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit or other_end_refs.find(posIt.transcript_id()) != other_end_refs.end() ) {
         auto refPosOri = projHits.decodeHit(posIt);
         trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
                 .emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
+        mappings++;
+      //}
       }
 
       if (verbose)
-        std::cerr << "total number of mappings found: " << refs.size() << "\n";
+        std::cerr << "total number of mappings found: " << mappings << "\n";
     }
   }
   return true;
@@ -75,6 +88,7 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
 bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>> &hits,
                                 spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>> &memClusters,
                                 uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen,
+                                spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
                                 bool hChain, bool verbose) {
   using namespace pufferfish::common_types;
   //(void)verbose;
@@ -82,7 +96,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
   // Map from (reference id, orientation) pair to a cluster of MEMs.
   std::map<std::pair<ReferenceID, bool>, std::vector<util::MemInfo>>
           trMemMap;
-  if (!fillMemCollection(hits, trMemMap, memCollection, util::ReadEnd::LEFT, verbose))
+  if (!fillMemCollection(hits, trMemMap, memCollection, util::ReadEnd::LEFT, other_end_refs, verbose))
     return false;
 
   std::vector<double> f;
