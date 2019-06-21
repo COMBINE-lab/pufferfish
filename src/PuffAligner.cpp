@@ -20,7 +20,7 @@ std::string cigar2str(const ksw_extz_t *ez) {
 }
 
 int32_t addCigar(util::cigarGenerator &cigarGen, ksw_extz_t ez, bool beginGap) {
-    if (beginGap) {
+    if (!beginGap) {
         int32_t insertionDeletion = 0;
         for (int i = 0; i < ez.n_cigar; ++i) {
             std::string cigar_type = "";
@@ -178,7 +178,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
             aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
                     ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
             alignmentScore = ez.mqe; //std::max(ez.mqe, ez.mte);
-            openGapLen = addCigar(cigarGen, ez, true);
+            openGapLen = addCigar(cigarGen, ez, false);
             if (verbose) {
                 std::cerr << "Original read seq:\t" << original_read << "\n";
                 std::cerr << "Total alignment with the score\t" << alignmentScore << "\t from position\t" << readStart
@@ -311,51 +311,51 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
                           }
                                   readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
                                       std::reverse(readSeq.begin(), readSeq.end());
-                                    auto refStartSeq = lastHitEnd_ref > refExtLength + refGapLength ?  lastHitEnd_ref + 1 - refExtLength - refGapLength : 0;
-                          refGapLength = lastHitEnd_ref - refStartSeq;
-                                      tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+                                    auto refStartPos = lastHitEnd_ref > refExtLength + refGapLength ?  lastHitEnd_ref + 1 - refExtLength - refGapLength : 0;
+                          refGapLength = lastHitEnd_ref - refStartPos;
+                                      tseq = getRefSeq(allRefSeq, refAccPos, refStartPos, refGapLength);
                                       std::reverse(tseq.begin(), tseq.end());
                                       aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
                                       score = std::max(ez.mqe, ez.mte);
-                          addCigar(cigarGen, ez, false);
+                          addCigar(cigarGen, ez, true);
                         }*/
                         ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
                         // Not extending the reference beyond its beginning
-                        auto refStartSeq = lastHitEnd_ref > refExtLength ? lastHitEnd_ref + 1 - refExtLength : 0;
-                        refGapLength = currHitStart_ref - refStartSeq;
-                        if (lastHitEnd_ref <= readGapLength) {
+                        auto refStartPos = lastHitEnd_ref > refExtLength ? lastHitEnd_ref + 1 - refExtLength : 0;
+                        refGapLength = currHitStart_ref - refStartPos;
+                        /*if (refGapLength < readGapLength) {
                             AlignmentResult aln;
                             aln.score = -1;
                             return aln;
-                        }
+                        }*/
                         // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
                         if (refGapLength > 0) {
                             // We reverse the strings because of ksw force alignment from the beginning of the sequences
                             std::reverse(readSeq.begin(), readSeq.end());
-                            tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+                            tseq = getRefSeq(allRefSeq, refAccPos, refStartPos, refGapLength);
                             std::reverse(tseq.begin(), tseq.end());
                             ksw_reset_extz(&ez);
                             aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
                                     ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
                             score = ez.mqe; //std::max(ez.mqe, ez.mte);
-                            openGapLen = addCigar(cigarGen, ez, false);
+                            openGapLen = addCigar(cigarGen, ez, true);
                             if (verbose) {
                                 std::cerr << "It's a gap at the beginning, so the reverse read from "
                                           << lastHitEnd_read + 1 << " is\t" << readSeq << "\n";
-                                std::cerr << "The reverse reference from " << refStartSeq << " with the length "
+                                std::cerr << "The reverse reference from " << refStartPos << " with the length "
                                           << refGapLength << " is\t" << tseq << "\n";
-                                std::cerr << ez.mqe << "\t" << ez.mte << "\n";
+                                std::cerr << "mqe: " << ez.mqe << "\t mte: " << ez.mte << "\n";
                                 for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
                                     std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
                                 std::cerr << "\n" << score << "\n";
                             }
                             int32_t insertionDeletion = 0; //TODO should be fixed for cigars
-                            if (readGapLength > refGapLength + insertionDeletion) {
+                            /*if (readGapLength > refGapLength + insertionDeletion) {
                                 int32_t startHang = readGapLength - refGapLength - insertionDeletion;
                                 alignmentScore +=
                                         (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (startHang);
                                 cigarGen.add_item(startHang, "I");
-                            }
+                            }*/
                         } else {
                             score = 0;
                             int32_t startHang = readGapLength - refGapLength;
@@ -390,7 +390,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
                             char *refSeq1 = refSeq + lastHitEnd_ref + 1 - refStart;
                             score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez,
                                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-                            addCigar(cigarGen, ez, true);
+                            addCigar(cigarGen, ez, false);
                             if (verbose) {
                                 tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
                                 std::cerr << "read from " << lastHitEnd_read + 1 << " with the gap length of "
@@ -480,13 +480,13 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
                 // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
                 if (refGapLength != 0) {
                     auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
-                    auto refStartSeq = lastHitEnd_ref + 1;
-                    tseq = getRefSeq(allRefSeq, refAccPos, refStartSeq, refGapLength);
+                    auto refStartPos = lastHitEnd_ref + 1;
+                    tseq = getRefSeq(allRefSeq, refAccPos, refStartPos, refGapLength);
                     aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), refGapLength, &ez,
                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
                     auto score = ez.mqe; //std::max(ez.mqe, ez.mte);
                     alignmentScore += score;
-                    auto insertionDeletion = addCigar(cigarGen, ez, true);
+                    auto insertionDeletion = addCigar(cigarGen, ez, false);
                     if (verbose) {
                         std::cerr << "read from " << lastHitEnd_read + 1 << "\t\t\t" << readSeq << "\n";
                         std::cerr << "at " << lastHitEnd_ref << " for " << refGapLength << "\t" << tseq << "\n";
@@ -590,3 +590,8 @@ int32_t PuffAligner::calculateAlignments(std::string &read_left, std::string &re
         return total_score;
     }
 }
+
+/*int32_t PuffAligner::recoverOrphans(std::string &read_left, std::string &read_right, 
+                                       util::JointMems &jointHit, HitCounters &hctr, bool verbose) {
+
+}*/
