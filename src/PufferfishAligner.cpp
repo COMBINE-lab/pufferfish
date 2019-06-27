@@ -73,12 +73,10 @@ using MateStatus = util::MateStatus;
 
 using MutexT = std::mutex;
 
-template<typename PufferfishIndexT>
 void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &leftMemClusters,
                               std::vector<util::JointMems> &jointMemsList,
                               uint32_t perfectCoverage,
                               double coverageRatio,
-                              PufferfishIndexT &pfi,
                               bool verbose) {
     uint32_t maxCoverage{0};
     for (auto &leftClustItr : leftMemClusters) {
@@ -87,7 +85,7 @@ void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::Mem
         // left mem clusters
         auto &lClusts = leftClustItr.second;
         if (verbose)
-            std::cerr << "\ntid:" << leftClustItr.first << "\t" << pfi.refName(leftClustItr.first) << "\n";
+            std::cerr << "\ntid:" << leftClustItr.first << "\n";
         // Compare the left clusters to the right clusters to filter by positional constraints
         std::vector<util::MemCluster> dummyCluster;
         for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
@@ -104,8 +102,7 @@ void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::Mem
 }
 
 
-template<typename PufferfishIndexT>
-void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &leftMemClusters,
+util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &leftMemClusters,
                         spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &rightMemClusters,
                         std::vector<util::JointMems> &jointMemsList,
                         uint32_t maxFragmentLength,
@@ -113,8 +110,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                         double coverageRatio,
                         bool noDiscordant,
                         bool noOrphans,
-                        PufferfishIndexT &pfi,
                         bool verbose) {
+    using util::MergeResult;
+    MergeResult mergeRes{MergeResult::HAD_NONE};
+
     if (verbose)
         std::cerr << "\n[JOINREADSANDFILTER]\n";
 
@@ -123,7 +122,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
     if (!noOrphans) {
         for (auto &kv : leftMemClusters) {
             if (verbose)
-                std::cerr << "\ntid:" << kv.first << "\t" << pfi.refName(kv.first) << "\n";
+                std::cerr << "\ntid:" << kv.first << "\n";
             auto &lClusts = kv.second;
             for (auto clust = lClusts.begin(); clust != lClusts.end(); clust++) {
                 if (maxLeft == clust->coverage) {
@@ -136,7 +135,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
         }
         for (auto &kv : rightMemClusters) {
             if (verbose)
-                std::cerr << "\ntid:" << kv.first << "\t" << pfi.refName(kv.first) << "\n";
+                std::cerr << "\ntid:" << kv.first << "\n";
 
             auto &rClusts = kv.second;
             for (auto clust = rClusts.begin(); clust != rClusts.end(); clust++) {
@@ -153,6 +152,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
     //orphan reads should be taken care of maybe with a flag!
     uint32_t maxCoverage{0};
     short round{0};
+    uint32_t sameTxpCount{0};
 
     while (round == 0 || (round == 1 && !jointMemsList.size() && !noDiscordant)) {
         for (auto &leftClustItr : leftMemClusters) {
@@ -191,6 +191,7 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                         auto totalCoverage = lclust->coverage + rclust->coverage;
                         if (totalCoverage >= coverageRatio * maxCoverage or
                             totalCoverage == perfectCoverage) {
+                            ++sameTxpCount;
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                             uint32_t currCoverage = jointMemsList.back().coverage();
                             if (maxCoverage < currCoverage) {
@@ -212,8 +213,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
     if (verbose) {
         std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
     }
+
+    bool leftOrphan = false; bool rightOrphan = false;
     if (!noOrphans && (!jointMemsList.size() || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1)) {
-        auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight]
+        auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
                 (spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &memClusters,
                  bool isLeft) {
             // fragmentLen is set to 0
@@ -226,8 +229,10 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                 for (auto clust = Clusts.begin(); clust != Clusts.end(); clust++) {
                     if (clust->coverage >= coverageRatio * maxLeftOrRight) {
                         if (isLeft) {
+                            leftOrphan = true;
                             jointMemsList.emplace_back(tid, clust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
                         } else {
+                            rightOrphan = true;
                             jointMemsList.emplace_back(tid, dummyCluster.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
                         }
                         uint32_t currCoverage = jointMemsList.back().coverage();
@@ -241,9 +246,20 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
         orphanFiller(leftMemClusters, true);
         orphanFiller(rightMemClusters, false);
     }
+    if (sameTxpCount == 0) {
+      if (leftOrphan and !rightOrphan)
+        mergeRes = MergeResult::HAD_ONLY_LEFT;
+      else if (!leftOrphan and rightOrphan)
+        mergeRes = MergeResult::HAD_ONLY_RIGHT;
+      else if (leftOrphan and rightOrphan)
+        mergeRes = MergeResult::HAD_EMPTY_INTERSECTION;
+      else
+        mergeRes = MergeResult::HAD_NONE;
+    } else {
+        mergeRes = round == 0 ? MergeResult::HAD_CONCORDANT : MergeResult::HAD_DISCORDANT;
+    }
     if (verbose) {
         std::cerr << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
-        std::cerr << "\n" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
     }
 
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
@@ -252,9 +268,38 @@ void joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluste
                                        }),
                         jointMemsList.end());
 
-    if (verbose)
+    if (verbose) {
+        std::cerr << "\nAfter:" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
         std::cerr << "\n[END OF JOINREADSANDFILTER]\n";
+    }
+    return mergeRes;
 }
+
+void recoverOrphans(std::vector<util::MemCluster> &recoveredMemClusters, std::vector<util::JointMems> &jointMemsList, PuffAligner puffaligner, bool verbose) {
+  puffaligner.orphanRecoveryMemCollection.reserve(2 * jointMemsList.size() + 1);
+  recoveredMemClusters.reserve(2 * jointMemsList.size() + 1);
+  for (auto& jointMem : jointMemsList) {
+    auto& leftClust = jointMem.leftClust;
+    auto& rightClust = jointMem.rightClust;
+    auto tid = jointMem.tid;
+    if (jointMem.mateStatus == MateStatus::PAIRED_END_LEFT) {
+      bool recovered = puffaligner.recoverSingleOrphan(*leftClust, recoveredMemClusters, tid, true, verbose);
+     if (recovered) {
+       jointMem.rightClust = recoveredMemClusters.begin() + recoveredMemClusters.size() - 1;
+       jointMem.recovered = true;
+       jointMem.mateStatus = MateStatus::PAIRED_END_PAIRED;
+    }
+  } else if (jointMem.mateStatus == MateStatus::PAIRED_END_RIGHT) {
+      bool recovered = puffaligner.recoverSingleOrphan(*rightClust, recoveredMemClusters, tid, false, verbose);
+      if (recovered) {
+        jointMem.leftClust = recoveredMemClusters.begin() + recoveredMemClusters.size() - 1;
+        jointMem.recovered = true;
+        jointMem.mateStatus = MateStatus::PAIRED_END_PAIRED;
+      }
+    }
+  }
+}
+
 
 //===========
 // PAIRED END
@@ -285,6 +330,7 @@ void processReadsPair(paired_parser *parser,
 
     spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
     spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
+    std::vector<util::MemCluster> recoveredHits;
     std::vector<util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
     util::QueryCache qc;
@@ -316,6 +362,7 @@ void processReadsPair(paired_parser *parser,
             jointHits.clear();
             leftHits.clear();
             rightHits.clear();
+            recoveredHits.clear();
             memCollector.clear();
             bool filterGenomics = mopts->filterGenomics;
             bool filterMicrobiom = mopts->filterMicrobiom;
@@ -328,6 +375,7 @@ void processReadsPair(paired_parser *parser,
             // verbose = rpair.first.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
             //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
 
+//verbose = rpair.first.name == "mason_sample5_primary_1M_random.fasta.000050010/1";
             bool lh = memCollector(rpair.first.seq,
                                    qc,
                                    true, // isLeft
@@ -350,6 +398,7 @@ void processReadsPair(paired_parser *parser,
                                    mopts->heuristicChaining,
                                    false, // isLeft
                                    verbose);
+
             all.clear();
             hctr.numMappedAtLeastAKmer += (leftHits.size() > 0 || rightHits.size() > 0) ? 1 : 0;
             //do intersection on the basis of
@@ -358,15 +407,27 @@ void processReadsPair(paired_parser *parser,
 
             // We also handle orphans inside this function
             //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
-            joinReadsAndFilter(leftHits, rightHits, jointHits,
+
+            auto mergeRes = joinReadsAndFilter(leftHits, rightHits, jointHits,
                                mopts->maxFragmentLength,
                                totLen,
                                mopts->scoreRatio,
                                mopts->noDiscordant,
                                mopts->noOrphan,
-                               pfi,
                                verbose);
 
+            ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
+            PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
+                                    rpair.first.seq, rpair.second.seq, mopts, aligner, true);
+
+
+            bool mergeStatusOR = (mergeRes == util::MergeResult::HAD_EMPTY_INTERSECTION or
+                                  mergeRes == util::MergeResult::HAD_ONLY_LEFT or
+                                  mergeRes == util::MergeResult::HAD_ONLY_RIGHT);
+
+            if ( mergeStatusOR and mopts->recoverOrphans) {
+              recoverOrphans(recoveredHits, jointHits, puffaligner, verbose);
+            }
 
             std::vector<QuasiAlignment> jointAlignments;
 
@@ -376,9 +437,6 @@ void processReadsPair(paired_parser *parser,
                 std::cerr<<"Number of hits: "<<jointHits.size()<<"\n";
 
             if (!mopts->justMap) {
-                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
-                PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner,
-                                              jointHits.size() > 1);
                 int32_t bestScore = std::numeric_limits<int32_t>::min();
                 std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
                 size_t idx{0};
@@ -387,12 +445,10 @@ void processReadsPair(paired_parser *parser,
                 bool bestScoreTxpomic{false};
                 std::map<int32_t, std::vector<int32_t>> transcript_set;
                 for (auto &jointHit : jointHits) {
-                    auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr,
-                                                                    verbose);
+                    auto hitScore = puffaligner.calculateAlignments(jointHit, hctr, verbose);
                     if (hitScore < 0)
                         hitScore = std::numeric_limits<int32_t>::min();
                     scores[idx] = hitScore;
-
                     std::string ref_name = txpNames[jointHit.tid];
                     if (filterGenomics or filterMicrobiom) {
                         if (hitScore > bestScore) {
@@ -519,7 +575,7 @@ void processReadsPair(paired_parser *parser,
                         std::cerr << jointHit.fragmentLen << "\n";
                     }
                     jointAlignments.emplace_back(jointHit.tid,           // reference id
-                                                 jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
+                                                 0, //jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
                                                  jointHit.orphanClust()->isFw,     // fwd direction
                                                  readLen, // read length
                                                  jointHit.orphanClust()->cigar, // cigar string
@@ -556,7 +612,6 @@ void processReadsPair(paired_parser *parser,
                     qaln.score = jointHit.leftClust->coverage;
                     qaln.mateScore = jointHit.rightClust->coverage;
                 }
-                //}
             }
 
             hctr.totAlignment += jointAlignments.size();
@@ -590,6 +645,7 @@ void processReadsPair(paired_parser *parser,
                     iomutex->unlock();
                 }
             }
+            //puffaligner.clear();
         } // for all reads in this job
         // dump output
         if (!mopts->noOutput) {
@@ -689,7 +745,6 @@ void processReadsSingle(single_parser *parser,
             joinReadsAndFilterSingle(leftHits, jointHits,
                                      totLen,
                                      mopts->scoreRatio,
-                                     pfi,
                                      verbose);
 
             std::vector<QuasiAlignment> jointAlignments;
@@ -697,8 +752,8 @@ void processReadsSingle(single_parser *parser,
 
             if (mopts->justMap) {
                 ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
-                PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner,
-                                              jointHits.size() > 1);
+                PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
+                                        read.seq, NULL, mopts, aligner, jointHits.size() > 1);
 
                 int32_t bestScore = std::numeric_limits<int32_t>::min();
                 std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
@@ -708,7 +763,7 @@ void processReadsSingle(single_parser *parser,
                 bool bestScoreTxpomic{false};
                 std::map<int32_t, std::vector<int32_t>> transcript_set;
                 for (auto &jointHit : jointHits) {
-                    int32_t hitScore = puffaligner.calculateAlignments(read.seq, read.seq, jointHit, hctr, verbose);
+                    int32_t hitScore = puffaligner.calculateAlignments(jointHit, hctr, verbose);
                     scores[idx] = hitScore;
 
                     std::string ref_name = txpNames[jointHit.tid];

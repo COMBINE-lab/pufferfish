@@ -64,6 +64,7 @@ set(pufferfish_lib_srcs
     PufferfishSparseIndex.cpp 
     PufferfishLossyIndex.cpp
     PuffAligner.cpp
+    edlib.cpp
     Util.cpp 
     PufferfishValidate.cpp 
     PufferfishTestLookup.cpp 

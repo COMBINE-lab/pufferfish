@@ -1,5 +1,7 @@
 #include "PuffAligner.hpp"
 
+#include "Util.hpp"
+
 std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
     std::string subseq = readSeq.substr(rstart, rend - rstart);
     if (isFw)
@@ -80,7 +82,7 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
     return tseq;
 }
 
-AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemInfo> &mems, bool perfectChain, 
+AlignmentResult PuffAligner::alignRead(std::string& read, std::vector<util::MemInfo> &mems, bool perfectChain,
                              bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
     uint32_t refExtLength = mopts->refExtendLength;
     bool firstMem = true;
@@ -111,7 +113,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
     char *refSeq;
     std::string tseq = "";
 
-    auto rpos = mems[0].rpos; //memInfo->rpos;
+    auto rpos = mems[0].rpos;
     auto memlen = mems[0].extendedlen;
     auto readLen = read.length();
     auto tpos = mems[0].tpos;
@@ -193,7 +195,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
 
             alignmentScore = 0;
             for (auto mem : mems) {
-                rpos = mem.rpos; //memInfo->rpos;
+                rpos = mem.rpos;
                 memlen = mem.extendedlen;
                 tpos = mem.tpos;
 
@@ -538,8 +540,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
     return AlignmentResult{alignmentScore, cigar, openGapLen};
 }
 
-int32_t PuffAligner::calculateAlignments(std::string &read_left, std::string &read_right, 
-                                       util::JointMems &jointHit, HitCounters &hctr, bool verbose) {
+int32_t PuffAligner::calculateAlignments(util::JointMems &jointHit, HitCounters &hctr, bool verbose) {
     auto tid = jointHit.tid;
     double optFrac{mopts->minScoreFraction};
 
@@ -591,7 +592,99 @@ int32_t PuffAligner::calculateAlignments(std::string &read_left, std::string &re
     }
 }
 
-/*int32_t PuffAligner::recoverOrphans(std::string &read_left, std::string &read_right, 
-                                       util::JointMems &jointHit, HitCounters &hctr, bool verbose) {
+bool PuffAligner::recoverSingleOrphan(util::MemCluster clust, std::vector<util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
 
-}*/
+  int32_t anchorLen = anchorIsLeft ? read_left.length() : read_right.length();
+  auto tpos = clust.mems[0].tpos;
+  auto anchorStart = clust.mems[0].isFw ? clust.mems[0].rpos : anchorLen - (clust.mems[0].rpos + clust.mems[0].extendedlen);
+  uint32_t anchorPos = tpos >= anchorStart ? tpos - anchorStart : 0;
+
+  bool recovered_fwd;
+  uint32_t recovered_pos=-1;
+
+  auto* r1 = read_left.data();
+  auto* r2 = read_right.data();
+  auto l1 = static_cast<int32_t>(read_left.length());
+  auto l2 = static_cast<int32_t>(read_right.length());
+  const char* rptr{nullptr};
+  bool anchorFwd{clust.isFw};
+  int32_t startPos = -1, maxDist = -1, otherLen = -1, rlen = -1;
+  std::string* otherReadPtr{nullptr};
+  const char* otherRead{nullptr};
+  char* otherReadRC{nullptr};
+  char* r1rc = nullptr;
+  char* r2rc = nullptr;
+
+  char* windowSeq = nullptr;
+  int32_t windowLength = -1;
+
+  int32_t maxDistRight = l2 / 4;
+  int32_t maxDistLeft = l1 / 4;
+  constexpr const int32_t signedZero{0};
+
+  if (anchorIsLeft) {
+    anchorLen = l1;
+    otherLen = l2;
+    maxDist = maxDistRight;
+    otherReadPtr = &read_right;
+    otherRead = r2;
+    otherReadRC = r2rc;
+  } else {
+    anchorLen = l2;
+    otherLen = l1;
+    maxDist = maxDistLeft;
+    otherReadPtr = &read_left;
+    otherRead = r1;
+    otherReadRC = r1rc;
+  }
+
+  uint64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
+  uint64_t refLength = refAccumLengths[tid] - refAccPos;
+
+  if (anchorFwd) {
+    if (!otherReadRC){
+      auto read = util::reverseComplement(*otherReadPtr);
+      otherReadRC = const_cast<char*>(read.data());
+    }
+    rptr = otherReadRC;
+    rlen = otherLen;
+    startPos = std::max(signedZero, static_cast<int32_t>(anchorPos));
+
+    windowLength = std::min(500, static_cast<int32_t>(refLength - startPos));
+  } else {
+    rptr = otherRead;
+    rlen = otherLen;
+    int32_t endPos = std::min(static_cast<int32_t>(refLength), static_cast<int32_t>(anchorPos) + anchorLen);
+    startPos = std::max(signedZero,  endPos - 500);
+    windowLength = std::min(500, endPos);
+  }
+
+  if (verbose) std::cerr<< anchorPos<< "\n";
+  auto tseq = getRefSeq(allRefSeq, refAccPos, startPos, windowLength);
+  windowSeq = new char[tseq.length() + 1];
+  strcpy(windowSeq, tseq.c_str());
+
+  EdlibAlignResult result = edlibAlign(rptr, rlen, windowSeq, windowLength,
+                                       edlibNewAlignConfig(maxDist, EDLIB_MODE_HW, EDLIB_TASK_LOC));
+
+  if (result.editDistance > -1) {
+    recovered_fwd = !anchorFwd;
+    recovered_pos = startPos + result.startLocations[0];
+    recoveredMemClusters.push_back(util::MemCluster(recovered_fwd, rlen));
+    auto it = recoveredMemClusters.begin() + recoveredMemClusters.size() - 1;
+    if (verbose)
+      std::cerr<< anchorIsLeft << " " << anchorFwd << " " <<  anchorPos << " " << startPos + result.startLocations[0] <<" " << result.editDistance << "\n";
+    orphanRecoveryMemCollection.push_back(util::UniMemInfo());
+    auto memItr = orphanRecoveryMemCollection.begin() + orphanRecoveryMemCollection.size() - 1;
+    if (verbose) std::cerr<<recovered_fwd << " " << orphanRecoveryMemCollection.size()<<"\n";
+    it->addMem(memItr, recovered_pos, 1, recovered_fwd ? 1 : rlen-1, recovered_fwd);
+
+    delete windowSeq;
+    edlibFreeAlignResult(result);
+    return true;
+  } else {
+    delete windowSeq;
+    edlibFreeAlignResult(result);
+    return false;
+  }
+}

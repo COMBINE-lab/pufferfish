@@ -244,15 +244,24 @@ struct cigarGenerator {
   }
 };
 
-//Mapped object contains all the information
-//about mapping the struct is a bit changed from
-//quasi mapping
-enum class MateStatus : uint8_t {
+  //Mapped object contains all the information
+  //about mapping the struct is a bit changed from
+  //quasi mapping
+  enum class MateStatus : uint8_t {
         SINGLE_END = 0,
         PAIRED_END_LEFT = 1,
         PAIRED_END_RIGHT = 2,
         PAIRED_END_PAIRED = 3 };
 
+  // Reporting merge (join) status in paired end reads
+  enum class MergeResult : uint8_t {
+        HAD_NONE,
+        HAD_EMPTY_INTERSECTION,
+        HAD_CONCORDANT,
+        HAD_DISCORDANT,
+        HAD_ONLY_LEFT,
+        HAD_ONLY_RIGHT,
+  };
 
   //required for edge extension
   
@@ -287,13 +296,14 @@ enum class MateStatus : uint8_t {
     uint32_t cpos ;
     uint64_t cGlobalPos;
     uint32_t clen;
-      ReadEnd readEnd;
+    ReadEnd readEnd;
 
 
-      UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn, uint32_t cposIn,
+    UniMemInfo(uint32_t cidIn, bool cIsFwIn, uint32_t rposIn, uint32_t memlenIn, uint32_t cposIn,
                  uint64_t cGlobalPosIn, uint32_t clenIn, ReadEnd rendIn = ReadEnd::LEFT) :
               cid(cidIn), cIsFw(cIsFwIn), rpos(rposIn), memlen(memlenIn), cpos(cposIn), cGlobalPos(cGlobalPosIn),
               clen(clenIn), readEnd(rendIn) {}
+    UniMemInfo() : cid(0), cIsFw(false), rpos(3), memlen(1), cpos(0), cGlobalPos(0), clen(0), readEnd(LEFT) {}
   };
 
   struct MemInfo {
@@ -322,7 +332,7 @@ enum class MateStatus : uint8_t {
     int score ;
     std::string cigar ;
     bool perfectChain = false;
-    uint32_t readLen;
+    uint32_t readLen{0};
     uint32_t openGapLen{0};
     //bool isValid = true;
     MemCluster(bool isFwIn, uint32_t readLenIn): isFw(isFwIn), readLen(readLenIn) {}
@@ -411,6 +421,7 @@ enum class MateStatus : uint8_t {
     size_t rmemMaxLen{0}, lmemMaxLen{0};
     int32_t alignmentScore{0};
     MateStatus mateStatus;
+    bool recovered{false};
     bool isLeftAvailable() { return mateStatus == MateStatus::PAIRED_END_PAIRED ||
                                     mateStatus == MateStatus::PAIRED_END_LEFT;}
     bool isRightAvailable() { return mateStatus == MateStatus::PAIRED_END_PAIRED ||
