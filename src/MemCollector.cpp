@@ -154,17 +154,19 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
      kit1 += skip;
     }
   }
-  auto& ref_ids = isLeft ? left_refs : right_refs;
+
+  // To consider references this end maps to for allowing hits on the other end
+  /*auto& ref_ids = isLeft ? left_refs : right_refs;
   for (auto &hit : core::range<decltype(rawHits.begin())>(rawHits.begin(), rawHits.end())) {
     auto &projHits = hit.second;
     auto &refs = projHits.refRange;
     if (refs.size() < mc.getMaxAllowedRefsPerHit()) {
       for (auto &posIt : refs) {
         auto refid = posIt.transcript_id();
-        ref_ids[refid] = false;
+        ref_ids[refid] = true;
       }
     }
-  }
+  }*/
   return rawHits.size() != 0;
 }
 

@@ -70,6 +70,7 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
                                  projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_, re);
       auto memItr = std::prev(memCollection.end());
       for (auto &posIt : refs) {
+      //If we want to let the the hits to the references also found by the other end to be accepted
       //if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit or other_end_refs.find(posIt.transcript_id()) != other_end_refs.end() ) {
         auto refPosOri = projHits.decodeHit(posIt);
         trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
