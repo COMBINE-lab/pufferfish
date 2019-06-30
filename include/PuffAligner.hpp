@@ -32,9 +32,9 @@ public:
 		config.gape = mopts->gapExtendPenalty;
 		config.bandwidth = 10;
 		config.flag = 0;
+		config.flag |= KSW_EZ_RIGHT;
 		aligner.config() = config;
-  	config.flag |= KSW_EZ_RIGHT;
-    aligner.setConfig(config);
+
 		memset(&ez, 0, sizeof(ksw_extz_t));
 
 		alnCacheLeft.reserve(32);
@@ -43,7 +43,7 @@ public:
 
   int32_t calculateAlignments(util::JointMems& jointHit, HitCounters& hctr, bool verbose);
 
-  AlignmentResult alignRead(std::string& read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
+  AlignmentResult alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
 
   bool recoverSingleOrphan(util::MemCluster clust, std::vector<util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose); 
 

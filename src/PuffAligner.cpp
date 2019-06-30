@@ -82,7 +82,7 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
     return tseq;
 }
 
-AlignmentResult PuffAligner::alignRead(std::string& read, std::vector<util::MemInfo> &mems, bool perfectChain,
+AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemInfo> &mems, bool perfectChain,
                              bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
     uint32_t refExtLength = mopts->refExtendLength;
     bool firstMem = true;
