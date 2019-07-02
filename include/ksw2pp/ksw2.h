@@ -29,6 +29,10 @@ typedef struct {
 	int m_cigar, n_cigar;
 	int reach_end;
 	uint32_t *cigar;
+  int n_cigar1, n_cigar2, n_cigar3;
+  int m_cigar1, m_cigar2, m_cigar3;
+  uint32_t *cigar1, *cigar2, *cigar3;
+  int score_only;
 } ksw_extz_t;
 
 /**

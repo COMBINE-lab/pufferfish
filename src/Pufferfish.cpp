@@ -126,6 +126,7 @@ int main(int argc, char* argv[]) {
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
                             "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
+                    (option("--orphanRecovery").set(alignmentOpt.recoverOrphans, true)) % "Recover mappings for the other end of orphans using alignment",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
 		            (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
                     (

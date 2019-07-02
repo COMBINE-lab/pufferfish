@@ -63,19 +63,21 @@ set(pufferfish_lib_srcs
     PufferfishIndex.cpp 
     PufferfishSparseIndex.cpp 
     PufferfishLossyIndex.cpp
+    PuffAligner.cpp
+    edlib.cpp
     Util.cpp 
     PufferfishValidate.cpp 
     PufferfishTestLookup.cpp 
     FastxParser.cpp 
     PufferfishGFAReader.cpp 
     PufferFS.cpp
-	xxhash.c
-	MemCollector.cpp
-	MemChainer.cpp
-	PufferfishAligner.cpp
+	  xxhash.c
+	  MemCollector.cpp
+	  MemChainer.cpp
+	  PufferfishAligner.cpp
     rank9sel.cpp
-	RefSeqConstructor.cpp
-	metro/metrohash64.cpp
+	  RefSeqConstructor.cpp
+	  metro/metrohash64.cpp
 )
 
 add_library(puffer STATIC ${pufferfish_lib_srcs})

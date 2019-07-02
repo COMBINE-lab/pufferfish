@@ -6,6 +6,11 @@
 namespace kmers = combinelib::kmers;
 
 template <typename PufferfishIndexT>
+void MemCollector<PufferfishIndexT>::configureMemClusterer(uint32_t max) {
+  mc.setMaxAllowedRefsPerHit(max);
+}
+
+template <typename PufferfishIndexT>
 size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& hit, 
                        pufferfish::CanonicalKmerIterator& kit, 
                        ExpansionTerminationType& et) {
@@ -92,21 +97,14 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& h
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
-                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
-                  uint32_t maxSpliceGap,
-                  util::MateStatus mateStatus,
                   util::QueryCache& qc,
-                  bool hChain,
+                  bool isLeft,
                   bool verbose) {
 
   // currently unused:
   // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-  /*if (verbose) {
-  std::cerr << (mateStatus == util::MateStatus::PAIRED_END_RIGHT) << "\n";
-  } */
-  (void) maxSpliceGap;
   util::ProjectedHits phits;
-  std::vector<std::pair<int, util::ProjectedHits>> rawHits;
+  auto& rawHits = isLeft ? left_rawHits : right_rawHits;
 
   CanonicalKmer::k(k);
   pufferfish::CanonicalKmerIterator kit_end;
@@ -145,46 +143,56 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 			if (verbose){
 			  std::cerr<<"after expansion\n";
 				std::cerr<<"readPosOld:"<<readPosOld<<" kmer:"<< kit1->first.to_str() <<"\n";
-				//auto &refs = phits.refRange;
-        //for (auto &posIt : refs) {
-        //  auto refPosOri = phits.decodeHit(posIt);
-				//	std::cerr<<"tid:" << posIt.transcript_id() << " refpos:"<<refPosOri.pos<<" refFw:"<<refPosOri.isFW<<"\n";
-        //}
 			}
       rawHits.push_back(std::make_pair(readPosOld, phits));
     
       basesSinceLastHit = 1;
       skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
       kit1 += (skip-1);
-     //} else {
-     //  ++kit1;
-     //}
-     //++pos;
     } else {
-     // ++pos;
      basesSinceLastHit += skip;
      kit1 += skip;
-     //++kit1;
     }
   }
 
+  // To consider references this end maps to for allowing hits on the other end
+  /*auto& ref_ids = isLeft ? left_refs : right_refs;
+  for (auto &hit : core::range<decltype(rawHits.begin())>(rawHits.begin(), rawHits.end())) {
+    auto &projHits = hit.second;
+    auto &refs = projHits.refRange;
+    if (refs.size() < mc.getMaxAllowedRefsPerHit()) {
+      for (auto &posIt : refs) {
+        auto refid = posIt.transcript_id();
+        ref_ids[refid] = true;
+      }
+    }
+  }*/
+  return rawHits.size() != 0;
+}
+
+template <typename PufferfishIndexT>
+bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
+                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                  uint32_t maxSpliceGap,
+                  util::MateStatus mateStatus,
+                  bool hChain,
+                  bool isLeft,
+                  bool verbose) {
+  (void) maxSpliceGap;
+  auto& rawHits = isLeft ? left_rawHits : right_rawHits;
   // if this is the right end of a paired-end read, use memCollectionRight,
   // otherwise (left end or single end) use memCollectionLeft.
   isSingleEnd = mateStatus == util::MateStatus::SINGLE_END;
   auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
   &memCollectionRight : &memCollectionLeft;
   if (rawHits.size() > 0) {
-    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), hChain, verbose);
-    //mc.clusterMems(rawHits, memClusters, maxSpliceGap, *memCollection, verbose);
+    auto& other_end_refs = isLeft ? right_refs : left_refs;
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, verbose);
     if (verbose) {
       std::cerr << "lets see what we have\n";
       for (auto kv : trMemMap) {
         std::cerr <<"tid:" <<  kv.first.first << "\n";
         for (auto mem : kv.second) {
-          //auto lclust = &clust;
-
-          //std::cerr << lclust->isFw << " size:" << lclust->mems.size() << " cov:" << lclust->coverage << "\n";
-          //for (size_t i = 0; i < lclust->mems.size(); i++) {
           std::cerr << "--- t" << mem.tpos << " r"
               << mem.memInfo->rpos << " cid:"
               << mem.memInfo->cid << " cpos: "
@@ -193,21 +201,24 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
               << mem.memInfo->readEnd << " fw:"
               << mem.isFw << "\n";
           std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
-          //}
         }
       }
     }
-    /*recoverGaps(memClusters, *memCollection, read.length(), verbose );*/
     return true;
   }
   return false;
 }
+
 
 template <typename PufferfishIndexT>
 void MemCollector<PufferfishIndexT>::clear() {
   memCollectionLeft.clear();
   memCollectionRight.clear();
   trMemMap.clear();
+  left_refs.clear();
+  right_refs.clear();
+  left_rawHits.clear();
+  right_rawHits.clear();
 }
 
 template class MemCollector<PufferfishIndex>;
