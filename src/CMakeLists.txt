@@ -70,7 +70,7 @@ set(pufferfish_lib_srcs
     PufferfishTestLookup.cpp 
     FastxParser.cpp 
     PufferfishGFAReader.cpp
-#	PufferfishBinaryGFAReader.cpp
+	PufferfishBinaryGFAReader.cpp
     PufferFS.cpp
 	  xxhash.c
 	  MemCollector.cpp
