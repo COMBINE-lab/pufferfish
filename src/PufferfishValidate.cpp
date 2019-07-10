@@ -18,7 +18,7 @@
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
-#include "PufferfishGFAReader.hpp"
+#include "PufferfishBinaryGFAReader.hpp"
 
 
 uint8_t reverseBits(uint8_t b) {
@@ -69,7 +69,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
     auto console = spdlog::stderr_color_mt("console");
     // NOTE: Should the false argument below be a command line option?
     // that is, should we consider building the edge vector here?
-    pufferfish::GFAReader pf(validateOpts.gfaFileName.c_str(), k-1, false, console);
+    pufferfish::BinaryGFAReader pf(validateOpts.gfaFileName.c_str(), k-1, false, console);
     pf.parseFile() ;
 
     auto& seq = pi.getSeq() ;

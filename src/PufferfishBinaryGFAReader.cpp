@@ -120,6 +120,8 @@ namespace pufferfish {
 
     compact::vector<uint64_t, 2> &BinaryGFAReader::getContigSeqVec() { return seqVec_; }
 
+    compact::vector<uint64_t, 1> &BinaryGFAReader::getRankVec() { return rankVec_; }
+
     compact::vector<uint64_t, 8> &BinaryGFAReader::getEdgeVec() { return edgeVec_; }
 
 

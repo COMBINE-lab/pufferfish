@@ -12,7 +12,7 @@
 
 #include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
-#include "PufferfishGFAReader.hpp"
+#include "PufferfishBinaryGFAReader.cpp"
 #include "PufferFS.hpp"
 #include "PufferfishIndex.hpp"
 #include "ScopedTimer.hpp"
@@ -292,7 +292,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     std::exit(1);
   }
 
-  pufferfish::GFAReader pf(gfa_file.c_str(), k - 1, buildEdgeVec, console);
+  pufferfish::BinaryGFAReader pf(gfa_file.c_str(), k - 1, buildEdgeVec, console);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
@@ -367,16 +367,17 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   console->info("positional integer width = {:n}", w);
 
   auto& seqVec = pf.getContigSeqVec();
+  auto& rankVec = pf.getRankVec();
   auto& edgeVec = pf.getEdgeVec() ;
 
-  compact::vector<uint64_t, 1> rankVec(tlen);
+ /* compact::vector<uint64_t, 1> rankVec(tlen);
   for(uint64_t i=0; i<tlen; i++) rankVec[i]=0;//if(rankVec[i]!=0) {std::cerr<<"Not zero\n"; break;}
   auto& cnmap = pf.getContigNameMap();
   for (auto& kv : cnmap) {
     rankVec[kv.second.offset + kv.second.length - 1] = 1;
-  }
+  }*/
   size_t nkeys{numKmers};
-  size_t numContigs{cnmap.size()};
+  size_t numContigs{pf.getContigNameMap().size()};
 
   console->info("seqSize = {:n}", seqVec.size());
   console->info("rankSize = {:n}", rankVec.size());
@@ -404,13 +405,13 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
   console->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
 
-  std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);
+/*  std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);
   seqVec.serialize(seqFile);
   seqFile.close();
 
   std::ofstream rankFile(outdir + "/rank.bin", std::ios::binary);
   rankVec.serialize(rankFile);
-  rankFile.close();
+  rankFile.close();*/
 
   bool haveEdgeVec = edgeVec.size() > 0;
   if (haveEdgeVec) {

@@ -85,6 +85,7 @@ public:
   std::vector<std::string>& getRefIDs();
   std::vector<uint32_t>& getRefLengths();
   compact::vector<uint64_t, 2>& getContigSeqVec();
+  compact::vector<uint64_t, 1>& getRankVec();
   compact::vector<uint64_t, 8>& getEdgeVec();
   compact::vector<uint64_t, 8>& getEdgeVec2();
   void parseFile();
