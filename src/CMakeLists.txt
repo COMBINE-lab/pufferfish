@@ -63,19 +63,20 @@ set(pufferfish_lib_srcs
     PufferfishIndex.cpp 
     PufferfishSparseIndex.cpp 
     PufferfishLossyIndex.cpp
-    PuffAligner.cpp
     edlib.cpp
-    Util.cpp 
-    PufferfishValidate.cpp 
+    Util.cpp
+		rank9sel.cpp
+    PufferfishValidate.cpp
     PufferfishTestLookup.cpp 
     FastxParser.cpp 
-    PufferfishGFAReader.cpp 
+    PufferfishGFAReader.cpp
+#	PufferfishBinaryGFAReader.cpp
     PufferFS.cpp
 	  xxhash.c
 	  MemCollector.cpp
 	  MemChainer.cpp
+		PuffAligner.cpp
 	  PufferfishAligner.cpp
-    rank9sel.cpp
 	  RefSeqConstructor.cpp
 	  metro/metrohash64.cpp
 )
