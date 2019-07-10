@@ -85,8 +85,7 @@ namespace pufferfish {
                                      std::shared_ptr<spdlog::logger> logger) {
         logger_ = logger;
         filename_ = std::string(gfaFileName);
-        logger_->info("Reading Pufferized GFA files from {}", gfaFileName);
-        file.reset(new zstr::ifstream(gfaFileName));
+        logger_->info("Setting the index/BinaryGfa directory {}", filename_);
         k = input_k;
         buildEdgeVec_ = buildEdgeVec;
         {
@@ -127,7 +126,7 @@ namespace pufferfish {
 
     void BinaryGFAReader::parseFile() {
         std::string refId;
-        uint64_t contigCntr{1}, prevPos{0}, nextPos{0}, ref_cnt{0};
+        uint64_t contigCntr{1}, prevPos{0}, nextPos{1}, ref_cnt{0};
         uint16_t refIdLen;
 
         k = k + 1;
@@ -135,9 +134,11 @@ namespace pufferfish {
 
         // fill out contigId2Seq
         std::unique_ptr<rank9sel> rankSelDict{nullptr};
-        rankSelDict.reset(new rank9sel(&rankVec_, (uint64_t) rankVec_.size()));
-        while (nextPos != rankVec_.size()) {
-            uint64_t nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr - 1)) + 1;
+        rankSelDict.reset(new rank9sel(&rankVec_, rankVec_.size()));
+        logger_->info("Done wrapping the rank vector with a rank9sel structure.");
+        while (nextPos < rankVec_.size() and nextPos != 0) {
+            nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr - 1)) + 1;
+//            std::cerr << contigCntr << " " << nextPos << " " << prevPos << " " << static_cast<uint32_t>(nextPos-prevPos) << "\n";
             contigid2seq[contigCntr-1] = {contigCntr-1, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
             prevPos = nextPos;
             contigCntr++;
@@ -151,17 +152,25 @@ namespace pufferfish {
         uint64_t contigCntPerPath;
         while (file.good()) {
             file.read(reinterpret_cast<char *>(&refIdLen), sizeof(refIdLen));
+            if (!file.good()) break;
             char* temp = new char[refIdLen+1];
             file.read(temp, refIdLen);
             temp[refIdLen] = '\0';
             refId = temp;
             delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
+//            std::cerr << refId << " " << contigCntPerPath << "\n";
             path[ref_cnt].resize(contigCntPerPath);
             for (uint64_t i = 0; i < contigCntPerPath; i++) {
                 int64_t contigIdAndOri;
                 file.read(reinterpret_cast<char *>(&contigIdAndOri), sizeof(contigIdAndOri));
                 uint64_t contigId = abs(contigIdAndOri);
+                if (contigId >= contigid2seq.size()) {
+                    logger_->error("Should never ever happen. "
+                                   "Found a contigId in a path that was greater than the max contigId: {}, {}",
+                                   contigId, contigid2seq.size());
+                    std::exit(3);
+                }
                 bool ori = contigId > 0; // check when orientation is set to 1
                 path[ref_cnt][i] = std::make_pair(contigId, ori);
             }

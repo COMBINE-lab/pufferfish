@@ -326,8 +326,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       refIdMap[refIds[i]] = i;
       refAccumLengths[i] = prev + refLengths[i];
       prev = refAccumLengths[i];
+//      std::cerr << i << ":" << refLengths[i] << "\n";
     }
     //compact 2bit vector
+//    std::cerr << "\nrefAccumLengths.size():" << refAccumLengths.size() << "\n";
+//    std::cerr << refAccumLengths.back() << "\n";
     compact::vector<uint64_t, 2> refseq(refAccumLengths.back());
     // go over all the reference files
     console->info("Reading the reference files ...");
