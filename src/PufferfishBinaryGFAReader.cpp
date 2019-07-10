@@ -124,11 +124,9 @@ namespace pufferfish {
 
 
     void BinaryGFAReader::parseFile() {
-        auto startTime = std::chrono::system_clock::now();
-        std::string ln;
-        std::string tag, id, value;
-        size_t contigCntr{1}, prevPos{0}, nextPos{0};
-        size_t ref_cnt{0};
+        std::string refId;
+        uint64_t contigCntr{1}, prevPos{0}, nextPos{0}, ref_cnt{0};
+        uint16_t refIdLen;
 
         k = k + 1;
         CanonicalKmer::k(k);
@@ -147,10 +145,15 @@ namespace pufferfish {
 
         // start and end kmer-hash over the contigs
         // might get deprecated later
-        uint64_t maxnid{0};
         std::ifstream file(filename_ + "/path.bin", std::ios::binary);
         uint64_t contigCntPerPath;
         while (file.good()) {
+            file.read(reinterpret_cast<char *>(&refIdLen), sizeof(refIdLen));
+            char* temp = new char[refIdLen+1];
+            file.read(temp, refIdLen);
+            temp[refIdLen] = '\0';
+            refId = temp;
+            delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
             path[ref_cnt].resize(contigCntPerPath);
             for (uint64_t i = 0; i < contigCntPerPath; i++) {
@@ -168,7 +171,7 @@ namespace pufferfish {
                 firstContig = false;
             }
             refLengths.push_back(refLength);
-            refMap.push_back(id);
+            refMap.push_back(refId);
             ref_cnt++;
         }
 
