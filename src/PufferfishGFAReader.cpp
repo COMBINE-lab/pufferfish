@@ -213,7 +213,7 @@ void GFAReader::parseFile() {
   logger_->info("total contig length = {:n} ", total_len);
   logger_->info("packing contigs into contig vector");
   //seqVec_ = sdsl::int_vector<2>(total_len, 0);
-  seqVec_.set_capacity(total_len);
+  seqVec_.resize(total_len);
 
   std::string ln;
   std::string tag, id, value;
@@ -281,7 +281,7 @@ void GFAReader::parseFile() {
   //Initialize edgeVec_
   //bad way, have to re-think
   if (buildEdgeVec_) {
-    edgeVec_.set_capacity(contig_cnt);
+    edgeVec_.resize(contig_cnt);
     for(uint64_t i=0; i<contig_cnt; i++) edgeVec_[i]=0;
 
     for(auto const& ent: path){

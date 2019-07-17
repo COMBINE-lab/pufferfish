@@ -126,7 +126,7 @@ namespace pufferfish {
 
     void BinaryGFAReader::parseFile() {
         std::string refId;
-        uint64_t contigCntr{1}, prevPos{0}, nextPos{1}, ref_cnt{0};
+        uint64_t contigCntr{0}, prevPos{0}, nextPos{1}, ref_cnt{0};
         uint16_t refIdLen;
 
         k = k + 1;
@@ -137,13 +137,11 @@ namespace pufferfish {
         rankSelDict.reset(new rank9sel(&rankVec_, rankVec_.size()));
         logger_->info("Done wrapping the rank vector with a rank9sel structure.");
         while (nextPos < rankVec_.size() and nextPos != 0) {
-            nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr - 1)) + 1;
-//            std::cerr << contigCntr << " " << nextPos << " " << prevPos << " " << static_cast<uint32_t>(nextPos-prevPos) << "\n";
-            contigid2seq[contigCntr-1] = {contigCntr-1, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
+            nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr)) + 1;// select(0) is meaningful
+            contigid2seq[contigCntr] = {contigCntr, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
             prevPos = nextPos;
             contigCntr++;
         }
-        contigCntr--;
         logger_->info("contig count for validation: {}", contigCntr);
 
         // start and end kmer-hash over the contigs
@@ -171,7 +169,7 @@ namespace pufferfish {
                                    contigId, contigid2seq.size());
                     std::exit(3);
                 }
-                bool ori = contigId > 0; // check when orientation is set to 1
+                bool ori = contigId > 0; // ori is set to 1 for case fw where the contigId is positive
                 path[ref_cnt][i] = std::make_pair(contigId, ori);
             }
             uint32_t refLength{0};
@@ -189,7 +187,7 @@ namespace pufferfish {
         //Initialize edgeVec_
         //bad way, have to re-think
         if (buildEdgeVec_) {
-            edgeVec_.set_capacity(contigCntr);
+            edgeVec_.resize(contigCntr);
             for (uint64_t i = 0; i < contigCntr; i++) edgeVec_[i] = 0;
 
             for (auto const &ent: path) {
