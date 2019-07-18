@@ -65,7 +65,7 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
     for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
         uint32_t len = std::min((uint32_t) 64, len_on_vector - w * 64);
         if (len == 0) continue;
-        uint64_t word = refseq.get_int(bucket_offset / 2, len / 2);
+        uint64_t word = refseq.get_int(bucket_offset, len);
         for (uint32_t i = 0; i < len; i += 2) {
             uint8_t next_bits = ((word >> i) & 0x03);
             char next = 'A';

@@ -53,7 +53,7 @@ public:
       : storage_(storage), rank_(rank), k_(k), curr_(startAt) {
     if (curr_ + k_ <= rank_->size()) {
       //nextValidPosition_();
-      mer_.fromNum(storage_->get_int(curr_, k_));
+      mer_.fromNum(storage_->get_int(2*curr_, 2*k_));
       // mer_.word__(0) = storage_->get_int(2 * curr_, 2 * k_);
     }
     // rcMer_ = mer_.get_reverse_complement();
@@ -158,13 +158,13 @@ private:
       }
       // At this point, either curr_ points to the next valid
       // start position, or we have skipped over to the endPos label.
-      mer_.fromNum(storage_->get_int(curr_, k_));
+      mer_.fromNum(storage_->get_int(2*curr_, 2*k_));
       return;
     }
 
   endPos:
     // Fallthrough if we couldn't find a valid position.
-    mer_.fromNum(storage_->get_int((rank_->size() - k_), k_));
+    mer_.fromNum(storage_->get_int(2*(rank_->size() - k_), 2*k_));
     curr_ = storage_->size() - k_ + 1;
   }
 
@@ -172,14 +172,14 @@ private:
     size_t endPos = curr_ + k_ - 1;
     if (endPos + 1 < rank_->size() and (*rank_)[endPos] == 1) {
       curr_ += k_;
-      mer_.fromNum(storage_->get_int(curr_, k_));
+      mer_.fromNum(storage_->get_int(2*curr_, 2*k_));
     } else {
       if (curr_ + k_ < rank_->size()) {
         int c = (*storage_)[curr_ + k_];
         mer_.shiftFw(c);
         ++curr_;
       } else {
-        mer_.fromNum(storage_->get_int((rank_->size() - k_), k_));
+        mer_.fromNum(storage_->get_int(2*(rank_->size() - k_), 2*k_));
         curr_ = storage_->size() - k_ + 1;
         //curr_ = rank_->size();
       }
@@ -485,7 +485,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           posVec[idx] = kb1.pos();
           // validate
 #ifdef PUFFER_DEBUG
-          uint64_t kn = seqVec.get_int(kb1.pos(), k);
+          uint64_t kn = seqVec.get_int(2*kb1.pos(), 2*k);
           CanonicalKmer sk;
           sk.fromNum(kn);
           if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {

@@ -81,7 +81,7 @@ std::string PufferfishBaseIndex<T>::getSeqStr(size_t globalPos, size_t length, b
 	while (length > 0) {
 	validLength = std::min(length, (size_t)32);
 	length -= validLength;
- 	word = seq_.get_int(globalPos, validLength);
+ 	word = seq_.get_int(2*globalPos, 2*validLength);
 	globalPos += validLength;
 	if (isFw)
 	  for(uint64_t i = 0; i < 2*validLength ;i+=2){
@@ -169,7 +169,7 @@ CanonicalKmer PufferfishBaseIndex<T>::getStartKmer(uint64_t rank){
   CanonicalKmer::k(k_) ;
   CanonicalKmer kb ;
   uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank)) + 1;
-  uint64_t fk = seq_.get_int(sp, k_) ;
+  uint64_t fk = seq_.get_int(2*sp, 2*k_) ;
   kb.fromNum(fk) ;
   return kb ;
 }
@@ -184,7 +184,7 @@ CanonicalKmer PufferfishBaseIndex<T>::getEndKmer(uint64_t rank){
   CanonicalKmer kb ;
   uint64_t contigEnd = rankSelDict->select(rank + 1);
 
-  uint64_t fk = seq_.get_int((contigEnd - k_ + 1), k_) ;
+  uint64_t fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
   kb.fromNum(fk) ;
   return kb ;
 }
@@ -260,10 +260,10 @@ auto  PufferfishBaseIndex<T>::getContigBlock(uint64_t rank)->util::ContigBlock{
   uint64_t contigEnd = rankSelDict->select(rank+1) ;
 
   uint32_t clen = static_cast<uint32_t>(contigEnd - sp + 1) ;
-  uint64_t fk = seq_.get_int(sp, k_) ;
+  uint64_t fk = seq_.get_int(2*sp, 2*k_) ;
   kb.fromNum(fk) ;
 
-  fk = seq_.get_int((contigEnd - k_ + 1), k_) ;
+  fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
   ke.fromNum(fk) ;
 
   std::string seq = getSeqStr(sp,clen) ;

@@ -217,19 +217,36 @@ namespace compact {
               }
               std::cerr<<sum << "\n";
             }
+
             uint64_t get_int(uint64_t from, uint64_t len) {
-              uint64_t result = 0;
-              if (len == 0) {
-                std::cerr<<"get_int with length of zero is meaningless!";
-                exit(1);
-              }
-              for(uint64_t i=0; i<=(len-1); i++) {
-                uint64_t current = (*this)[from+i];
-                auto shift_bits = (i)*BITS;
-                result += (current<<shift_bits);
-              }
-              return result;
+                const auto b = (BITS?BITS:bits());
+                if (from >= b * m_size) {
+                    throw std::out_of_range("Index requested is greater than vector's size");
+                }
+                if (from + len > b * m_size) {
+                    std::cerr << "Warning: len requested passes the vector size. Will only return until the last element.\n";
+                    len = (m_size * b) - from;
+                }
+
+                if (len > 64) {
+                    throw std::out_of_range("len should not be greater than 64");
+                }
+                auto* mem = get_words();
+                uint64_t res{0}, bitsInWrd{0}, prevBits{0};
+                do {
+                    auto idx = from / UB;
+                    auto w = mem[idx];
+                    auto idxInWrd = from % UB;
+                    prevBits += bitsInWrd;
+                    bitsInWrd = UB - idxInWrd;
+                    bitsInWrd = bitsInWrd >= len ? len : bitsInWrd;
+                    res |= (((w >> idxInWrd) & (((uint64_t)1 << bitsInWrd) - 1)) << prevBits);
+                    from += bitsInWrd;
+                    len -= bitsInWrd;
+                } while (len);
+                return res;
             }
+
             void reserve(size_t m) { m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
 
             void resize(size_t m) { m_size = m; m_capacity = m; m_mem = m_allocator.allocate(elements_to_words(m,BITS)); }
