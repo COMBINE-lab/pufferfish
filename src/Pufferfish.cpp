@@ -74,10 +74,11 @@ int main(int argc, char* argv[]) {
   */
   auto validateMode = (
                        command("validate").set(selected, mode::validate),
-                       (required("-i", "--index") & value("index", validateOpt.indexDir)) % "directory where the pufferfish index is stored",
+                       (required("-i", "--index") & value("index", validateOpt.indexDir)) % "directory where the pufferfish index is stored");/*,
                        (required("-r", "--ref") & value("ref", validateOpt.refFile)) % "fasta file with reference sequences",
                        (required("-g", "--gfa") & value("gfa", validateOpt.gfaFileName)) % "GFA file name needed for edge table validation"
                        );
+                                                                                                                                              */
   auto lookupMode = (
                      command("lookup").set(selected, mode::lookup),
                      (required("-i", "--index") & value("index", lookupOpt.indexDir)) % "directory where the pufferfish index is stored",

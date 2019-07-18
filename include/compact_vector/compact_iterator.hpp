@@ -81,7 +81,7 @@ struct gs {
 
     return res;
   }
-  static inline IDX get(const W* p, unsigned b, unsigned o) { return get(p, o); }
+  static inline IDX get(const W* p, unsigned b, unsigned o) { (void)(b); return get(p, o); }
 
   template<bool TS>
   static void set(IDX x, W* p, unsigned o) {
@@ -648,7 +648,7 @@ class lhs_setter
 
 public:
   lhs_setter(W* p, int o) : super(p, o) { }
-  lhs_setter(W* p, unsigned bits, int o) : super(p, o) { }
+  lhs_setter(W* p, unsigned bits, int o) : super(p, o) { (void)(bits); }
   lhs_setter& operator=(const IDX x) {
     gs<IDX, BITS, W, UB>::template set<TS>(x, super::ptr, super::offset);
     return *this;
