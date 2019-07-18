@@ -351,8 +351,7 @@ namespace pufferfish {
             cpos_offsets.reserve(contigOffsetSize);
             cpos_offsets.push_back(0);
 
-            for (auto idx = 0; idx < contigid2seq.size(); idx++) {
-                auto &kv = contigid2seq[idx];
+            for (uint64_t idx = 0; idx < contigid2seq.size(); idx++) {
                 //cpos.push_back(contig2pos[kv.first]);
                 auto &b = contig2pos[idx];
                 cpos_offsets.push_back(cpos_offsets.back() + b.size());
