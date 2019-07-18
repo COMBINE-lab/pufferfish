@@ -355,7 +355,6 @@ namespace pufferfish {
                 auto &kv = contigid2seq[idx];
                 //cpos.push_back(contig2pos[kv.first]);
                 auto &b = contig2pos[idx];
-                std::cerr << idx << "\n";
                 cpos_offsets.push_back(cpos_offsets.back() + b.size());
                 cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
                 std::vector<uint32_t> tlist;
