@@ -218,18 +218,31 @@ namespace compact {
               std::cerr<<sum << "\n";
             }
 
+            /**
+             * get_int returns the underlying word in the vector starting from "from" with length len
+             * len does not need to be the same size as element width.
+             *
+             * The function
+             *      returns 0 if from idx is greater than the vector size
+             *      returns 0 if len > 64
+             *      returns up to last bit of the idx if len + from > m_size
+             * @param from starting idx
+             * @param len number of bits (up to 64)
+             * @return the corresponding uint64_t
+             */
             uint64_t get_int(uint64_t from, uint64_t len) {
                 const auto b = (BITS?BITS:bits());
                 if (from >= b * m_size) {
-                    throw std::out_of_range("Index requested is greater than vector's size");
+                    std::cerr << "Index requested greater than vector's size: " << from << ">" << m_size << "\n";
+                    return 0;
                 }
                 if (from + len > b * m_size) {
-                    std::cerr << "Warning: len requested passes the vector size. Will only return until the last element.\n";
+                    std::cerr << "Warning: len requested passes the vector size. Only return until the last element.\n";
                     len = (m_size * b) - from;
                 }
-
                 if (len > 64) {
-                    throw std::out_of_range("len should not be greater than 64");
+                    std::cerr << "len should not be greater than 64.\n";
+                    return 0;
                 }
                 auto* mem = get_words();
                 uint64_t res{0}, bitsInWrd{0}, prevBits{0};
