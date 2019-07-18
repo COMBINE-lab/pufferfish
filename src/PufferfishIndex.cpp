@@ -162,6 +162,8 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
     }
     */
     uint64_t fk = seq_.get_int(2*pos, 2*k_);
+
+
     // say how the kmer fk matches mer; either
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);

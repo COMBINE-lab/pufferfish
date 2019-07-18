@@ -48,6 +48,8 @@ public:
   using iterator_category = std::forward_iterator_tag;
   using difference_type = int64_t;
 
+  ContigKmerIterator() = delete;
+
   ContigKmerIterator(compact::vector<uint64_t, 2>* storage, compact::vector<uint64_t, 1>* rank,
                      uint8_t k, uint64_t startAt)
       : storage_(storage), rank_(rank), k_(k), curr_(startAt) {
@@ -427,7 +429,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   //uint32_t hashBits = 4;
   if (!indexOpts.isSparse and !indexOpts.lossySampling) {  
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
-    compact::vector<uint64_t> posVec(w, nkeys);
+    compact::ts_vector<uint64_t> posVec(w, nkeys);
     {
 
       struct ContigVecChunk {

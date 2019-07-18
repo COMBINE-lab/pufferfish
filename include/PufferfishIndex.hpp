@@ -57,7 +57,6 @@ public:
   compact::vector<uint64_t, 2> refseq_;
   std::vector<uint64_t> refAccumLengths_;
 
-
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;

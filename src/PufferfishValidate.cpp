@@ -56,6 +56,7 @@ template <typename IndexT>
 bool checkKmer(IndexT& pi, CanonicalKmer& kb, util::QueryCache& qc, uint64_t kbi, uint32_t rn, uint32_t posWithinRef) {
   auto chits = pi.getRefPos(kb, qc);
   if (chits.empty()) {
+    std::cerr << "k-mer " << kb.to_str() << " completely absent from the index\n\n";
     return false;
   }
 
@@ -63,7 +64,7 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, util::QueryCache& qc, uint64_t kbi
   for (auto& rpos : chits.refRange) {
     auto refInfo = chits.decodeHit(rpos);
     if (rpos.transcript_id() == rn) {
-      if (static_cast<int>(refInfo.pos) == posWithinRef) {
+      if (refInfo.pos == posWithinRef) {
         if (refInfo.isFW) {
           foundKmer = (kb.fwWord() == kbi);
         } else {
@@ -74,6 +75,14 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, util::QueryCache& qc, uint64_t kbi
     }
   }
 
+  if (!foundKmer) {
+    std::cerr << "couldn't find " << kb.to_str() << " where it actually occurs (" << posWithinRef << "), but found it at :\n";
+    for (auto& rpos : chits.refRange) {
+      auto refInfo = chits.decodeHit(rpos);
+      std::cerr << "\ttr : " << rpos.transcript_id() << ", pos : " << refInfo.pos << "\n";
+    }
+    std::cerr << "\n";
+  }
   return foundKmer;
 }
 
@@ -82,7 +91,7 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, util::QueryCache& qc, uint64_t kbi
  **/
 template <typename IndexT>
 int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
-  int k = pi.k();
+  int32_t k = pi.k();
   CanonicalKmer::k(k);
 
   auto console = spdlog::stderr_color_mt("console");
@@ -98,7 +107,7 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
   for (auto refLen : refLengths) {
     uint32_t posWithinRef{0};
 
-    if (refLen < k) {
+    if (static_cast<int32_t>(refLen) < k) {
       console->warn("reference sequence of length < k; not validating.");
       gpos += refLen;
       continue;
@@ -112,8 +121,8 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
 
     auto foundKmer = checkKmer(pi, kb, qc, kbi, rn, posWithinRef);
     if (!foundKmer) {
-      console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), 0, rn, gpos);
-      return -1;
+      console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), posWithinRef, rn, gpos);
+      //return -1;
     }
     ++totalKmersSearched;
 
@@ -125,12 +134,8 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
 
       auto foundKmer = checkKmer(pi, kb, qc, kbi, rn, posWithinRef);
       if (!foundKmer) {
-        console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), 0, rn, gpos);
-        return -1;
-      }
-      if (!foundKmer) {
-        console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), 0, rn, gpos);
-        return -1;
+        console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), posWithinRef, rn, gpos);
+        //return -1;
       }
       ++totalKmersSearched;
       ++gpos;
