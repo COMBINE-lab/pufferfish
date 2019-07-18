@@ -52,6 +52,109 @@ std::vector<extension> getEdges(uint8_t edgeVec){
 }
 */
 
+
+/**
+ * Check for internal consistency of the index
+ **/
+template <typename IndexT>
+int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
+  int k = pi.k();
+  CanonicalKmer::k(k);
+
+  auto console = spdlog::stderr_color_mt("console");
+
+  auto& refSeq = pi.refseq_;
+  auto& seq = pi.getSeq();
+
+  // iterate over all reference sequences
+  const auto& refLengths = pi.getRefLengths();
+  uint32_t rn{0};
+  uint64_t gpos{0};
+  uint64_t totalKmersSearched{0};
+  for (auto refLen : refLengths) {
+    uint32_t posWithinRef{0};
+
+    if (refLen < k) {
+      console->warn("reference sequence of length < k; not validating.");
+      gpos += refLen;
+      continue;
+    }
+
+
+    CanonicalKmer kb;
+    uint64_t kbi = refSeq.get_int(2*gpos, 2*k);
+    kb.fromNum(kbi);
+
+    util::QueryCache qc;
+
+    auto chits = pi.getRefPos(kb, qc);
+    ++totalKmersSearched;
+    if (chits.empty()) {
+      console->error("Could not find k-mer occurring at position {} of reference {}", 0, rn);
+    }
+
+    bool foundKmer{false};
+    for (auto& rpos : chits.refRange) {
+      auto refInfo = chits.decodeHit(rpos);
+      if (rpos.transcript_id() == rn) {
+        console->info("in txp {}, at pos {}", rpos.transcript_id(), refInfo.pos);
+        if (static_cast<int>(refInfo.pos) == posWithinRef) {
+          if (refInfo.isFW) {
+            foundKmer = (kb.fwWord() == kbi);
+          } else {
+            foundKmer = (kb.rcWord() == kbi);
+          }
+          //foundKmer = true;
+          break;
+        }
+      }
+    }
+
+    if (!foundKmer) {
+      console->warn("Could not find k-mer ({}) that appeared in the reference, global offset {}", kb.to_str(), gpos);
+      return -1;
+    }
+
+    gpos += k;
+    for (uint32_t p = k; p < refLen; ++p) {
+      ++posWithinRef;
+      kb.shiftFw(static_cast<int>(refSeq[gpos]));
+      kbi = kb.fwWord();
+
+      auto chits = pi.getRefPos(kb, qc);
+      ++totalKmersSearched;
+      if (chits.empty()) {
+        console->error("Could not find k-mer occurring at position {} of reference {}", 0, rn);
+      }
+
+      bool foundKmer{false};
+      for (auto& rpos : chits.refRange) {
+        if (rpos.transcript_id() == rn) {
+          auto refInfo = chits.decodeHit(rpos);
+          if (static_cast<int>(refInfo.pos) == posWithinRef) {
+            if (refInfo.isFW) {
+              foundKmer = (kb.fwWord() == kbi);
+            } else {
+              foundKmer = (kb.rcWord() == kbi);
+            }
+            break;
+          }
+        }
+      }
+
+      if (!foundKmer) {
+        console->warn("Could not find k-mer that appeared in the reference");
+        return -1;
+      }
+      ++gpos;
+    }
+    ++rn;
+  }
+
+  console->info("successfully looked up {} k-mer occurrences across {} reference sequences.", totalKmersSearched, rn);
+  return 0;
+}
+
 template <typename IndexT>
 int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
   //size_t k = pi.k();
@@ -353,10 +456,12 @@ int pufferfishValidate(ValidateOptions& validateOpts) {
 */
     if (indexType == "sparse") { 
       PufferfishSparseIndex pi(validateOpts.indexDir);
-      return doPufferfishValidate(pi, validateOpts);
+      return doPufferfishInternalValidate(pi, validateOpts);
+      //return doPufferfishValidate(pi, validateOpts);
     } else if (indexType == "dense") {
       PufferfishIndex pi(validateOpts.indexDir);
-      return doPufferfishValidate(pi, validateOpts);
+      return doPufferfishInternalValidate(pi, validateOpts);
+      //return doPufferfishValidate(pi, validateOpts);
     }
     return 0;
 }
