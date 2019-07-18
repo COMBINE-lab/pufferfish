@@ -233,7 +233,7 @@ namespace compact {
             uint64_t get_int(uint64_t from, uint64_t len) {
                 const auto b = (BITS?BITS:bits());
                 if (from >= b * m_size) {
-                    std::cerr << "Index requested greater than vector's size: " << from << ">" << m_size << "\n";
+                    std::cerr << "Index requested greater than vector's size: " << from << ">" << b * m_size << "\n";
                     return 0;
                 }
                 if (from + len > b * m_size) {
