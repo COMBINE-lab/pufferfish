@@ -157,19 +157,24 @@ namespace pufferfish {
             refId = temp;
             delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
+//            std::cerr << "pathlen: " << contigCntPerPath << "\n";
 //            std::cerr << refId << " " << contigCntPerPath << "\n";
             path[ref_cnt].resize(contigCntPerPath);
             for (uint64_t i = 0; i < contigCntPerPath; i++) {
                 int64_t contigIdAndOri;
                 file.read(reinterpret_cast<char *>(&contigIdAndOri), sizeof(contigIdAndOri));
-                uint64_t contigId = abs(contigIdAndOri);
+                if (abs(contigIdAndOri) == 0) {
+                    logger_->error("Should never ever happen. ContigId = 0 ");
+                    std::exit(3);
+                }
+                uint64_t contigId = abs(contigIdAndOri)-1;
                 if (contigId >= contigid2seq.size()) {
                     logger_->error("Should never ever happen. "
                                    "Found a contigId in a path that was greater than the max contigId: {}, {}",
                                    contigId, contigid2seq.size());
                     std::exit(3);
                 }
-                bool ori = contigId > 0; // ori is set to 1 for case fw where the contigId is positive
+                bool ori = contigIdAndOri > 0; // ori is set to 1 for case fw where the contigId is positive
                 path[ref_cnt][i] = std::make_pair(contigId, ori);
             }
             uint32_t refLength{0};
@@ -346,13 +351,15 @@ namespace pufferfish {
             cpos_offsets.reserve(contigOffsetSize);
             cpos_offsets.push_back(0);
 
-            for (auto &kv : contigid2seq) {
+            for (auto idx = 0; idx < contigid2seq.size(); idx++) {
+                auto &kv = contigid2seq[idx];
                 //cpos.push_back(contig2pos[kv.first]);
-                auto &b = contig2pos[kv.first];
+                auto &b = contig2pos[idx];
+                std::cerr << idx << "\n";
                 cpos_offsets.push_back(cpos_offsets.back() + b.size());
                 cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
                 std::vector<uint32_t> tlist;
-                for (auto &p : contig2pos[kv.first]) {
+                for (auto &p : contig2pos[idx]) {
                     tlist.push_back(p.transcript_id());
                 }
                 std::sort(tlist.begin(), tlist.end());
