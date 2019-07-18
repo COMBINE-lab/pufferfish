@@ -331,6 +331,26 @@ int pufferfishValidate(ValidateOptions& validateOpts) {
       infoStream.close();
     }
 
+    /*compact::vector<uint64_t, 2> seq;
+    seq.deserialize(validateOpts.indexDir+"seq.bin", false);
+
+    uint64_t bits=100;
+    for (uint64_t i = 10; i < bits; i++) {
+        std::cerr << seq[i];
+    }
+    std::cerr << "\n";
+    uint64_t i = 10;
+    while (i < bits) {
+      uint64_t end = bits-i>32?32:bits-i;
+        auto w = seq.get_int(i*2, end*2);
+        for (uint64_t j = 0; j < end*2; j+=2) {
+            std::cerr << ((w >> j) & 0x3);
+        }
+        i+=32;
+    }
+    std::cerr << "\n";
+    std::exit(3);
+*/
     if (indexType == "sparse") { 
       PufferfishSparseIndex pi(validateOpts.indexDir);
       return doPufferfishValidate(pi, validateOpts);
