@@ -1057,8 +1057,11 @@ bool alignReads(
             std::cerr << "Genomic file does not exist\n";
             exit(1);
         }
+        std::string sepStr = " \t";
         while (gene_names_file >> gene_name) {
-            gene_names.insert(gene_name);
+            auto processedName =
+                    gene_name.substr(0, gene_name.find_first_of(sepStr));
+            gene_names.insert(processedName);
         }
         gene_names_file.close();
     }
