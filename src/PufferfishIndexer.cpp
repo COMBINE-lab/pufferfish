@@ -270,7 +270,7 @@ uint32_t getEncodedExtension(compact::vector<uint64_t, 2>& seqVec, uint64_t firs
   return encodedNucs;
 }
 
-
+int fixFastaMain(std::vector<std::string>& args);
 int buildGraphMain(std::vector<std::string>& args);
 int dumpGraphMain(std::vector<std::string>& args);
 uint64_t getNumDistinctKmers(unsigned kmlen, const std::string& ifile);
@@ -278,7 +278,8 @@ uint64_t getNumDistinctKmers(unsigned kmlen, const std::string& ifile);
 
 int pufferfishIndex(IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
-  std::string rfile = indexOpts.rfile;
+  std::vector<std::string> rfiles = indexOpts.rfile;
+  std::string rfile;
   std::string outdir = indexOpts.outdir;
   std::string gfa_file = indexOpts.outdir;
   bool buildEdgeVec = indexOpts.buildEdgeVec;
@@ -299,6 +300,27 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   if (puffer::fs::MakePath(outdir.c_str()) != 0) {
     console->error(std::strerror(errno));
     std::exit(1);
+  }
+
+  // running fixFasta
+  {
+    console->info("Running fixFasta");
+    std::vector<std::string> args;
+//    args.push_back("fixFasta");
+    args.push_back("--klen");
+    args.push_back(std::to_string(k));
+    args.push_back("--input");
+    args.insert(args.end(), rfiles.begin(), rfiles.end());
+    args.push_back("--output");
+    args.push_back(outdir+"/ref_k"+std::to_string(k)+"_fixed.fa");
+
+    int ffres = fixFastaMain(args);
+    if (ffres != 0) {
+        console->error("The fixFasta phase failed with exit code {}", ffres);
+        std::exit(ffres);
+    }
+    // replacing rfile with the new fixed fasta file
+    rfile = outdir+"/ref_k"+std::to_string(k)+"_fixed.fa";
   }
 
   // If the filter size isn't set by the user, estimate it with ntCard
@@ -971,5 +993,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     bphf->save(hstream);
     hstream.close();
   }
+
+  // cleanup the fixed.fa file
+  ghc::filesystem::remove(rfile);
   return 0;
 }

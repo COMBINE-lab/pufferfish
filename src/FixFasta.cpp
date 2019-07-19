@@ -292,7 +292,7 @@ void fixFasta(single_parser* parser,
   std::cerr << "wrote " << numWritten << " contigs\n";
 }
 
-int main(int argc, char* argv[]) {
+int fixFastaMain(std::vector<std::string>& args) {
   using namespace clipp;
 
   uint32_t k{31};
@@ -307,7 +307,8 @@ int main(int argc, char* argv[]) {
               required("--output", "-o") & value("output", outFile) % "output FASTA file"
               );
 
-  if (parse(argc, argv, cli)) {
+  //  if (parse(argc, argv, cli)) {
+  if (parse(args, cli)) {
     if (printHelp) {
       std::cout << make_man_page(cli, "fixFasta");
       return 0;
@@ -317,7 +318,7 @@ int main(int argc, char* argv[]) {
     size_t numProd = 1;
     std::vector<std::string> refFiles{refFile};
 
-    auto console = spdlog::stderr_color_mt("console");
+    auto console = spdlog::stderr_color_mt("ff::console");
 
     transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
     transcriptParserPtr->start();

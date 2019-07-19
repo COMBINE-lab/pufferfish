@@ -73,6 +73,7 @@ set(pufferfish_lib_srcs
 	PufferfishBinaryGFAReader.cpp
     PufferFS.cpp
 	  xxhash.c
+		FixFasta.cpp
 	  MemCollector.cpp
 	  MemChainer.cpp
 		PuffAligner.cpp
@@ -97,9 +98,11 @@ add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
+#[[
 add_executable(fixFasta FixFasta.cpp FastxParser.cpp xxhash.c)
 target_compile_options(fixFasta PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(fixFasta PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+]]
 
 add_executable(edgedensity EdgeDensity.cpp)
 target_compile_options(edgedensity PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
@@ -141,7 +144,7 @@ add_dependencies(filtersam libseqlib)
 
 target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2pp ${JEMALLOC_LIBRARIES} z twopaco graphdump ntcard ${TBB_LIBRARIES})
 target_link_libraries(bcalm_pufferize Threads::Threads z)
-target_link_libraries(fixFasta Threads::Threads z)
+#target_link_libraries(fixFasta Threads::Threads z)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
 target_link_libraries(krakmap Threads::Threads puffer)

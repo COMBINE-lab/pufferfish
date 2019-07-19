@@ -8,7 +8,7 @@ public:
   uint32_t p{16};
   std::string gfa_file;
   std::string cfile;
-  std::string rfile;
+  std::vector<std::string> rfile;
   std::string outdir;
   bool isSparse{false};
   uint32_t extensionSize{4};
