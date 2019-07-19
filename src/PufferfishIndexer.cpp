@@ -625,9 +625,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     //fill up optimal positions
     {
       auto& cnmap = pf.getContigNameMap() ;
+      size_t ncontig = cnmap.size();
       std::vector<size_t> sampledInds ;
-      for(auto& kv : cnmap){
-        auto& r1 = kv.second ;
+      for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
+        auto& r1 = cnmap[i];
         sampledInds.clear();
         computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
@@ -660,7 +661,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
     //debug flags
     int loopCounter = 0;
-    //size_t ourKeys = 0 ;
+
+    // walk over the entire contig array:
+    // compute the sampled positions for each contig
+    // fill in the corresponding values in presenceVec
     while(kb1 != ke1){
         sampledInds.clear();
         auto clen = contigLengths[contigId];
@@ -693,8 +697,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         }
         if (nextSampIter != sampledInds.end()) {
           console->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          console->info("last sample is " , sampledInds.back());
-          console->info("contig length is " , contigLengths[contigId-1]);
+          console->info("last sample is {}" , sampledInds.back());
+          console->info("contig length is {}" , contigLengths[contigId-1]);
         }
     }
 
@@ -777,9 +781,18 @@ int pufferfishIndex(IndexOptions& indexOpts) {
             }
             auto idx = bphf->lookup(*kb1);
             auto rank = (idx == 0) ? 0 : realPresenceRank(idx);
+
+            int64_t target_idx = (idx - rank);
+            if ( target_idx > canonicalNess.size()) { console->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
             canonicalNess[idx - rank] = kb1.isCanonical();
+
+            if ( target_idx > extSize.size()) { console->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
             extSize[idx - rank] = extensionDist;
+
+            if ( target_idx > auxInfo.size()) { console->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
             auxInfo[idx - rank] = ext;
+
+            if ( target_idx > direction.size()) { console->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
             direction[idx - rank] = (sampDir == NextSampleDirection::FORWARD) ? 1 : 0;
           }
         }
