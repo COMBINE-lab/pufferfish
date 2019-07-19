@@ -18,7 +18,7 @@ Currently, Pufferfish is the software implementing this efficient ccdBG index, a
 **branches:**
 The **master** branch of pufferfish is _not_ necessarily stable, but it should, at any given time contain a working version of the index.  That is, breaking changes should not be pushed to master.  The **develop** branch of pufferfish is guaranteed to be neither stable nor working at any given point, but a best-faith effort will be made to not commit broken code to this branch.  For feature branches, all bets are off.
 
-For more details about pufferfish, please check out our [paper]((https://academic.oup.com/bioinformatics/article/34/13/i169/5045749), as well as the blog post [here](http://robpatro.com/blog/?p=494).
+For more details about pufferfish, please check out our [paper](https://academic.oup.com/bioinformatics/article/34/13/i169/5045749), as well as the blog post [here](http://robpatro.com/blog/?p=494).
 
 # Building Pufferfish <a name="building"></a>
 **Dependency:** 
@@ -41,53 +41,25 @@ To build the pufferfish do the following,
 
 # Using Pufferfish <a name="using"></a>
 
-**External Dependency:**
+**Programs used within pufferfish:**
 
-In Pufferfish index building pipeline we use a variant of [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo) which you can clone from [here](https://github.com/fataltes/TwoPaCo) to build the compacted de Bruijn graph from the list of references.
-Later, Pufferfish builds the index on top of this compacted de Bruijn graph.
+Building a pufferfish index requires first having a compacted de Bruijn graph, for which we use a modified version of [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo).  However, some modification of the TwoPaCo output is required for pufferfish to properly index the graph (e.g. a k-mer must appear at most once in the graph and palindromic contigs output by TwoPaCo must be removed).  Thus we rely on a modified version of TwoPaCo which we bundle with pufferfish in the `external` directory.
 
-So before running the whole pipeline of index building, make sure you have already installed the forked repo of TwoPaCo that provides a command that outputs a slightly modified gfa file with overlaps of `k-1` between the contigs.
+To choose an appropriate filter size to pass to TwoPaCo to build the compacted dBG, we make use the the hyper-log-log implementation of [ntCard](https://github.com/bcgsc/ntCard).  Because we use this as a library instead of an executable, and to avoid an external dependency to simply call one function, we bundle a modified version of that code with pufferfish and also include it in the `external` directory.
 
 We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. So it is required to install these libraries on the system as well and also update the CMakeLists.txt file in `src` directory and change the line for setting variable `SEQLIBDIR` statistically.
 
-## Core Pipeline
-Having a set of reference fasta files or a concatenated fasta file which contains all the references, one can build the pufferfish index setting the required arguments in `config.json` and running the command `bash index.sh` in pufferfish directory.
+## Core Operations
 
-The commands in the `index.sh` file go through the pipeline of "*fixFasta -> TwoPaCo juntion finding -> TwoPaCo dump -> pufferfish index*" and perform the following steps:
-1. **FixFasta**
-```
-<Pufferfish Directory>/build/src/fixFasta -i <input_fasta> -o <output_fixed_fasta>
-```
-2. **TwoPaCo Junction Finding**
-```
-<TwoPaCo Directory>/graphconstructor/twopaco -k <ksize> -t <numOfThreads> -f <filterSize> <fixed_fasta> --outfile <deBruijnGraph.bin> --tmpdir <tmp directory>
-```
-3. **TwoPaCo Dumping**
-```
-<TwoPaCo Directory>/graphdump/graphdump -k <ksize> -s <fixed_fasta> -f pufferize <deBruijnGraph.bin> > <gfa_file>
-```
-4. **Build Pufferfish Index**
-```
-<Pufferfish Directory>/build/src/pufferfish index -k <ksize> -g <pufferized_gfa_file> -r <fixed_fasta> -o <pufferfish index directory>
-```
+**Building a pufferfish index**
 
-Good news is you can run the whole pipeline by just setting the required arguments in file `config.json` and then run `bash index.sh` in the root directory of this repository, pufferfish.
-
-## Using Pufferfish with BCALM2
-
-You can use pufferfish with the unitig file provided by [BCALM2](https://github.com/GATB/bcalm).  Once you have downloaded and built bcalm, you can run it on your reference sequence file to produce a list of compacted unitigs like so:
+To build a pufferfish inded, you can use the `index` command.  It is used like so:
 
 ```
-bcalm -abundance-min 1 -max-memory <mem_in_MB> -nb-cores <cores_to_use> -in reference.fa  -out out_prefix -k <k>
+pufferfish index -k <ksize> -r <fasta_file_to_index> -o <pufferfish index directory>
 ```
 
-This will generate, in addition to some other files, a file called `out_prefix.unitigs.fa`.  These are, unfortunately, not quite in the format required by pufferfish yet (unitigs can span reference boundaries).  To fix this, we must `pufferize` the file.  We can do that as such:
-
-```
-bcalm_pufferizer -k <k> -r reference.fa -u out_prefix.unitigs.fa
-```
-
-This will create a file called `out_prefix.unitigs.fa.pufferized.gfa`, on which you can then build the pufferfish index.
+There are also optional parameters including `-s` (the ability to build a sparser and smaller index), `-p` (control the number of threads used during construction), and `-f` (to provide an explicit filter size for TwoPaCo dBG construction).
 
 # Mapping using Pufferfish
 We can generate different types of output including sam. If you have samtools installed on your system you can run the first command in the puff_align.bash file to generate a bam file for mapping a set of reads to the pufferfish index. The rest of the commands do quantification on the bam file using Salmon and then validation of the results on reference set and taxonomic tree using two python scripts in scripts section.
