@@ -9,6 +9,7 @@
 #include <cerrno>
 #include <cstring>
 #include <cereal/archives/binary.hpp>
+#include "ghc/filesystem.hpp"
 
 #include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
@@ -329,9 +330,18 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     args.push_back("--outfile");
     args.push_back(outdir+"/tmp_dbg.bin");
     args.push_back("--tmpdir");
-    args.push_back(outdir);
+
+    std::string twopaco_tmp_path = outdir + "/twopaco_tmp";
+    if (puffer::fs::MakePath(twopaco_tmp_path.c_str()) != 0) {
+      console->error(std::strerror(errno));
+      std::exit(1);
+    }
+    args.push_back(twopaco_tmp_path);
     args.push_back(rfile);
     buildGraphMain(args);
+
+    // cleanup tmp
+    ghc::filesystem::remove_all(twopaco_tmp_path);
   }
 
   {
@@ -347,6 +357,13 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     args.push_back("-p");
     args.push_back(outdir);
     dumpGraphMain(args);
+
+    // cleanup what we no longer need
+    ghc::filesystem::path outpath{outdir};
+    ghc::filesystem::path tmpDBG = outdir / ghc::filesystem::path{"tmp_dbg.bin"};
+    if (ghc::filesystem::exists(tmpDBG)) {
+      ghc::filesystem::remove(tmpDBG);
+    }
   }
 
   pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, console);
