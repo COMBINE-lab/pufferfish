@@ -272,6 +272,7 @@ uint32_t getEncodedExtension(compact::vector<uint64_t, 2>& seqVec, uint64_t firs
 
 int buildGraphMain(std::vector<std::string>& args);
 int dumpGraphMain(std::vector<std::string>& args);
+uint64_t getNumDistinctKmers(unsigned kmlen, const std::string& ifile);
 
 
 int pufferfishIndex(IndexOptions& indexOpts) {
@@ -297,6 +298,23 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   if (puffer::fs::MakePath(outdir.c_str()) != 0) {
     console->error(std::strerror(errno));
     std::exit(1);
+  }
+
+  // If the filter size isn't set by the user, estimate it with ntCard
+  if (indexOpts.filt_size == -1){
+    console->info("Filter size not provided; estimating from number of distinct k-mers");
+    auto nk = getNumDistinctKmers(k, rfile);
+    double p = 0.001;
+    double k = 5.0;
+    double logp_k = std::log(p) / k;
+    double r = (-k) / std::log(1.0 - std::exp(logp_k));
+    indexOpts.filt_size = static_cast<int32_t>(std::ceil(std::log2(std::ceil(nk * r))));
+    console->info("ntHll estimated {} distinct k-mers, setting filter size to 2^{}", nk, indexOpts.filt_size);
+    /*
+    lgp_k = l($p) / $k
+    r = (-$k) / l(1 - e(lgp_k))
+    ceil(l(ceil($n * r))/l(2))
+    */
   }
 
   {
