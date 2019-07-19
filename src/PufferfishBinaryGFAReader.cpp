@@ -81,11 +81,11 @@ namespace pufferfish {
         return ret;
     }
 
-    BinaryGFAReader::BinaryGFAReader(const char *gfaFileName, size_t input_k, bool buildEdgeVec,
+    BinaryGFAReader::BinaryGFAReader(const char *binDir, size_t input_k, bool buildEdgeVec,
                                      std::shared_ptr<spdlog::logger> logger) {
         logger_ = logger;
-        filename_ = std::string(gfaFileName);
-        logger_->info("Setting the index/BinaryGfa directory {}", filename_);
+        filename_ = std::string(binDir);
+        logger_->info("Setting the index/BinaryGfa directory {}", binDir);
         k = input_k;
         buildEdgeVec_ = buildEdgeVec;
         {

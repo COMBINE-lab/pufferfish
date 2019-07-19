@@ -276,9 +276,9 @@ int dumpGraphMain(std::vector<std::string>& args);
 
 int pufferfishIndex(IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
-  std::string gfa_file = indexOpts.gfa_file;
   std::string rfile = indexOpts.rfile;
   std::string outdir = indexOpts.outdir;
+  std::string gfa_file = indexOpts.outdir;
   bool buildEdgeVec = indexOpts.buildEdgeVec;
 
   // If the user included the '/' in the output directory path, remove
@@ -314,7 +314,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     args.push_back(outdir);
     args.push_back(rfile);
     buildGraphMain(args);
-    //std::exit(0);
   }
 
   {
@@ -332,7 +331,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     dumpGraphMain(args);
   }
 
-  pufferfish::BinaryGFAReader pf(gfa_file.c_str(), k - 1, buildEdgeVec, console);
+  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, console);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir);
@@ -555,7 +554,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     {
       cereal::JSONOutputArchive indexDesc(descStream);
       std::string sampStr = "dense";
-      std::vector<std::string> refGFA{gfa_file};
+      std::vector<std::string> refGFA{outdir};
       indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
       indexDesc(cereal::make_nvp("reference_gfa", refGFA));
       indexDesc(cereal::make_nvp("sampling_type", sampStr));
@@ -755,7 +754,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   {
     cereal::JSONOutputArchive indexDesc(descStream);
     std::string sampStr = "sparse";
-    std::vector<std::string> refGFA{gfa_file};
+    std::vector<std::string> refGFA{outdir};
     indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
     indexDesc(cereal::make_nvp("reference_gfa", refGFA));
     indexDesc(cereal::make_nvp("sampling_type", sampStr));
@@ -898,7 +897,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     {
       cereal::JSONOutputArchive indexDesc(descStream);
       std::string sampStr = "lossy";
-      std::vector<std::string> refGFA{gfa_file};
+      std::vector<std::string> refGFA{outdir};
       indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
       indexDesc(cereal::make_nvp("reference_gfa", refGFA));
       indexDesc(cereal::make_nvp("sampling_type", sampStr));
