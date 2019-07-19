@@ -269,6 +269,11 @@ uint32_t getEncodedExtension(compact::vector<uint64_t, 2>& seqVec, uint64_t firs
   return encodedNucs;
 }
 
+
+int buildGraphMain(std::vector<std::string>& args);
+int dumpGraphMain(std::vector<std::string>& args);
+
+
 int pufferfishIndex(IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
   std::string gfa_file = indexOpts.gfa_file;
@@ -292,6 +297,39 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   if (puffer::fs::MakePath(outdir.c_str()) != 0) {
     console->error(std::strerror(errno));
     std::exit(1);
+  }
+
+  {
+    std::vector<std::string> args;
+    args.push_back("twopaco");
+    args.push_back("-k");
+    args.push_back(std::to_string(k));
+    args.push_back("-t");
+    args.push_back(std::to_string(indexOpts.p));
+    args.push_back("-f");
+    args.push_back("32");
+    args.push_back("--outfile");
+    args.push_back(outdir+"/tmp_dbg.bin");
+    args.push_back("--tmpdir");
+    args.push_back(outdir);
+    args.push_back(rfile);
+    buildGraphMain(args);
+    //std::exit(0);
+  }
+
+  {
+    std::vector<std::string> args;
+    args.push_back("graphdump");
+    args.push_back("-k");
+    args.push_back(std::to_string(k));
+    args.push_back("-s");
+    args.push_back(rfile);
+    args.push_back("-f");
+    args.push_back("binPufferized");
+    args.push_back(outdir+"/tmp_dbg.bin");
+    args.push_back("-p");
+    args.push_back(outdir);
+    dumpGraphMain(args);
   }
 
   pufferfish::BinaryGFAReader pf(gfa_file.c_str(), k - 1, buildEdgeVec, console);

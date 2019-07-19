@@ -91,6 +91,7 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, util::QueryCache& qc, uint64_t kbi
  **/
 template <typename IndexT>
 int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
+  (void)(validateOpts);
   int32_t k = pi.k();
   CanonicalKmer::k(k);
 
@@ -104,7 +105,9 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
   uint32_t rn{0};
   uint64_t gpos{0};
   uint64_t totalKmersSearched{0};
+
   for (auto refLen : refLengths) {
+
     uint32_t posWithinRef{0};
 
     if (static_cast<int32_t>(refLen) < k) {
@@ -139,7 +142,11 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
       }
       ++totalKmersSearched;
       ++gpos;
+      if (gpos % 1000000 == 0) {
+        console->info("processed {} of {} positions.", gpos, seq.size()-k+1);
+      }
     }
+
     ++rn;
   }
 

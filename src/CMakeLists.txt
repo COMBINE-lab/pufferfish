@@ -139,7 +139,7 @@ add_dependencies(filtersam libseqlib)
 
 #add_executable(readKrk readKrk.cpp taxa.cpp)
 
-target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2pp ${JEMALLOC_LIBRARIES} z)
+target_link_libraries(pufferfish Threads::Threads puffer sdsl ksw2pp ${JEMALLOC_LIBRARIES} z twopaco graphdump ${TBB_LIBRARIES})
 target_link_libraries(bcalm_pufferize Threads::Threads z)
 target_link_libraries(fixFasta Threads::Threads z)
 target_link_libraries(edgedensity Threads::Threads z puffer)
