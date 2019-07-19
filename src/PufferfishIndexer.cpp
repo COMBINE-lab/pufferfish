@@ -438,6 +438,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   }
   pf.clearContigTable();
+  // At this point we should definitely not need path.bin anymore, so get rid of it
+  ghc::filesystem::path tmpPath = ghc::filesystem::path{outdir} / ghc::filesystem::path{"path.bin"};
+  if (!ghc::filesystem::remove(tmpPath)) {
+    console->warn("Could not seem to remove temporary file {}.", tmpPath.string());
+  }
 
   // now we know the size we need --- create our bitvectors and pack!
   size_t w = std::log2(tlen) + 1;
