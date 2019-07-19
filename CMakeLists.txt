@@ -186,6 +186,8 @@ set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
 set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")
 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
+
 include_directories(include)
 link_directories(lib)
 add_subdirectory(src)
