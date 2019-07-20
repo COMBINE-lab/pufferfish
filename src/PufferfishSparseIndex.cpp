@@ -130,6 +130,7 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     presenceVec_.deserialize(bfile, false);
     //sdsl::load_from_file(presenceVec_, bfile);
     presenceRank_ = rank9b(presenceVec_.get(), presenceVec_.size());
+    std::cerr << "NUM 1s in presenceVec_ = " << presenceRank_.rank(presenceVec_.size()-1) << "\n\n";
     //presenceRank_ = decltype(presenceVec_)::rank_1_type(&presenceVec_);
     //presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
   }
@@ -341,7 +342,8 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
   }
 
   uint64_t pos{0};
-  auto currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
+  //auto currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
+  auto currRank = presenceRank_.rank(idx);
 
   if (presenceVec_[idx] == 1) {
     pos = sampledPos_[currRank];
@@ -394,7 +396,9 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
       return emptyHit;
     }
 
-    currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
+    //currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
+    currRank = presenceRank_.rank(idx);
+
     inLoop++;
 
     /*

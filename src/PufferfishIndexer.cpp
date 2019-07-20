@@ -642,12 +642,12 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     int extensionSize = indexOpts.extensionSize;
     int sampleSize = 2 * extensionSize + 1;
 
-    sdsl::bit_vector presenceVec(nkeys);
+    //sdsl::bit_vector presenceVec(nkeys);
 
     // Note: the compact_vector constructor does not
     // init mem to 0, so we do that with the clear_mem() function.
-    //compact::vector<uint64_t, 1> presenceVec(nkeys);
-    //presenceVec.clear_mem();
+    compact::vector<uint64_t, 1> presenceVec(nkeys);
+    presenceVec.clear_mem();
 
     size_t sampledKmers{0};
     std::vector<size_t> sampledInds;
@@ -736,8 +736,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
                   i, sampledKmers, loopCounter, contigLengths.size());
   }
 
-  //rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
-  sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
+  rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
+  //sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
   console->info("num ones in presenceVec = {:n}", realPresenceRank.rank(presenceVec.size()-1));
 
   //bidirectional sampling
@@ -855,14 +855,14 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   descStream.close();
 
   std::ofstream hstream(outdir + "/mphf.bin");
-  sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
-  /*
+  //sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
+  
   {
     std::ofstream pvstream(outdir + "/presence.bin");
     presenceVec.serialize(pvstream);
     pvstream.close();
   }
-  */
+  
   sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
   sdsl::store_to_file(auxInfo, outdir + "/extension.bin");
   sdsl::store_to_file(extSize, outdir + "/extensionSize.bin");
@@ -873,9 +873,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   } else { // lossy sampling index
     int32_t sampleSize = static_cast<int32_t>(indexOpts.lossy_rate);
-    sdsl::bit_vector presenceVec(nkeys);
-    //compact::vector<uint64_t, 1> presenceVec(nkeys);
-    //presenceVec.clear_mem();
+    //sdsl::bit_vector presenceVec(nkeys);
+    compact::vector<uint64_t, 1> presenceVec(nkeys);
+    presenceVec.clear_mem();
 
     size_t sampledKmers{0};
     std::vector<size_t> sampledInds;
@@ -947,8 +947,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
       size_t contigId{0};
       int loopCounter = 0;
-      //rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
-      sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
+      rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
+      //sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
       while(kb1 != ke1){
         sampledInds.clear();
         auto clen = contigLengths[contigId];
@@ -1008,14 +1008,14 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     descStream.close();
 
     std::ofstream hstream(outdir + "/mphf.bin");
-    sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
-    /*
+    //sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
+    
     {
       std::ofstream pvstream(outdir + "/presence.bin");
       presenceVec.serialize(pvstream);
       pvstream.close();
     }
-    */
+    
     sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
     bphf->save(hstream);
     hstream.close();

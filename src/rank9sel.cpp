@@ -203,10 +203,38 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 #endif
 }
 
+
+rank9sel::rank9sel(rank9sel&& other) {
+  bits = other.bits;
+  counts = other.counts; other.counts = nullptr;
+  inventory = other.inventory; other.inventory = nullptr;
+  subinventory = other.subinventory; other.subinventory = nullptr;
+  num_words = other.num_words;
+  num_counts = other.num_counts;
+  inventory_size = other.inventory_size;
+  ones_per_inventory = other.ones_per_inventory;
+  log2_ones_per_inventory = other.log2_ones_per_inventory;
+  num_ones = other.num_ones;
+}
+
+rank9sel& rank9sel::operator=(rank9sel&& other) {
+  bits = other.bits;
+  counts = other.counts; other.counts = nullptr;
+  inventory = other.inventory; other.inventory = nullptr;
+  subinventory = other.subinventory; other.subinventory = nullptr;
+  num_words = other.num_words;
+  num_counts = other.num_counts;
+  inventory_size = other.inventory_size;
+  ones_per_inventory = other.ones_per_inventory;
+  log2_ones_per_inventory = other.log2_ones_per_inventory;
+  num_ones = other.num_ones;
+  return *this;
+}
+
 rank9sel::~rank9sel() {
-	delete [] counts;
-	delete [] inventory;
-	delete [] subinventory;
+	if (counts) { delete [] counts; }
+	if (inventory) { delete [] inventory; }
+	if (subinventory) { delete [] subinventory; }
 }
 
 uint64_t rank9sel::rank( const uint64_t k ) {

@@ -35,6 +35,12 @@ private:
 
 public:
 	rank9sel( compact::vector<uint64_t, 1>* compact_bits, uint64_t num_bits );
+  rank9sel( rank9sel&& other);
+  rank9sel( rank9sel& other) = delete;
+
+  rank9sel& operator=(rank9sel&& other);
+  rank9sel& operator=(rank9sel& other) = delete;
+
 	~rank9sel();
 	uint64_t rank( const uint64_t pos );
 	uint64_t select( const uint64_t rank );

@@ -49,9 +49,42 @@ rank9b::rank9b( const uint64_t * const bits, const uint64_t num_bits ) {
 	assert( c <= num_bits );
 }
 
-rank9b::~rank9b() {
-	delete [] counts;
+
+rank9b& rank9b::operator=(rank9b&& other) {
+  num_words = other.num_words;
+  num_counts = other.num_counts;
+  inventory_size = other.inventory_size;
+  ones_per_inventory = other.ones_per_inventory;
+  log2_ones_per_inventory = other.log2_ones_per_inventory;
+  num_ones = other.num_ones;
+  bits = other.bits;
+  counts = other.counts;
+  other.counts = nullptr;
+  inventory = other.inventory;
+  other.inventory = nullptr;
+  return *this;
 }
+
+rank9b::rank9b(rank9b&& other) {
+  num_words = other.num_words;
+  num_counts = other.num_counts;
+  inventory_size = other.inventory_size;
+  ones_per_inventory = other.ones_per_inventory;
+  log2_ones_per_inventory = other.log2_ones_per_inventory;
+  num_ones = other.num_ones;
+  bits = other.bits;
+  counts = other.counts;
+  other.counts = nullptr;
+  inventory = other.inventory;
+  other.inventory = nullptr;
+}
+
+rank9b::~rank9b() {
+  if (counts != nullptr) {
+	delete [] counts;
+  }
+}
+
 
 
 uint64_t rank9b::rank( const uint64_t k ) {

@@ -32,6 +32,13 @@ private:
 public:
 	rank9b();
 	rank9b( const uint64_t * const bits, const uint64_t num_bits );
+
+  rank9b(rank9b&& other);
+  rank9b(rank9b& other) = delete;
+
+  rank9b& operator=(rank9b&& other);
+  rank9b& operator=(rank9b& other) = delete;
+
 	~rank9b();
 	uint64_t rank( const uint64_t pos );
 	// Just for analysis purposes
