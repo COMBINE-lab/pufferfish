@@ -296,14 +296,14 @@ int fixFastaMain(std::vector<std::string>& args) {
   using namespace clipp;
 
   uint32_t k{31};
-  std::string refFile;
+  std::vector<std::string> refFiles;
   std::string outFile;
   bool printHelp{false};
 
   auto cli = (
               option("--help", "-h").set(printHelp, true) % "show usage",
               option("--klen", "-k") & value("k-mer length", k) % "length of the k-mer used to build the cDBG (default = 31)",
-              required("--input", "-i") & value("input", refFile) % "input FASTA file",
+              required("--input", "-i") & values("input", refFiles) % "input FASTA file",
               required("--output", "-o") & value("output", outFile) % "output FASTA file"
               );
 
@@ -316,7 +316,6 @@ int fixFastaMain(std::vector<std::string>& args) {
     size_t numThreads{1};
     std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
     size_t numProd = 1;
-    std::vector<std::string> refFiles{refFile};
 
     auto console = spdlog::stderr_color_mt("ff::console");
 

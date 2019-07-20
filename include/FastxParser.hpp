@@ -65,9 +65,21 @@ struct ReadSeq {
     ~ReadSeq() {}
 };
 
+struct ReadQual {
+  std::string seq;
+  std::string name;
+  std::string qual;
+  ~ReadQual() {}
+};
+
 struct ReadPair {
   ReadSeq first;
   ReadSeq second;
+};
+
+struct ReadQualPair {
+  ReadQual first;
+  ReadQual second;
 };
 
 template <typename T> class ReadChunk {
@@ -121,7 +133,6 @@ public:
   FastxParser(std::vector<std::string> files, std::vector<std::string> files2,
               uint32_t numConsumers, uint32_t numParsers = 1,
               uint32_t chunkSize = 1000);
-
   ~FastxParser();
   bool start();
   bool stop();

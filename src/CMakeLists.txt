@@ -98,6 +98,8 @@ add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
+## Apparently, CMake has a multi-line comment format.  I didn't know this but
+## CLion did (@fataltes).
 #[[
 add_executable(fixFasta FixFasta.cpp FastxParser.cpp xxhash.c)
 target_compile_options(fixFasta PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
