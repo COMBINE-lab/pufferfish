@@ -138,12 +138,16 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     CLI::AutoTimer timer{"Loading canonical vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/canonical.bin";
     //sdsl::load_from_file(canonicalNess_, pfile);
-    canonicalNess_.deserialize(pfile, close);
+    canonicalNess_.deserialize(pfile, false);
   }
   {
     CLI::AutoTimer timer{"Loading sampled positions", CLI::Timer::Big};
     std::string pfile = indexDir + "/sample_pos.bin";
-    sdsl::load_from_file(sampledPos_, pfile);
+    auto bits_per_element = compact::get_bits_per_element(pfile);
+    sampledPos_.set_m_bits(bits_per_element);
+    sampledPos_.deserialize(pfile, false);
+    std::cerr << "bits per element in sampled pos : " << sampledPos_.bits() << "\n";
+    //sdsl::load_from_file(sampledPos_, pfile);
   }
 
   {

@@ -690,8 +690,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     compact::vector<uint64_t, 1> canonicalNess(numKmers - sampledKmers);
     canonicalNess.clear_mem();
 
-    sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
-
+    //sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
+    compact::vector<uint64_t> samplePosVec(w, sampledKmers);
+    samplePosVec.clear_mem();
 
   // new presence Vec
   {
@@ -877,7 +878,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     pvstream.close();
   }
   */
-  sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
+  dumpCompactToFile(samplePosVec, outdir + "/sample_pos.bin");
+  //sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
   sdsl::store_to_file(auxInfo, outdir + "/extension.bin");
   sdsl::store_to_file(extSize, outdir + "/extensionSize.bin");
   //sdsl::store_to_file(canonicalNess, outdir + "/canonical.bin");
@@ -925,7 +927,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       console->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
     }
 
-    sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
+    //sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
+    compact::vector<uint64_t> samplePosVec(w, sampledKmers);
+    samplePosVec.clear_mem();
+
+
 
     // new presence Vec
     {
@@ -1039,14 +1045,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
     std::ofstream hstream(outdir + "/mphf.bin");
     //sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
-    
-    {
-      std::ofstream pvstream(outdir + "/presence.bin");
-      presenceVec.serialize(pvstream);
-      pvstream.close();
-    }
-    
-    sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
+    dumpCompactToFile(presenceVec, outdir + "/presence.bin");
+    dumpCompactToFile(samplePosVec, outdir + "/sample_pos.bin");
+    //sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
     bphf->save(hstream);
     hstream.close();
   }

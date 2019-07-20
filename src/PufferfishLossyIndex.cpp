@@ -98,7 +98,10 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading sampled positions", CLI::Timer::Big};
     std::string pfile = indexDir + "/sample_pos.bin";
-    sdsl::load_from_file(sampledPos_, pfile);
+    auto bits_per_element = compact::get_bits_per_element(pfile);
+    sampledPos_.set_m_bits(bits_per_element);
+    sampledPos_.deserialize(pfile, false);
+    //sdsl::load_from_file(sampledPos_, pfile);
   }
 
   {

@@ -47,7 +47,6 @@ private:
 
   seq_vector_t seq_;
   edge_vector_t edge_;
-  pos_vector_t pos_;
   //for sparse representation
   compact::vector<uint64_t,1> presenceVec_;
   compact::vector<uint64_t,1> canonicalNess_;
@@ -57,7 +56,7 @@ private:
   //sdsl::bit_vector::rank_1_type presenceRank_;
   //sdsl::bit_vector::select_1_type presenceSelect_;
   sdsl::int_vector<> auxInfo_ ;
-  pos_vector_t sampledPos_;
+  pos_vector_t sampledPos_{16};
 
   std::unique_ptr<boophf_t> hash_{nullptr};
 

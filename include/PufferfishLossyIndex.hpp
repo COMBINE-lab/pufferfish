@@ -52,7 +52,7 @@ private:
   rank9b presenceRank_;
   //sdsl::bit_vector::rank_1_type presenceRank_;
   //sdsl::bit_vector::select_1_type presenceSelect_;
-  pos_vector_t sampledPos_;
+  pos_vector_t sampledPos_{16};
 
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
