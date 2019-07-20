@@ -110,7 +110,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
         read = util::reverseComplement(read);
 
     int32_t keyLen = 0;
-    char *refSeq;
+    std::unique_ptr<char[]> refSeq;
     std::string tseq = "";
 
     auto rpos = mems[0].rpos;
@@ -135,13 +135,13 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
     keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
     tseq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen);
 
-    refSeq = new char[tseq.length() + 1];
-    strcpy(refSeq, tseq.c_str());
+    refSeq.reset(new char[tseq.length() + 1]);
+    strcpy(refSeq.get(), tseq.c_str());
     uint64_t hashKey{0};
     bool didHash{false};
     if (!alnCache.empty()) {
         // hash the reference string
-        MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
+        MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq.get()), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
         didHash = true;
         // see if we have this hash
         auto hit = alnCache.find(hashKey);
@@ -385,11 +385,11 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
                             //tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
                             //auto score1 = aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
                             if (lastHitEnd_ref + 1 - refStart < 0 or
-                                lastHitEnd_ref + 1 - refStart >= (int32_t) std::strlen(refSeq))
+                                lastHitEnd_ref + 1 - refStart >= (int32_t) std::strlen(refSeq.get()))
                                 std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref
                                           << "and refStart is " << refStart << ", but refSeq length is "
-                                          << std::strlen(refSeq) << "\n";
-                            char *refSeq1 = refSeq + lastHitEnd_ref + 1 - refStart;
+                                          << std::strlen(refSeq.get()) << "\n";
+                            char *refSeq1 = refSeq.get() + lastHitEnd_ref + 1 - refStart;
                             score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez,
                                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
                             addCigar(cigarGen, ez, false);
@@ -459,9 +459,9 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
 
                 lastHitEnd_read = currHitStart_read + memlen - 1;
                 lastHitEnd_ref = tpos + memlen - 1;
-                if (lastHitEnd_ref - refStart + 1 > (int32_t) std::strlen(refSeq) + 1)
+                if (lastHitEnd_ref - refStart + 1 > (int32_t) std::strlen(refSeq.get()) + 1)
                     std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is "
-                              << refStart << ", but refSeq length is " << std::strlen(refSeq) << "\n";
+                              << refStart << ", but refSeq length is " << std::strlen(refSeq.get()) << "\n";
                 firstMem = false;
             }
 
@@ -518,7 +518,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
         if (cigar_fixed) hctr.cigar_fixed_count++;
         if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
             if (!didHash)
-                MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq), keyLen, reinterpret_cast<uint8_t *>(&hashKey),
+              MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq.get()), keyLen, reinterpret_cast<uint8_t *>(&hashKey),
                                   0);
             AlignmentResult aln;
             aln.score = alignmentScore;
@@ -529,7 +529,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
     } else {
         hctr.skippedAlignments_byCache += 1;
     }
-    delete refSeq;
+    //delete refSeq;
     if (verbose) {
         std::cerr << "alignmentScore\t" << alignmentScore << "\talignmment\t" << alignment << "\n";
         std::cerr << "cigar\t" << cigar << "\n";
@@ -615,7 +615,7 @@ bool PuffAligner::recoverSingleOrphan(util::MemCluster clust, std::vector<util::
   char* r1rc = nullptr;
   char* r2rc = nullptr;
 
-  char* windowSeq = nullptr;
+  std::unique_ptr<char[]> windowSeq{nullptr};
   int32_t windowLength = -1;
 
   int32_t maxDistRight = l2 / 4;
@@ -661,10 +661,10 @@ bool PuffAligner::recoverSingleOrphan(util::MemCluster clust, std::vector<util::
 
   if (verbose) std::cerr<< anchorPos<< "\n";
   auto tseq = getRefSeq(allRefSeq, refAccPos, startPos, windowLength);
-  windowSeq = new char[tseq.length() + 1];
-  strcpy(windowSeq, tseq.c_str());
+  windowSeq.reset(new char[tseq.length() + 1]);
+  strcpy(windowSeq.get(), tseq.c_str());
 
-  EdlibAlignResult result = edlibAlign(rptr, rlen, windowSeq, windowLength,
+  EdlibAlignResult result = edlibAlign(rptr, rlen, windowSeq.get(), windowLength,
                                        edlibNewAlignConfig(maxDist, EDLIB_MODE_HW, EDLIB_TASK_LOC));
 
   if (result.editDistance > -1) {
@@ -679,11 +679,11 @@ bool PuffAligner::recoverSingleOrphan(util::MemCluster clust, std::vector<util::
     if (verbose) std::cerr<<recovered_fwd << " " << orphanRecoveryMemCollection.size()<<"\n";
     it->addMem(memItr, recovered_pos, 1, recovered_fwd ? 1 : rlen-1, recovered_fwd);
 
-    delete windowSeq;
+    //delete windowSeq;
     edlibFreeAlignResult(result);
     return true;
   } else {
-    delete windowSeq;
+    //delete windowSeq;
     edlibFreeAlignResult(result);
     return false;
   }
