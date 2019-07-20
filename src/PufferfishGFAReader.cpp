@@ -151,7 +151,7 @@ void GFAReader::scanContigLengths() {
 
 size_t GFAReader::fillContigInfoMap_() {
   std::string ln;
-  std::string tag, id, value;
+  //std::string tag, id, value;
   size_t contig_ctr{0};
   //size_t contig_len{0};
   while (std::getline(*file, ln)) {

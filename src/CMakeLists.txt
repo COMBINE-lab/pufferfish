@@ -66,6 +66,7 @@ set(pufferfish_lib_srcs
     edlib.cpp
     Util.cpp
 		rank9sel.cpp
+    rank9b.cpp
     PufferfishValidate.cpp
     PufferfishTestLookup.cpp 
     FastxParser.cpp 

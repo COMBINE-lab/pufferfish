@@ -148,6 +148,13 @@ public:
   static constexpr unsigned used_bits() { return UB; }
   static constexpr bool thread_safe() { return TS; }
 
+  // set all values in the vector to 0
+  // *Note* : would be nice to have the constructor
+  // optionally take a value to fill in or use a default ... 
+  inline void clear_mem() {
+    std::memset(this->get(), 0, this->bytes());
+  }
+
             void serialize(std::ofstream& of) {
               uint64_t static_flag = (static_bits() == bits()) ? 1 : 0;
               of.write(reinterpret_cast<char*>(&static_flag), sizeof(static_flag));

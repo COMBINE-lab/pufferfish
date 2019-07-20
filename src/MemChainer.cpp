@@ -63,8 +63,8 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
     auto &refs = projHits.refRange;
     if (verbose)
       std::cerr << "total number of references found: " << refs.size() << "\n";
-    uint32_t mappings{0};
     if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit) {
+      uint32_t mappings{0};
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                  readPos, projHits.k_, projHits.contigPos_,
                                  projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_, re);
@@ -79,8 +79,9 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
       //}
       }
 
-      if (verbose)
+      if (verbose) {
         std::cerr << "total number of mappings found: " << mappings << "\n";
+      }
     }
   }
   return true;
@@ -271,8 +272,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
     std::vector<bool> seen(f.size());
     for (uint64_t i = 0; i < seen.size(); i++) seen[i] = false;
     for (auto bestChainEnd : bestChainEndList) {
-      bool shouldBeAdded = true;
       if (bestChainEnd >= 0) {
+        bool shouldBeAdded = true;
         std::vector<uint64_t> memIndicesInReverse;
         auto lastPtr = p[bestChainEnd];
         while (lastPtr < bestChainEnd) {

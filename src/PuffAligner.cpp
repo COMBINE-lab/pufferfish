@@ -2,7 +2,7 @@
 
 #include "Util.hpp"
 
-std::string extractReadSeq(const std::string readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
+std::string extractReadSeq(const std::string& readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
     std::string subseq = readSeq.substr(rstart, rend - rstart);
     if (isFw)
         return subseq;
@@ -128,7 +128,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
     uint32_t refStart;
     if (currHitStart_ref >= currHitStart_read) {
         refStart = currHitStart_ref - currHitStart_read;
-    } else if (currHitStart_ref < currHitStart_read) {
+    } else { // -- this is always true : else if (currHitStart_ref < currHitStart_read) {
         refStart = 0;
     }
     if (verbose) std::cerr<< "tpos: " << refStart << "\n";
@@ -270,7 +270,8 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
                     aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
                     alignment = ez.mqe; //std::max(ez.mqe, ez.mte);
-                    if (verbose) {
+
+                    {
                         std::cerr << "Original read seq:\t" << original_read << "\n";
                         std::cerr << "Total alignment with the score\t" << alignment << "\t from position\t"
                                   << readStart << "\t on the read:\n" << readSeq << "\n";

@@ -319,8 +319,6 @@ void processReadsPair(paired_parser *parser,
     spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
     RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
-    std::vector<std::string> refBlocks;
-
     auto logger = spdlog::get("stderrLog");
     fmt::MemoryWriter sstream;
     BinWriter bstream;
@@ -686,7 +684,6 @@ void processReadsSingle(single_parser *parser,
     //create aligner
     spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
     RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
-    std::vector<std::string> refBlocks;
 
     auto logger = spdlog::get("stderrLog");
     fmt::MemoryWriter sstream;
@@ -718,7 +715,7 @@ void processReadsSingle(single_parser *parser,
             readLen = read.seq.length();
             auto totLen = readLen;
             bool verbose = false;
-            if (verbose) std::cerr << read.name << "\n";
+            //if (verbose) std::cerr << read.name << "\n";
             ++hctr.numReads;
 
             jointHits.clear();

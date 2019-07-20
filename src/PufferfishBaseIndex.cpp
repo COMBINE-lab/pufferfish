@@ -124,21 +124,6 @@ std::string PufferfishBaseIndex<T>::getSeqStr(size_t globalPos, size_t length, b
 }
 
 
-/** Seems unused, skip for now **/
-/*
-inline uint64_t our_read_int(uint64_t* word, uint8_t offset, const uint8_t len)
-{
-    uint64_t w1 = (*word)>>offset;
-    if ((offset+len) > 64) { // if offset+len > 64
-        return w1 |  // w1 or w2 adepted:
-               ((*(word+1) & sdsl::bits::lo_set[(offset+len)&0x3F])   // set higher bits zero
-                << (64-offset));  // move bits to the left
-    } else {
-        return w1 & sdsl::bits::lo_set[len];
-    }
-}
-*/
-
 /**
  * Returns a ProjectedHits object containing all of the reference loci matching this
  * provided Canonical kmer (including the oritentation of the match).  The provided

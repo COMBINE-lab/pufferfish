@@ -101,6 +101,7 @@ namespace pufferfish {
 
     }
 
+  /*
     void BinaryGFAReader::encodeSeq(sdsl::int_vector<2> &seqVec, size_t offset,
                                     stx::string_view str) {
         for (size_t i = 0; i < str.length(); ++i) {
@@ -108,6 +109,7 @@ namespace pufferfish {
             seqVec[offset + i] = c;
         }
     }
+  */
 
     void BinaryGFAReader::encodeSeq(compact::vector<uint64_t, 2> &seqVec, size_t offset,
                                     stx::string_view str) {
