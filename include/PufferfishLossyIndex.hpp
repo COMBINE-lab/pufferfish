@@ -15,6 +15,7 @@
 #include "Util.hpp"
 #include "PufferfishBaseIndex.hpp"
 #include "rank9sel.hpp"
+#include "rank9b.h"
 
 class PufferfishLossyIndex : public PufferfishBaseIndex<PufferfishLossyIndex> {
   friend PufferfishBaseIndex;
@@ -47,9 +48,10 @@ private:
   edge_vector_t edge_;
 
   //for lossy representation
-  bit_vector_t presenceVec_;
-  sdsl::bit_vector::rank_1_type presenceRank_;
-  sdsl::bit_vector::select_1_type presenceSelect_;
+  compact::vector<uint64_t, 1> presenceVec_;
+  rank9b presenceRank_;
+  //sdsl::bit_vector::rank_1_type presenceRank_;
+  //sdsl::bit_vector::select_1_type presenceSelect_;
   pos_vector_t sampledPos_;
 
   std::unique_ptr<boophf_t> hash_{nullptr};

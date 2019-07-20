@@ -137,7 +137,8 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading canonical vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/canonical.bin";
-    sdsl::load_from_file(canonicalNess_, pfile);
+    //sdsl::load_from_file(canonicalNess_, pfile);
+    canonicalNess_.deserialize(pfile, close);
   }
   {
     CLI::AutoTimer timer{"Loading sampled positions", CLI::Timer::Big};
@@ -156,7 +157,8 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading direction vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/direction.bin";
-    sdsl::load_from_file(directionVec_, pfile);
+    directionVec_.deserialize(pfile,false);
+    //sdsl::load_from_file(directionVec_, pfile);
   }
 }
 

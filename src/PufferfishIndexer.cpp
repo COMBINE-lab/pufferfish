@@ -271,6 +271,13 @@ uint32_t getEncodedExtension(compact::vector<uint64_t, 2>& seqVec, uint64_t firs
   return encodedNucs;
 }
 
+template <typename VecT>
+void dumpCompactToFile(VecT& v, std::string fname) {
+  std::ofstream bfile(fname, std::ios::binary);
+  v.serialize(bfile);
+  bfile.close();
+}
+
 int fixFastaMain(std::vector<std::string>& args);
 int buildGraphMain(std::vector<std::string>& args);
 int dumpGraphMain(std::vector<std::string>& args);
@@ -675,8 +682,14 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     sdsl::int_vector<> auxInfo((numKmers-sampledKmers), 0, extSymbolWidth*extensionSize) ;
     sdsl::int_vector<> extSize((numKmers-sampledKmers), 0, extWidth) ;
     //extSize[idx - rank] = extensionDist;
-    sdsl::bit_vector direction(numKmers - sampledKmers) ;
-    sdsl::bit_vector canonicalNess(numKmers - sampledKmers);
+    //sdsl::bit_vector direction(numKmers - sampledKmers) ;
+    compact::vector<uint64_t, 1> direction(numKmers - sampledKmers) ;
+    direction.clear_mem();
+
+    //sdsl::bit_vector canonicalNess(numKmers - sampledKmers);
+    compact::vector<uint64_t, 1> canonicalNess(numKmers - sampledKmers);
+    canonicalNess.clear_mem();
+
     sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
 
 
@@ -856,18 +869,35 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   std::ofstream hstream(outdir + "/mphf.bin");
   //sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
-  
+  dumpCompactToFile(presenceVec, outdir+"/presence.bin");
+  /*
   {
     std::ofstream pvstream(outdir + "/presence.bin");
     presenceVec.serialize(pvstream);
     pvstream.close();
   }
-  
+  */
   sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
   sdsl::store_to_file(auxInfo, outdir + "/extension.bin");
   sdsl::store_to_file(extSize, outdir + "/extensionSize.bin");
-  sdsl::store_to_file(canonicalNess, outdir + "/canonical.bin");
-  sdsl::store_to_file(direction, outdir + "/direction.bin");
+  //sdsl::store_to_file(canonicalNess, outdir + "/canonical.bin");
+  dumpCompactToFile(canonicalNess, outdir + "/canonical.bin");
+  /*
+  {
+    std::ofstream bstream(outdir + "/canonical.bin");
+    canonicalNess.serialize(bstream);
+    bstream.close();
+  }
+  */
+  dumpCompactToFile(direction, outdir + "/direction.bin");
+  /*
+  {
+    std::ofstream bstream(outdir + "/direction.bin");
+    direction.serialize(bstream);
+    bstream.close();
+  }
+  */
+  //sdsl::store_to_file(direction, outdir + "/direction.bin");
   bphf->save(hstream);
   hstream.close();
 

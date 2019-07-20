@@ -89,9 +89,10 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading presence vector", CLI::Timer::Big};
     std::string bfile = indexDir + "/presence.bin";
-    sdsl::load_from_file(presenceVec_, bfile);
-    presenceRank_ = decltype(presenceVec_)::rank_1_type(&presenceVec_);
-    presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
+    //sdsl::load_from_file(presenceVec_, bfile);
+    presenceVec_.deserialize(bfile, false);
+    presenceRank_ = rank9b(presenceVec_.get(), presenceVec_.size());//decltype(presenceVec_)::rank_1_type(&presenceVec_);
+    //presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
   }
 
   {
@@ -140,7 +141,7 @@ auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
 
   if (res < numKmers_ and presenceVec_[res] == 1) {
     uint64_t pos{0};
-    auto currRank = (res == 0) ? 0 : presenceRank_(res);
+    auto currRank = presenceRank_.rank(res);
     pos = sampledPos_[currRank];
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
     /* 
@@ -227,7 +228,7 @@ auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits 
 
   if (res < numKmers_ and presenceVec_[res] == 1) {
     uint64_t pos{0};
-    auto currRank = (res == 0) ? 0 : presenceRank_(res);
+    auto currRank = presenceRank_.rank(res);
     pos = sampledPos_[currRank];
 
     uint64_t twopos = pos << 1;
