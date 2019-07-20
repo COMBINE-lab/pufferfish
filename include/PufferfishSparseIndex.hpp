@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "rank9b.h"
 #include "core/range.hpp"
 #include "sdsl/int_vector.hpp"
 #include "sdsl/rank_support.hpp"
@@ -48,12 +49,14 @@ private:
   edge_vector_t edge_;
   pos_vector_t pos_;
   //for sparse representation
-  bit_vector_t presenceVec_;
+  //bit_vector_t presenceVec_;
+  compact::vector<uint64_t, 1> presenceVec_;
   bit_vector_t canonicalNess_;
   bit_vector_t directionVec_ ;
   sdsl::int_vector<> extSize_ ;
-  sdsl::bit_vector::rank_1_type presenceRank_;
-  sdsl::bit_vector::select_1_type presenceSelect_;
+  rank9b presenceRank_;
+  //sdsl::bit_vector::rank_1_type presenceRank_;
+  //sdsl::bit_vector::select_1_type presenceSelect_;
   sdsl::int_vector<> auxInfo_ ;
   pos_vector_t sampledPos_;
 

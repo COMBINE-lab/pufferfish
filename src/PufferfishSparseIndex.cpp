@@ -127,9 +127,11 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading presence vector", CLI::Timer::Big};
     std::string bfile = indexDir + "/presence.bin";
-    sdsl::load_from_file(presenceVec_, bfile);
-    presenceRank_ = decltype(presenceVec_)::rank_1_type(&presenceVec_);
-    presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
+    presenceVec_.deserialize(bfile, false);
+    //sdsl::load_from_file(presenceVec_, bfile);
+    presenceRank_ = rank9b(presenceVec_.get(), presenceVec_.size());
+    //presenceRank_ = decltype(presenceVec_)::rank_1_type(&presenceVec_);
+    //presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
   }
   {
     CLI::AutoTimer timer{"Loading canonical vector", CLI::Timer::Big};
@@ -339,7 +341,7 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
   }
 
   uint64_t pos{0};
-  auto currRank = (idx == 0) ? 0 : presenceRank_(idx);
+  auto currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
 
   if (presenceVec_[idx] == 1) {
     pos = sampledPos_[currRank];
@@ -392,7 +394,7 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
       return emptyHit;
     }
 
-    currRank = (idx == 0) ? 0 : presenceRank_(idx);
+    currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
     inLoop++;
 
     /*
@@ -438,7 +440,7 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern)
   }
 
   uint64_t pos{0};
-  auto currRank = (idx == 0) ? 0 : presenceRank_(idx);
+  auto currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
 
   if (presenceVec_[idx] == 1) {
     pos = sampledPos_[currRank];
@@ -491,7 +493,7 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern)
       return emptyHit;
     }
 
-    currRank = (idx == 0) ? 0 : presenceRank_(idx);
+    currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
     inLoop++;
 
     /*
