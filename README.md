@@ -21,18 +21,11 @@ The **master** branch of pufferfish is _not_ necessarily stable, but it should, 
 For more details about pufferfish, please check out our [paper](https://academic.oup.com/bioinformatics/article/34/13/i169/5045749), as well as the blog post [here](http://robpatro.com/blog/?p=494).
 
 # Building Pufferfish <a name="building"></a>
-**Dependency:** 
-Building pufferfish depends on `sdsl-lite`, which we explain how to install during the building process.
-
 To build the pufferfish do the following,
 
 ```
 >git clone git@github.com:COMBINE-lab/pufferfish.git
-> cd pufferfish
->git clone https://github.com/simongog/sdsl-lite.git
->cd sdsl-lite
->./install.sh ../
-> cd ..
+>cd pufferfish
 > mkdir build
 > cd build
 > cmake ../
