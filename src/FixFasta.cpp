@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <vector>
 #include <unordered_set>
+#include "string_view.hpp"
 
 using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
@@ -221,9 +222,8 @@ void fixFasta(single_parser* parser,
           }
 
           txpSeqStream << readStr;
-          txpSeqStream << '$';
-          currIndex += readLen + 1;
-          onePos.push_back(currIndex - 1);
+          currIndex += readLen;
+          onePos.push_back(currIndex);
         } else {
           log->warn("Discarding entry with header [{}], since it had length 0 "
                     "(perhaps after poly-A clipping)",
@@ -272,6 +272,7 @@ void fixFasta(single_parser* parser,
 
   // Put the concatenated text in a string
   std::string concatText = txpSeqStream.str();
+  stx::string_view concatTextView(concatText);
   // And clear the stream
   txpSeqStream.clear();
 
@@ -283,10 +284,10 @@ void fixFasta(single_parser* parser,
     size_t len = next1 - prev1;
     if(!shortFlag[transcriptNames[i]]){
         ffa << ">" << transcriptNames[i] << "\n";
-        ffa << concatText.substr(prev1, len) << "\n";
+        ffa << concatTextView.substr(prev1, len) << "\n";
         ++numWritten;
     }
-    prev1 = next1 + 1;
+    prev1 = next1;
   }
   ffa.close();
   std::cerr << "wrote " << numWritten << " contigs\n";
