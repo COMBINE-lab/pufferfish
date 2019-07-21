@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <vector>
 #include <unordered_set>
+
 #include "cereal/cereal.hpp"
 #include "cereal/archives/json.hpp"
 #include "string_view.hpp"
@@ -28,7 +29,9 @@ using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
 void fixFasta(single_parser* parser,
               // std::string& outputDir,
-              bool keepDuplicates, uint32_t k, std::mutex& iomutex,
+              spp::sparse_hash_set<std::string>& decoyNames,
+              bool keepDuplicates, uint32_t k,
+              std::string& sepStr, std::mutex& iomutex,
               std::shared_ptr<spdlog::logger> log, std::string outFile) {
   (void)iomutex;
 
@@ -45,11 +48,19 @@ void fixFasta(single_parser* parser,
   digestpp::sha256 nameHasher256;
   digestpp::sha512 seqHasher512;
   digestpp::sha512 nameHasher512;
-
   digestpp::sha256 decoySeqHasher256;
   digestpp::sha256 decoyNameHasher256;
 
+  // Keep track of if we've seen a decoy sequence yet.
+  // The index enforces that all decoy sequences are consecutive, and that
+  // they come after all valid (non-decoy) sequences.  If we see a non-decoy
+  // sequence after having observed a decoy, then we complain and exit.
+  bool sawDecoy{false};
+  uint64_t numberOfDecoys{0};
+  uint64_t firstDecoyIndex{std::numeric_limits<uint64_t>::max()};
 
+  bool firstRecord{true};
+  bool hasGencodeSep = (sepStr.find('|') != std::string::npos);
   uint32_t n{0};
   std::vector<std::string> transcriptNames;
   std::unordered_set<std::string> transcriptNameSet;
@@ -65,6 +76,7 @@ void fixFasta(single_parser* parser,
   //using TranscriptList = std::vector<uint32_t>;
   //using KmerBinT = uint64_t;
 
+  bool haveDecoys = !decoyNames.empty();
   bool clipPolyA = true;
 
   struct DupInfo {
@@ -72,8 +84,6 @@ void fixFasta(single_parser* parser,
     uint64_t txOffset;
     uint32_t txLen;
   };
-
-  std::string sepStr = " \t";
 
   // http://biology.stackexchange.com/questions/21329/whats-the-longest-transcript-known
   // longest human transcript is Titin (108861), so this gives us a *lot* of
@@ -102,8 +112,6 @@ void fixFasta(single_parser* parser,
     // communicate with the parser (*once per-thread*)
     auto rg = parser->getReadGroup();
     bool tooShort{false};
-    bool isDecoy{false};
-
     while (parser->refill(rg)) {
       for (auto& read : rg) { // for each sequence
         tooShort = false;
@@ -113,7 +121,40 @@ void fixFasta(single_parser* parser,
                            [](const char a) -> bool { return !(isprint(a)); }),
             readStr.end());
 
-        // seqHasher.process(readStr.begin(), readStr.end());
+        uint32_t readLen = readStr.size();
+        uint32_t completeLen = readLen;
+
+        // get the hash to check for collisions before we change anything.
+        auto txStringHash =
+            XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
+                  readLen, 0);
+        auto& readName = read.name;
+
+        // check if we think this is a gencode transcriptome, and the user has not passed the gencode flag
+        if (firstRecord and !hasGencodeSep) {
+          constexpr const size_t numGencodeSep{8};
+          if ( std::count(readName.begin(), readName.end(), '|') == numGencodeSep ) {
+            log->warn("It appears that this may be a GENCODE transcriptome (from analyzing the separators in the FASTA header).  However, "
+                      "you have not set \'|\' as a header separator.  If this is a GENCODE transcriptome, consider passing --gencode to the "
+                      "pufferfish index command.\n\n");
+          }
+          firstRecord = false;
+        }
+
+        bool isDecoy = (haveDecoys) ? decoyNames.contains(readName) : false;
+        // If this is *not* a decoy sequence, make sure that
+        // we haven't seen any decoys yet.  Otherwise we are violating
+        // the condition that decoys must come last.
+        if (!isDecoy and sawDecoy) {
+          log->critical("Observed a non-decoy sequence [{}] after having already observed a decoy. "
+                        "However, it is required that any decoy target records appear, consecutively, "
+                        "at the end of the input fasta file.  Please re-format your input file so that "
+                        "all decoy records appear contiguously at the end of the file, after all valid "
+                        "(non-decoy) records", readName);
+          log->flush();
+          spdlog::drop_all();
+          std::exit(1);
+        }
 
         // If this was a decoy, add it to the decoy hash
         if (isDecoy) {
@@ -122,14 +163,6 @@ void fixFasta(single_parser* parser,
           seqHasher256.absorb(readStr.begin(), readStr.end());
           seqHasher512.absorb(readStr.begin(), readStr.end());
         }
-
-        uint32_t readLen = readStr.size();
-        uint32_t completeLen = readLen;
-
-        // get the hash to check for collisions before we change anything.
-        auto txStringHash =
-            XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
-                  readLen, 0);
 
         // First, replace non ATCG nucleotides
         for (size_t b = 0; b < readLen; ++b) {
@@ -167,18 +200,19 @@ void fixFasta(single_parser* parser,
         // If the transcript was completely removed during clipping, don't
         // include it in the index.
         if (readStr.size() > 0) {
+
           // If we're suspicious the user has fed in a *genome* rather
           // than a transcriptome, say so here.
-          if (readStr.size() >= tooLong) {
-            //log->warn("Entry with header [{}] was longer than {} nucleotides.  "
-              //        "Are you certain that "
-                //      "we are indexing a transcriptome and not a genome?",
-                  //    read.name, tooLong);
-          } else if (readStr.size() <= k) {
+          if (readStr.size() >= tooLong and !isDecoy) {
+            log->warn("Entry with header [{}] was longer than {} nucleotides.  "
+                      "Are you certain that "
+                      "we are indexing a transcriptome and not a genome?",
+                      read.name, tooLong);
+          } else if (readStr.size() < k) {
             log->warn("Entry with header [{}], had length less than "
                       "the k-mer length of {} (perhaps after poly-A clipping)",
                       read.name, k);
-            tooShort = true ;
+            tooShort = true;
           }
 
           uint32_t txpIndex = n++;
@@ -217,16 +251,16 @@ void fixFasta(single_parser* parser,
             continue;
           }
 
-          // If there was no collision, then add the transcript
-          transcriptNames.emplace_back(processedName);
+          // Check for duplicate name
           if (transcriptNameSet.find(processedName) != transcriptNameSet.end()) {
             log->error("In FixFasta, two references with the same name but different sequences: {}. "
                        "We require that all input records have a unique name "
                        "up to the first whitespace character.", processedName);
             std::exit(1);
           }
+          // If there was no collision, then add the transcript
           transcriptNameSet.insert(processedName);
-
+          transcriptNames.emplace_back(processedName);
           if (isDecoy) {
             decoyNameHasher256.absorb(processedName.begin(), processedName.end());
           } else {
@@ -234,16 +268,30 @@ void fixFasta(single_parser* parser,
             nameHasher512.absorb(processedName.begin(), processedName.end());
           }
 
-          if(!tooShort)
+          if(!tooShort) {
               shortFlag[processedName] = false ;
-          else
+          } else {
               shortFlag[processedName] = true ;
+          }
           // nameHasher.process(processedName.begin(), processedName.end());
 
           // The position at which this transcript starts
           transcriptStarts.push_back(currIndex);
           // The un-molested length of this transcript
           completeLengths.push_back(completeLen);
+
+          if (isDecoy) {
+            // if we haven't seen another decoy yet, this is the first decoy
+            // index
+            if (!sawDecoy) {
+              firstDecoyIndex = txpIndex;
+            }
+            // once we see the first decoy, saw decoy is set to true
+            // for the rest of the processing.
+            sawDecoy = true;
+            ++numberOfDecoys;
+            //decoyIndices.push_back(txpIndex);
+          }
 
           // If we made it here, we were not an actual duplicate, so add this
           // transcript
@@ -336,6 +384,8 @@ void fixFasta(single_parser* parser,
     ghc::filesystem::path sigPath = outDir / ghc::filesystem::path{"ref_sigs.json"};
     std::ofstream os(sigPath.string());
     cereal::JSONOutputArchive ar(os);
+    ar( cereal::make_nvp("num_decoys", numberOfDecoys));
+    ar( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
     ar( cereal::make_nvp("SeqHash", seqHash256) );
     ar( cereal::make_nvp("NameHash", nameHash256) );
     ar( cereal::make_nvp("SeqHash512", seqHash512) );
@@ -358,19 +408,45 @@ void fixFasta(single_parser* parser,
   */
 }
 
+spp::sparse_hash_set<std::string> populateDecoyHash(const std::string& fname, std::shared_ptr<spdlog::logger> log) {
+  spp::sparse_hash_set<std::string> dset;
+  std::ifstream dfile(fname);
+
+  std::string dname;
+  while (dfile >> dname) {
+    auto it = dset.insert(dname);
+    if (!it.second) {
+      log->warn("The decoy name {} was encountered more than once --- please be sure all decoy names and sequences are unique.", dname);
+    }
+  }
+
+  dfile.close();
+  return dset;
+}
+
+
+
 int fixFastaMain(std::vector<std::string>& args) {
   using namespace clipp;
 
   uint32_t k{31};
   std::vector<std::string> refFiles;
   std::string outFile;
+  std::string decoyFile;
   bool printHelp{false};
+  std::string sepStr{" \t"};
 
   auto cli = (
               option("--help", "-h").set(printHelp, true) % "show usage",
-              option("--klen", "-k") & value("k-mer length", k) % "length of the k-mer used to build the cDBG (default = 31)",
               required("--input", "-i") & values("input", refFiles) % "input FASTA file",
-              required("--output", "-o") & value("output", outFile) % "output FASTA file"
+              required("--output", "-o") & value("output", outFile) % "output FASTA file",
+              option("--headerSep", "-s") & value("sep_strs", sepStr) %
+              "Instead of a space or tab, break the header at the first "
+              "occurrence of this string, and name the transcript as the token before "
+              "the first separator (default = space & tab)",
+              option("--decoys", "-d") & value("decoys", decoyFile) %
+              "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
+              option("--klen", "-k") & value("k-mer length", k) % "length of the k-mer used to build the cDBG (default = 31)"
               );
 
   //  if (parse(argc, argv, cli)) {
@@ -379,17 +455,28 @@ int fixFastaMain(std::vector<std::string>& args) {
       std::cout << make_man_page(cli, "fixFasta");
       return 0;
     }
+
+    auto console = spdlog::stderr_color_mt("ff::console");
+
+    spp::sparse_hash_set<std::string> decoyNames;
+    if (!decoyFile.empty()) {
+      bool decoyFileExists = ghc::filesystem::exists(decoyFile);
+      if (!decoyFileExists) {
+        console->error("The decoy file {} does not exist.", decoyFile);
+        std::exit(1);
+      }
+      decoyNames = populateDecoyHash(decoyFile, console);
+    }
+
     size_t numThreads{1};
     std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
     size_t numProd = 1;
-
-    auto console = spdlog::stderr_color_mt("ff::console");
 
     transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
     transcriptParserPtr->start();
     std::mutex iomutex;
     bool keepDuplicates{true};
-    fixFasta(transcriptParserPtr.get(), keepDuplicates, k, iomutex, console,
+    fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, console,
              outFile);
     transcriptParserPtr->stop();
     return 0;

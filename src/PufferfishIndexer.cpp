@@ -280,6 +280,36 @@ int buildGraphMain(std::vector<std::string>& args);
 int dumpGraphMain(std::vector<std::string>& args);
 uint64_t getNumDistinctKmers(unsigned kmlen, const std::string& ifile);
 
+bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive& indexDesc) {
+  std::string seqHash256;
+  std::string nameHash256;
+  std::string seqHash512;
+  std::string nameHash512;
+  std::string decoySeqHash256;
+  std::string decoyNameHash256;
+  uint64_t numberOfDecoys{0};
+  uint64_t firstDecoyIndex{std::numeric_limits<uint64_t>::max()};
+
+  sigArch( cereal::make_nvp("SeqHash", seqHash256) );
+  sigArch( cereal::make_nvp("NameHash", nameHash256) );
+  sigArch( cereal::make_nvp("SeqHash512", seqHash512) );
+  sigArch( cereal::make_nvp("NameHash512", nameHash512) );
+  sigArch( cereal::make_nvp("DecoySeqHash", decoySeqHash256) );
+  sigArch( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
+  sigArch( cereal::make_nvp("num_decoys", numberOfDecoys));
+  sigArch( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
+
+  indexDesc( cereal::make_nvp("SeqHash", seqHash256) );
+  indexDesc( cereal::make_nvp("NameHash", nameHash256) );
+  indexDesc( cereal::make_nvp("SeqHash512", seqHash512) );
+  indexDesc( cereal::make_nvp("NameHash512", nameHash512) );
+  indexDesc( cereal::make_nvp("DecoySeqHash", decoySeqHash256) );
+  indexDesc( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
+  indexDesc( cereal::make_nvp("num_decoys", numberOfDecoys));
+  indexDesc( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
+  return true;
+}
+
 
 int pufferfishIndex(IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
@@ -312,6 +342,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     console->info("Running fixFasta");
     std::vector<std::string> args;
 //    args.push_back("fixFasta");
+    if (!indexOpts.decoy_file.empty()) {
+      args.push_back("--decoys");
+      args.push_back(indexOpts.decoy_file);
+    }
     args.push_back("--klen");
     args.push_back(std::to_string(k));
     args.push_back("--input");
@@ -617,6 +651,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
     console->info("writing index components");
     /** Write the index **/
+
+
+
     std::ofstream descStream(outdir + "/info.json");
     {
       cereal::JSONOutputArchive indexDesc(descStream);
@@ -631,6 +668,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       indexDesc(cereal::make_nvp("seq_length", tlen));
       indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
       indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
+
+      std::ifstream sigStream(outdir + "/ref_sigs.json");
+      cereal::JSONInputArchive sigArch(sigStream);
+      copySigArchive(sigArch, indexDesc);
+      sigStream.close();
     }
     descStream.close();
 
@@ -863,6 +905,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     indexDesc(cereal::make_nvp("seq_length", tlen));
     indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
     indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
+
+    std::ifstream sigStream(outdir + "/ref_sigs.json");
+    cereal::JSONInputArchive sigArch(sigStream);
+    copySigArchive(sigArch, indexDesc);
+    sigStream.close();
   }
   descStream.close();
 
@@ -1010,6 +1057,11 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       indexDesc(cereal::make_nvp("seq_length", tlen));
       indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
       indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
+
+      std::ifstream sigStream(outdir + "/ref_sigs.json");
+      cereal::JSONInputArchive sigArch(sigStream);
+      copySigArchive(sigArch, indexDesc);
+      sigStream.close();
     }
     descStream.close();
 
@@ -1022,5 +1074,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   // cleanup the fixed.fa file
   ghc::filesystem::remove(rfile);
+  ghc::filesystem::remove(outdir + "/ref_sigs.json");
   return 0;
 }
