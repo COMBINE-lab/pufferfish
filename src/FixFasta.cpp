@@ -18,8 +18,11 @@
 #include <unordered_map>
 #include <vector>
 #include <unordered_set>
+#include "cereal/cereal.hpp"
+#include "cereal/archives/json.hpp"
 #include "string_view.hpp"
 #include "digestpp/digestpp.hpp"
+#include "ghc/filesystem.hpp"
 
 using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
@@ -28,6 +31,10 @@ void fixFasta(single_parser* parser,
               bool keepDuplicates, uint32_t k, std::mutex& iomutex,
               std::shared_ptr<spdlog::logger> log, std::string outFile) {
   (void)iomutex;
+
+  ghc::filesystem::path outFilePath{outFile};
+  ghc::filesystem::path outDir = outFilePath.parent_path();
+
   // std::shared_ptr<spdlog::logger> log) {
   // Create a random uniform distribution
   std::default_random_engine eng(271828);
@@ -324,6 +331,18 @@ void fixFasta(single_parser* parser,
   std::string nameHash512 = nameHasher512.hexdigest();
   std::string decoySeqHash256 = decoySeqHasher256.hexdigest();
   std::string decoyNameHash256 = decoyNameHasher256.hexdigest();
+
+  {
+    ghc::filesystem::path sigPath = outDir / ghc::filesystem::path{"ref_sigs.json"};
+    std::ofstream os(sigPath.string());
+    cereal::JSONOutputArchive ar(os);
+    ar( cereal::make_nvp("SeqHash", seqHash256) );
+    ar( cereal::make_nvp("NameHash", nameHash256) );
+    ar( cereal::make_nvp("SeqHash512", seqHash512) );
+    ar( cereal::make_nvp("NameHash512", nameHash512) );
+    ar( cereal::make_nvp("DecoySeqHash", decoySeqHash256) );
+    ar( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
+  }
 
   std::cerr << "seqHash 256 : " << seqHash256 << "\n";
   std::cerr << "seqHash 512 : " << seqHash512 << "\n";
