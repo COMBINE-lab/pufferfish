@@ -166,7 +166,6 @@ public:
                 of.write(reinterpret_cast<char*>(&bits_per_element), sizeof(bits_per_element));
               }
               uint64_t w_size = m_size;
-              std::cerr << "size: " << w_size << "\n";
               of.write(reinterpret_cast<char*>(&w_size), sizeof(w_size));
               uint64_t w_capacity = m_capacity;
               of.write(reinterpret_cast<char*>(&w_capacity), sizeof(w_capacity));

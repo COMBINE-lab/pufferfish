@@ -67,10 +67,10 @@ int main(int argc, char* argv[]) {
 
   auto indexMode = (
                     command("index").set(selected, mode::index),
+                    (required("-r", "--ref") & values(ensure_file_exists, "ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (required("-o", "--output") & value("output_dir", indexOpt.outdir)) % "directory where index is written",
                     //(required("-g", "--gfa") & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
                     (option("-f", "--filt-size") & value("filt_size", indexOpt.filt_size)) % "filter size to pass to TwoPaCo when building the reference dBG",
-                    (option("-r", "--ref") & values(ensure_file_exists, "ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
                     (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
                     (option("-l", "--build-edges").set(indexOpt.buildEdgeVec, true) % "build and record explicit edge table for the contaigs of the ccdBG (default = false)"),

@@ -142,8 +142,8 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
       }
       ++totalKmersSearched;
       ++gpos;
-      if (gpos % 1000000 == 0) {
-        console->info("processed {} of {} positions.", gpos, seq.size()-k+1);
+      if (gpos % 10000000 == 0) {
+        console->info("processed {} of {} positions.", gpos, refSeq.size() - (k*refLengths.size()) + (refLengths.size()));
       }
     }
 
