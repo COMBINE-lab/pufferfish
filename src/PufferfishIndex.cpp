@@ -76,7 +76,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
     std::string bfile = indexDir + "/rank.bin";
     contigBoundary_.deserialize(bfile, false);
-    rankSelDict.reset(new rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size()));
+    rankSelDict = rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size());
   }
   /*
   selectPrecomp_.reserve(numContigs_+1);
@@ -126,13 +126,6 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     std::string pfile = indexDir + "/edge.bin";
     edge_.deserialize(pfile, false);
   }
-  /*
-  {
-    CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
-    std::string pfile = indexDir + "/revedge.bin";
-    sdsl::load_from_file(revedge_, pfile);
-  }
-  */
 }
 
 /**
@@ -169,7 +162,7 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = rankSelDict->rank(pos);//contigRank_(pos);
+      auto rank = rankSelDict.rank(pos);//contigRank_(pos);
       // the reference information in the contig table
       auto contigIterRange = contigRange(rank);
       // start position of this contig
@@ -179,8 +172,8 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
-        sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
-        contigEnd = rankSelDict->select(rank);
+        sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
+        contigEnd = rankSelDict.select(rank);
         qc.prevRank = rank;
         qc.contigStart = sp;
         qc.contigEnd = contigEnd;
@@ -238,13 +231,13 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = rankSelDict->rank(pos);//contigRank_(pos);
+      auto rank = rankSelDict.rank(pos);//contigRank_(pos);
       // the reference information in the contig table
       auto contigIterRange = contigRange(rank);
       // start position of this contig
       uint64_t sp =
-          (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
-      uint64_t contigEnd = rankSelDict->select(rank);
+          (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
+      uint64_t contigEnd = rankSelDict.select(rank);
 
       // relative offset of this k-mer in the contig
       uint32_t relPos = static_cast<uint32_t>(pos - sp);

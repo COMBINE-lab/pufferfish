@@ -20,7 +20,7 @@
 
 #include <cassert>
 #include <cstring>
-#include "rank9b.h"
+#include "rank9b.hpp"
 
 rank9b::rank9b() {}
 
@@ -39,7 +39,7 @@ rank9b::rank9b( const uint64_t * const bits, const uint64_t num_bits ) {
 		counts[ pos ] = c;
 		c += __builtin_popcountll( bits[ i ] );
 		for( int j = 1;  j < 8; j++ ) {
-			counts[ pos + 1 ] |= ( c - counts[ pos ] ) << 63 - 9 * j;
+			counts[ pos + 1 ] |= ( c - counts[ pos ] ) << (63 - (9 * j));
 			if ( i + j < num_words ) c += __builtin_popcountll( bits[ i + j ] );
 		}
 	}

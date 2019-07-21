@@ -5,9 +5,6 @@
 #include <iterator>
 
 #include "core/range.hpp"
-#include "sdsl/int_vector.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
 #include "cereal/archives/json.hpp"
 #include "compact_vector/compact_vector.hpp"
 
@@ -33,10 +30,10 @@ protected:
       return core::range<std::vector<util::Position>::iterator>(startIt, endIt);
     }
 
-  using pos_vector_t = compact::vector<uint64_t>;//sdsl::int_vector<>;
-  using seq_vector_t = compact::vector<uint64_t, 2>; //sdsl::int_vector<2>;
-  using edge_vector_t = compact::vector<uint64_t, 8>; //sdsl::int_vector<8>;
-  using bit_vector_t = sdsl::bit_vector;
+  using pos_vector_t = compact::vector<uint64_t>;
+  using seq_vector_t = compact::vector<uint64_t, 2>;
+  using edge_vector_t = compact::vector<uint64_t, 8>;
+  using bit_vector_t = compact::vector<uint64_t, 1>;
 
   public:
 

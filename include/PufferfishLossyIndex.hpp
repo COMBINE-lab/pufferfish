@@ -4,9 +4,6 @@
 #include <vector>
 
 #include "core/range.hpp"
-#include "sdsl/int_vector.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
 #include "cereal/archives/json.hpp"
 
 #include "CanonicalKmer.hpp"
@@ -15,7 +12,7 @@
 #include "Util.hpp"
 #include "PufferfishBaseIndex.hpp"
 #include "rank9sel.hpp"
-#include "rank9b.h"
+#include "rank9b.hpp"
 
 class PufferfishLossyIndex : public PufferfishBaseIndex<PufferfishLossyIndex> {
   friend PufferfishBaseIndex;
@@ -41,24 +38,19 @@ private:
   std::vector<uint64_t> contigOffsets_;
   uint64_t numContigs_{0};
   bit_vector_t contigBoundary_;
-  sdsl::bit_vector::rank_1_type contigRank_;
-  sdsl::bit_vector::select_1_type contigSelect_;
-  std::unique_ptr<rank9sel> rankSelDict{nullptr};
+  rank9sel rankSelDict;
   seq_vector_t seq_;
   edge_vector_t edge_;
 
   //for lossy representation
   compact::vector<uint64_t, 1> presenceVec_;
   rank9b presenceRank_;
-  //sdsl::bit_vector::rank_1_type presenceRank_;
-  //sdsl::bit_vector::select_1_type presenceSelect_;
   pos_vector_t sampledPos_{16};
 
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
 
 public:
-  //sdsl::int_vector<2> refseq_;
   compact::vector<uint64_t, 2> refseq_;
   std::vector<uint64_t> refAccumLengths_;
 

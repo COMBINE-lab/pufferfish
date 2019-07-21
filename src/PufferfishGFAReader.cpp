@@ -183,14 +183,6 @@ size_t GFAReader::fillContigInfoMap_() {
   return total_len;
 }
 
-void GFAReader::encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
-                          stx::string_view str) {
-  for (size_t i = 0; i < str.length(); ++i) {
-    auto c = kmers::codeForChar(str[i]);
-    seqVec[offset + i] = c;
-  }
-}
-
 void GFAReader::encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
                           stx::string_view str) {
   for (size_t i = 0; i < str.length(); ++i) {
@@ -201,7 +193,6 @@ void GFAReader::encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
 
 compact::vector<uint64_t, 2>& GFAReader::getContigSeqVec() { return seqVec_; }
 compact::vector<uint64_t, 8>& GFAReader::getEdgeVec() { return edgeVec_; }
-//sdsl::int_vector<8>& GFAReader::getEdgeVec2() { return edgeVec2_; }
 
 
 void GFAReader::parseFile() {
@@ -212,7 +203,6 @@ void GFAReader::parseFile() {
   file.reset(new zstr::ifstream(filename_));
   logger_->info("total contig length = {:n} ", total_len);
   logger_->info("packing contigs into contig vector");
-  //seqVec_ = sdsl::int_vector<2>(total_len, 0);
   seqVec_.resize(total_len);
 
   std::string ln;

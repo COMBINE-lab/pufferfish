@@ -36,6 +36,11 @@
 uint64_t single, one_level, two_levels, shorts, longs, longlongs;
 #endif
 
+rank9sel::rank9sel() {
+  counts = inventory = subinventory = nullptr;
+	num_words = num_counts = inventory_size = ones_per_inventory = log2_ones_per_inventory = num_ones = 0;
+}
+
 rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 	this->bits = (uint64_t*)bits_->get_words();
 	num_words = ( num_bits + 63 ) / 64;

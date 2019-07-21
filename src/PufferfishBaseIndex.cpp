@@ -153,7 +153,7 @@ CanonicalKmer PufferfishBaseIndex<T>::getStartKmer(uint64_t rank){
   auto k_ = derived.k_;
   CanonicalKmer::k(k_) ;
   CanonicalKmer kb ;
-  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank)) + 1;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank)) + 1;
   uint64_t fk = seq_.get_int(2*sp, 2*k_) ;
   kb.fromNum(fk) ;
   return kb ;
@@ -167,7 +167,7 @@ CanonicalKmer PufferfishBaseIndex<T>::getEndKmer(uint64_t rank){
   auto k_ = derived.k_;
   CanonicalKmer::k(k_) ;
   CanonicalKmer kb ;
-  uint64_t contigEnd = rankSelDict->select(rank + 1);
+  uint64_t contigEnd = rankSelDict.select(rank + 1);
 
   uint64_t fk = seq_.get_int(2*(contigEnd - k_ + 1), 2*k_) ;
   kb.fromNum(fk) ;
@@ -218,8 +218,8 @@ template <typename T>
 uint32_t PufferfishBaseIndex<T>::getContigLen(uint64_t rank){
   T& derived = underlying();
   auto& rankSelDict = derived.rankSelDict;
-  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank)) + 1;
-  uint64_t contigEnd = rankSelDict->select(rank + 1);
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank)) + 1;
+  uint64_t contigEnd = rankSelDict.select(rank + 1);
   return (static_cast<uint32_t>(contigEnd - sp + 1)) ;
 }
 
@@ -227,7 +227,7 @@ template <typename T>
 uint64_t PufferfishBaseIndex<T>::getGlobalPos(uint64_t rank){
   T& derived = underlying();
   auto& rankSelDict = derived.rankSelDict;
-  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank)) + 1;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank)) + 1;
   return sp ;
 }
 
@@ -241,8 +241,8 @@ auto  PufferfishBaseIndex<T>::getContigBlock(uint64_t rank)->util::ContigBlock{
   CanonicalKmer kb;
   CanonicalKmer ke;
 
-  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank)) + 1;
-  uint64_t contigEnd = rankSelDict->select(rank+1) ;
+  uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank)) + 1;
+  uint64_t contigEnd = rankSelDict.select(rank+1) ;
 
   uint32_t clen = static_cast<uint32_t>(contigEnd - sp + 1) ;
   uint64_t fk = seq_.get_int(2*sp, 2*k_) ;

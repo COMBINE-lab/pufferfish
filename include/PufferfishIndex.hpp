@@ -5,9 +5,6 @@
 
 #include "cereal/archives/json.hpp"
 #include "core/range.hpp"
-#include "sdsl/int_vector.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
 
 #include "BooPHF.h"
 #include "CanonicalKmer.hpp"
@@ -40,7 +37,8 @@ private:
 
   uint64_t numContigs_{0};
   bit_vector_t  contigBoundary_;
-  std::unique_ptr<rank9sel> rankSelDict{nullptr};
+  rank9sel rankSelDict;
+  //std::unique_ptr<rank9sel> rankSelDict{nullptr};
   seq_vector_t seq_;
   edge_vector_t edge_;
   pos_vector_t pos_{16};

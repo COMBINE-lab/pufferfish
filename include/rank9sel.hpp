@@ -34,6 +34,7 @@ private:
 	uint64_t num_words, num_counts, inventory_size, ones_per_inventory, log2_ones_per_inventory, num_ones;
 
 public:
+  rank9sel ();
 	rank9sel( compact::vector<uint64_t, 1>* compact_bits, uint64_t num_bits );
   rank9sel( rank9sel&& other);
   rank9sel( rank9sel& other) = delete;

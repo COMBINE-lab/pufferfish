@@ -21,10 +21,7 @@
 #include "PufferfishConfig.hpp"
 #include "cereal/archives/json.hpp"
 #include "jellyfish/mer_dna.hpp"
-#include "sdsl/int_vector.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
-#include "rank9b.h"
+#include "rank9b.hpp"
 #include "spdlog/spdlog.h"
 #include "Kmer.hpp" // currently requires k <= 32
 #include "compact_vector/compact_vector.hpp"
@@ -69,8 +66,8 @@ public:
   }
 
   ContigKmerIterator&
-  operator=(ContigKmerIterator& other) { //}= default;//(sdsl::int_vector<>*
-                                         // storage, sdsl::bit_vector* rank,
+  operator=(ContigKmerIterator& other) { //}= default;
+                                         // storage, 
     // uint8_t k, uint64_t startAt) :
     storage_ = other.storage_;
     rank_ = other.rank_;
@@ -649,7 +646,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     int extensionSize = indexOpts.extensionSize;
     int sampleSize = 2 * extensionSize + 1;
 
-    //sdsl::bit_vector presenceVec(nkeys);
 
     // Note: the compact_vector constructor does not
     // init mem to 0, so we do that with the clear_mem() function.
@@ -679,26 +675,28 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     uint32_t extSymbolWidth = 2;
     uint32_t extWidth = std::log2(extensionSize);
     console->info("extWidth = {}", extWidth);
-    sdsl::int_vector<> auxInfo((numKmers-sampledKmers), 0, extSymbolWidth*extensionSize) ;
-    sdsl::int_vector<> extSize((numKmers-sampledKmers), 0, extWidth) ;
-    //extSize[idx - rank] = extensionDist;
-    //sdsl::bit_vector direction(numKmers - sampledKmers) ;
+
+    compact::vector<uint64_t> auxInfo(extSymbolWidth*extensionSize, (numKmers-sampledKmers));
+    auxInfo.clear_mem();
+
+    compact::vector<uint64_t> extSize(extWidth, (numKmers-sampledKmers));
+    extSize.clear_mem();
+
     compact::vector<uint64_t, 1> direction(numKmers - sampledKmers) ;
     direction.clear_mem();
 
-    //sdsl::bit_vector canonicalNess(numKmers - sampledKmers);
     compact::vector<uint64_t, 1> canonicalNess(numKmers - sampledKmers);
     canonicalNess.clear_mem();
 
-    //sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
     compact::vector<uint64_t> samplePosVec(w, sampledKmers);
     samplePosVec.clear_mem();
 
   // new presence Vec
+    size_t i = 0 ;
+    std::unordered_set<uint64_t> indices;
   {
     console->info("\nFilling presence Vector");
 
-    size_t i = 0 ;
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
     ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
     size_t contigId{0};
@@ -729,6 +727,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
             auto idx = bphf->lookup(*kb1);
             presenceVec[idx] = 1 ;
+            indices.insert(idx);
             i++ ;
             //didSample = true;
             //prevSamp = *nextSampIter;
@@ -751,8 +750,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   }
 
   rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
-  //sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
-  console->info("num ones in presenceVec = {:n}", realPresenceRank.rank(presenceVec.size()-1));
+  console->info("num ones in presenceVec = {:n}, i = {:n}, indices.size() = {:n}", realPresenceRank.rank(presenceVec.size()-1), i, indices.size());
 
   //bidirectional sampling
   {
@@ -869,43 +867,17 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   descStream.close();
 
   std::ofstream hstream(outdir + "/mphf.bin");
-  //sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
   dumpCompactToFile(presenceVec, outdir+"/presence.bin");
-  /*
-  {
-    std::ofstream pvstream(outdir + "/presence.bin");
-    presenceVec.serialize(pvstream);
-    pvstream.close();
-  }
-  */
   dumpCompactToFile(samplePosVec, outdir + "/sample_pos.bin");
-  //sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
-  sdsl::store_to_file(auxInfo, outdir + "/extension.bin");
-  sdsl::store_to_file(extSize, outdir + "/extensionSize.bin");
-  //sdsl::store_to_file(canonicalNess, outdir + "/canonical.bin");
+  dumpCompactToFile(auxInfo, outdir + "/extension.bin");
+  dumpCompactToFile(extSize, outdir + "/extensionSize.bin");
   dumpCompactToFile(canonicalNess, outdir + "/canonical.bin");
-  /*
-  {
-    std::ofstream bstream(outdir + "/canonical.bin");
-    canonicalNess.serialize(bstream);
-    bstream.close();
-  }
-  */
   dumpCompactToFile(direction, outdir + "/direction.bin");
-  /*
-  {
-    std::ofstream bstream(outdir + "/direction.bin");
-    direction.serialize(bstream);
-    bstream.close();
-  }
-  */
-  //sdsl::store_to_file(direction, outdir + "/direction.bin");
   bphf->save(hstream);
   hstream.close();
 
   } else { // lossy sampling index
     int32_t sampleSize = static_cast<int32_t>(indexOpts.lossy_rate);
-    //sdsl::bit_vector presenceVec(nkeys);
     compact::vector<uint64_t, 1> presenceVec(nkeys);
     presenceVec.clear_mem();
 
@@ -927,7 +899,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       console->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
     }
 
-    //sdsl::int_vector<> samplePosVec(sampledKmers, 0, w);
     compact::vector<uint64_t> samplePosVec(w, sampledKmers);
     samplePosVec.clear_mem();
 
@@ -984,7 +955,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       size_t contigId{0};
       int loopCounter = 0;
       rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
-      //sdsl::bit_vector::rank_1_type realPresenceRank(&presenceVec) ;
       while(kb1 != ke1){
         sampledInds.clear();
         auto clen = contigLengths[contigId];
@@ -1044,10 +1014,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     descStream.close();
 
     std::ofstream hstream(outdir + "/mphf.bin");
-    //sdsl::store_to_file(presenceVec, outdir + "/presence.bin");
     dumpCompactToFile(presenceVec, outdir + "/presence.bin");
     dumpCompactToFile(samplePosVec, outdir + "/sample_pos.bin");
-    //sdsl::store_to_file(samplePosVec, outdir + "/sample_pos.bin");
     bphf->save(hstream);
     hstream.close();
   }

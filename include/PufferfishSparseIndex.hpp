@@ -3,11 +3,8 @@
 
 #include <vector>
 
-#include "rank9b.h"
+#include "rank9b.hpp"
 #include "core/range.hpp"
-#include "sdsl/int_vector.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
 #include "cereal/archives/json.hpp"
 
 #include "CanonicalKmer.hpp"
@@ -43,7 +40,7 @@ private:
   uint64_t numContigs_{0};
   compact::vector<uint64_t, 1> contigBoundary_;
   //bit_vector_t contigBoundary_;
-  std::unique_ptr<rank9sel> rankSelDict{nullptr};
+  rank9sel rankSelDict;
 
   seq_vector_t seq_;
   edge_vector_t edge_;
@@ -52,10 +49,8 @@ private:
   compact::vector<uint64_t,1> canonicalNess_;
   compact::vector<uint64_t,1> directionVec_ ;
   rank9b presenceRank_;
-  sdsl::int_vector<> extSize_ ;
-  //sdsl::bit_vector::rank_1_type presenceRank_;
-  //sdsl::bit_vector::select_1_type presenceSelect_;
-  sdsl::int_vector<> auxInfo_ ;
+  compact::vector<uint64_t> extSize_{16};
+  compact::vector<uint64_t> auxInfo_{16};
   pos_vector_t sampledPos_{16};
 
   std::unique_ptr<boophf_t> hash_{nullptr};
@@ -68,7 +63,6 @@ private:
     0xe00000000000000, 0x7000000000000000};
 
 public:
-  //sdsl::int_vector<2> refseq_;
   compact::vector<uint64_t, 2> refseq_;
   std::vector<uint64_t> refAccumLengths_;
 

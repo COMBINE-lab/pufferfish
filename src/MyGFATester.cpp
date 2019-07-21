@@ -1,6 +1,5 @@
 #include "FastxParser.hpp"
 #include "jellyfish/mer_dna.hpp"
-#include "sdsl/int_vector.hpp"
 #include "string_view.hpp"
 #include <cmath>
 #include <fstream>
@@ -14,9 +13,6 @@
 //#include "OurGFAReader.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
-#include "sparsepp/spp.h"
 #include "CLI/CLI.hpp"
 
 

@@ -5,7 +5,7 @@
 #include "Util.hpp"
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
-#include "sdsl/int_vector.hpp"
+//#include "sdsl/int_vector.hpp"
 #include "sparsepp/spp.h"
 #include "spdlog/spdlog.h"
 #include "compact_vector/compact_vector.hpp"
@@ -83,8 +83,9 @@ public:
   GFAReader(const char* gfaFileName, size_t input_k,
             bool buildEdgeVEc, std::shared_ptr<spdlog::logger> logger);
 
-  void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
+  /*void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
                  stx::string_view str);
+  */
  
   void encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
                  stx::string_view str);

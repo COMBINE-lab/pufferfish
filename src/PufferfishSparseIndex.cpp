@@ -81,13 +81,12 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
     std::string bfile = indexDir + "/rank.bin";
     contigBoundary_.deserialize(bfile, false);
-    rankSelDict.reset(new rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size()));
+    rankSelDict = rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size());
   }
 
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
     std::string sfile = indexDir + "/seq.bin";
-    //sdsl::load_from_file(seq_, sfile);
     seq_.deserialize(sfile, true);
     lastSeqPos_ = seq_.size() - k_;
   }
@@ -96,7 +95,6 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
     std::string pfile = indexDir + "/refseq.bin";
     refseq_.deserialize(pfile, true);
-    //sdsl::load_from_file(refseq_, pfile);
   }
 
   {
@@ -115,20 +113,13 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
     std::string pfile = indexDir + "/edge.bin";
     edge_.deserialize(pfile, true);
-    //sdsl::load_from_file(edge_, pfile);
   }
-  /*
-  {
-    CLI::AutoTimer timer {"Loading positions", CLI::Timer::Big};
-    std::string pfile = indexDir + "/pos.bin";
-    sdsl::load_from_file(pos_, pfile);
-  }*/
+
 
   {
     CLI::AutoTimer timer{"Loading presence vector", CLI::Timer::Big};
     std::string bfile = indexDir + "/presence.bin";
     presenceVec_.deserialize(bfile, false);
-    //sdsl::load_from_file(presenceVec_, bfile);
     presenceRank_ = rank9b(presenceVec_.get(), presenceVec_.size());
     std::cerr << "NUM 1s in presenceVec_ = " << presenceRank_.rank(presenceVec_.size()-1) << "\n\n";
     //presenceRank_ = decltype(presenceVec_)::rank_1_type(&presenceVec_);
@@ -137,7 +128,6 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading canonical vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/canonical.bin";
-    //sdsl::load_from_file(canonicalNess_, pfile);
     canonicalNess_.deserialize(pfile, false);
   }
   {
@@ -146,23 +136,24 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     auto bits_per_element = compact::get_bits_per_element(pfile);
     sampledPos_.set_m_bits(bits_per_element);
     sampledPos_.deserialize(pfile, false);
-    std::cerr << "bits per element in sampled pos : " << sampledPos_.bits() << "\n";
-    //sdsl::load_from_file(sampledPos_, pfile);
   }
 
   {
     CLI::AutoTimer timer{"Loading extension vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/extension.bin";
-    sdsl::load_from_file(auxInfo_, pfile);
+    auto bits_per_element = compact::get_bits_per_element(pfile);
+    auxInfo_.set_m_bits(bits_per_element);
+    auxInfo_.deserialize(pfile, false);
     std::string pfileSize = indexDir + "/extensionSize.bin";
-    sdsl::load_from_file(extSize_, pfileSize);
+    bits_per_element = compact::get_bits_per_element(pfileSize);
+    extSize_.set_m_bits(bits_per_element);
+    extSize_.deserialize(pfileSize, false);
   }
 
   {
     CLI::AutoTimer timer{"Loading direction vector", CLI::Timer::Big};
     std::string pfile = indexDir + "/direction.bin";
     directionVec_.deserialize(pfile,false);
-    //sdsl::load_from_file(directionVec_, pfile);
   }
 }
 
@@ -177,7 +168,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = rankSelDict->rank(pos);
+      auto rank = rankSelDict.rank(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
       auto rankInterval =
@@ -201,8 +192,8 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
-        sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
-        contigEnd = rankSelDict->select(rank);
+        sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
+        contigEnd = rankSelDict.select(rank);
         qc.prevRank = rank;
         qc.contigStart = sp;
         qc.contigEnd = contigEnd;
@@ -260,7 +251,7 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = rankSelDict->rank(pos);
+      auto rank = rankSelDict.rank(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
       auto rankInterval =
@@ -280,8 +271,8 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
       auto contigIterRange = contigRange(rank);
 
       // start position of this contig
-      uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict->select(rank - 1)) + 1;
-      uint64_t contigEnd = rankSelDict->select(rank);
+      uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
+      uint64_t contigEnd = rankSelDict.select(rank);
 
 
       // relative offset of this k-mer in the contig

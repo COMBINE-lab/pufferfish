@@ -73,15 +73,13 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
     std::string bfile = indexDir + "/rank.bin";
-    sdsl::load_from_file(contigBoundary_, bfile);
-    contigRank_ = decltype(contigBoundary_)::rank_1_type(&contigBoundary_);
-    contigSelect_ = decltype(contigBoundary_)::select_1_type(&contigBoundary_);
+    contigBoundary_.deserialize(bfile, false);
+    rankSelDict = rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size());
   }
 
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
     std::string sfile = indexDir + "/seq.bin";
-    //sdsl::load_from_file(seq_, sfile);
     seq_.deserialize(sfile, true);
     lastSeqPos_ = seq_.size() - k_;
   }
@@ -89,7 +87,6 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
   {
     CLI::AutoTimer timer{"Loading presence vector", CLI::Timer::Big};
     std::string bfile = indexDir + "/presence.bin";
-    //sdsl::load_from_file(presenceVec_, bfile);
     presenceVec_.deserialize(bfile, false);
     presenceRank_ = rank9b(presenceVec_.get(), presenceVec_.size());//decltype(presenceVec_)::rank_1_type(&presenceVec_);
     //presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
@@ -101,20 +98,12 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
     auto bits_per_element = compact::get_bits_per_element(pfile);
     sampledPos_.set_m_bits(bits_per_element);
     sampledPos_.deserialize(pfile, false);
-    //sdsl::load_from_file(sampledPos_, pfile);
   }
 
   {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
     std::string pfile = indexDir + "/refseq.bin";
     refseq_.deserialize(pfile, true);
-    //sdsl::load_from_file(refseq_, pfile);
-  }
-
-  {
-    CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
-    std::string pfile = indexDir + "/refAccumLengths.bin";
-    sdsl::load_from_file(refAccumLengths_, pfile);
   }
 
   {
@@ -167,7 +156,7 @@ auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = contigRank_(pos);
+      auto rank = rankSelDict.rank(pos);
       // the reference information in the contig table
       auto contigIterRange = contigRange(rank);
       // start position of this contig
@@ -177,8 +166,10 @@ auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
-        sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
-        contigEnd = contigSelect_(rank + 1);
+        //sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+        //contigEnd = contigSelect_(rank);
+        sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
+        contigEnd = rankSelDict.select(rank);
         qc.prevRank = rank;
         qc.contigStart = sp;
         qc.contigEnd = contigEnd;
@@ -241,13 +232,16 @@ auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits 
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
       // the index of this contig
-      auto rank = contigRank_(pos);
+      auto rank = rankSelDict.rank(pos);
       // the reference information in the contig table
       auto contigIterRange = contigRange(rank);
-      // start position of this contig
+      // start and end position of this contig
       uint64_t sp =
-          (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
-      uint64_t contigEnd = contigSelect_(rank + 1);
+        (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
+
+      uint64_t contigEnd = contigEnd = rankSelDict.select(rank);
+      //uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
+      //uint64_t contigEnd =  contigSelect_(rank + 1);
 
       // relative offset of this k-mer in the contig
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
