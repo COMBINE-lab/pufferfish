@@ -19,6 +19,7 @@
 #include <vector>
 #include <unordered_set>
 #include "string_view.hpp"
+#include "digestpp/digestpp.hpp"
 
 using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
@@ -31,9 +32,16 @@ void fixFasta(single_parser* parser,
   // Create a random uniform distribution
   std::default_random_engine eng(271828);
   std::uniform_int_distribution<> dis(0, 3);
+
   // Hashers for getting txome signature
-  // picosha2::hash256_one_by_one seqHasher; seqHasher.init();
-  // picosha2::hash256_one_by_one nameHasher; nameHasher.init();
+  digestpp::sha256 seqHasher256;
+  digestpp::sha256 nameHasher256;
+  digestpp::sha512 seqHasher512;
+  digestpp::sha512 nameHasher512;
+
+  digestpp::sha256 decoySeqHasher256;
+  digestpp::sha256 decoyNameHasher256;
+
 
   uint32_t n{0};
   std::vector<std::string> transcriptNames;
@@ -86,7 +94,8 @@ void fixFasta(single_parser* parser,
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     auto rg = parser->getReadGroup();
-    bool tooShort{false} ;
+    bool tooShort{false};
+    bool isDecoy{false};
 
     while (parser->refill(rg)) {
       for (auto& read : rg) { // for each sequence
@@ -98,6 +107,14 @@ void fixFasta(single_parser* parser,
             readStr.end());
 
         // seqHasher.process(readStr.begin(), readStr.end());
+
+        // If this was a decoy, add it to the decoy hash
+        if (isDecoy) {
+          decoySeqHasher256.absorb(readStr.begin(), readStr.end());
+        } else { // otherwise the ref hash
+          seqHasher256.absorb(readStr.begin(), readStr.end());
+          seqHasher512.absorb(readStr.begin(), readStr.end());
+        }
 
         uint32_t readLen = readStr.size();
         uint32_t completeLen = readLen;
@@ -202,6 +219,14 @@ void fixFasta(single_parser* parser,
             std::exit(1);
           }
           transcriptNameSet.insert(processedName);
+
+          if (isDecoy) {
+            decoyNameHasher256.absorb(processedName.begin(), processedName.end());
+          } else {
+            nameHasher256.absorb(processedName.begin(), processedName.end());
+            nameHasher512.absorb(processedName.begin(), processedName.end());
+          }
+
           if(!tooShort)
               shortFlag[processedName] = false ;
           else
@@ -291,6 +316,27 @@ void fixFasta(single_parser* parser,
   }
   ffa.close();
   std::cerr << "wrote " << numWritten << " contigs\n";
+
+  // Set the hash info
+  std::string seqHash256 = seqHasher256.hexdigest();
+  std::string nameHash256 = nameHasher256.hexdigest();
+  std::string seqHash512 = seqHasher512.hexdigest();
+  std::string nameHash512 = nameHasher512.hexdigest();
+  std::string decoySeqHash256 = decoySeqHasher256.hexdigest();
+  std::string decoyNameHash256 = decoyNameHasher256.hexdigest();
+
+  std::cerr << "seqHash 256 : " << seqHash256 << "\n";
+  std::cerr << "seqHash 512 : " << seqHash512 << "\n";
+  std::cerr << "nameHash 256 : " << nameHash256 << "\n";
+  std::cerr << "nameHash 512 : " << nameHash512 << "\n";
+
+  /*  header.setSeqHash256(seqHash256);
+  header.setNameHash256(nameHash256);
+  header.setSeqHash512(seqHash512);
+  header.setNameHash512(nameHash512);
+  header.setDecoySeqHash256(decoySeqHash256);
+  header.setDecoyNameHash256(decoyNameHash256);
+  */
 }
 
 int fixFastaMain(std::vector<std::string>& args) {
