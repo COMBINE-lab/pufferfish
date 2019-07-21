@@ -18,10 +18,11 @@ class PufferfishIndex : public PufferfishBaseIndex<PufferfishIndex> {
   friend PufferfishBaseIndex;
   using hasher_t = pufferfish::types::hasher_t;
   using boophf_t = pufferfish::types::boophf_t;
-  using pos_vector_t = compact::vector<uint64_t>;
+  using pos_vector_t = PufferfishBaseIndex<PufferfishIndex>::pos_vector_t;
   using seq_vector_t = PufferfishBaseIndex<PufferfishIndex>::seq_vector_t;
   using edge_vector_t = PufferfishBaseIndex<PufferfishIndex>::edge_vector_t;
-  using bit_vector_t = compact::vector<uint64_t, 1>;
+  using bit_vector_t = PufferfishBaseIndex<PufferfishIndex>::bit_vector_t;
+
 
 private:
   uint32_t k_{0};

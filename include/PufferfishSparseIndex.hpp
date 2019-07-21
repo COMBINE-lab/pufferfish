@@ -38,16 +38,15 @@ private:
   std::vector<util::Position> contigTable_;
   std::vector<uint64_t> contigOffsets_;
   uint64_t numContigs_{0};
-  compact::vector<uint64_t, 1> contigBoundary_;
-  //bit_vector_t contigBoundary_;
+  bit_vector_t contigBoundary_;
   rank9sel rankSelDict;
 
   seq_vector_t seq_;
   edge_vector_t edge_;
   //for sparse representation
-  compact::vector<uint64_t,1> presenceVec_;
-  compact::vector<uint64_t,1> canonicalNess_;
-  compact::vector<uint64_t,1> directionVec_ ;
+  bit_vector_t presenceVec_;
+  bit_vector_t canonicalNess_;
+  bit_vector_t directionVec_ ;
   rank9b presenceRank_;
   compact::vector<uint64_t> extSize_{16};
   compact::vector<uint64_t> auxInfo_{16};
