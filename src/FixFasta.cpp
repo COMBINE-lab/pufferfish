@@ -21,6 +21,8 @@
 
 #include "cereal/cereal.hpp"
 #include "cereal/archives/json.hpp"
+#include "cereal/archives/binary.hpp"
+#include "cereal/types/vector.hpp"
 #include "string_view.hpp"
 #include "digestpp/digestpp.hpp"
 #include "ghc/filesystem.hpp"
@@ -371,6 +373,14 @@ void fixFasta(single_parser* parser,
   }
   ffa.close();
   std::cerr << "wrote " << numWritten << " contigs\n";
+
+
+  {
+    ghc::filesystem::path sigPath = outDir / ghc::filesystem::path{"complete_ref_lens.bin"};
+    std::ofstream os(sigPath.string(), std::ios::binary);
+    cereal::BinaryOutputArchive lenArchive(os);
+    lenArchive(completeLengths);
+  }
 
   // Set the hash info
   std::string seqHash256 = seqHasher256.hexdigest();

@@ -11,6 +11,7 @@ public:
   std::vector<std::string> rfile;
   std::string outdir;
   std::string decoy_file{""};
+  std::string header_sep{""};
   bool isSparse{false};
   uint32_t extensionSize{4};
   uint32_t sampleSize{9};

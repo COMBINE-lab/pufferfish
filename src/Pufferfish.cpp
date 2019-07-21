@@ -70,6 +70,10 @@ int main(int argc, char* argv[]) {
                     (required("-r", "--ref") & values(ensure_file_exists, "ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (required("-o", "--output") & value("output_dir", indexOpt.outdir)) % "directory where index is written",
                     //(required("-g", "--gfa") & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
+                    (option("--headerSep") & value("sep_strs", indexOpt.header_sep)) %
+                    "Instead of a space or tab, break the header at the first "
+                    "occurrence of this string, and name the transcript as the token before "
+                    "the first separator (default = space & tab)",
                     (option("-d", "--decoys") & value("decoy_list", indexOpt.decoy_file)) %
                     "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
                     (option("-f", "--filt-size") & value("filt_size", indexOpt.filt_size)) % "filter size to pass to TwoPaCo when building the reference dBG",

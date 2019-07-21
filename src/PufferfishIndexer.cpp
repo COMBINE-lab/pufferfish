@@ -346,6 +346,10 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       args.push_back("--decoys");
       args.push_back(indexOpts.decoy_file);
     }
+    if (!indexOpts.header_sep.empty()) {
+      args.push_back("--headerSep");
+      args.push_back(indexOpts.header_sep);
+    }
     args.push_back("--klen");
     args.push_back(std::to_string(k));
     args.push_back("--input");
