@@ -145,10 +145,13 @@ add_dependencies(filtersam libseqlib)
 
 #add_executable(readKrk readKrk.cpp taxa.cpp)
 
+
+#[[
 add_executable(rank_test rank_test.cpp rank9b.cpp rank9sel.cpp)
 target_compile_options(rank_test PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(rank_test PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 target_link_libraries(rank_test)
+]]
 
 target_link_libraries(pufferfish Threads::Threads puffer ksw2pp ${JEMALLOC_LIBRARIES} z twopaco graphdump ntcard ${TBB_LIBRARIES})
 target_link_libraries(bcalm_pufferize Threads::Threads z)
