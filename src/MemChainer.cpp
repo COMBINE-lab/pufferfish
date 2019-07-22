@@ -1,5 +1,8 @@
 #include "MemChainer.hpp"
+#include "chobo/small_vector.hpp"
 
+// from "fastapprox"
+// https://github.com/romeric/fastapprox/blob/master/fastapprox/src/fastlog.h
 static inline float fastlog2(float x) {
   union {
       float f;
@@ -17,6 +20,8 @@ static inline float fastlog2(float x) {
          - 1.72587999f / (0.3520887068f + mx.f);
 }
 
+// from "fastapprox"
+// https://github.com/romeric/fastapprox/blob/master/fastapprox/src/fastlog.h
 static inline float fasterlog2(float x) {
   union {
       float f;
@@ -147,10 +152,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         // polyester simulated on human transcriptome. 0.01 -> 0.05
         return (l == 0) ? 0.0 : (0.05 * avgseed * al + 0.5 * fastlog2(static_cast<float>(al)));
     };
-    double bottomScore = std::numeric_limits<double>::lowest();
+    constexpr const double bottomScore = std::numeric_limits<double>::lowest();
     double bestScore = bottomScore;
     int32_t bestChainEnd = -1;
-    std::vector<int32_t> bestChainEndList;
+    chobo::small_vector<int32_t> bestChainEndList;
     double avgseed = 31.0;
     f.clear();
     p.clear();
@@ -224,8 +229,9 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
         int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos + hi.extendedlen);
         if (rdiff == 0 or qdiff == 0 or rdiff * qdiff < 0 or rdiff_mem * qdiff_mem < 0 or hi.rpos == hj.rpos or
-            hi.tpos == hj.tpos)
+            hi.tpos == hj.tpos) {
           extensionScore = -std::numeric_limits<double>::infinity();
+        }
         if (verbose) {
           std::cerr << i << " " << j <<
                     " extendedleni:" << hi.extendedlen << " extendedlenj:" << hj.extendedlen <<
@@ -269,8 +275,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
       }
     }
     // Do backtracking
-    std::vector<bool> seen(f.size());
-    for (uint64_t i = 0; i < seen.size(); i++) seen[i] = false;
+    std::vector<bool> seen(f.size(), false);
     for (auto bestChainEnd : bestChainEndList) {
       if (bestChainEnd >= 0) {
         bool shouldBeAdded = true;
