@@ -25,6 +25,8 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     infoArchive(cereal::make_nvp("num_sampled_kmers", numSampledKmers_));
     infoArchive(cereal::make_nvp("extension_size", extensionSize_));
     infoArchive(cereal::make_nvp("have_edge_vec", haveEdges_));
+    infoArchive(cereal::make_nvp("have_ref_seq", haveRefSeq_));
+
     std::cerr << "k = " << k_ << '\n';
     std::cerr << "num kmers = " << numKmers_ << '\n';
     std::cerr << "num sampled kmers = " << numSampledKmers_ << '\n';
@@ -91,7 +93,7 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     lastSeqPos_ = seq_.size() - k_;
   }
 
-  {
+  if (haveRefSeq_) {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
     std::string pfile = indexDir + "/refseq.bin";
     refseq_.deserialize(pfile, true);

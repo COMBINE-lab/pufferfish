@@ -41,19 +41,21 @@ int pufferfishValidate(
 int pufferfishTestLookup(
     ValidateOptions& lookupOpts); // int argc, char* argv[]);
 int pufferfishAligner(AlignmentOpts& alignmentOpts) ;
+int pufferfishExamine(ExamineOptions& examineOpts);
 
 int main(int argc, char* argv[]) {
   using namespace clipp;
   using std::cout;
   std::setlocale(LC_ALL, "en_US.UTF-8");
 
-  enum class mode {help, index, validate, lookup, align};
+  enum class mode {help, index, validate, lookup, align, examine};
   mode selected = mode::help;
   AlignmentOpts alignmentOpt ;
   IndexOptions indexOpt;
   //TestOptions testOpt;
   ValidateOptions validateOpt;
   ValidateOptions lookupOpt;
+  ExamineOptions examineOpt;
 
   auto ensure_file_exists = [](const std::string& s) -> bool {
       bool exists = ghc::filesystem::exists(s);
@@ -85,6 +87,13 @@ int main(int argc, char* argv[]) {
                      ((option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)"))
                     );
 
+  // Examine properties of the index
+  auto examineMode = (
+                      command("examine").set(selected, mode::examine),
+                      (required("-i", "--index") & value("index", examineOpt.index_dir)) % "pufferfish index directory",
+                      (option("--dump-fasta") & value("fasta_out", examineOpt.fasta_out)) %
+                      "dump the reference sequences in the index in the provided fasta file"
+                      );
   /*
   auto testMode = (
                    command("test").set(selected, mode::test)
@@ -168,7 +177,7 @@ int main(int argc, char* argv[]) {
   );
 
   auto cli = (
-              (indexMode | validateMode | lookupMode | alignMode | command("help").set(selected,mode::help) ),
+              (indexMode | validateMode | lookupMode | alignMode | examineMode | command("help").set(selected,mode::help) ),
               option("-v", "--version").call([]{std::cout << "version " << pufferfish::version << "\n"; std::exit(0);}).doc("show version"));
 
   decltype(parse(argc, argv, cli)) res;
@@ -188,6 +197,7 @@ int main(int argc, char* argv[]) {
     case mode::validate: pufferfishValidate(validateOpt);  break;
     case mode::lookup: pufferfishTestLookup(lookupOpt); break;
     case mode::align: pufferfishAligner(alignmentOpt); break;
+    case mode::examine: pufferfishExamine(examineOpt); break;
     case mode::help: std::cout << make_man_page(cli, pufferfish::progname); break;
     }
   } else {

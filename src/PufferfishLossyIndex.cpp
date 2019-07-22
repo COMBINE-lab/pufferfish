@@ -22,6 +22,8 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
     infoArchive(cereal::make_nvp("k", k_));
     infoArchive(cereal::make_nvp("num_kmers", numKmers_));
     infoArchive(cereal::make_nvp("have_edge_vec", haveEdges_));
+    infoArchive(cereal::make_nvp("have_ref_seq", haveRefSeq_));
+
     std::cerr << "k = " << k_ << '\n';
     std::cerr << "num kmers = " << numKmers_ << '\n';
     infoStream.close();
@@ -100,7 +102,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
     sampledPos_.deserialize(pfile, false);
   }
 
-  {
+  if (haveRefSeq_) {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
     std::string pfile = indexDir + "/refseq.bin";
     refseq_.deserialize(pfile, true);

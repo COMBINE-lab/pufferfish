@@ -63,6 +63,7 @@ protected:
   // and lengths
   const std::vector<uint32_t>& getRefLengths() const;
 
+
   // Returns true if pos is a valid position in the compacted sequence array
   // and false otherwise.
   bool isValidPos(uint64_t pos);
@@ -73,7 +74,10 @@ protected:
 
   // Returns the string value of contig sequence vector starting from position `globalPos` with `length` bases
   // and reverse-complements the string if `isFw` is false
-  std::string getSeqStr(size_t globalPos, size_t length, bool isFw=true);
+  std::string getSeqStr(size_t globalPos, int64_t length, bool isFw=true);
+
+  // Returns the string value of the reference sequence vector starting from position `start` for `length` bases
+  std::string getRefSeqStr(size_t start, int64_t length);
 
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.  Uses the results
@@ -83,6 +87,7 @@ protected:
   auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
 
   typename PufferfishBaseIndex<T>::seq_vector_t& getSeq(); 
+  typename PufferfishBaseIndex<T>::seq_vector_t& getRefSeq(); 
   typename PufferfishBaseIndex<T>::edge_vector_t& getEdge(); 
 
   uint8_t getEdgeEntry(uint64_t contigRank) const;
@@ -92,7 +97,8 @@ protected:
   uint32_t getContigLen(uint64_t cid) ;
   uint64_t getGlobalPos(uint64_t cid) ;
   auto  getContigBlock(uint64_t rank) -> util::ContigBlock ;
-  
+
+  bool hasReferenceSequence() const; 
   // Returns true if the given k-mer appears in the dBG, false otherwise
   /*
   bool contains(CanonicalKmer& mer);

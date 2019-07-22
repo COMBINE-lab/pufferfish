@@ -26,6 +26,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     infoArchive(cereal::make_nvp("k", k_));
     infoArchive(cereal::make_nvp("num_kmers", numKmers_));
     infoArchive(cereal::make_nvp("have_edge_vec", haveEdges_));
+    infoArchive(cereal::make_nvp("have_ref_seq", haveRefSeq_));
     infoStream.close();
     twok_ = 2 * k_;
   }
@@ -103,7 +104,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     //auto f = std::async(std::launch::async, &pos_vector_t::touch_all_pages, &pos_, bits_per_element);
   }
 
-  {
+  if (haveRefSeq_) {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
     std::string pfile = indexDir + "/refseq.bin";
     refseq_.deserialize(pfile, false);

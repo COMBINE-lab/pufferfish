@@ -251,7 +251,8 @@ public:
              * @return the corresponding uint64_t
              */
             uint64_t get_int(uint64_t from, uint64_t len) {
-                const auto b = (BITS?BITS:bits());
+                const auto b = (BITS ? BITS : bits());
+                constexpr const uint64_t one = 1;
                 if (from >= b * m_size) {
                     std::cerr << "Index requested greater than vector's size: " << from << ">" << b * m_size << "\n";
                     return 0;
@@ -273,7 +274,9 @@ public:
                     prevBits += bitsInWrd;
                     bitsInWrd = UB - idxInWrd;
                     bitsInWrd = bitsInWrd >= len ? len : bitsInWrd;
-                    res |= (((w >> idxInWrd) & (((uint64_t)1 << bitsInWrd) - 1)) << prevBits);
+
+                    uint64_t mask = (bitsInWrd == 64) ? std::numeric_limits<uint64_t>::max() : ((one << bitsInWrd) - 1);
+                    res |= (((w >> idxInWrd) & mask) << prevBits);
                     from += bitsInWrd;
                     len -= bitsInWrd;
                 } while (len);

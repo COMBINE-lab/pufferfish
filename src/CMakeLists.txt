@@ -69,6 +69,7 @@ set(pufferfish_lib_srcs
     rank9b.cpp
     PufferfishValidate.cpp
     PufferfishTestLookup.cpp 
+    PufferfishExamine.cpp
     FastxParser.cpp 
 #    PufferfishGFAReader.cpp
 	PufferfishBinaryGFAReader.cpp

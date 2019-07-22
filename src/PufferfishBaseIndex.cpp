@@ -72,53 +72,87 @@ bool PufferfishBaseIndex<T>::isValidPos(uint64_t pos) {
 }
 
 template <typename T>
-std::string PufferfishBaseIndex<T>::getSeqStr(size_t globalPos, size_t length, bool isFw) {
-    auto& seq_ = underlying().seq_;
-	std::string outstr = "";
-	uint64_t validLength = 0;
-	uint64_t word = 0;
-	uint8_t base = 0;
-	while (length > 0) {
-	validLength = std::min(length, (size_t)32);
-	length -= validLength;
- 	word = seq_.get_int(2*globalPos, 2*validLength);
-	globalPos += validLength;
-	if (isFw)
-	  for(uint64_t i = 0; i < 2*validLength ;i+=2){
-      base = (word >> i) & 0x03;
-	    switch(base){
-    	case 0:
-        outstr += 'A';
-        break ;
-	    case 1:
-        outstr += 'C';
-	      break ;
-    	case 2:
-        outstr += 'G';
-    	  break ;
-	    case 3:
-        outstr += 'T';
-	      break ;
-    	}
-    }
-	else
-    for(uint64_t i = 0; i < 2*validLength ;i+=2){
+std::string PufferfishBaseIndex<T>::getRefSeqStr(size_t start, int64_t length) {
+  auto& rseq_ = underlying().refseq_;
+  std::string outstr;
+  outstr.reserve(length);
+  int64_t validLength = 0;
+  uint64_t word = 0;
+  uint8_t base = 0;
+  while (length > 0) {
+    validLength = std::min(length, static_cast<int64_t>(32));
+    length -= validLength;
+    word = rseq_.get_int(2*start, 2*validLength);
+    start += validLength;
+    for(int64_t i = 0; i < 2*validLength ;i+=2){
       base = (word >> i) & 0x03;
       switch(base){
       case 0:
-        outstr = 'T' + outstr;
+        outstr += 'A';
         break ;
       case 1:
-        outstr = 'G' + outstr;
+        outstr += 'C';
         break ;
       case 2:
-        outstr = 'C' + outstr;
+        outstr += 'G';
         break ;
       case 3:
-        outstr = 'A' + outstr;
+        outstr += 'T';
         break ;
       }
     }
+  }
+  return outstr;
+}
+
+template <typename T>
+std::string PufferfishBaseIndex<T>::getSeqStr(size_t globalPos, int64_t length, bool isFw) {
+  auto& seq_ = underlying().seq_;
+  std::string outstr = "";
+	int64_t validLength = 0;
+	uint64_t word = 0;
+	uint8_t base = 0;
+  while (length > 0) {
+    validLength = std::min(length, static_cast<int64_t>(32));
+    length -= validLength;
+    word = seq_.get_int(2*globalPos, 2*validLength);
+    globalPos += validLength;
+    if (isFw)
+      for(uint64_t i = 0; i < 2*validLength ;i+=2){
+        base = (word >> i) & 0x03;
+        switch(base){
+        case 0:
+          outstr += 'A';
+          break ;
+        case 1:
+          outstr += 'C';
+          break ;
+        case 2:
+          outstr += 'G';
+          break ;
+        case 3:
+          outstr += 'T';
+          break ;
+        }
+      }
+    else
+      for(uint64_t i = 0; i < 2*validLength ;i+=2){
+        base = (word >> i) & 0x03;
+        switch(base){
+        case 0:
+          outstr = 'T' + outstr;
+          break ;
+        case 1:
+          outstr = 'G' + outstr;
+          break ;
+        case 2:
+          outstr = 'C' + outstr;
+          break ;
+        case 3:
+          outstr = 'A' + outstr;
+          break ;
+        }
+      }
 	}
   return outstr;
 }
@@ -266,6 +300,10 @@ PufferfishBaseIndex<T>::refList(uint64_t contigRank) {
 }
 
 
+template <typename T>
+bool PufferfishBaseIndex<T>::hasReferenceSequence() const {
+  return underlying().haveRefSeq_;
+}
 
 template <typename T>
 const std::string& PufferfishBaseIndex<T>::refName(uint64_t refRank) {
@@ -290,6 +328,11 @@ const std::vector<uint32_t>& PufferfishBaseIndex<T>::getRefLengths() const {
 template <typename T>
 uint8_t PufferfishBaseIndex<T>::getEdgeEntry(uint64_t contigRank) const {
     return underlying().edge_[contigRank];
+}
+
+template <typename T>
+typename PufferfishBaseIndex<T>::seq_vector_t& PufferfishBaseIndex<T>::getRefSeq() {
+  return underlying().refseq_;
 }
 
 template <typename T>

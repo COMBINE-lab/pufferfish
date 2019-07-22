@@ -29,6 +29,8 @@ private:
   uint32_t twok_{0};
   uint64_t numKmers_{0};
   bool haveEdges_{false};
+  bool haveRefSeq_{false};
+
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
@@ -47,7 +49,7 @@ private:
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
   size_t lastSeqPos_{std::numeric_limits<size_t>::max()};
-
+  
 public:
   PufferfishIndex();
   PufferfishIndex(const std::string& indexPath);

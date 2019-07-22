@@ -471,6 +471,8 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 //    std::cerr << "\nrefAccumLengths.size():" << refAccumLengths.size() << "\n";
 //    std::cerr << refAccumLengths.back() << "\n";
     compact::vector<uint64_t, 2> refseq(refAccumLengths.back());
+    refseq.clear_mem();
+
     // go over all the reference files
     console->info("Reading the reference files ...");
     std::vector<std::string> ref_files = {rfile};
@@ -484,6 +486,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
         stx::string_view seqv(rp.seq);
         auto &refIdx = refIdMap[rp.name];
         auto offset = refIdx == 0 ? 0 : refAccumLengths[refIdx - 1];
+        //std::cerr << "ref from [" << offset << ", " << offset + seqv.length() << "]\n";
         pf.encodeSeq(refseq, offset, seqv);
       }
     }
@@ -500,7 +503,6 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     std::ofstream seqFile(outdir + "/refseq.bin", std::ios::binary);
     refseq.serialize(seqFile);
     seqFile.close();
-
   }
   pf.clearContigTable();
   // At this point we should definitely not need path.bin anymore, so get rid of it

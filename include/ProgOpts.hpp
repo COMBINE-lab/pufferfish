@@ -21,6 +21,12 @@ public:
   bool buildEdgeVec{false};
 };
 
+class ExamineOptions {
+public:
+  std::string index_dir{""};
+  std::string fasta_out{""};
+};
+
 class TestOptions {
 public:
 };
