@@ -17,7 +17,7 @@ include(CheckIPOSupported)
 check_ipo_supported(RESULT HAS_IPO)
 
 link_directories(
-		${CMAKE_CURRENT_SOURCE_DIR}/../external/install/lib
+		${GAT_SOURCE_DIR}/external/install/lib
 		${TBB_LIBRARIES}
 )
 
@@ -127,17 +127,17 @@ target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}
 
 add_executable(cedar TargetGroup.cpp Cedar.cpp Taxa.cpp)
 target_include_directories(cedar PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include/htslib
-	${TBB_INCLUDE_DIRS}
+    ${GAT_SOURCE_DIR}/external/install/include
+    ${GAT_SOURCE_DIR}/external/install/include/htslib
+    ${TBB_INCLUDE_DIRS}
 )
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
 add_executable(filtersam testing/SAMFilter.cpp)
 target_include_directories(filtersam PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../external/install/include/htslib
+    ${GAT_SOURCE_DIR}/external/install/include
+    ${GAT_SOURCE_DIR}/external/install/include/htslib
     )
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
