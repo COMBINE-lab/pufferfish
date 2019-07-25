@@ -34,7 +34,7 @@ private:
     std::string id;
   };
 
-  spp::sparse_hash_map<uint64_t, util::PackedContigInfo>
+  spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo>
       contigid2seq; // map of contig_id to # of letters in contig (contig
                     // length)
   spp::sparse_hash_map<std::string, std::string> seq2contigid;
@@ -50,8 +50,8 @@ private:
   std::vector<std::pair<uint64_t, bool>> explode(const stx::string_view str,
                                                  const char& ch);
 
-  std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathStart;
-  std::map<std::pair<std::string, bool>, bool, util::cmpByPair> pathEnd;
+  std::map<std::pair<std::string, bool>, bool, pufferfish::util::cmpByPair> pathStart;
+  std::map<std::pair<std::string, bool>, bool, pufferfish::util::cmpByPair> pathEnd;
 
   compact::vector<uint64_t, 2> seqVec_;
 
@@ -78,7 +78,7 @@ private:
   std::shared_ptr<spdlog::logger> logger_{nullptr};
 
 public:
-  spp::sparse_hash_map<uint64_t, std::vector<util::Position>> contig2pos;
+  spp::sparse_hash_map<uint64_t, std::vector<pufferfish::util::Position>> contig2pos;
 
   GFAReader(const char* gfaFileName, size_t input_k,
             bool buildEdgeVEc, std::shared_ptr<spdlog::logger> logger);
@@ -90,14 +90,14 @@ public:
   void encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
                  stx::string_view str);
   // spp::sparse_hash_map<uint64_t, std::string>& getContigNameMap();
-  spp::sparse_hash_map<uint64_t, util::PackedContigInfo>& getContigNameMap();
+  spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo>& getContigNameMap();
 
   spp::sparse_hash_map<std::string, std::string>& getContigIDMap();
   // spp::sparse_hash_map<uint32_t, std::string>& getRefIDs();
   std::vector<std::string>& getRefIDs();
   std::vector<uint32_t>& getRefLengths();
-  std::map<std::pair<std::string, bool>, bool, util::cmpByPair>& getPathStart();
-  std::map<std::pair<std::string, bool>, bool, util::cmpByPair>& getPathEnd();
+  std::map<std::pair<std::string, bool>, bool, pufferfish::util::cmpByPair>& getPathStart();
+  std::map<std::pair<std::string, bool>, bool, pufferfish::util::cmpByPair>& getPathEnd();
   std::vector<std::pair<std::string, std::string>>& getNewSegments();
   compact::vector<uint64_t, 2>& getContigSeqVec();
   compact::vector<uint64_t, 8>& getEdgeVec();

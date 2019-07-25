@@ -22,12 +22,12 @@ class PufferfishBaseIndex {
     T const& underlying() const;
 
 protected:
-  inline core::range<std::vector<util::Position>::iterator> contigRange(uint64_t contigRank) {
+  inline core::range<std::vector<pufferfish::util::Position>::iterator> contigRange(uint64_t contigRank) {
       auto spos = underlying().contigOffsets_[contigRank];
       auto epos = underlying().contigOffsets_[contigRank+1];
-      std::vector<util::Position>::iterator startIt = underlying().contigTable_.begin() + spos;
-      std::vector<util::Position>::iterator endIt = startIt + (epos - spos);
-      return core::range<std::vector<util::Position>::iterator>(startIt, endIt);
+      std::vector<pufferfish::util::Position>::iterator startIt = underlying().contigTable_.begin() + spos;
+      std::vector<pufferfish::util::Position>::iterator endIt = startIt + (epos - spos);
+      return core::range<std::vector<pufferfish::util::Position>::iterator>(startIt, endIt);
     }
 
   using pos_vector_t = compact::vector<uint64_t>;
@@ -50,7 +50,7 @@ protected:
   uint32_t k();
 
   // Get the list of reference sequences & positions corresponding to a contig
-  const core::range<std::vector<util::Position>::iterator> refList(uint64_t contigRank);
+  const core::range<std::vector<pufferfish::util::Position>::iterator> refList(uint64_t contigRank);
 
   // Get the name of a given reference sequence
   const std::string& refName(uint64_t refRank);
@@ -70,7 +70,7 @@ protected:
 
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
-  auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
+  auto getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits;
 
   // Returns the string value of contig sequence vector starting from position `globalPos` with `length` bases
   // and reverse-complements the string if `isFw` is false
@@ -84,7 +84,7 @@ protected:
   // of the previous contig info (start, end) from qc if the same
   // contig contains the match.  For correlated searches (e.g., from a read)
   // this can considerably speed up querying.
-  auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
+  auto getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache& qc) -> pufferfish::util::ProjectedHits;
 
   typename PufferfishBaseIndex<T>::seq_vector_t& getSeq(); 
   typename PufferfishBaseIndex<T>::seq_vector_t& getRefSeq(); 
@@ -96,7 +96,7 @@ protected:
   CanonicalKmer getEndKmer(uint64_t cid) ;
   uint32_t getContigLen(uint64_t cid) ;
   uint64_t getGlobalPos(uint64_t cid) ;
-  auto  getContigBlock(uint64_t rank) -> util::ContigBlock ;
+  auto  getContigBlock(uint64_t rank) -> pufferfish::util::ContigBlock ;
 
   bool hasReferenceSequence() const; 
 
@@ -116,9 +116,9 @@ protected:
   uint64_t getRawPos(CanonicalKmer& mer);
   */
   /*
-  std::vector<CanonicalKmer> getNextKmerOnGraph(uint64_t cid, util::Direction dir, bool isCurContigFwd);
+  std::vector<CanonicalKmer> getNextKmerOnGraph(uint64_t cid, pufferfish::util::Direction dir, bool isCurContigFwd);
   */
-  //void getRawSeq(util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
+  //void getRawSeq(pufferfish::util::ProjectedHits& phits, CanonicalKmerIterator& kit, std::string& contigStr, int readLen);
 };
 
 #endif // _PUFFERFISHBASE_INDEX_HPP_

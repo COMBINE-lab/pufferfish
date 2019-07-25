@@ -162,9 +162,9 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
 }
 
 auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
-                                             util::QueryCache& qc, bool didWalk)
-    -> util::ProjectedHits {
-  using IterT = std::vector<util::Position>::iterator;
+                                             pufferfish::util::QueryCache& qc, bool didWalk)
+    -> pufferfish::util::ProjectedHits {
+  using IterT = std::vector<pufferfish::util::Position>::iterator;
   if (pos <= lastSeqPos_) {
     uint64_t fk = seq_.get_int(2*pos, 2*k_);
     // say how the kmer fk matches mer; either
@@ -245,9 +245,9 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
 
 auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
                                              bool didWalk)
-    -> util::ProjectedHits {
+    -> pufferfish::util::ProjectedHits {
 
-  using IterT = std::vector<util::Position>::iterator;
+  using IterT = std::vector<pufferfish::util::Position>::iterator;
   if (pos <= lastSeqPos_) {
     uint64_t fk = seq_.get_int(2*pos, 2*k_);
     // say how the kmer fk matches mer; either
@@ -315,10 +315,10 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
           core::range<IterT>{}};
 }
 
-auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
-    -> util::ProjectedHits {
-  using IterT = std::vector<util::Position>::iterator;
-  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(),
+auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, pufferfish::util::QueryCache& qc)
+    -> pufferfish::util::ProjectedHits {
+  using IterT = std::vector<pufferfish::util::Position>::iterator;
+  pufferfish::util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(),
                                std::numeric_limits<uint64_t>::max(),
                                std::numeric_limits<uint32_t>::max(),
                                true,
@@ -418,9 +418,9 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, util::QueryCache& qc)
 }
 
 auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern)
-    -> util::ProjectedHits {
-  using IterT = std::vector<util::Position>::iterator;
-  util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(),
+    -> pufferfish::util::ProjectedHits {
+  using IterT = std::vector<pufferfish::util::Position>::iterator;
+  pufferfish::util::ProjectedHits emptyHit{std::numeric_limits<uint32_t>::max(),
                                std::numeric_limits<uint64_t>::max(),
                                std::numeric_limits<uint32_t>::max(),
                                true,

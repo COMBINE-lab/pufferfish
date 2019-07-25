@@ -40,9 +40,9 @@ uint32_t MemClusterer::getMaxAllowedRefsPerHit() {
   return maxAllowedRefsPerHit;
 }
 
-bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedHits>> &hits,
-                                     std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> &trMemMap,
-                                     std::vector<util::UniMemInfo> &memCollection, util::ReadEnd re,
+bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
+                                     std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>> &trMemMap,
+                                     std::vector<pufferfish::util::UniMemInfo> &memCollection, pufferfish::util::ReadEnd re,
                                      spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs, bool verbose) {
   if (verbose)
     std::cerr << "\n[FIND_OPT_CHAIN]\n";
@@ -92,18 +92,18 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, util::ProjectedH
   return true;
 }
 
-bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>> &hits,
-                                spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<util::MemCluster>> &memClusters,
-                                uint32_t maxSpliceGap, std::vector<util::UniMemInfo> &memCollection, uint32_t readLen,
+bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
+                                spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
+                                uint32_t maxSpliceGap, std::vector<pufferfish::util::UniMemInfo> &memCollection, uint32_t readLen,
                                 spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
                                 bool hChain, bool verbose) {
   using namespace pufferfish::common_types;
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
-  std::map<std::pair<ReferenceID, bool>, std::vector<util::MemInfo>>
+  std::map<std::pair<ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>>
           trMemMap;
-  if (!fillMemCollection(hits, trMemMap, memCollection, util::ReadEnd::LEFT, other_end_refs, verbose))
+  if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs, verbose))
     return false;
 
   std::vector<double> f;
@@ -115,7 +115,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
     auto &memList = trMem.second;
     // sort memList according to mem reference positions
     std::sort(memList.begin(), memList.end(),
-              [isFw](util::MemInfo &q1, util::MemInfo &q2) -> bool {
+              [isFw](pufferfish::util::MemInfo &q1, pufferfish::util::MemInfo &q2) -> bool {
                   auto q1ref = q1.tpos + q1.memInfo->memlen;
                   auto q2ref = q2.tpos + q2.memInfo->memlen;
                   auto q1read = q1.memInfo->rpos + q1.memInfo->memlen;
@@ -160,7 +160,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
     f.clear();
     p.clear();
     //auto lastHitId = static_cast<int32_t>(memList.size() - 1);
-    std::vector<util::MemInfo> newMemList;
+    std::vector<pufferfish::util::MemInfo> newMemList;
     uint32_t prev_qposi = 0;
     uint32_t prev_rposi = 0;
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
@@ -298,7 +298,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, util::ProjectedHits>>
         }
         memIndicesInReverse.push_back(bestChainEnd);
         if (shouldBeAdded) {
-          memClusters[tid].insert(memClusters[tid].begin(), util::MemCluster(isFw, readLen));
+          memClusters[tid].insert(memClusters[tid].begin(), pufferfish::util::MemCluster(isFw, readLen));
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
             memClusters[tid][0].addMem(memList[*it].memInfo, memList[*it].tpos,
                                        memList[*it].extendedlen, memList[*it].rpos, isFw);

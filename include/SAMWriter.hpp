@@ -11,7 +11,7 @@ typedef uint16_t rLenType;
 typedef uint32_t refLenType;
 
 
-inline void getSamFlags(const util::QuasiAlignment& qaln, uint16_t& flags) {
+inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, uint16_t& flags) {
   /*
     constexpr uint16_t pairedInSeq = 0x1;
     constexpr uint16_t mappedInProperPair = 0x2;
@@ -46,7 +46,7 @@ inline void getSamFlags(const util::QuasiAlignment& qaln, uint16_t& flags) {
 // get the sam flags for the quasialignment qaln.
 // peinput is true if the read is paired in *sequencing*; false otherwise
 // the sam flags for mate 1 are written into flags1 and for mate2 into flags2
-inline void getSamFlags(const util::QuasiAlignment& qaln, bool peInput,
+inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, bool peInput,
                         uint16_t& flags1, uint16_t& flags2) {
   constexpr uint16_t pairedInSeq = 0x1;
   constexpr uint16_t properlyAligned = 0x2;
@@ -66,8 +66,8 @@ inline void getSamFlags(const util::QuasiAlignment& qaln, bool peInput,
   flags1 |= (qaln.isPaired) ? properlyAligned : 0;
   flags2 = flags1;
   // we don't output unmapped yet
-  bool read1Unaligned = qaln.mateStatus == util::MateStatus::PAIRED_END_RIGHT;
-  bool read2Unaligned = qaln.mateStatus == util::MateStatus::PAIRED_END_LEFT;
+  bool read1Unaligned = qaln.mateStatus == pufferfish::util::MateStatus::PAIRED_END_RIGHT;
+  bool read2Unaligned = qaln.mateStatus == pufferfish::util::MateStatus::PAIRED_END_LEFT;
   // If read 1 is unaligned, flags1 gets "unmapped" and flags2 gets "mate
   // unmapped"
   flags1 |= (read1Unaligned) ? unmapped : 0;
@@ -134,7 +134,7 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, boo
 // Declarations for functions dealing with SAM formatting and output
 //
 inline void adjustOverhang(int32_t& pos, uint32_t readLen, uint32_t txpLen,
-                           util::FixedWriter& cigarStr) {
+                           pufferfish::util::FixedWriter& cigarStr) {
   cigarStr.clear();
   int32_t readLenS = static_cast<int32_t>(readLen);
   int32_t txpLenS = static_cast<int32_t>(txpLen);
@@ -158,19 +158,19 @@ inline void adjustOverhang(int32_t& pos, uint32_t readLen, uint32_t txpLen,
   }
 }
 
-inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
-                           util::FixedWriter& cigarStr1,
-                           util::FixedWriter& cigarStr2) {
+inline void adjustOverhang(pufferfish::util::QuasiAlignment& qa, uint32_t txpLen,
+                           pufferfish::util::FixedWriter& cigarStr1,
+                           pufferfish::util::FixedWriter& cigarStr2) {
   if (qa.isPaired) { // both mapped
     adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1);
     adjustOverhang(qa.matePos, qa.mateLen, txpLen, cigarStr2);
-  } else if (qa.mateStatus == util::MateStatus::PAIRED_END_LEFT) {
+  } else if (qa.mateStatus == pufferfish::util::MateStatus::PAIRED_END_LEFT) {
     // left read mapped
     adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr1);
     // right read un-mapped will just be read length * S
     cigarStr2.clear();
     cigarStr2.write("{}S", qa.mateLen);
-  } else if (qa.mateStatus == util::MateStatus::PAIRED_END_RIGHT) {
+  } else if (qa.mateStatus == pufferfish::util::MateStatus::PAIRED_END_RIGHT) {
     // right read mapped
     adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr2);
     // left read un-mapped will just be read length * S
@@ -183,7 +183,7 @@ inline void adjustOverhang(util::QuasiAlignment& qa, uint32_t txpLen,
 template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
-                                   std::vector<util::JointMems>& validJointHits,
+                                   std::vector<pufferfish::util::JointMems>& validJointHits,
                                    BinWriter& bstream,
                                    bool wrtIntervals=true) {
   if (validJointHits.empty()) return 0;
@@ -266,7 +266,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 template <typename ReadT/* , typename IndexT */>
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
-                                   std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>>& validHits,
+                                   std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>>& validHits,
                                    BinWriter& binStream,
                                    bool wrtIntervals=true) {
     if (validHits.empty()) return 0;
@@ -317,7 +317,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 template <typename ReadT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
   (void) writeOrphans;
   (void) justMappings;
 
@@ -373,7 +373,7 @@ inline uint32_t writeUnmappedAlignmentsToStreamSingle(
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
   (void) writeOrphans;
   (void) justMappings;
 	//auto& read1Temp = formatter.read1Temp;
@@ -458,7 +458,7 @@ inline uint32_t writeUnmappedAlignmentsToStream(
 template <typename ReadT, typename IndexT>
 inline uint32_t writeAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
   (void) writeOrphans;
   auto& read1Temp = formatter.read1Temp;
   //auto& read2Temp = formatter.read2Temp;
@@ -491,7 +491,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
   std::string numHitFlag = fmt::format("NH:i:{}", jointHits.size());
   uint32_t alnCtr{0};
   // uint32_t trueHitCtr{0};
-  // util::QuasiAlignment* firstTrueHit{nullptr};
+  // pufferfish::util::QuasiAlignment* firstTrueHit{nullptr};
   bool haveRev1{false};
 
   size_t i{0};
@@ -512,7 +512,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
       // std::string* qstr1 = &(r.first.qual);
       if (!qa.fwd) {
         if (!haveRev1) {
-          util::reverseRead(*readSeq1, read1Temp);
+          pufferfish::util::reverseRead(*readSeq1, read1Temp);
           haveRev1 = true;
         }
         readSeq1 = &(read1Temp);
@@ -551,7 +551,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, 
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
     bool writeOrphans, 
     bool justMappings) {
 
@@ -601,7 +601,7 @@ inline uint32_t writeAlignmentsToStream(
   std::string numHitFlag = fmt::format("NH:i:{}", jointHits.size());
   uint32_t alnCtr{0};
   // uint32_t trueHitCtr{0};
-  // util::QuasiAlignment* firstTrueHit{nullptr};
+  // pufferfish::util::QuasiAlignment* firstTrueHit{nullptr};
   bool haveRev1{false};
   bool haveRev2{false};
   bool* haveRev = nullptr;
@@ -627,7 +627,7 @@ inline uint32_t writeAlignmentsToStream(
       // std::string* qstr1 = &(r.first.qual);
       if (!qa.fwd) {
         if (!haveRev1) {
-          util::reverseRead(*readSeq1, read1Temp);
+          pufferfish::util::reverseRead(*readSeq1, read1Temp);
           haveRev1 = true;
         }
         readSeq1 = &(read1Temp);
@@ -638,7 +638,7 @@ inline uint32_t writeAlignmentsToStream(
       // std::string* qstr2 = &(r.second.qual);
       if (!qa.mateIsFwd) {
         if (!haveRev2) {
-          util::reverseRead(*readSeq2, read2Temp);
+          pufferfish::util::reverseRead(*readSeq2, read2Temp);
           haveRev2 = true;
         }
         readSeq2 = &(read2Temp);
@@ -720,7 +720,7 @@ inline uint32_t writeAlignmentsToStream(
       cigarStr->write("{}M", r.first.seq.length());
 
       //logic for assigning orphans
-      if(qa.mateStatus == util::MateStatus::PAIRED_END_LEFT){ //left read
+      if(qa.mateStatus == pufferfish::util::MateStatus::PAIRED_END_LEFT){ //left read
         alignedName = &readName ;
         unalignedName = &mateName ;
 
@@ -754,7 +754,7 @@ inline uint32_t writeAlignmentsToStream(
       // std::string* qstr1 = &(r.first.qual);
       if (!qa.fwd) {
         if (!*haveRev) {
-          util::reverseRead(*readSeq, *readTemp);
+          pufferfish::util::reverseRead(*readSeq, *readTemp);
           *haveRev = true;
         }
         readSeq = readTemp;

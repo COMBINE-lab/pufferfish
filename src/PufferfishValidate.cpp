@@ -53,7 +53,7 @@ std::vector<extension> getEdges(uint8_t edgeVec){
 */
 
 template <typename IndexT>
-bool checkKmer(IndexT& pi, CanonicalKmer& kb, util::QueryCache& qc, uint64_t kbi, uint32_t rn, uint32_t posWithinRef) {
+bool checkKmer(IndexT& pi, CanonicalKmer& kb, pufferfish::util::QueryCache& qc, uint64_t kbi, uint32_t rn, uint32_t posWithinRef) {
   auto chits = pi.getRefPos(kb, qc);
   if (chits.empty()) {
     std::cerr << "k-mer " << kb.to_str() << " completely absent from the index\n\n";
@@ -120,7 +120,7 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
     CanonicalKmer kb;
     uint64_t kbi = refSeq.get_int(2*gpos, 2*k);
     kb.fromNum(kbi);
-    util::QueryCache qc;
+    pufferfish::util::QueryCache qc;
 
     auto foundKmer = checkKmer(pi, kb, qc, kbi, rn, posWithinRef);
     if (!foundKmer) {
@@ -206,14 +206,14 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
       std::bitset<8> b = edgeVec ;
       std::cerr << "Parsing vector " << b << "\n" ;
 
-      std::vector<util::extension> ext = util::getExts(edgeVec) ;
+      std::vector<pufferfish::util::extension> ext = pufferfish::util::getExts(edgeVec) ;
       for(auto& e : ext){
        
         auto kbtmp = kb ;
         auto ketmp = ke ;
         char c = e.c ;
 
-        if(e.dir == util::Direction::FORWARD){
+        if(e.dir == pufferfish::util::Direction::FORWARD){
           ke.shiftFw(c) ;
           CanonicalKmer kt;
           kt.fromNum(ke.getCanonicalWord()) ;
@@ -362,7 +362,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
         ++rn;
         auto& r1 = rp.seq;
         pufferfish::CanonicalKmerIterator kit1(r1);
-        util::QueryCache qc;
+        pufferfish::util::QueryCache qc;
         for (; kit1 != kit_end; ++kit1) {
           auto phits = pi.getRefPos(kit1->first, qc);
           if (phits.empty()) {
@@ -397,7 +397,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
                   << "txp = [" << rp.name << "], "
                   << "kmer = [" << kit1->first.to_str() << "], "
                     << "correct pos = " << kit1->second << ", found "
-                    << util::str(wrongPos) << ", contig orientation = " << cor
+                    << pufferfish::util::str(wrongPos) << ", contig orientation = " << cor
                     << ", contig len = " << clen << "\n";
                    ///<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
                   //<< ", contig rank = " << pi.contigID(kit1->first) << '\n';

@@ -16,8 +16,8 @@ struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
 };
 
-using HitCounters = util::HitCounters;
-using AlignmentResult = util::AlignmentResult;
+using HitCounters = pufferfish::util::HitCounters;
+using AlignmentResult = pufferfish::util::AlignmentResult;
 using AlnCacheMap = tsl::hopscotch_map<uint64_t, AlignmentResult, PassthroughHash>;
 
 class PuffAligner {
@@ -36,16 +36,16 @@ public:
   PuffAligner(PuffAligner&& other) = delete;
   PuffAligner& operator=(PuffAligner&& other) = delete;
 
-  int32_t calculateAlignments(util::JointMems& jointHit, HitCounters& hctr, bool verbose);
+  int32_t calculateAlignments(pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose);
 
-  AlignmentResult alignRead(std::string read, std::vector<util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
+  AlignmentResult alignRead(std::string read, std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
 
-  bool recoverSingleOrphan(util::MemCluster clust, std::vector<util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose); 
+  bool recoverSingleOrphan(pufferfish::util::MemCluster clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
 
   void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
   void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();}
 
-  std::vector<util::UniMemInfo> orphanRecoveryMemCollection;
+  std::vector<pufferfish::util::UniMemInfo> orphanRecoveryMemCollection;
 private:
   compact::vector<uint64_t, 2>& allRefSeq;
   std::vector<uint64_t>& refAccumLengths;

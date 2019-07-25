@@ -88,7 +88,7 @@ void parseGFA(std::string& gfaFile, spp::sparse_hash_map<uint64_t, Node>& g){
       continue;
 
     stx::string_view lnview(ln);
-    std::vector<stx::string_view> splited = util::split(lnview, '\t');
+    std::vector<stx::string_view> splited = pufferfish::util::split(lnview, '\t');
     tag = splited[0].to_string();
     id = splited[1].to_string();
 
@@ -120,7 +120,7 @@ void parseGFA(std::string& gfaFile, spp::sparse_hash_map<uint64_t, Node>& g){
     auto pvalue = splited[2];
     // parse value and add all conitgs to contigVec
     std::vector<std::pair<uint64_t, bool>> contigVec =
-      util::explode(pvalue, ',');
+      pufferfish::util::explode(pvalue, ',');
 
 		// update graph and add the new set of segments to it
     if(contigVec.size() == 1){

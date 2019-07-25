@@ -11,7 +11,7 @@ void MemCollector<PufferfishIndexT>::configureMemClusterer(uint32_t max) {
 }
 
 template <typename PufferfishIndexT>
-size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& hit, 
+size_t MemCollector<PufferfishIndexT>::expandHitEfficient(pufferfish::util::ProjectedHits& hit,
                        pufferfish::CanonicalKmerIterator& kit, 
                        ExpansionTerminationType& et) {
 
@@ -97,13 +97,13 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(util::ProjectedHits& h
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
-                  util::QueryCache& qc,
+                  pufferfish::util::QueryCache& qc,
                   bool isLeft,
                   bool verbose) {
 
   // currently unused:
   // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-  util::ProjectedHits phits;
+  pufferfish::util::ProjectedHits phits;
   auto& rawHits = isLeft ? left_rawHits : right_rawHits;
 
   CanonicalKmer::k(k);
@@ -172,9 +172,9 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
-                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                  spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
-                  util::MateStatus mateStatus,
+                  pufferfish::util::MateStatus mateStatus,
                   bool hChain,
                   bool isLeft,
                   bool verbose) {
@@ -182,8 +182,8 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
   auto& rawHits = isLeft ? left_rawHits : right_rawHits;
   // if this is the right end of a paired-end read, use memCollectionRight,
   // otherwise (left end or single end) use memCollectionLeft.
-  isSingleEnd = mateStatus == util::MateStatus::SINGLE_END;
-  auto* memCollection = (mateStatus == util::MateStatus::PAIRED_END_RIGHT) ?
+  isSingleEnd = mateStatus == pufferfish::util::MateStatus::SINGLE_END;
+  auto* memCollection = (mateStatus == pufferfish::util::MateStatus::PAIRED_END_RIGHT) ?
   &memCollectionRight : &memCollectionLeft;
   if (rawHits.size() > 0) {
     auto& other_end_refs = isLeft ? right_refs : left_refs;

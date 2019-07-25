@@ -165,13 +165,13 @@ std::string PufferfishBaseIndex<T>::getSeqStr(size_t globalPos, int64_t length, 
  */
 
 template <typename T>
-auto PufferfishBaseIndex<T>::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
-    -> util::ProjectedHits {
+auto PufferfishBaseIndex<T>::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache& qc)
+    -> pufferfish::util::ProjectedHits {
     return underlying().getRefPos(mer, qc);
     }
 
 template <typename T>
-auto PufferfishBaseIndex<T>::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
+auto PufferfishBaseIndex<T>::getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits {
     return underlying().getRefPos(mer);
 }
 
@@ -210,7 +210,7 @@ CanonicalKmer PufferfishBaseIndex<T>::getEndKmer(uint64_t rank){
 
 /** Seems not to be used, so skip for now **/
 /*
-std::vector<CanonicalKmer> PufferfishIndex::getNextKmerOnGraph(uint64_t rank, util::Direction dir, bool isCurContigFwd){
+std::vector<CanonicalKmer> PufferfishIndex::getNextKmerOnGraph(uint64_t rank, pufferfish::util::Direction dir, bool isCurContigFwd){
   //get the edge vec
   std::vector<CanonicalKmer> nextKmers ;
   uint8_t edgeVec = edge_[rank] ;
@@ -218,7 +218,7 @@ std::vector<CanonicalKmer> PufferfishIndex::getNextKmerOnGraph(uint64_t rank, ut
   std::vector<char> nuclmap = {'C','G','T','A','C','G','T','A'} ;
   std::map<char, char> cMap = {{'A','T'}, {'T','A'}, {'C','G'}, {'G','C'}} ;
 
-  if(dir == util::Direction::FORWARD){
+  if(dir == pufferfish::util::Direction::FORWARD){
     // We need to append so let's concentrate on the lower 4 bits
     auto ke = getEndKmer(rank) ;
     auto ktmp = ke ;
@@ -266,7 +266,7 @@ uint64_t PufferfishBaseIndex<T>::getGlobalPos(uint64_t rank){
 }
 
 template <typename T>
-auto  PufferfishBaseIndex<T>::getContigBlock(uint64_t rank)->util::ContigBlock{
+auto  PufferfishBaseIndex<T>::getContigBlock(uint64_t rank)->pufferfish::util::ContigBlock{
   T& derived = underlying();
   auto& rankSelDict = derived.rankSelDict;
   auto& seq_ = derived.seq_;
@@ -294,7 +294,7 @@ auto  PufferfishBaseIndex<T>::getContigBlock(uint64_t rank)->util::ContigBlock{
  * Return the position list (ref_id, pos) corresponding to a contig.
  */
 template <typename T>
-const core::range<std::vector<util::Position>::iterator>
+const core::range<std::vector<pufferfish::util::Position>::iterator>
 PufferfishBaseIndex<T>::refList(uint64_t contigRank) {
   return contigRange(contigRank);
 }

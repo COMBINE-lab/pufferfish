@@ -37,7 +37,7 @@ void parseGFA(std::string& gfaFile, pufg::Graph& g){
       continue;
 
     stx::string_view lnview(ln);
-    std::vector<stx::string_view> splited = util::split(lnview, '\t');
+    std::vector<stx::string_view> splited = pufferfish::util::split(lnview, '\t');
 
 
     tag = splited[0].to_string();
@@ -70,7 +70,7 @@ void parseGFA(std::string& gfaFile, pufg::Graph& g){
     auto pvalue = splited[2];
     // parse value and add all conitgs to contigVec
     std::vector<std::pair<uint64_t, bool>> contigVec =
-      util::explode(pvalue, ',');
+      pufferfish::util::explode(pvalue, ',');
 
 		//contigVec = convertOld2newPath(contigVec);
 

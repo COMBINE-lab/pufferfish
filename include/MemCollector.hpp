@@ -24,19 +24,19 @@ enum class ExpansionTerminationType : uint8_t { MISMATCH = 0, CONTIG_END, READ_E
 public:
   explicit MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
 
-  size_t expandHitEfficient(util::ProjectedHits& hit,
+  size_t expandHitEfficient(pufferfish::util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
                           ExpansionTerminationType& et);
     
   bool operator()(std::string &read,
-                  util::QueryCache& qc,
+                  pufferfish::util::QueryCache& qc,
                   bool isLeft=false,
                   bool verbose=false);
 
   bool findChains(std::string &read,
-                  spp::sparse_hash_map<size_t, std::vector<util::MemCluster>>& memClusters,
+                  spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
-                  util::MateStatus mateStatus,
+                  pufferfish::util::MateStatus mateStatus,
                   bool hChain=false,
                   bool isLeft=false,
                   bool verbose=false);
@@ -48,16 +48,16 @@ private:
   PufferfishIndexT* pfi_;
   size_t k;
   //AlignerEngine ae_;
-  std::vector<util::UniMemInfo> memCollectionLeft;
-  std::vector<util::UniMemInfo> memCollectionRight;
+  std::vector<pufferfish::util::UniMemInfo> memCollectionLeft;
+  std::vector<pufferfish::util::UniMemInfo> memCollectionRight;
   bool isSingleEnd = false;
   MemClusterer mc;
-  std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<util::MemInfo>> trMemMap;
+  std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>> trMemMap;
 
   spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;
   spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> right_refs;
 
-  std::vector<std::pair<int, util::ProjectedHits>> left_rawHits;
-  std::vector<std::pair<int, util::ProjectedHits>> right_rawHits;
+  std::vector<std::pair<int, pufferfish::util::ProjectedHits>> left_rawHits;
+  std::vector<std::pair<int, pufferfish::util::ProjectedHits>> right_rawHits;
 };
 #endif

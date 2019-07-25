@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
       continue;
     if (firstC == 'L') {
       stx::string_view lnview(ln);
-      std::vector<stx::string_view> splited = util::split(lnview, '\t');
+      std::vector<stx::string_view> splited = pufferfish::util::split(lnview, '\t');
 
       std::string leftLinkId = splited[1].to_string();
       std::string leftLinkOre = splited[2].to_string();

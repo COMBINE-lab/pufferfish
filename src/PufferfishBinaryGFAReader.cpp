@@ -248,7 +248,7 @@ namespace pufferfish {
         logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
     }
 
-    spp::sparse_hash_map<uint64_t, util::PackedContigInfo> &
+    spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo> &
     BinaryGFAReader::getContigNameMap() {
         return contigid2seq;
     }
@@ -278,7 +278,7 @@ namespace pufferfish {
                 currContigLength = contigid2seq[contigs[i].first].length;
                 accumPos += currContigLength - k;
                 (contig2pos[contigs[i].first])
-                        .push_back(util::Position(tr, pos, contigs[i].second));
+                        .push_back(pufferfish::util::Position(tr, pos, contigs[i].second));
             }
         }
         logger_->info("\nTotal # of segments we have position for : {:n}", total_output_lines);
@@ -325,7 +325,7 @@ namespace pufferfish {
 
             spp::sparse_hash_map<std::vector<uint32_t>, uint32_t, VecHasher> eqMap;
             std::vector<uint32_t> eqIDs;
-            //std::vector<std::vector<util::Position>> cpos;
+            //std::vector<std::vector<pufferfish::util::Position>> cpos;
 
             // Compute sizes to reserve
             size_t contigVecSize{0};
@@ -336,7 +336,7 @@ namespace pufferfish {
             }
 
             logger_->info("total contig vec entries {:n}", contigVecSize);
-            std::vector<util::Position> cpos;
+            std::vector<pufferfish::util::Position> cpos;
             cpos.reserve(contigVecSize);
             std::vector<uint64_t> cpos_offsets;
             cpos_offsets.reserve(contigOffsetSize);

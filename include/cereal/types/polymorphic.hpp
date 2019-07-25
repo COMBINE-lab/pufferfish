@@ -319,7 +319,7 @@ namespace cereal
 
     auto binding = bindingMap.find(std::type_index(ptrinfo));
     if(binding == bindingMap.end())
-      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::util::demangle(ptrinfo.name()))
+      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::pufferfish::util::demangle(ptrinfo.name()))
 
     binding->second.shared_ptr(&ar, ptr.get(), tinfo);
   }
@@ -354,7 +354,7 @@ namespace cereal
 
     auto binding = bindingMap.find(std::type_index(ptrinfo));
     if(binding == bindingMap.end())
-      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::util::demangle(ptrinfo.name()))
+      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::pufferfish::util::demangle(ptrinfo.name()))
 
     binding->second.shared_ptr(&ar, ptr.get(), tinfo);
   }
@@ -418,7 +418,7 @@ namespace cereal
 
     auto binding = bindingMap.find(std::type_index(ptrinfo));
     if(binding == bindingMap.end())
-      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::util::demangle(ptrinfo.name()))
+      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::pufferfish::util::demangle(ptrinfo.name()))
 
     binding->second.unique_ptr(&ar, ptr.get(), tinfo);
   }
@@ -453,7 +453,7 @@ namespace cereal
 
     auto binding = bindingMap.find(std::type_index(ptrinfo));
     if(binding == bindingMap.end())
-      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::util::demangle(ptrinfo.name()))
+      UNREGISTERED_POLYMORPHIC_EXCEPTION(save, cereal::pufferfish::util::demangle(ptrinfo.name()))
 
     binding->second.unique_ptr(&ar, ptr.get(), tinfo);
   }

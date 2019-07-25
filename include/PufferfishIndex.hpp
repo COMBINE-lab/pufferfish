@@ -35,7 +35,7 @@ private:
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
   std::vector<uint32_t> refLengths_;
-  std::vector<util::Position> contigTable_;
+  std::vector<pufferfish::util::Position> contigTable_;
   std::vector<uint64_t> contigOffsets_;
 
   uint64_t numContigs_{0};
@@ -62,13 +62,13 @@ public:
 
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
-  auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
+  auto getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits;
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.  Uses the results
   // of the previous contig info (start, end) from qc if the same
   // contig contains the match.  For correlated searches (e.g., from a read)
   // this can considerably speed up querying.
-  auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
+  auto getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache& qc) -> pufferfish::util::ProjectedHits;
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_

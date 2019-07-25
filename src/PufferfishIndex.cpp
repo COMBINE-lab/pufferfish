@@ -136,9 +136,9 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
  * provided Canonical kmer (including the oritentation of the match).  The provided
  * QueryCache argument will be used to avoid redundant rank / select operations if feasible.
  */
-auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
-    -> util::ProjectedHits {
-  using IterT = std::vector<util::Position>::iterator;
+auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache& qc)
+    -> pufferfish::util::ProjectedHits {
+  using IterT = std::vector<pufferfish::util::Position>::iterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
@@ -222,8 +222,8 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, util::QueryCache& qc)
           core::range<IterT>{}};
 }
 
-auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> util::ProjectedHits {
-  using IterT = std::vector<util::Position>::iterator;
+auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits {
+  using IterT = std::vector<pufferfish::util::Position>::iterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {

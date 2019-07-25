@@ -334,7 +334,7 @@ void GFAReader::parseFile() {
 }
 
 // spp::sparse_hash_map<uint64_t, std::string>& GFAReader::getContigNameMap() {
-spp::sparse_hash_map<uint64_t, util::PackedContigInfo>&
+spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo>&
 GFAReader::getContigNameMap() {
   return contigid2seq;
 }
@@ -351,11 +351,11 @@ std::vector<std::string>& GFAReader::getRefIDs() { return refMap; }
 
 std::vector<uint32_t>& GFAReader::getRefLengths() { return refLengths;}
 
-std::map<std::pair<std::string, bool>, bool, util::cmpByPair>&
+std::map<std::pair<std::string, bool>, bool, pufferfish::util::cmpByPair>&
 GFAReader::getPathStart() {
   return pathStart;
 }
-std::map<std::pair<std::string, bool>, bool, util::cmpByPair>&
+std::map<std::pair<std::string, bool>, bool, pufferfish::util::cmpByPair>&
 GFAReader::getPathEnd() {
   return pathEnd;
 }
@@ -407,7 +407,7 @@ void GFAReader::mapContig2Pos() {
       currContigLength = contigid2seq[contigs[i].first].length;
       accumPos += currContigLength - k;
       (contig2pos[contigs[i].first])
-          .push_back(util::Position(tr, pos, contigs[i].second));
+          .push_back(pufferfish::util::Position(tr, pos, contigs[i].second));
     }
   }
   logger_->info("\nTotal # of segments we have position for : {:n}", total_output_lines);
@@ -455,7 +455,7 @@ void GFAReader::serializeContigTable(const std::string& odir) {
     // Write out contig offsets and lengths
     /*
     {
-      std::vector<util::ContigPosInfo> cpi;
+      std::vector<pufferfish::util::ContigPosInfo> cpi;
       cpi.reserve(contigid2seq.size());
       for (auto& kv : contigid2seq) {
         cpi.push_back({kv.second.offset, kv.second.length});
@@ -466,7 +466,7 @@ void GFAReader::serializeContigTable(const std::string& odir) {
 
     spp::sparse_hash_map<std::vector<uint32_t>, uint32_t, VecHasher> eqMap;
     std::vector<uint32_t> eqIDs;
-    //std::vector<std::vector<util::Position>> cpos;
+    //std::vector<std::vector<pufferfish::util::Position>> cpos;
 
     // Compute sizes to reserve
     size_t contigVecSize{0};
@@ -477,7 +477,7 @@ void GFAReader::serializeContigTable(const std::string& odir) {
     }
 
     logger_->info("total contig vec entries {:n}", contigVecSize);
-    std::vector<util::Position> cpos;
+    std::vector<pufferfish::util::Position> cpos;
     cpos.reserve(contigVecSize);
     std::vector<uint64_t> cpos_offsets;
     cpos_offsets.reserve(contigOffsetSize);

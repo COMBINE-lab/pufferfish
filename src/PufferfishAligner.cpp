@@ -67,14 +67,14 @@
 using paired_parser = fastx_parser::FastxParser<fastx_parser::ReadPair>;
 using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
-using HitCounters = util::HitCounters;
-using QuasiAlignment = util::QuasiAlignment;
-using MateStatus = util::MateStatus;
+using HitCounters = pufferfish::util::HitCounters;
+using QuasiAlignment = pufferfish::util::QuasiAlignment;
+using MateStatus = pufferfish::util::MateStatus;
 
 using MutexT = std::mutex;
 
-void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &leftMemClusters,
-                              std::vector<util::JointMems> &jointMemsList,
+void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                              std::vector<pufferfish::util::JointMems> &jointMemsList,
                               uint32_t perfectCoverage,
                               double coverageRatio,
                               bool verbose) {
@@ -87,7 +87,7 @@ void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::Mem
         if (verbose)
             std::cerr << "\ntid:" << leftClustItr.first << "\n";
         // Compare the left clusters to the right clusters to filter by positional constraints
-        std::vector<util::MemCluster> dummyCluster;
+        std::vector<pufferfish::util::MemCluster> dummyCluster;
         for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
             auto totalCoverage = lclust->coverage;
             if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage) {
@@ -102,16 +102,16 @@ void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<util::Mem
 }
 
 
-util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &leftMemClusters,
-                        spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &rightMemClusters,
-                        std::vector<util::JointMems> &jointMemsList,
+pufferfish::util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                        spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
+                        std::vector<pufferfish::util::JointMems> &jointMemsList,
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
                         double coverageRatio,
                         bool noDiscordant,
                         bool noOrphans,
                         bool verbose) {
-    using util::MergeResult;
+    using pufferfish::util::MergeResult;
     MergeResult mergeRes{MergeResult::HAD_NONE};
 
     if (verbose)
@@ -217,10 +217,10 @@ util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<ut
     bool leftOrphan = false; bool rightOrphan = false;
     if (!noOrphans && (!jointMemsList.size() || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
-                (spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> &memClusters,
+                (spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &memClusters,
                  bool isLeft) {
             // fragmentLen is set to 0
-            std::vector<util::MemCluster> dummyCluster;
+            std::vector<pufferfish::util::MemCluster> dummyCluster;
             for (auto &clustItr : memClusters) {
                 // reference id
                 size_t tid = clustItr.first;
@@ -263,7 +263,7 @@ util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<ut
     }
 
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                       [&maxCoverage, coverageRatio](util::JointMems &pairedReadMems) -> bool {
+                                       [&maxCoverage, coverageRatio](pufferfish::util::JointMems &pairedReadMems) -> bool {
                                            return pairedReadMems.coverage() < coverageRatio * maxCoverage;
                                        }),
                         jointMemsList.end());
@@ -275,7 +275,7 @@ util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<ut
     return mergeRes;
 }
 
-void recoverOrphans(std::vector<util::MemCluster> &recoveredMemClusters, std::vector<util::JointMems> &jointMemsList, PuffAligner& puffaligner, bool verbose) {
+void recoverOrphans(std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, std::vector<pufferfish::util::JointMems> &jointMemsList, PuffAligner& puffaligner, bool verbose) {
   puffaligner.orphanRecoveryMemCollection.reserve(2 * jointMemsList.size() + 1);
   recoveredMemClusters.reserve(2 * jointMemsList.size() + 1);
   for (auto& jointMem : jointMemsList) {
@@ -316,7 +316,7 @@ void processReadsPair(paired_parser *parser,
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
 
     //create aligner
-    spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
+    spp::sparse_hash_map<uint32_t, pufferfish::util::ContigBlock> contigSeqCache;
     RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
     auto logger = spdlog::get("stderrLog");
@@ -326,13 +326,13 @@ void processReadsPair(paired_parser *parser,
     size_t readLen{0}, mateLen{0};
     size_t totLen{0};
 
-    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
-    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> rightHits;
-    std::vector<util::MemCluster> recoveredHits;
-    std::vector<util::JointMems> jointHits;
+    spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
+    spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> rightHits;
+    std::vector<pufferfish::util::MemCluster> recoveredHits;
+    std::vector<pufferfish::util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
-    util::QueryCache qc;
-    std::vector<util::MemCluster> all;
+    pufferfish::util::QueryCache qc;
+    std::vector<pufferfish::util::MemCluster> all;
 
     //@fatemeh Initialize aligner ksw
     ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
@@ -420,9 +420,9 @@ void processReadsPair(paired_parser *parser,
                                     rpair.first.seq, rpair.second.seq, mopts, aligner, true);
 
 
-            bool mergeStatusOR = (mergeRes == util::MergeResult::HAD_EMPTY_INTERSECTION or
-                                  mergeRes == util::MergeResult::HAD_ONLY_LEFT or
-                                  mergeRes == util::MergeResult::HAD_ONLY_RIGHT);
+            bool mergeStatusOR = (mergeRes == pufferfish::util::MergeResult::HAD_EMPTY_INTERSECTION or
+                                  mergeRes == pufferfish::util::MergeResult::HAD_ONLY_LEFT or
+                                  mergeRes == pufferfish::util::MergeResult::HAD_ONLY_RIGHT);
 
             if ( mergeStatusOR and mopts->recoverOrphans) {
               recoverOrphans(recoveredHits, jointHits, puffaligner, verbose);
@@ -520,7 +520,7 @@ void processReadsPair(paired_parser *parser,
                 if (bestScore > std::numeric_limits<int32_t>::min()) {
                     jointHits.erase(
                             std::remove_if(jointHits.begin(), jointHits.end(),
-                                           [&ctr, &scores, bestScore](util::JointMems &) -> bool {
+                                           [&ctr, &scores, bestScore](pufferfish::util::JointMems &) -> bool {
                                                bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
                                                ++ctr;
                                                return rem;
@@ -683,7 +683,7 @@ void processReadsSingle(single_parser *parser,
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
 
     //create aligner
-    spp::sparse_hash_map<uint32_t, util::ContigBlock> contigSeqCache;
+    spp::sparse_hash_map<uint32_t, pufferfish::util::ContigBlock> contigSeqCache;
     RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
     auto logger = spdlog::get("stderrLog");
@@ -693,11 +693,11 @@ void processReadsSingle(single_parser *parser,
     size_t readLen{0};
     //size_t totLen{0};
 
-    spp::sparse_hash_map<size_t, std::vector<util::MemCluster>> leftHits;
-    std::vector<util::JointMems> jointHits;
+    spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
+    std::vector<pufferfish::util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
-    util::QueryCache qc;
-    std::vector<util::MemCluster> all;
+    pufferfish::util::QueryCache qc;
+    std::vector<pufferfish::util::MemCluster> all;
 
     //@fatemeh Initialize aligner ksw
     ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
@@ -748,7 +748,7 @@ void processReadsSingle(single_parser *parser,
                                      verbose);
 
             std::vector<QuasiAlignment> jointAlignments;
-            std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>> validHits;
+            std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>> validHits;
 
             if (mopts->justMap) {
 //                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
@@ -838,7 +838,7 @@ void processReadsSingle(single_parser *parser,
                 if (bestScore > std::numeric_limits<int32_t>::min()) {
                     jointHits.erase(
                             std::remove_if(jointHits.begin(), jointHits.end(),
-                                           [&ctr, &scores, bestScore](util::JointMems &) -> bool {
+                                           [&ctr, &scores, bestScore](pufferfish::util::JointMems &) -> bool {
                                                bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
                                                ++ctr;
                                                return rem;
@@ -1116,8 +1116,8 @@ bool alignReads(
         ScopedTimer timer(!mopts->quiet);
         HitCounters hctrs;
         consoleLog->info("mapping reads ... \n\n\n");
-        std::vector<std::string> read1Vec = util::tokenize(mopts->read1, ',');
-        std::vector<std::string> read2Vec = util::tokenize(mopts->read2, ',');
+        std::vector<std::string> read1Vec = pufferfish::util::tokenize(mopts->read1, ',');
+        std::vector<std::string> read2Vec = pufferfish::util::tokenize(mopts->read2, ',');
 
         if (read1Vec.size() != read2Vec.size()) {
             consoleLog->error("The number of provided files for"
@@ -1138,7 +1138,7 @@ bool alignReads(
         ScopedTimer timer(!mopts->quiet);
         HitCounters hctrs;
         consoleLog->info("mapping reads ... \n\n\n");
-        std::vector<std::string> readVec = util::tokenize(mopts->unmatedReads, ',');
+        std::vector<std::string> readVec = pufferfish::util::tokenize(mopts->unmatedReads, ',');
 
         uint32_t nprod = (readVec.size() > 1) ? 2 : 1;
         singleParserPtr.reset(new single_parser(readVec, nthread, nprod, chunkSize));
