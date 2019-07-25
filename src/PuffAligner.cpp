@@ -84,6 +84,7 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
 
 AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemInfo> &mems, bool perfectChain,
                              bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
+//    verbose = true;
     uint32_t refExtLength = mopts->refExtendLength;
     bool firstMem = true;
     int32_t lastHitEnd_read = -1;
@@ -95,6 +96,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
     uint32_t openGapLen{0};
     util::cigarGenerator cigarGen;
     std::string cigar = "";
+    memset(&ez, 0, sizeof(ksw_extz_t));
 
     if (verbose) {
         for (size_t x = 0; x < 50; ++x)
@@ -510,6 +512,9 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<util::MemIn
                 }
             }
         }
+        if (verbose)
+            std::cerr << "alignmentScore: " << alignmentScore << "\n";
+//        alignmentScore+=readLen*2; //addedByFatemeh
         bool cigar_fixed{false};
         cigar = cigarGen.get_cigar(readLen, cigar_fixed);
         /*if (cigar_fixed) {
@@ -545,25 +550,32 @@ int32_t PuffAligner::calculateAlignments(util::JointMems &jointHit, HitCounters 
     auto tid = jointHit.tid;
     double optFrac{mopts->minScoreFraction};
 
+    auto threshold = [&, optFrac] (uint64_t len) -> double {
+        return (mopts->mimicBt2Default or !mopts->matchScore)?(-0.6+-0.6*len):optFrac*mopts->matchScore*len;
+    };
+
     if (jointHit.isOrphan()) {
         if (verbose)
             std::cerr << "orphan\n";
         hctr.totalAlignmentAttempts += 1;
 
         std::string read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
-        int32_t maxScore = mopts->matchScore * read_orphan.length();
+//        int32_t maxScore = mopts->matchScore * read_orphan.length();
         AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
                                        jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, verbose);
         jointHit.orphanClust()->coverage =
-                ar.score > (optFrac * maxScore) ? ar.score : std::numeric_limits<decltype(ar.score)>::min();
+                ar.score > threshold(read_orphan.length())  ? ar.score : std::numeric_limits<decltype(ar.score)>::min();
         jointHit.orphanClust()->cigar = ar.cigar;
         jointHit.orphanClust()->openGapLen = ar.openGapLen;
-        jointHit.alignmentScore = jointHit.orphanClust()->coverage;
-        return jointHit.orphanClust()->coverage;
+        jointHit.alignmentScore = static_cast<int32_t >(jointHit.orphanClust()->coverage);
+        if (jointHit.alignmentScore < 0) {
+            std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar.score << "\n";
+        }
+        return jointHit.alignmentScore;
     } else {
         hctr.totalAlignmentAttempts += 2;
-        int32_t maxLeftScore = mopts->matchScore * read_left.length();
-        int32_t maxRightScore = mopts->matchScore * read_right.length();
+//        int32_t maxLeftScore = mopts->matchScore * read_left.length();
+//        int32_t maxRightScore = mopts->matchScore * read_right.length();
         if (verbose)
             std::cerr << "left\n";
         AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
@@ -572,24 +584,20 @@ int32_t PuffAligner::calculateAlignments(util::JointMems &jointHit, HitCounters 
             std::cerr << "right\n";
         AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
                                              jointHit.rightClust->isFw, tid, alnCacheRight, hctr, verbose);
-        auto score_left = ar_left.score;
-        auto score_right = ar_right.score;
-        //jointHit.leftClust->coverage = ar_left.score;
-        jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score
-                                                                              : std::numeric_limits<decltype(score_left)>::min();
+        auto score_left = ar_left.score > threshold(read_left.length()) ? ar_left.score
+                                                                        : std::numeric_limits<decltype(ar_left.score)>::min();
+        auto score_right = ar_right.score > threshold(read_right.length()) ? ar_right.score
+                                                                           : std::numeric_limits<decltype(ar_right.score)>::min();
+        jointHit.alignmentScore = (score_left == std::numeric_limits<decltype(ar_left.score)>::min() or
+                score_right == std::numeric_limits<decltype(ar_right.score)>::min())?
+                                  std::numeric_limits<decltype(ar_right.score)>::min() : score_left + score_right;
         jointHit.leftClust->cigar = ar_left.cigar;
-        jointHit.leftClust->coverage = ar_left.score > optFrac * maxLeftScore ? ar_left.score
-                                                                              : std::numeric_limits<decltype(score_left)>::min();
+        jointHit.leftClust->coverage = score_left;
         jointHit.leftClust->openGapLen = ar_left.openGapLen;
-        //jointHit.rightClust->coverage = ar_right.score;
-        jointHit.rightClust->coverage = ar_right.score > optFrac * maxRightScore ? ar_right.score
-                                                                                 : std::numeric_limits<decltype(score_right)>::min();
+        jointHit.rightClust->coverage = score_right;
         jointHit.rightClust->cigar = ar_right.cigar;
         jointHit.rightClust->openGapLen = ar_right.openGapLen;
-        int32_t total_score = jointHit.leftClust->coverage + jointHit.rightClust->coverage;
-        //int32_t total_score = (score_left + score_right) > (optFrac * (maxLeftScore + maxRightScore)) ? score_left + score_right : std::numeric_limits<decltype(score_left)>::min();
-        jointHit.alignmentScore = total_score;
-        return total_score;
+        return jointHit.alignmentScore;
     }
 }
 

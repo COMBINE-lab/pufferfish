@@ -538,8 +538,8 @@ struct QuasiAlignment {
   std::string cigar;
   std::string mateCigar;
 
-  uint32_t score;
-  uint32_t mateScore;
+  int32_t score;
+  int32_t mateScore;
 
   MateStatus mateStatus;
   bool active = true;

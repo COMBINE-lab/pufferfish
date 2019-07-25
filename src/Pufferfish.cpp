@@ -173,6 +173,7 @@ int main(int argc, char* argv[]) {
                          "A read will be reported with only the valid gene ID alignments and will be discarded if the best alignment is to an invalid ID"
                          "The IDs are the same as the IDs in the fasta file provided for the index construction phase",
                     (option("--filterMicrobiom").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
+                    (option("--bt2DefaultThreshold").set(alignmentOpt.mimicBt2Default, true)) % "mimic the default threshold function of Bowtie2 which is t = -0.6 -0.6 * read_len",
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)"
   );
 

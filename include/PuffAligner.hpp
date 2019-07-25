@@ -26,20 +26,15 @@ public:
               std::string r1, std::string r2, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : 
               allRefSeq(ar), refAccumLengths(ral), k(k_), read_left(r1), read_right(r2),
               mopts(m), aligner(a), multiMapping(mult) {
-		ksw2pp::KSW2Config config;
-		config.dropoff = -1;
-		config.gapo = mopts->gapOpenPenalty;
-		config.gape = mopts->gapExtendPenalty;
-		config.bandwidth = 10;
-		config.flag = 0;
-		config.flag |= KSW_EZ_RIGHT;
-		aligner.config() = config;
-
 		memset(&ez, 0, sizeof(ksw_extz_t));
 
 		alnCacheLeft.reserve(32);
 		alnCacheRight.reserve(32);
-  };
+  }
+  PuffAligner(const PuffAligner& other) = delete;
+  PuffAligner& operator=(const PuffAligner& other) = delete;
+  PuffAligner(PuffAligner&& other) = delete;
+  PuffAligner& operator=(PuffAligner&& other) = delete;
 
   int32_t calculateAlignments(util::JointMems& jointHit, HitCounters& hctr, bool verbose);
 

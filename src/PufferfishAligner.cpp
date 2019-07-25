@@ -275,7 +275,7 @@ util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<ut
     return mergeRes;
 }
 
-void recoverOrphans(std::vector<util::MemCluster> &recoveredMemClusters, std::vector<util::JointMems> &jointMemsList, PuffAligner puffaligner, bool verbose) {
+void recoverOrphans(std::vector<util::MemCluster> &recoveredMemClusters, std::vector<util::JointMems> &jointMemsList, PuffAligner& puffaligner, bool verbose) {
   puffaligner.orphanRecoveryMemCollection.reserve(2 * jointMemsList.size() + 1);
   recoveredMemClusters.reserve(2 * jointMemsList.size() + 1);
   for (auto& jointMem : jointMemsList) {
@@ -335,25 +335,27 @@ void processReadsPair(paired_parser *parser,
     std::vector<util::MemCluster> all;
 
     //@fatemeh Initialize aligner ksw
+    ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
     ksw2pp::KSW2Config config;
-    ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
 
-    config.gapo = -1 * GAP_SCORE;
-    config.gape = -1 * GAP_SCORE;
-    config.bandwidth = -1;
-    config.flag = KSW_EZ_RIGHT;
+    config.dropoff = -1;
+    config.gapo = mopts->gapOpenPenalty;
+    config.gape = mopts->gapExtendPenalty;
+    config.bandwidth = 10;
+    config.flag = 0;
+    config.flag |= KSW_EZ_RIGHT;
     aligner.config() = config;
 
     auto rg = parser->getReadGroup();
 
     //For filtering reads
+    bool verbose = mopts->verbose;
     auto &txpNames = pfi.getRefNames();
     while (parser->refill(rg)) {
         for (auto &rpair : rg) {
             readLen = rpair.first.seq.length();
             mateLen = rpair.second.seq.length();
             totLen = readLen + mateLen;
-            bool verbose = mopts->verbose;
 
             ++hctr.numReads;
 
@@ -414,7 +416,6 @@ void processReadsPair(paired_parser *parser,
                                mopts->noOrphan,
                                verbose);
 
-            ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
             PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
                                     rpair.first.seq, rpair.second.seq, mopts, aligner, true);
 
@@ -444,8 +445,8 @@ void processReadsPair(paired_parser *parser,
                 std::map<int32_t, std::vector<int32_t>> transcript_set;
                 for (auto &jointHit : jointHits) {
                     auto hitScore = puffaligner.calculateAlignments(jointHit, hctr, verbose);
-                    if (hitScore < 0)
-                        hitScore = std::numeric_limits<int32_t>::min();
+                    /*if (hitScore < 0)
+                        hitScore = std::numeric_limits<int32_t>::min();*/
                     scores[idx] = hitScore;
                     std::string ref_name = txpNames[jointHit.tid];
                     if (filterGenomics or filterMicrobiom) {
@@ -699,14 +700,16 @@ void processReadsSingle(single_parser *parser,
     std::vector<util::MemCluster> all;
 
     //@fatemeh Initialize aligner ksw
-    /*ksw2pp::KSW2Config config;
-    ksw2pp::KSW2Aligner aligner(MATCH_SCORE, MISMATCH_SCORE);
+    ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
+    ksw2pp::KSW2Config config;
 
-    config.gapo = -1 * GAP_SCORE;
-    config.gape = -1 * GAP_SCORE;
-    config.bandwidth = -1;
-    config.flag = KSW_EZ_RIGHT;
-    aligner.config() = config;*/
+    config.dropoff = -1;
+    config.gapo = mopts->gapOpenPenalty;
+    config.gape = mopts->gapExtendPenalty;
+    config.bandwidth = 10;
+    config.flag = 0;
+    config.flag |= KSW_EZ_RIGHT;
+    aligner.config() = config;
 
     auto &txpNames = pfi.getRefNames();
     auto rg = parser->getReadGroup();
@@ -748,7 +751,7 @@ void processReadsSingle(single_parser *parser,
             std::vector<std::pair<uint32_t, std::vector<util::MemCluster>::iterator>> validHits;
 
             if (mopts->justMap) {
-                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
+//                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
                 PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
                                         read.seq, NULL, mopts, aligner, jointHits.size() > 1);
 
@@ -1181,9 +1184,9 @@ bool alignReadsWrapper(
                 uint64_t start = mopts->read1.find_last_of('/');
                 uint64_t end = mopts->read1.find_last_of('_');
                 mopts->outname = outname + mopts->read1.substr(start + 1, end - start - 1);
-                std::cerr << mopts->read1 << "\n";
-                std::cerr << mopts->read2 << "\n";
-                std::cerr << mopts->outname << "\n";
+//                std::cerr << mopts->read1 << "\n";
+//                std::cerr << mopts->read2 << "\n";
+//                std::cerr << mopts->outname << "\n";
                 res &= alignReads(pfi, consoleLog, mopts);
             }
         }
