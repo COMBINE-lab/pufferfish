@@ -1,6 +1,7 @@
 #ifndef _BIFURCATION_STORAGE_H_
 #define _BIFURCATION_STORAGE_H_
 
+#include <algorithm>
 #include "common.h"
 #include "compressedstring.h"
 
@@ -34,7 +35,7 @@ namespace TwoPaCo
 			}
 
 			size_t hashFunctionNumber = 3;
-			bitsPower = max(bitsPower, size_t(24));
+			bitsPower = std::max(static_cast<size_t>(bitsPower), size_t(24));
 			bifurcationFilter_.assign(uint64_t(1) << bitsPower, false);
 			hashFunction_.resize(hashFunctionNumber);
 			for (HashFunctionPtr & ptr : hashFunction_)

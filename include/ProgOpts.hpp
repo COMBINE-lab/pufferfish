@@ -1,6 +1,7 @@
 #ifndef __PUFFERFISH_PROG_OPTS_HPP__
 #define __PUFFERFISH_PROG_OPTS_HPP__
 #include <cstdint>
+#include <string>
 
 class IndexOptions {
 public:
