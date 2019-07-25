@@ -17,6 +17,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+if (BUILD_FOR_SALMON) 
+    message("Building basic pufferfish components for salmon")
+endif()
 
 set(KSW_FLAGS "-march=native;-DHAVE_KALLOC")
 set(RBF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
@@ -151,7 +154,7 @@ endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
 
 
-
+if (NOT BUILD_FOR_SALMON)
 ExternalProject_Add(libseqlib
 GIT_REPOSITORY https://github.com/COMBINE-lab/SeqLib.git
 GIT_TAG        master
@@ -187,6 +190,8 @@ ExternalProject_Add(libSetCover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
+endif()
+
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
 set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")
