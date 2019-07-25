@@ -345,6 +345,11 @@ typename PufferfishBaseIndex<T>::edge_vector_t& PufferfishBaseIndex<T>::getEdge(
   return underlying().edge_;
 }
 
+template <typename T>
+bool PufferfishBaseIndex<T>::isDecoy(uint64_t rank) const {
+  return (underlying().numDecoys_ > 0) ? (rank < underlying().firstDecoyIndex_) : false;
+}
+
 template class  PufferfishBaseIndex<PufferfishIndex>;
 template class  PufferfishBaseIndex<PufferfishSparseIndex>;
 template class  PufferfishBaseIndex<PufferfishLossyIndex>;

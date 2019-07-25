@@ -99,6 +99,11 @@ protected:
   auto  getContigBlock(uint64_t rank) -> util::ContigBlock ;
 
   bool hasReferenceSequence() const; 
+
+  // Returns true if the reference with the given
+  // rank is a decoy, and false otherwise.
+  bool isDecoy(uint64_t rank) const;
+
   // Returns true if the given k-mer appears in the dBG, false otherwise
   /*
   bool contains(CanonicalKmer& mer);

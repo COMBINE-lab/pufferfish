@@ -49,7 +49,9 @@ private:
   std::unique_ptr<boophf_t> hash_{nullptr};
   boophf_t* hash_raw_{nullptr};
   size_t lastSeqPos_{std::numeric_limits<size_t>::max()};
-  
+  uint64_t numDecoys_{0};
+  uint64_t firstDecoyIndex_{0};
+
 public:
   PufferfishIndex();
   PufferfishIndex(const std::string& indexPath);

@@ -76,6 +76,7 @@ int main(int argc, char* argv[]) {
                     "Instead of a space or tab, break the header at the first "
                     "occurrence of this string, and name the transcript as the token before "
                     "the first separator (default = space & tab)",
+                    (option("--keepDuplicates").set(indexOpt.keep_duplicates) % "Retain duplicate references in the input"),
                     (option("-d", "--decoys") & value("decoy_list", indexOpt.decoy_file)) %
                     "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
                     (option("-f", "--filt-size") & value("filt_size", indexOpt.filt_size)) % "filter size to pass to TwoPaCo when building the reference dBG",
