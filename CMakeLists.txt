@@ -85,8 +85,8 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2019.0)))
     message("Build system will fetch and build Intel Threading Building Blocks")
     message("==================================================================")
     # These are useful for the custom install step we'll do later
-    set(TBB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/tbb-2019_U8)
-    set(TBB_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install)
+    set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/tbb-2019_U8)
+    set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
 
     if("${TBB_COMPILER}" STREQUAL "gcc")
         ## Don't know why it's a problem yet, but if we're using
@@ -107,8 +107,8 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2019.0)))
             #URL_HASH SHA1=d6cf16a42ece60aad6a722b369e1a2aa753347b4
             #TLS_VERIFY FALSE
             ##
-            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/tbb-2019_U8
-            INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
+            SOURCE_DIR ${TBB_SOURCE_DIR}
+            INSTALL_DIR ${TBB_INSTALL_DIR}
             PATCH_COMMAND "${TBB_PATCH_STEP}"
             CONFIGURE_COMMAND ""
             BUILD_COMMAND make ${QUIET_MAKE} CXXFLAGS=${TBB_CXXFLAGS} lambdas=1 compiler=${TBB_COMPILER} cfg=release tbb_build_prefix=LIBS
@@ -130,13 +130,13 @@ endif()
 # so that CMake won't complain
 ##
 if(TBB_WILL_RECONFIGURE)
-    set(TBB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/install/include)
-    set(TBB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install/include)
-    set(TBB_LIBRARY_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib)
-    set(TBB_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib)
+    set(TBB_INCLUDE_DIRS ${TBB_INSTALL_DIR}/include)
+    set(TBB_INCLUDE_DIR ${TBB_INSTALL_DIR}/include)
+    set(TBB_LIBRARY_DIRS ${TBB_INSTALL_DIR}/lib)
+    set(TBB_LIB_DIR ${TBB_INSTALL_DIR}/lib)
     #set(TBB_LIBRARIES tbb tbbmalloc)
-    set(TBB_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libtbb.${SHARED_LIB_EXTENSION}
-            ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
+    set(TBB_LIBRARIES ${TBB_INSTALL_DIR}/lib/libtbb.${SHARED_LIB_EXTENSION}
+            ${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
             )
     message("TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
     message("TBB_LIBRARY_DIRS = ${TBB_LIBRARY_DIRS}")
@@ -151,8 +151,8 @@ if(TBB_RECONFIGURE)
     unset(TBB_FOUND CACHE)
     unset(TBB_INSTALL_DIR CACHE)
     unset(CMAKE_PREFIX_PATH CACHE)
-    set(CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/external/install)
-    set(TBB_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install)
+    set(CMAKE_PREFIX_PATH ${GAT_SOURCE_DIR}/external/install)
+    set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
     find_package(TBB)
 endif()
