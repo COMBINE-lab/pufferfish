@@ -17,7 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-if (BUILD_FOR_SALMON) 
+if (BUILD_PUFF_FOR_SALMON) 
     message("Building basic pufferfish components for salmon")
 endif()
 
@@ -65,14 +65,16 @@ endif()
 
 
 ## Try and find TBB first
-find_package(TBB 2019.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
+find_package(TBB 2018.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 
+
+if (NOT BUILD_PUFF_FOR_SALMON)
 ##
 #
 # Fetch and build Intel's Threading Building Blocks library.
 #
 ##
-if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2019.0)))
+if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
 
     set(TBB_WILL_RECONFIGURE TRUE)
     # Set the appropriate compiler
@@ -136,8 +138,8 @@ if(TBB_WILL_RECONFIGURE)
     set(TBB_LIB_DIR ${TBB_INSTALL_DIR}/lib)
     #set(TBB_LIBRARIES tbb tbbmalloc)
     set(TBB_LIBRARIES ${TBB_INSTALL_DIR}/lib/libtbb.${SHARED_LIB_EXTENSION}
-            ${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
-            )
+			${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
+	   )
     message("TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
     message("TBB_LIBRARY_DIRS = ${TBB_LIBRARY_DIRS}")
 endif()
@@ -159,7 +161,6 @@ endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
 
 
-if (NOT BUILD_FOR_SALMON)
 ExternalProject_Add(libseqlib
 GIT_REPOSITORY https://github.com/COMBINE-lab/SeqLib.git
 GIT_TAG        master

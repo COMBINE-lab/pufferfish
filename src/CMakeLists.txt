@@ -96,7 +96,7 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 target_link_libraries(pufferfish Threads::Threads puffer ksw2pp ${JEMALLOC_LIBRARIES} z twopaco graphdump ntcard ${TBB_LIBRARIES})
 
-if (NOT BUILD_FOR_SALMON)
+if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
