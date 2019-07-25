@@ -1,6 +1,7 @@
 #ifndef __PUFFERFISH_PROG_OPTS_HPP__
 #define __PUFFERFISH_PROG_OPTS_HPP__
 #include <cstdint>
+#include <string>
 
 class IndexOptions {
 public:
@@ -16,6 +17,7 @@ public:
   uint32_t extensionSize{4};
   uint32_t sampleSize{9};
   bool lossySampling{false};
+  bool keep_duplicates{false};
   uint32_t lossy_rate{5};
   int32_t filt_size{-1};
   bool buildEdgeVec{false};

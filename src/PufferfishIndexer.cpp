@@ -350,6 +350,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
       args.push_back("--headerSep");
       args.push_back(indexOpts.header_sep);
     }
+    if (indexOpts.keep_duplicates) {
+      args.push_back("--keepDuplicates");
+    }
     args.push_back("--klen");
     args.push_back(std::to_string(k));
     args.push_back("--input");

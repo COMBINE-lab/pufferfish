@@ -332,6 +332,19 @@ void fixFasta(single_parser* parser,
     }
   }
 
+  {
+    ghc::filesystem::path dcPath = outDir / ghc::filesystem::path{"duplicate_clusters.tsv"};
+    std::ofstream dupClusterStream(dcPath.string());
+    dupClusterStream << "RetainedRef" << '\t' << "DuplicateRef" << '\n';
+    for (auto kvIt = duplicateNames.begin(); kvIt != duplicateNames.end(); ++kvIt) {
+      auto& retainedName = transcriptNames[kvIt->first];
+      for (auto& droppedName : kvIt->second) {
+        dupClusterStream << retainedName << '\t' << droppedName << '\n';
+      }
+    }
+    dupClusterStream.close();
+  }
+
   /*
   std::ofstream dupClusterStream(outputDir + "duplicate_clusters.tsv");
   {
@@ -443,6 +456,7 @@ int fixFastaMain(std::vector<std::string>& args) {
   std::vector<std::string> refFiles;
   std::string outFile;
   std::string decoyFile;
+  bool keepDuplicates{false};
   bool printHelp{false};
   std::string sepStr{" \t"};
 
@@ -456,6 +470,7 @@ int fixFastaMain(std::vector<std::string>& args) {
               "the first separator (default = space & tab)",
               option("--decoys", "-d") & value("decoys", decoyFile) %
               "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
+              option("--keepDuplicates").set(keepDuplicates) % "Retain duplicate references in the input",
               option("--klen", "-k") & value("k-mer length", k) % "length of the k-mer used to build the cDBG (default = 31)"
               );
 
@@ -485,7 +500,6 @@ int fixFastaMain(std::vector<std::string>& args) {
     transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
     transcriptParserPtr->start();
     std::mutex iomutex;
-    bool keepDuplicates{true};
     fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, console,
              outFile);
     transcriptParserPtr->stop();

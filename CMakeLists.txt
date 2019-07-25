@@ -17,13 +17,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+if (BUILD_PUFF_FOR_SALMON) 
+    message("Building basic pufferfish components for salmon")
+endif()
+
+if (NOT GAT_SOURCE_DIR)
+    message("Top-level source directory variable not set externally; setting it to ${CMAKE_CURRENT_SOURCE_DIR}")
+    set(GAT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 set(KSW_FLAGS "-march=native;-DHAVE_KALLOC")
-set(RBF_CPP_FLAGS "-g;-mbmi2;-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+set(RBF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
 set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-Wconversion;-Wctor-dtor-privacy;-Wdisabled-optimization;-Wdouble-promotion;-Wextra;-Wformat=2;-Winit-self;-Wlogical-op;-Wmissing-declarations;-Wmissing-include-dirs;-Wno-sign-conversion;-Wnoexcept;-Wold-style-cast;-Woverloaded-virtual;-Wpedantic;-Wredundant-decls;-Wshadow;-Wstrict-aliasing=1;-Wstrict-null-sentinel;-Wstrict-overflow=5;-Wswitch-default;-Wundef;-Wno-unknown-pragmas;-Wuseless-cast;-Wno-unused-parameter")
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
-set(OPT_FLAGS "-DSTX_NO_STD_STRING_VIEW;-O3;-ffast-math;-fPIC;-DNDEBUG;-funroll-loops;-mmmx;-msse;-msse2;-msse3;-msse4;-msse4.2;-march=native;-fno-strict-aliasing")
+set(OPT_FLAGS "-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-mmmx;-msse;-msse2;-msse3;-msse4;-msse4.2;-march=native;-fno-strict-aliasing")
 set(DEBUG_FLAGS "-pg;-g;-gstabs")
 
 ##
@@ -58,6 +67,8 @@ endif()
 ## Try and find TBB first
 find_package(TBB 2018.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 
+
+if (NOT BUILD_PUFF_FOR_SALMON)
 ##
 #
 # Fetch and build Intel's Threading Building Blocks library.
@@ -76,8 +87,8 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
     message("Build system will fetch and build Intel Threading Building Blocks")
     message("==================================================================")
     # These are useful for the custom install step we'll do later
-    set(TBB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/tbb-2018_U3)
-    set(TBB_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install)
+    set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/tbb-2019_U8)
+    set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
 
     if("${TBB_COMPILER}" STREQUAL "gcc")
         ## Don't know why it's a problem yet, but if we're using
@@ -89,17 +100,17 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
 
     ExternalProject_Add(libtbb
             DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
-            DOWNLOAD_COMMAND curl -k -L https://github.com/01org/tbb/archive/2018_U3.tar.gz -o tbb-2018_U3.tgz &&
-            ${SHASUM} 23793c8645480148e9559df96b386b780f92194c80120acce79fcdaae0d81f45 tbb-2018_U3.tgz &&
-            tar -xzvf tbb-2018_U3.tgz
+            DOWNLOAD_COMMAND curl -k -L https://github.com/intel/tbb/archive/2019_U8.tar.gz -o tbb-2019_U8.tgz &&
+            ${SHASUM} 7b1fd8caea14be72ae4175896510bf99c809cd7031306a1917565e6de7382fba tbb-2019_U8.tgz &&
+            tar -xzvf tbb-2019_U8.tgz
             ##
             #URL https://github.com/01org/tbb/archive/2018_U3.tar.gz
             #DOWNLOAD_NAME 2018_U3.tar.gz
             #URL_HASH SHA1=d6cf16a42ece60aad6a722b369e1a2aa753347b4
             #TLS_VERIFY FALSE
             ##
-            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/tbb-2018_U3
-            INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
+            SOURCE_DIR ${TBB_SOURCE_DIR}
+            INSTALL_DIR ${TBB_INSTALL_DIR}
             PATCH_COMMAND "${TBB_PATCH_STEP}"
             CONFIGURE_COMMAND ""
             BUILD_COMMAND make ${QUIET_MAKE} CXXFLAGS=${TBB_CXXFLAGS} lambdas=1 compiler=${TBB_COMPILER} cfg=release tbb_build_prefix=LIBS
@@ -121,12 +132,16 @@ endif()
 # so that CMake won't complain
 ##
 if(TBB_WILL_RECONFIGURE)
-    set(TBB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/install/include)
-    set(TBB_LIBRARY_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib)
+    set(TBB_INCLUDE_DIRS ${TBB_INSTALL_DIR}/include)
+    set(TBB_INCLUDE_DIR ${TBB_INSTALL_DIR}/include)
+    set(TBB_LIBRARY_DIRS ${TBB_INSTALL_DIR}/lib)
+    set(TBB_LIB_DIR ${TBB_INSTALL_DIR}/lib)
     #set(TBB_LIBRARIES tbb tbbmalloc)
-    set(TBB_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libtbb.${SHARED_LIB_EXTENSION}
-            ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
-            )
+    set(TBB_LIBRARIES ${TBB_INSTALL_DIR}/lib/libtbb.${SHARED_LIB_EXTENSION}
+			${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
+	   )
+    message("TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
+    message("TBB_LIBRARY_DIRS = ${TBB_LIBRARY_DIRS}")
 endif()
 
 ##
@@ -138,13 +153,12 @@ if(TBB_RECONFIGURE)
     unset(TBB_FOUND CACHE)
     unset(TBB_INSTALL_DIR CACHE)
     unset(CMAKE_PREFIX_PATH CACHE)
-    set(CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/external/install)
-    set(TBB_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install)
+    set(CMAKE_PREFIX_PATH ${GAT_SOURCE_DIR}/external/install)
+    set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
     find_package(TBB)
 endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
-
 
 
 ExternalProject_Add(libseqlib
@@ -182,6 +196,8 @@ ExternalProject_Add(libSetCover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
+endif()
+
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
 set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")

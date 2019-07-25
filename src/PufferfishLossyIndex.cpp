@@ -23,6 +23,8 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
     infoArchive(cereal::make_nvp("num_kmers", numKmers_));
     infoArchive(cereal::make_nvp("have_edge_vec", haveEdges_));
     infoArchive(cereal::make_nvp("have_ref_seq", haveRefSeq_));
+    infoArchive(cereal::make_nvp("num_decoys", numDecoys_));
+    infoArchive(cereal::make_nvp("first_decoy_index", firstDecoyIndex_));
 
     std::cerr << "k = " << k_ << '\n';
     std::cerr << "num kmers = " << numKmers_ << '\n';
