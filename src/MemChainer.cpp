@@ -303,14 +303,17 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         }
         memIndicesInReverse.push_back(bestChainEnd);
         if (shouldBeAdded) {
-          memClusters[tid].insert(memClusters[tid].begin(), pufferfish::util::MemCluster(isFw, readLen));
+          // @fataltes --- is there a reason we were inserting here before rather than
+          // pushing back?
+          memClusters[tid].push_back(pufferfish::util::MemCluster(isFw, readLen));
+          auto& justAddedCluster = memClusters[tid].back();
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
-            memClusters[tid][0].addMem(memList[*it].memInfo, memList[*it].tpos,
+            justAddedCluster.addMem(memList[*it].memInfo, memList[*it].tpos,
                                        memList[*it].extendedlen, memList[*it].rpos, isFw);
           }
-          memClusters[tid][0].coverage = bestScore;
-          if (memClusters[tid][0].coverage == readLen)
-            memClusters[tid][0].perfectChain = true;
+          justAddedCluster.coverage = bestScore;
+          if (justAddedCluster.coverage == readLen)
+            justAddedCluster.perfectChain = true;
           if (verbose)
             std::cerr<<"Added position: " << memClusters[tid][0].coverage << " " << memClusters[tid][0].mems[0].tpos << "\n";
         }
