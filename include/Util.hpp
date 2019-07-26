@@ -51,6 +51,15 @@ namespace pufferfish {
             LEFT, RIGHT
         };
 
+      struct pair_hash
+      {
+        template <class T1, class T2>
+        std::size_t operator() (const std::pair<T1, T2> &pair) const
+        {
+          return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+        }
+      };
+
 // Adapted from
 // https://github.com/mengyao/Complete-Striped-Smith-Waterman-Library/blob/8c9933a1685e0ab50c7d8b7926c9068bc0c9d7d2/src/main.c#L36
         inline void reverseRead(std::string &seq,

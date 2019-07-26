@@ -70,6 +70,7 @@ private:
   pufferfish::util::cigarGenerator cigarGen_;
   std::string read_left_;
   std::string read_right_;
+  std::string refSeqBuffer_;
 
   bool multiMapping;
   AlnCacheMap alnCacheLeft;

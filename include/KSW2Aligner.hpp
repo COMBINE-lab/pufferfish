@@ -44,6 +44,12 @@ public:
   KSW2Aligner(int8_t match = 2, int8_t mismatch = -4);
   KSW2Aligner(std::vector<int8_t> mat);
 
+  KSW2Aligner(const KSW2Aligner& o) = delete;
+  KSW2Aligner(KSW2Aligner&& o) = delete;
+  KSW2Aligner& operator=(KSW2Aligner&& o) = delete;
+  KSW2Aligner& operator=(const KSW2Aligner& o) = delete;
+
+
   /**
    * Variants of the operator that require both an explicit type tag to
    * determine the type of alignment to perform, as well as a pointer to

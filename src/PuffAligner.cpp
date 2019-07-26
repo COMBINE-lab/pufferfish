@@ -82,6 +82,33 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
     return tseq;
 }
 
+bool fillRefSeqBuffer(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen, std::string& refBuffer_) {
+  refBuffer_.clear();
+  if (memlen == 0) return false;
+  //std::string tseq = "";
+  uint64_t bucket_offset = (refAccPos + tpos) * 2;
+  auto len_on_vector = memlen * 2;
+  for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
+    uint32_t len = std::min((uint32_t) 64, len_on_vector - w * 64);
+    if (len == 0) continue;
+    uint64_t word = refseq.get_int(bucket_offset, len);
+    for (uint32_t i = 0; i < len; i += 2) {
+      uint8_t next_bits = ((word >> i) & 0x03);
+      char next = 'A';
+      if (next_bits == 1)
+        next = 'C';
+      else if (next_bits == 2)
+        next = 'G';
+      else if (next_bits == 3)
+        next = 'T';
+      refBuffer_ += next;
+    }
+    bucket_offset += len;
+  }
+  return true;
+}
+
+
 AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
                              bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
 //    verbose = true;
@@ -178,13 +205,14 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
             }
             auto refLength = (refStart + readLen * 2 < refTotalLength) ? readLen * 2 : refTotalLength - refStart;
 
-            tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
+            //tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
+            fillRefSeqBuffer(allRefSeq, refAccPos, refStart, refLength, refSeqBuffer_);
             auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
 
-            aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
+            aligner(readSeq.c_str(), readSeq.length(), refSeqBuffer_.c_str(), refSeqBuffer_.length(), &ez,
                     ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
             alignmentScore = ez.mqe; //std::max(ez.mqe, ez.mte);
-            openGapLen = addCigar(cigarGen, ez, false);
+            //openGapLen = addCigar(cigarGen, ez, false);
             if (verbose) {
                 std::cerr << "Original read seq:\t" << original_read << "\n";
                 std::cerr << "Total alignment with the score\t" << alignmentScore << "\t from position\t" << readStart
@@ -518,7 +546,8 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
             std::cerr << "alignmentScore: " << alignmentScore << "\n";
 //        alignmentScore+=readLen*2; //addedByFatemeh
         bool cigar_fixed{false};
-        cigar = cigarGen.get_cigar(readLen, cigar_fixed);
+        //cigar = cigarGen.get_cigar(readLen, cigar_fixed);
+        
         /*if (cigar_fixed) {
           std::cerr<<read<<"\n";
         } */

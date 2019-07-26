@@ -15,7 +15,7 @@
 #include <iterator>
 #include <sparsepp/spp.h>
 #include "parallel_hashmap/phmap.h"
-
+#include "chobo/small_vector.hpp"
 #include "MemChainer.hpp"
 
 
@@ -53,7 +53,7 @@ private:
   std::vector<pufferfish::util::UniMemInfo> memCollectionRight;
   bool isSingleEnd = false;
   MemClusterer mc;
-  std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>> trMemMap;
+  pufferfish::common_types::RefMemMapT trMemMap;
 
   phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;
   phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> right_refs;

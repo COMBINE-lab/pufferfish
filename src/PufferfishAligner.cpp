@@ -345,6 +345,7 @@ void processReadsPair(paired_parser *parser,
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
+    config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
@@ -644,7 +645,7 @@ void processReadsPair(paired_parser *parser,
             }
 
             // write them on cmd
-            if (hctr.numReads > hctr.lastPrint + 1000000) {
+            if (hctr.numReads > hctr.lastPrint + 100000) {
                 hctr.lastPrint.store(hctr.numReads.load());
                 if (!mopts->quiet and iomutex->try_lock()) {
                     if (hctr.numReads > 0) {

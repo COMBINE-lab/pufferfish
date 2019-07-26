@@ -125,7 +125,7 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
   // Start off pretending we are at least k bases away from the last hit
   uint32_t skip{1};
-  uint32_t altSkip{1};
+  uint32_t altSkip{5};
   int32_t signedK = static_cast<int32_t>(k);
   int32_t basesSinceLastHit{signedK};
   ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
@@ -187,7 +187,8 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
   &memCollectionRight : &memCollectionLeft;
   if (rawHits.size() > 0) {
     auto& other_end_refs = isLeft ? right_refs : left_refs;
-    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, verbose);
+    trMemMap.clear();
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, trMemMap, verbose);
     if (verbose) {
       std::cerr << "lets see what we have\n";
       for (auto kv : trMemMap) {

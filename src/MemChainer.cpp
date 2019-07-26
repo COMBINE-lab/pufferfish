@@ -41,7 +41,7 @@ uint32_t MemClusterer::getMaxAllowedRefsPerHit() {
 }
 
 bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
-                                     std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>> &trMemMap,
+                                     pufferfish::common_types::RefMemMapT &trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, pufferfish::util::ReadEnd re,
                                      phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs, bool verbose) {
   if (verbose)
@@ -92,17 +92,21 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
   return true;
 }
 
+
 bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
                                 phmap::flat_hash_map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
-                                uint32_t maxSpliceGap, std::vector<pufferfish::util::UniMemInfo> &memCollection, uint32_t readLen,
+                                uint32_t maxSpliceGap, std::vector<pufferfish::util::UniMemInfo> &memCollection,
+                                uint32_t readLen,
                                 phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
-                                bool hChain, bool verbose) {
+                                bool hChain,
+                                pufferfish::common_types::RefMemMapT& trMemMap,
+                                bool verbose) {
   using namespace pufferfish::common_types;
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
-  std::map<std::pair<ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>>
-          trMemMap;
+  //phmap::flat_hash_map<std::pair<ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>, pair_hash>
+  //        trMemMap;
   if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs, verbose))
     return false;
 
@@ -160,7 +164,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     f.clear();
     p.clear();
     //auto lastHitId = static_cast<int32_t>(memList.size() - 1);
-    std::vector<pufferfish::util::MemInfo> newMemList;
+    chobo::small_vector<pufferfish::util::MemInfo> newMemList;
     uint32_t prev_qposi = 0;
     uint32_t prev_rposi = 0;
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
@@ -228,10 +232,11 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         //To fix cases where there are repetting sequences in the read or reference
         int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
         int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos + hi.extendedlen);
-        if (rdiff == 0 or qdiff == 0 or rdiff * qdiff < 0 or rdiff_mem * qdiff_mem < 0 or hi.rpos == hj.rpos or
+        /*if (rdiff == 0 or qdiff == 0 or rdiff * qdiff < 0 or rdiff_mem * qdiff_mem < 0 or hi.rpos == hj.rpos or
             hi.tpos == hj.tpos) {
           extensionScore = -std::numeric_limits<double>::infinity();
         }
+        */
         if (verbose) {
           std::cerr << i << " " << j <<
                     " extendedleni:" << hi.extendedlen << " extendedlenj:" << hj.extendedlen <<
