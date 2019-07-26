@@ -273,7 +273,7 @@ namespace cereal
           return;
 
         // generate a name for this new node
-        const auto nameString = pufferfish::util::demangledName<T>();
+        const auto nameString = util::demangledName<T>();
 
         // allocate strings for all of the data in the XML object
         auto namePtr = itsXML.allocate_string( nameString.data(), nameString.length() + 1 );
