@@ -275,25 +275,25 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       }
     }
     // Do backtracking
-    std::vector<bool> seen(f.size(), false);
+    std::vector<uint8_t> seen(f.size(), 0);
     for (auto bestChainEnd : bestChainEndList) {
       if (bestChainEnd >= 0) {
         bool shouldBeAdded = true;
         std::vector<uint64_t> memIndicesInReverse;
         auto lastPtr = p[bestChainEnd];
         while (lastPtr < bestChainEnd) {
-          if (seen[bestChainEnd]) {
+          if (seen[bestChainEnd] > 0) {
             shouldBeAdded = false;
             //break;
           }
           memIndicesInReverse.push_back(bestChainEnd);
-          seen[bestChainEnd] = true;
+          seen[bestChainEnd] = 1;
           bestChainEnd = lastPtr;
           lastPtr = p[bestChainEnd];
           //lastPtr = bestChainEnd;
           //bestChainEnd = p[bestChainEnd];
         }
-        if (seen[bestChainEnd]) {
+        if (seen[bestChainEnd] > 0) {
           shouldBeAdded = false;
         }
         memIndicesInReverse.push_back(bestChainEnd);
