@@ -347,12 +347,19 @@ void processReadsPair(paired_parser *parser,
     config.flag |= KSW_EZ_RIGHT;
     aligner.config() = config;
 
+    constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
+
     // don't think we should have these, they should
     // be baked into the index I think.
     bool filterGenomics = mopts->filterGenomics;
     bool filterMicrobiom = mopts->filterMicrobiom;
 
     auto rg = parser->getReadGroup();
+
+
+    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
+                            mopts, aligner, true);
+
 
     //For filtering reads
     bool verbose = mopts->verbose;
@@ -370,7 +377,6 @@ void processReadsPair(paired_parser *parser,
             rightHits.clear();
             recoveredHits.clear();
             memCollector.clear();
-
 
             // There is no way to revocer the following case other than aligning indels
             //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
@@ -441,7 +447,8 @@ void processReadsPair(paired_parser *parser,
                 std::cerr<<"Number of hits: "<<jointHits.size()<<"\n";
 
             if (!mopts->justMap) {
-                int32_t bestScore = std::numeric_limits<int32_t>::min();
+              puffaligner.clear();
+                int32_t bestScore = invalidScore;
                 std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
                 size_t idx{0};
 
@@ -449,9 +456,9 @@ void processReadsPair(paired_parser *parser,
                 bool bestScoreTxpomic{false};
                 std::map<int32_t, std::vector<int32_t>> transcript_set;
                 for (auto &jointHit : jointHits) {
-                    auto hitScore = puffaligner.calculateAlignments(jointHit, hctr, verbose);
+                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, verbose);
                     /*if (hitScore < 0)
-                        hitScore = std::numeric_limits<int32_t>::min();*/
+                        hitScore = invalidScore;*/
                     scores[idx] = hitScore;
                     const std::string& ref_name = txpNames[jointHit.tid];
                     if (filterGenomics or filterMicrobiom) {
@@ -471,7 +478,7 @@ void processReadsPair(paired_parser *parser,
                         }
                         // Genomic alignments should not be reported in this case
                         if (gene_names.find(ref_name) != gene_names.end())
-                            scores[idx] = std::numeric_limits<int32_t>::min();
+                            scores[idx] = invalidScore;
                     }
 
                     bestScore = (hitScore > bestScore) ? hitScore : bestScore;
@@ -488,16 +495,16 @@ void processReadsPair(paired_parser *parser,
                             transcript_set[jointHit.tid].push_back(idx);
                         } else if (jointHit.coverage() > transcript_set[jointHit.tid][0]) {
                             transcript_set[jointHit.tid][0] = jointHit.coverage();
-                            scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
+                            scores[transcript_set[jointHit.tid][1]] = invalidScore;
                             transcript_set[jointHit.tid][1] = idx;
                         } else {
-                            scores[idx] = std::numeric_limits<int32_t>::min();
+                            scores[idx] = invalidScore;
                         }
                     }
                     ++idx;
                 }
                 if (filterGenomics and bestScoreGenomic and !bestScoreTxpomic) {
-                    // This read is likely come from the genome and should be discarded from txptomic alignments
+                    // This read is likely come from decoy sequence and should be discarded from reference alignments
                     continue;
                 }
                 if (filterMicrobiom and bestScoreGenomic) {
@@ -509,10 +516,10 @@ void processReadsPair(paired_parser *parser,
                     int myctr = 0;
                     for (auto &jointHit : jointHits) {
                         if (primaryDetected and mopts->primaryAlignment) {
-                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                            scores[myctr] = invalidScore;
                         }
                         if (jointHit.coverage() < bestScore)
-                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                            scores[myctr] = invalidScore;
                         else {
                             primaryDetected = true;
                         }
@@ -522,11 +529,11 @@ void processReadsPair(paired_parser *parser,
 
                 // Filter out these alignments with low scores
                 uint32_t ctr{0};
-                if (bestScore > std::numeric_limits<int32_t>::min()) {
+                if (bestScore > invalidScore) {
                     jointHits.erase(
                             std::remove_if(jointHits.begin(), jointHits.end(),
                                            [&ctr, &scores, bestScore](pufferfish::util::JointMems &) -> bool {
-                                               bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
+                                               bool rem = (scores[ctr] == invalidScore);
                                                ++ctr;
                                                return rem;
                                            }),
@@ -559,10 +566,10 @@ void processReadsPair(paired_parser *parser,
             for (auto &jointHit : jointHits) {
                 //FIXME : This part needs to be taken care of
                 //If graph returned failure for one of the ends --> should be investigated more.
-                /*if (!mopts->justMap and ((!jointHit.isOrphan() and (jointHit.leftClust->score == std::numeric_limits<int>::min()
-                             or jointHit.rightClust->score == std::numeric_limits<int>::min()))
-                             or (jointHit.isLeftAvailable() and jointHit.leftClust->score == std::numeric_limits<int>::min())
-                             or (jointHit.isRightAvailable() and jointHit.rightClust->score == std::numeric_limits<int>::min()))
+                /*if (!mopts->justMap and ((!jointHit.isOrphan() and (jointHit.leftClust->score == invalidScore
+                             or jointHit.rightClust->score == invalidScore ))
+                             or (jointHit.isLeftAvailable() and jointHit.leftClust->score == invalidScore )
+                             or (jointHit.isRightAvailable() and jointHit.rightClust->score == invalidScore ))
                                 ) {
                   if (verbose)
                     std::cerr << "Failed: " << rpair.first.name << "\n";
@@ -712,6 +719,8 @@ void processReadsSingle(single_parser *parser,
     config.flag |= KSW_EZ_RIGHT;
     aligner.config() = config;
 
+    constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
+
     auto &txpNames = pfi.getRefNames();
     auto rg = parser->getReadGroup();
     while (parser->refill(rg)) {
@@ -756,7 +765,7 @@ void processReadsSingle(single_parser *parser,
                 PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
                                         read.seq, NULL, mopts, aligner, jointHits.size() > 1);
 
-                int32_t bestScore = std::numeric_limits<int32_t>::min();
+                int32_t bestScore = invalidScore;
                 std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
                 size_t idx{0};
 
@@ -785,7 +794,7 @@ void processReadsSingle(single_parser *parser,
                         }
                         // Genomic alignments should not be reported in this case
                         if (gene_names.find(ref_name) != gene_names.end())
-                            scores[idx] = std::numeric_limits<int32_t>::min();
+                            scores[idx] = invalidScore;
                     }
 
                     bestScore = (hitScore > bestScore) ? hitScore : bestScore;
@@ -802,10 +811,10 @@ void processReadsSingle(single_parser *parser,
                             transcript_set[jointHit.tid].push_back(idx);
                         } else if (jointHit.orphanClust()->coverage > transcript_set[jointHit.tid][0]) {
                             transcript_set[jointHit.tid][0] = jointHit.orphanClust()->coverage;
-                            scores[transcript_set[jointHit.tid][1]] = std::numeric_limits<int32_t>::min();
+                            scores[transcript_set[jointHit.tid][1]] = invalidScore;
                             transcript_set[jointHit.tid][1] = idx;
                         } else {
-                            scores[idx] = std::numeric_limits<int32_t>::min();
+                            scores[idx] = invalidScore;
                         }
                     }
                     ++idx;
@@ -824,10 +833,10 @@ void processReadsSingle(single_parser *parser,
                     int myctr = 0;
                     for (auto &jointHit : jointHits) {
                         if (primaryDetected and mopts->primaryAlignment) {
-                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                            scores[myctr] = invalidScore;
                         }
                         if (jointHit.coverage() < bestScore)
-                            scores[myctr] = std::numeric_limits<int32_t>::min();
+                            scores[myctr] = invalidScore;
                         else {
                             primaryDetected = true;
                         }
@@ -836,11 +845,11 @@ void processReadsSingle(single_parser *parser,
                 }
                 // Filter out mappings with low alignment scores
                 uint32_t ctr{0};
-                if (bestScore > std::numeric_limits<int32_t>::min()) {
+                if (bestScore > invalidScore) {
                     jointHits.erase(
                             std::remove_if(jointHits.begin(), jointHits.end(),
                                            [&ctr, &scores, bestScore](pufferfish::util::JointMems &) -> bool {
-                                               bool rem = (scores[ctr] == std::numeric_limits<int32_t>::min());
+                                               bool rem = (scores[ctr] == invalidScore);
                                                ++ctr;
                                                return rem;
                                            }),

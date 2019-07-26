@@ -94,7 +94,9 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
     int32_t alignmentScore{std::numeric_limits<int32_t>::lowest()};
     int32_t alignment{0};
     uint32_t openGapLen{0};
-    pufferfish::util::cigarGenerator cigarGen;
+    auto& cigarGen = cigarGen_;
+    cigarGen.clear();
+
     std::string cigar = "";
     memset(&ez, 0, sizeof(ksw_extz_t));
 
@@ -546,7 +548,9 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
     return AlignmentResult{alignmentScore, cigar, openGapLen};
 }
 
-int32_t PuffAligner::calculateAlignments(pufferfish::util::JointMems &jointHit, HitCounters &hctr, bool verbose) {
+
+int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& read_right, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
+
     auto tid = jointHit.tid;
     double optFrac{mopts->minScoreFraction};
 
@@ -555,8 +559,7 @@ int32_t PuffAligner::calculateAlignments(pufferfish::util::JointMems &jointHit, 
     };
 
     if (jointHit.isOrphan()) {
-        if (verbose)
-            std::cerr << "orphan\n";
+      if (verbose) {std::cerr << "orphan\n";}
         hctr.totalAlignmentAttempts += 1;
 
         std::string read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
@@ -568,20 +571,18 @@ int32_t PuffAligner::calculateAlignments(pufferfish::util::JointMems &jointHit, 
         jointHit.orphanClust()->cigar = ar.cigar;
         jointHit.orphanClust()->openGapLen = ar.openGapLen;
         jointHit.alignmentScore = static_cast<int32_t >(jointHit.orphanClust()->coverage);
-        if (jointHit.alignmentScore < 0) {
-            std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar.score << "\n";
+        if (jointHit.alignmentScore < 0 and verbose) {
+          std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar.score << "\n";
         }
         return jointHit.alignmentScore;
     } else {
         hctr.totalAlignmentAttempts += 2;
 //        int32_t maxLeftScore = mopts->matchScore * read_left.length();
 //        int32_t maxRightScore = mopts->matchScore * read_right.length();
-        if (verbose)
-            std::cerr << "left\n";
+        if (verbose) { std::cerr << "left\n"; }
         AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
                                             jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, verbose);
-        if (verbose)
-            std::cerr << "right\n";
+        if (verbose) { std::cerr << "right\n"; }
         AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
                                              jointHit.rightClust->isFw, tid, alnCacheRight, hctr, verbose);
         auto score_left = ar_left.score > threshold(read_left.length()) ? ar_left.score
@@ -601,9 +602,12 @@ int32_t PuffAligner::calculateAlignments(pufferfish::util::JointMems &jointHit, 
     }
 }
 
-bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
+int32_t PuffAligner::calculateAlignments(pufferfish::util::JointMems &jointHit, HitCounters &hctr, bool verbose) {
+  return calculateAlignments(read_left_, read_right_, jointHit, hctr, verbose);
+}
 
-  int32_t anchorLen = anchorIsLeft ? read_left.length() : read_right.length();
+bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_right, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
+  int32_t anchorLen = anchorIsLeft ? read_left_.length() : read_right_.length();
   auto tpos = clust.mems[0].tpos;
   auto anchorStart = clust.mems[0].isFw ? clust.mems[0].rpos : anchorLen - (clust.mems[0].rpos + clust.mems[0].extendedlen);
   uint32_t anchorPos = tpos >= anchorStart ? tpos - anchorStart : 0;
@@ -611,10 +615,10 @@ bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster clust, std::v
   bool recovered_fwd;
   uint32_t recovered_pos=-1;
 
-  auto* r1 = read_left.data();
-  auto* r2 = read_right.data();
-  auto l1 = static_cast<int32_t>(read_left.length());
-  auto l2 = static_cast<int32_t>(read_right.length());
+  auto* r1 = read_left_.data();
+  auto* r2 = read_right_.data();
+  auto l1 = static_cast<int32_t>(read_left_.length());
+  auto l2 = static_cast<int32_t>(read_right_.length());
   const char* rptr{nullptr};
   bool anchorFwd{clust.isFw};
   int32_t startPos = -1, maxDist = -1, otherLen = -1, rlen = -1;
@@ -635,14 +639,14 @@ bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster clust, std::v
     anchorLen = l1;
     otherLen = l2;
     maxDist = maxDistRight;
-    otherReadPtr = &read_right;
+    otherReadPtr = &read_right_;
     otherRead = r2;
     otherReadRC = r2rc;
   } else {
     anchorLen = l2;
     otherLen = l1;
     maxDist = maxDistLeft;
-    otherReadPtr = &read_left;
+    otherReadPtr = &read_left_;
     otherRead = r1;
     otherReadRC = r1rc;
   }
@@ -668,7 +672,7 @@ bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster clust, std::v
     windowLength = std::min(500, endPos);
   }
 
-  if (verbose) std::cerr<< anchorPos<< "\n";
+  if (verbose) { std::cerr<< anchorPos<< "\n"; }
   auto tseq = getRefSeq(allRefSeq, refAccPos, startPos, windowLength);
   windowSeq.reset(new char[tseq.length() + 1]);
   strcpy(windowSeq.get(), tseq.c_str());
@@ -681,11 +685,12 @@ bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster clust, std::v
     recovered_pos = startPos + result.startLocations[0];
     recoveredMemClusters.push_back(pufferfish::util::MemCluster(recovered_fwd, rlen));
     auto it = recoveredMemClusters.begin() + recoveredMemClusters.size() - 1;
-    if (verbose)
+    if (verbose) {
       std::cerr<< anchorIsLeft << " " << anchorFwd << " " <<  anchorPos << " " << startPos + result.startLocations[0] <<" " << result.editDistance << "\n";
+    }
     orphanRecoveryMemCollection.push_back(pufferfish::util::UniMemInfo());
     auto memItr = orphanRecoveryMemCollection.begin() + orphanRecoveryMemCollection.size() - 1;
-    if (verbose) std::cerr<<recovered_fwd << " " << orphanRecoveryMemCollection.size()<<"\n";
+    if (verbose) { std::cerr<<recovered_fwd << " " << orphanRecoveryMemCollection.size()<<"\n"; }
     it->addMem(memItr, recovered_pos, 1, recovered_fwd ? 1 : rlen-1, recovered_fwd);
 
     //delete windowSeq;
@@ -696,4 +701,9 @@ bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster clust, std::v
     edlibFreeAlignResult(result);
     return false;
   }
+}
+
+
+bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
+  recoverSingleOrphan(read_left_, read_right_, clust, recoveredMemClusters, tid, anchorIsLeft, verbose);
 }

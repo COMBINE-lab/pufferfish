@@ -195,6 +195,7 @@ Compile-time selection between list-like and map-like printing.
             std::vector<uint32_t> cigar_counts;
             std::vector<std::string> cigar_types;
 
+          void clear() { cigar_counts.clear(); cigar_types.clear(); }
             void add_item(uint32_t count, std::string type) {
                 cigar_counts.push_back(count);
                 cigar_types.push_back(type);
