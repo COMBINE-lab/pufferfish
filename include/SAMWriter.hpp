@@ -3,6 +3,7 @@
 
 #include "PairedAlignmentFormatter.hpp"
 #include "PufferfishIndex.hpp"
+#include "PufferfishConfig.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 #include "BinWriter.hpp"
@@ -100,6 +101,45 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
     bw << txpNames[i] << txpLens[i]; //txpName (string) , txpLength (size_t)
   }
   out->info("{}",bw);
+}
+
+
+template <typename IndexT>
+inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
+  fmt::MemoryWriter hd;
+  hd.write("@HD\tVN:1.0\tSO:unknown\n");
+
+  auto& txpNames = pfi.txpNames;
+  auto& txpLens = pfi.txpLens;
+
+  auto numRef = txpNames.size();
+  for (size_t i = 0; i < numRef; ++i) {
+    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
+  }
+  // Eventually output a @PG line
+  hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
+  std::string headerStr(hd.str());
+  // Don't include the last '\n', since the logger will do it for us.
+  headerStr.pop_back();
+  out->info(headerStr);
+}
+
+
+template <typename IndexT>
+inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
+  fmt::MemoryWriter hd;
+  hd.write("@HD\tVN:1.0\tSO:unknown\n");
+
+  auto& txpNames = pfi.txpNames;
+  auto& txpLens = pfi.txpLens;
+
+  auto numRef = txpNames.size();
+  for (size_t i = 0; i < numRef; ++i) {
+    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
+  }
+  // Eventually output a @PG line
+  hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
+  outStream << hd.str();
 }
 
 template <typename IndexT>
