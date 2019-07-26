@@ -7,6 +7,7 @@
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 #include "BinWriter.hpp"
+#include "parallel_hashmap/phmap.h"
 
 typedef uint16_t rLenType;
 typedef uint32_t refLenType;
@@ -143,7 +144,7 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
 }
 
 template <typename IndexT>
-inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, bool filterGenomics, std::unordered_set<std::string> gene_names) {
+inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, bool filterGenomics, phmap::flat_hash_set<std::string> gene_names) {
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
@@ -164,7 +165,7 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, boo
   // some other version nnumber for now,
   // will think about it later
   std::string version = "0.1.0";
-  hd.write("@PG\tID:rapmap\tPN:rapmap\tVN:{}\n", version);
+  hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
   std::string headerStr(hd.str());
   // Don't include the last '\n', since the logger will do it for us.
   headerStr.pop_back();

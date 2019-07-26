@@ -14,6 +14,7 @@
 #include <iostream>
 #include <iterator>
 #include <sparsepp/spp.h>
+#include "parallel_hashmap/phmap.h"
 
 #include "MemChainer.hpp"
 
@@ -34,7 +35,7 @@ public:
                   bool verbose=false);
 
   bool findChains(std::string &read,
-                  spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
+                  phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain=false,
@@ -54,8 +55,8 @@ private:
   MemClusterer mc;
   std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>> trMemMap;
 
-  spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;
-  spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> right_refs;
+  phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;
+  phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> right_refs;
 
   std::vector<std::pair<int, pufferfish::util::ProjectedHits>> left_rawHits;
   std::vector<std::pair<int, pufferfish::util::ProjectedHits>> right_rawHits;

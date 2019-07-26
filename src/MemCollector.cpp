@@ -172,7 +172,7 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
-                  spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
+                  phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain,

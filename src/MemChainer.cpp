@@ -43,7 +43,7 @@ uint32_t MemClusterer::getMaxAllowedRefsPerHit() {
 bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
                                      std::map<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>> &trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, pufferfish::util::ReadEnd re,
-                                     spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs, bool verbose) {
+                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs, bool verbose) {
   if (verbose)
     std::cerr << "\n[FIND_OPT_CHAIN]\n";
 
@@ -93,9 +93,9 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
 }
 
 bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
-                                spp::sparse_hash_map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
+                                phmap::flat_hash_map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
                                 uint32_t maxSpliceGap, std::vector<pufferfish::util::UniMemInfo> &memCollection, uint32_t readLen,
-                                spp::sparse_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
+                                phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
                                 bool hChain, bool verbose) {
   using namespace pufferfish::common_types;
   //(void)verbose;

@@ -30,7 +30,7 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
 #include <sparsepp/spp.h>
-
+#include "parallel_hashmap/phmap.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/ostream_sink.h"
@@ -73,7 +73,7 @@ using MateStatus = pufferfish::util::MateStatus;
 
 using MutexT = std::mutex;
 
-void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+void joinReadsAndFilterSingle(phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
                               std::vector<pufferfish::util::JointMems> &jointMemsList,
                               uint32_t perfectCoverage,
                               double coverageRatio,
@@ -102,8 +102,8 @@ void joinReadsAndFilterSingle(spp::sparse_hash_map<size_t, std::vector<pufferfis
 }
 
 
-pufferfish::util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
-                        spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
+pufferfish::util::MergeResult joinReadsAndFilter(phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                        phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
                         std::vector<pufferfish::util::JointMems> &jointMemsList,
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
@@ -114,15 +114,13 @@ pufferfish::util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, st
     using pufferfish::util::MergeResult;
     MergeResult mergeRes{MergeResult::HAD_NONE};
 
-    if (verbose)
-        std::cerr << "\n[JOINREADSANDFILTER]\n";
+    if (verbose) { std::cerr << "\n[JOINREADSANDFILTER]\n";}
 
     uint64_t maxLeft{0}, maxRight{0}, maxLeftCnt{0}, maxRightCnt{0};
     bool isMaxLeftAndRight = false;
     if (!noOrphans) {
         for (auto &kv : leftMemClusters) {
-            if (verbose)
-                std::cerr << "\ntid:" << kv.first << "\n";
+          if (verbose) {std::cerr << "\ntid:" << kv.first << "\n"; }
             auto &lClusts = kv.second;
             for (auto clust = lClusts.begin(); clust != lClusts.end(); clust++) {
                 if (maxLeft == clust->coverage) {
@@ -132,29 +130,31 @@ pufferfish::util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, st
                     maxLeftCnt = 1;
                 }
             }
-        }
+        } // leftMemClusters
         for (auto &kv : rightMemClusters) {
-            if (verbose)
-                std::cerr << "\ntid:" << kv.first << "\n";
+          if (verbose) { std::cerr << "\ntid:" << kv.first << "\n"; }
 
-            auto &rClusts = kv.second;
-            for (auto clust = rClusts.begin(); clust != rClusts.end(); clust++) {
-                if (maxRight == clust->coverage) {
-                    maxRightCnt += 1;
-                } else if (maxRight < clust->coverage) {
-                    maxRight = clust->coverage;
-                    maxRightCnt = 1;
-                }
+          auto &rClusts = kv.second;
+          for (auto clust = rClusts.begin(); clust != rClusts.end(); clust++) {
+            if (maxRight == clust->coverage) {
+              maxRightCnt += 1;
+            } else if (maxRight < clust->coverage) {
+              maxRight = clust->coverage;
+              maxRightCnt = 1;
             }
-        }
-    }
+          }
+        } // rightMemClusters
+    } // !noOrphans
+
+
     auto maxLeftOrRight = maxLeft > maxRight ? maxLeft : maxRight;
+
     //orphan reads should be taken care of maybe with a flag!
     uint32_t maxCoverage{0};
-    short round{0};
+    uint8_t round{0};
     uint32_t sameTxpCount{0};
 
-    while (round == 0 || (round == 1 && !jointMemsList.size() && !noDiscordant)) {
+    while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
         for (auto &leftClustItr : leftMemClusters) {
             // reference id
             size_t tid = leftClustItr.first;
@@ -162,41 +162,42 @@ pufferfish::util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, st
             auto &lClusts = leftClustItr.second;
             // right mem clusters for the same reference id
             auto &rClusts = rightMemClusters[tid];
-            // Compare the left clusters to the right clusters to filter by positional constraints
 
+            // Compare the left clusters to the right clusters to filter by positional constraints
             for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
 
                 for (auto rclust = rClusts.begin(); rclust != rClusts.end(); rclust++) {
-
                     // if both the left and right clusters are oriented in the same direction, skip this pair
                     // NOTE: This should be optional as some libraries could allow this.
-                    if (round == 0 && lclust->isFw == rclust->isFw) { // if priority 0, ends should be concordant
+                    if (round == 0 and lclust->isFw == rclust->isFw) { // if priority 0, ends should be concordant
                         continue;
                     }
+
                     // FILTER 1
                     // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
-                    size_t fragmentLen = rclust->lastRefPos() + rclust->lastMemLen() - lclust->firstRefPos();
+                    int32_t fragmentLen = rclust->lastRefPos() + rclust->lastMemLen() - lclust->firstRefPos();
                     if (lclust->firstRefPos() > rclust->firstRefPos()) {
                         fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
                     }
-                    if (fragmentLen < 0) {
+                    if (fragmentLen < 0) { // @fatemeh : should we even be checking for this?
                         std::cerr << "Fragment length cannot be smaller than zero!\n";
                         exit(1);
                     }
+
                     // FILTERING fragments with size smaller than maxFragmentLength
                     // FILTER just in case of priority 0 (round 0)
-                    if (fragmentLen < maxFragmentLength || round > 0) {
+                    if ((fragmentLen < maxFragmentLength) or (round > 0)) {
                         // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
                         // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
                         auto totalCoverage = lclust->coverage + rclust->coverage;
-                        if (totalCoverage >= coverageRatio * maxCoverage or
-                            totalCoverage == perfectCoverage) {
+                        if ( (totalCoverage >= coverageRatio * maxCoverage) or
+                              (totalCoverage == perfectCoverage) ) {
                             ++sameTxpCount;
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                             uint32_t currCoverage = jointMemsList.back().coverage();
                             if (maxCoverage < currCoverage) {
                                 maxCoverage = currCoverage;
-                                if (lclust->coverage < maxLeft || rclust->coverage < maxRight) {
+                                if ( (lclust->coverage < maxLeft) or (rclust->coverage < maxRight)) {
                                     isMaxLeftAndRight = false;
                                 } else {
                                     isMaxLeftAndRight = true;
@@ -206,18 +207,19 @@ pufferfish::util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, st
                     }
                 }
             }
-        }
+        } // @fatemeh : this nesting just seems too many levels deep.  Can we re-work the logic here to make things simpler?
         round++;
     }
+
     // If we couldn't find any pair and we are allowed to add orphans
     if (verbose) {
         std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
     }
 
     bool leftOrphan = false; bool rightOrphan = false;
-    if (!noOrphans && (!jointMemsList.size() || !isMaxLeftAndRight || maxLeftCnt > 1 || maxRightCnt > 1)) {
+    if (!noOrphans and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
-                (spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &memClusters,
+                (phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &memClusters,
                  bool isLeft) {
             // fragmentLen is set to 0
             std::vector<pufferfish::util::MemCluster> dummyCluster;
@@ -247,16 +249,17 @@ pufferfish::util::MergeResult joinReadsAndFilter(spp::sparse_hash_map<size_t, st
         orphanFiller(rightMemClusters, false);
     }
     if (sameTxpCount == 0) {
-      if (leftOrphan and !rightOrphan)
+      if (leftOrphan and !rightOrphan) {
         mergeRes = MergeResult::HAD_ONLY_LEFT;
-      else if (!leftOrphan and rightOrphan)
+      } else if (!leftOrphan and rightOrphan) {
         mergeRes = MergeResult::HAD_ONLY_RIGHT;
-      else if (leftOrphan and rightOrphan)
+      } else if (leftOrphan and rightOrphan) {
         mergeRes = MergeResult::HAD_EMPTY_INTERSECTION;
-      else
+      } else {
         mergeRes = MergeResult::HAD_NONE;
+      }
     } else {
-        mergeRes = round == 0 ? MergeResult::HAD_CONCORDANT : MergeResult::HAD_DISCORDANT;
+      mergeRes = (round == 0) ? MergeResult::HAD_CONCORDANT : MergeResult::HAD_DISCORDANT;
     }
     if (verbose) {
         std::cerr << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
@@ -310,24 +313,22 @@ void processReadsPair(paired_parser *parser,
                       MutexT *iomutex,
                       std::shared_ptr<spdlog::logger> outQueue,
                       HitCounters &hctr,
-                      std::unordered_set<std::string> gene_names,
+                      phmap::flat_hash_set<std::string>& gene_names,
                       AlignmentOpts *mopts) {
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
 
-    //create aligner
-    spp::sparse_hash_map<uint32_t, pufferfish::util::ContigBlock> contigSeqCache;
-    RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
-
     auto logger = spdlog::get("stderrLog");
     fmt::MemoryWriter sstream;
     BinWriter bstream;
+
     //size_t batchSize{2500} ;
     size_t readLen{0}, mateLen{0};
     size_t totLen{0};
 
-    spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
-    spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> rightHits;
+    phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
+    phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> rightHits;
+
     std::vector<pufferfish::util::MemCluster> recoveredHits;
     std::vector<pufferfish::util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
@@ -341,10 +342,15 @@ void processReadsPair(paired_parser *parser,
     config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
-    config.bandwidth = 10;
+    config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
     aligner.config() = config;
+
+    // don't think we should have these, they should
+    // be baked into the index I think.
+    bool filterGenomics = mopts->filterGenomics;
+    bool filterMicrobiom = mopts->filterMicrobiom;
 
     auto rg = parser->getReadGroup();
 
@@ -364,8 +370,7 @@ void processReadsPair(paired_parser *parser,
             rightHits.clear();
             recoveredHits.clear();
             memCollector.clear();
-            bool filterGenomics = mopts->filterGenomics;
-            bool filterMicrobiom = mopts->filterMicrobiom;
+
 
             // There is no way to revocer the following case other than aligning indels
             //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
@@ -375,7 +380,7 @@ void processReadsPair(paired_parser *parser,
             // verbose = rpair.first.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
             //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
 
-//verbose = rpair.first.name == "mason_sample5_primary_1M_random.fasta.000050010/1";
+            //verbose = rpair.first.name == "mason_sample5_primary_1M_random.fasta.000050010/1";
             bool lh = memCollector(rpair.first.seq,
                                    qc,
                                    true, // isLeft
@@ -448,7 +453,7 @@ void processReadsPair(paired_parser *parser,
                     /*if (hitScore < 0)
                         hitScore = std::numeric_limits<int32_t>::min();*/
                     scores[idx] = hitScore;
-                    std::string ref_name = txpNames[jointHit.tid];
+                    const std::string& ref_name = txpNames[jointHit.tid];
                     if (filterGenomics or filterMicrobiom) {
                         if (hitScore > bestScore) {
                             if (gene_names.find(ref_name) != gene_names.end()) {
@@ -677,14 +682,10 @@ void processReadsSingle(single_parser *parser,
                         MutexT *iomutex,
                         std::shared_ptr<spdlog::logger> outQueue,
                         HitCounters &hctr,
-                        std::unordered_set<std::string> gene_names,
+                        phmap::flat_hash_set<std::string>& gene_names,
                         AlignmentOpts *mopts) {
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
-
-    //create aligner
-    spp::sparse_hash_map<uint32_t, pufferfish::util::ContigBlock> contigSeqCache;
-    RefSeqConstructor<PufferfishIndexT> refSeqConstructor(&pfi, &contigSeqCache);
 
     auto logger = spdlog::get("stderrLog");
     fmt::MemoryWriter sstream;
@@ -693,7 +694,7 @@ void processReadsSingle(single_parser *parser,
     size_t readLen{0};
     //size_t totLen{0};
 
-    spp::sparse_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
+    phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
     std::vector<pufferfish::util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
     pufferfish::util::QueryCache qc;
@@ -950,14 +951,14 @@ void processReadsSingle(single_parser *parser,
 // PAIRED END
 //============
 template<typename PufferfishIndexT>
-bool spawnProcessReadsthreads(
+bool spawnProcessReadsThreads(
         uint32_t nthread,
         paired_parser *parser,
         PufferfishIndexT &pfi,
         MutexT &iomutex,
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
-        std::unordered_set<std::string> gene_names,
+        phmap::flat_hash_set<std::string>& gene_names,
         AlignmentOpts *mopts) {
 
     std::vector<std::thread> threads;
@@ -970,7 +971,7 @@ bool spawnProcessReadsthreads(
                              &iomutex,
                              outQueue,
                              std::ref(hctr),
-                             gene_names,
+                             std::ref(gene_names),
                              mopts);
     }
     for (auto &t : threads) { t.join(); }
@@ -982,14 +983,14 @@ bool spawnProcessReadsthreads(
 // SINGLE END
 //============
 template<typename PufferfishIndexT>
-bool spawnProcessReadsthreads(
+bool spawnProcessReadsThreads(
         uint32_t nthread,
         single_parser *parser,
         PufferfishIndexT &pfi,
         MutexT &iomutex,
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
-        std::unordered_set<std::string> gene_names,
+        phmap::flat_hash_set<std::string>& gene_names,
         AlignmentOpts *mopts) {
 
     std::vector<std::thread> threads;
@@ -1002,7 +1003,7 @@ bool spawnProcessReadsthreads(
                              &iomutex,
                              outQueue,
                              std::ref(hctr),
-                             gene_names,
+                             std::ref(gene_names),
                              mopts);
     }
     for (auto &t : threads) { t.join(); }
@@ -1048,7 +1049,7 @@ bool alignReads(
     //bool haveOutputFile{false} ;
     std::shared_ptr<spdlog::logger> outLog{nullptr};
 
-    std::unordered_set<std::string> gene_names;
+    phmap::flat_hash_set<std::string> gene_names;
     if (mopts->filterGenomics or mopts->filterMicrobiom) {
         std::ifstream gene_names_file;
         std::string gene_name;
@@ -1128,7 +1129,7 @@ bool alignReads(
         uint32_t nprod = (read1Vec.size() > 1) ? 2 : 1;
         pairParserPtr.reset(new paired_parser(read1Vec, read2Vec, nthread, nprod, chunkSize));
         pairParserPtr->start();
-        spawnProcessReadsthreads(nthread, pairParserPtr.get(), pfi, iomutex,
+        spawnProcessReadsThreads(nthread, pairParserPtr.get(), pfi, iomutex,
                                  outLog, hctrs, gene_names, mopts);
         pairParserPtr->stop();
         consoleLog->info("flushing output queue.");
@@ -1144,7 +1145,7 @@ bool alignReads(
         singleParserPtr.reset(new single_parser(readVec, nthread, nprod, chunkSize));
         singleParserPtr->start();
 
-        spawnProcessReadsthreads(nthread, singleParserPtr.get(), pfi, iomutex,
+        spawnProcessReadsThreads(nthread, singleParserPtr.get(), pfi, iomutex,
                                  outLog, hctrs, gene_names, mopts);
 
         singleParserPtr->stop();
