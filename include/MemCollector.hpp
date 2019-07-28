@@ -35,7 +35,8 @@ public:
                   bool verbose=false);
 
   bool findChains(std::string &read,
-                  phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
+                  pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
+                  //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain=false,
@@ -53,7 +54,9 @@ private:
   std::vector<pufferfish::util::UniMemInfo> memCollectionRight;
   bool isSingleEnd = false;
   MemClusterer mc;
-  pufferfish::common_types::RefMemMapT trMemMap;
+  //pufferfish::common_types::RefMemMapT trMemMap;
+  pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, chobo::small_vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash> trMemMap;
+
 
   phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;
   phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> right_refs;

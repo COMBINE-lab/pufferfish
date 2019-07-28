@@ -102,8 +102,11 @@ void joinReadsAndFilterSingle(phmap::flat_hash_map<size_t, std::vector<pufferfis
 }
 
 
-pufferfish::util::MergeResult joinReadsAndFilter(phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
-                        phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
+pufferfish::util::MergeResult joinReadsAndFilter(
+                                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& rightMemClusters,
+                                                 //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                                                 //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
                         std::vector<pufferfish::util::JointMems> &jointMemsList,
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
@@ -119,6 +122,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(phmap::flat_hash_map<size_t, st
     uint64_t maxLeft{0}, maxRight{0}, maxLeftCnt{0}, maxRightCnt{0};
     bool isMaxLeftAndRight = false;
     if (!noOrphans) {
+      /*
         for (auto &kv : leftMemClusters) {
           if (verbose) {std::cerr << "\ntid:" << kv.first << "\n"; }
             auto &lClusts = kv.second;
@@ -144,6 +148,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(phmap::flat_hash_map<size_t, st
             }
           }
         } // rightMemClusters
+      */
     } // !noOrphans
 
 
@@ -155,11 +160,14 @@ pufferfish::util::MergeResult joinReadsAndFilter(phmap::flat_hash_map<size_t, st
     uint32_t sameTxpCount{0};
 
     while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
-        for (auto &leftClustItr : leftMemClusters) {
+      //for (auto &leftClustItr : leftMemClusters) {
+      for (auto leftClustItr = leftMemClusters.key_begin(); leftClustItr != leftMemClusters.key_end(); ++ leftClustItr) {
             // reference id
-            size_t tid = leftClustItr.first;
+            //size_t tid = leftClustItr.first;
+            size_t tid = leftClustItr->first;
             // left mem clusters
-            auto &lClusts = leftClustItr.second;
+            //auto &lClusts = leftClustItr.second;
+            auto &lClusts = leftMemClusters.cache_index(leftClustItr->second);
             // right mem clusters for the same reference id
             auto &rClusts = rightMemClusters[tid];
 
@@ -218,8 +226,9 @@ pufferfish::util::MergeResult joinReadsAndFilter(phmap::flat_hash_map<size_t, st
 
     bool leftOrphan = false; bool rightOrphan = false;
     if (!noOrphans and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
+      /*
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
-                (phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &memClusters,
+          (phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &memClusters,
                  bool isLeft) {
             // fragmentLen is set to 0
             std::vector<pufferfish::util::MemCluster> dummyCluster;
@@ -247,6 +256,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(phmap::flat_hash_map<size_t, st
         };
         orphanFiller(leftMemClusters, true);
         orphanFiller(rightMemClusters, false);
+    */
     }
     if (sameTxpCount == 0) {
       if (leftOrphan and !rightOrphan) {
@@ -326,8 +336,11 @@ void processReadsPair(paired_parser *parser,
     size_t readLen{0}, mateLen{0};
     size_t totLen{0};
 
-    phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
-    phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> rightHits;
+
+    pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> leftHits;
+    pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> rightHits;
+    //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> leftHits;
+    //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> rightHits;
 
     std::vector<pufferfish::util::MemCluster> recoveredHits;
     std::vector<pufferfish::util::JointMems> jointHits;
@@ -692,6 +705,7 @@ void processReadsSingle(single_parser *parser,
                         HitCounters &hctr,
                         phmap::flat_hash_set<std::string>& gene_names,
                         AlignmentOpts *mopts) {
+  /*
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
 
@@ -900,9 +914,11 @@ void processReadsSingle(single_parser *parser,
 
             // write puffkrak format output
             if (mopts->krakOut) {
-                writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream);
+                writeAlignmentsToKrakenDump(read, // formatter,  
+                                            validHits, bstream);
             } else if (mopts->salmonOut) {
-                writeAlignmentsToKrakenDump(read, /* formatter,  */validHits, bstream, false);
+                writeAlignmentsToKrakenDump(read, / formatter,  
+                                            validHits, bstream, false);
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
@@ -955,6 +971,7 @@ void processReadsSingle(single_parser *parser,
         }
 
     } // processed all reads
+*/
 }
 
 //===========

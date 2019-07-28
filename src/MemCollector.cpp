@@ -172,7 +172,8 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
-                  phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
+                                                pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
+                                                //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain,
@@ -189,6 +190,7 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
     auto& other_end_refs = isLeft ? right_refs : left_refs;
     trMemMap.clear();
     mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, trMemMap, verbose);
+    /*
     if (verbose) {
       std::cerr << "lets see what we have\n";
       for (auto kv : trMemMap) {
@@ -205,6 +207,7 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
         }
       }
     }
+    */
     return true;
   }
   return false;

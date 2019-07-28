@@ -19,6 +19,8 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
+#include "chobo/small_vector.hpp"
+#include "parallel_hashmap/phmap.h"
 
 #ifndef __DEFINE_LIKELY_MACRO__
 #define __DEFINE_LIKELY_MACRO__
@@ -61,36 +63,51 @@ namespace pufferfish {
       };
 
 
-      /*
+
       template <typename K, typename V, typename H>
       class CachedVectorMap {
+      private:
+        phmap::flat_hash_map<K, uint32_t, H> index_map_;
+        std::vector<V> cache_;
+        uint32_t next_avail_{0};
 
+      public:
         CachedVectorMap(){}
 
-        chobo::small_vector<T>& operator[](const K&) {
-          auto it = index_map_.find(K);
+        V& operator[](const K& k) {
+          auto it = index_map_.find(k);
           if (it == index_map_.end()) {
             auto idx = next_avail_;
             ++next_avail_;
-            index_map_[K] = idx;
+            index_map_[k] = idx;
             if (idx >= cache_.size()) {
-              cache_.emplace_back(chobo::small_vector<T>());
+              cache_.emplace_back(V());
               return cache_.back();
             } else {
               cache_[idx].clear();
               return cache_[idx];
             }
           } else {
-            return *it;
+            return cache_[it->second];
           }
         }
 
-      private:
-        phmap::flat_hash_map<K, uint32_t, H> index_map_;
-        std::vector<chobo::small_vector<T>> cache_;
-        uint32_t next_avail_{0};
+        V& cache_index(uint32_t ci) {
+          return cache_[ci];
+        }
+
+        decltype(index_map_.begin()) key_begin() { return index_map_.begin(); }
+        decltype(index_map_.end()) key_end() { return index_map_.end(); }
+
+        size_t size() const { return index_map_.size(); }
+
+        void clear() {
+          next_avail_ = 0;
+          index_map_.clear();
+        }
+
       };
-      */
+
 
 
 // Adapted from
