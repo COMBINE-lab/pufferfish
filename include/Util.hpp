@@ -153,7 +153,7 @@ namespace pufferfish {
                 return !((*this) == itr);
             }
 
-            void set2End() {key = vm.index_map_.end(); setKV();}
+            void set2End() {key = vm.index_map_.end();}
 
           private:
             CachedVectorMap &vm;
