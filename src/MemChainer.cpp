@@ -45,8 +45,8 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
                                      RefMemMap& trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, pufferfish::util::ReadEnd re,
                                      phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs, bool verbose) {
-  if (verbose)
-    std::cerr << "\n[FIND_OPT_CHAIN]\n";
+  //if (verbose)
+  //  std::cerr << "\n[FIND_OPT_CHAIN]\n";
 
   using namespace pufferfish::common_types;
   //(void)verbose;
@@ -59,16 +59,16 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
   // every gap between the hits and before the first and after the last hit
   // still the memCollection size doesn't change and hence the pointers are valid
   memCollection.reserve(maxAllowedRefsPerHit * 2 * hits.size() + 1);
-  if (verbose)
-    std::cerr << "\nreserved memCollection size: " << maxAllowedRefsPerHit * 2 * hits.size() + 1 << "\n";
+  //if (verbose)
+  //  std::cerr << "\nreserved memCollection size: " << maxAllowedRefsPerHit * 2 * hits.size() + 1 << "\n";
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
     auto &readPos = hit.first;
     auto &projHits = hit.second;
     // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
     // Maybe we want to change the interface (make these members public or provide accessors)?
     auto &refs = projHits.refRange;
-    if (verbose)
-      std::cerr << "total number of references found: " << refs.size() << "\n";
+    //if (verbose)
+    //  std::cerr << "total number of references found: " << refs.size() << "\n";
     if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit) {
       uint32_t mappings{0};
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
@@ -78,16 +78,15 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
       for (auto &posIt : refs) {
       //If we want to let the the hits to the references also found by the other end to be accepted
       //if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit or other_end_refs.find(posIt.transcript_id()) != other_end_refs.end() ) {
-        auto refPosOri = projHits.decodeHit(posIt);
-        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)]
-                .emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
+        const auto& refPosOri = projHits.decodeHit(posIt);
+        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)].emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
         mappings++;
       //}
       }
 
-      if (verbose) {
-        std::cerr << "total number of mappings found: " << mappings << "\n";
-      }
+      //if (verbose) {
+      //  std::cerr << "total number of mappings found: " << mappings << "\n";
+      //}
     }
   }
   return true;
@@ -114,7 +113,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     return false;
 
   size_t maxHits{0};
-  // chobo::small_vector<pufferfish::util::MemInfo> newMemList;
   for (auto hitIt = trMemMap.key_begin(); hitIt != trMemMap.key_end(); ++hitIt) {
     auto& trOri = hitIt->first;
     //    auto& 
@@ -209,7 +207,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     size_t tidx{0};
     memList.erase(std::remove_if(memList.begin(), memList.end(), [&tidx, this](pufferfish::util::MemInfo& m) { bool r = (this->keepMem[tidx] == 0); ++tidx; return r; }),
                   memList.end());
-    
+    /*
     if (verbose) {
       std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
@@ -217,6 +215,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                   << "\n";
       }
     }
+    */
 
     p.reserve(memList.size());
     f.reserve(memList.size());
@@ -254,6 +253,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
           extensionScore = -std::numeric_limits<double>::infinity();
         }
         */
+        /*
         if (verbose) {
           std::cerr << i << " " << j <<
                     " extendedleni:" << hi.extendedlen << " extendedlenj:" << hj.extendedlen <<
@@ -263,6 +263,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                     " beta:" << beta(qdiff, rdiff, avgseed) <<
                     " extensionScore: " << extensionScore << "\n";
         }
+        */
         bool extendWithJ = (extensionScore > f[i]);
         p[i] = extendWithJ ? j : p[i];
         f[i] = extendWithJ ? extensionScore : f[i];
@@ -331,8 +332,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
           justAddedCluster.coverage = bestScore;
           if (justAddedCluster.coverage == readLen)
             justAddedCluster.perfectChain = true;
+          /*
           if (verbose)
             std::cerr<<"Added position: " << memClusters[tid][0].coverage << " " << memClusters[tid][0].mems[0].tpos << "\n";
+          */
         }
         //minPosIt += lastPtr;
       } else {
@@ -346,8 +349,9 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     }
 
   }
+  /*
   if (verbose)
     std::cerr << "\n[END OF FIND_OPT_CHAIN]\n";
-
+  */
   return true;
 }
