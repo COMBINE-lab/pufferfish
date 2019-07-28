@@ -70,7 +70,6 @@ namespace pufferfish {
         phmap::flat_hash_map<K, uint32_t, H> index_map_;
         std::vector<V> cache_;
         uint32_t next_avail_{0};
-
       public:
         CachedVectorMap(){}
 
@@ -106,6 +105,70 @@ namespace pufferfish {
           index_map_.clear();
         }
 
+        class iterator {
+
+            typedef iterator self_type;
+            typedef std::pair<K,V*> value_type;
+            typedef value_type& reference;
+            typedef value_type* pointer;
+//            typedef std::input_iterator_tag iterator_category;
+//            typedef int64_t difference_type;
+
+        public:
+            explicit iterator(CachedVectorMap &vmIn): vm(vmIn) {
+              key = vm.index_map_.begin();
+              setKV();
+            }
+
+            reference operator*() {
+                return kv;
+            }
+
+            pointer operator->() { return &operator*(); }
+
+            iterator& operator++() {
+                key++;
+                setKV();
+                return *this;
+            }
+
+            iterator operator++(int) {
+                auto tmp = *this;
+                ++*this;
+                return tmp;
+            }
+
+            bool operator==(const self_type& itr) {
+                if (key == itr.key and key == vm.index_map_.end()) return true;
+                if (key != itr.key) return false;
+                if (kv.first != itr.kv.first) return false;
+                if (kv.second->size() != itr.kv.second->size()) return false;
+                for (uint64_t i = 0; i < kv.second->size(); i++) {
+                    if ((*kv.second)[i] != (*itr.kv.second)[i]) return false;
+                }
+                return true;
+            }
+
+            bool operator!=(const self_type& itr) {
+                return !((*this) == itr);
+            }
+
+            void set2End() {key = vm.index_map_.end(); setKV();}
+
+          private:
+            CachedVectorMap &vm;
+            value_type kv;
+            decltype(index_map_.begin()) key;
+
+            void setKV() {
+                kv.first = key->first;
+                kv.second = key->second >= vm.cache_.size()?nullptr:&vm.cache_[key->second];
+            }
+
+          };
+
+        iterator begin() {iterator it_(*this); return it_;}
+        iterator end() {iterator it_(*this); it_.set2End(); return it_;}
       };
 
 
@@ -400,6 +463,12 @@ Compile-time selection between list-like and map-like printing.
             MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn, uint32_t extendedlenIn,
                     uint32_t rposIn, bool isFwIn = true) :
                     memInfo(uniMemInfoIn), tpos(tposIn), isFw(isFwIn), extendedlen(extendedlenIn), rpos(rposIn) {}
+            bool operator==(const MemInfo& mi) {
+                return memInfo == mi.memInfo and tpos == mi.tpos and isFw == mi.isFw and extendedlen == mi.extendedlen and rpos == mi.rpos;
+            }
+            bool operator!=(const MemInfo& mi) {
+                return !((*this) == mi);
+            }
         };
 
         struct MemCluster {

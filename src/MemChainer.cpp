@@ -113,16 +113,17 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     return false;
 
   size_t maxHits{0};
-  for (auto hitIt = trMemMap.key_begin(); hitIt != trMemMap.key_end(); ++hitIt) {
+//  for (auto hitIt = trMemMap.key_begin(); hitIt != trMemMap.key_end(); ++hitIt) {
+  for (auto hitIt = trMemMap.begin(); hitIt != trMemMap.end(); ++hitIt) {
+
     auto& trOri = hitIt->first;
     //    auto& 
     //for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
     //auto &trOri = trMem.first;
     auto &tid = trOri.first;
     auto &isFw = trOri.second;
-    //auto &memList = trMem.second;
-    auto& memList = trMemMap.cache_index(hitIt->second);
-
+    auto &memList = *hitIt->second;
+//    auto& memList = trMemMap.cache_index(hitIt->second);
     size_t hits = memList.size();
     if (hits < 0.65 * maxHits) { continue; }
     if (hits > maxHits) { maxHits = hits; }
