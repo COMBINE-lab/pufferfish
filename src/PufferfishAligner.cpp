@@ -160,14 +160,14 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     uint32_t sameTxpCount{0};
 
     while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
-      //for (auto &leftClustItr : leftMemClusters) {
-      for (auto leftClustItr = leftMemClusters.key_begin(); leftClustItr != leftMemClusters.key_end(); ++ leftClustItr) {
+      for (auto &leftClustItr : leftMemClusters) {
+//      for (auto leftClustItr = leftMemClusters.key_begin(); leftClustItr != leftMemClusters.key_end(); ++ leftClustItr) {
             // reference id
-            //size_t tid = leftClustItr.first;
-            size_t tid = leftClustItr->first;
+            size_t tid = leftClustItr.first;
+//            size_t tid = leftClustItr->first;
             // left mem clusters
-            //auto &lClusts = leftClustItr.second;
-            auto &lClusts = leftMemClusters.cache_index(leftClustItr->second);
+            auto &lClusts = *(leftClustItr.second);
+//            auto &lClusts = leftMemClusters.cache_index(leftClustItr->second);
             // right mem clusters for the same reference id
             auto &rClusts = rightMemClusters[tid];
 

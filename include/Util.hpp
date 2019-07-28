@@ -477,7 +477,7 @@ Compile-time selection between list-like and map-like printing.
             bool isFw;
             bool isVisited = false;
             double coverage{0};
-            std::vector<std::pair<std::string, std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
+//            std::vector<std::pair<std::string, std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
             int score;
             std::string cigar;
             bool perfectChain = false;
@@ -495,6 +495,21 @@ Compile-time selection between list-like and map-like printing.
             MemCluster(const MemCluster &other) = default;
 
             MemCluster &operator=(const MemCluster &other) = default;
+
+            bool operator==(const MemCluster& mc) {
+                if (!(isFw == mc.isFw and score == mc.score and coverage == mc.coverage
+                and cigar == mc.cigar and perfectChain == mc.perfectChain
+                and readLen == mc.readLen and openGapLen == mc.openGapLen)) return false;
+                if (mems.size() != mc.mems.size()) return false;
+                for (uint64_t i = 0; i < mems.size(); i++) {
+                    if (mems[i] != mc.mems[i]) return false;
+                }
+                return true;
+            }
+
+            bool operator!=(const MemCluster& mc) {
+                return !((*this) == mc);
+            }
 
             MemCluster() {}
 
