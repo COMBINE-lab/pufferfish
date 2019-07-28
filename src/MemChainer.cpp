@@ -113,7 +113,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs, verbose))
     return false;
 
-
+  size_t maxHits{0};
   // chobo::small_vector<pufferfish::util::MemInfo> newMemList;
   for (auto hitIt = trMemMap.key_begin(); hitIt != trMemMap.key_end(); ++hitIt) {
     auto& trOri = hitIt->first;
@@ -124,6 +124,11 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     auto &isFw = trOri.second;
     //auto &memList = trMem.second;
     auto& memList = trMemMap.cache_index(hitIt->second);
+
+    size_t hits = memList.size();
+    if (hits < 0.65 * maxHits) { continue; }
+    if (hits > maxHits) { maxHits = hits; }
+
     // sort memList according to mem reference positions
     std::sort(memList.begin(), memList.end(),
               [isFw](pufferfish::util::MemInfo &q1, pufferfish::util::MemInfo &q2) -> bool {
@@ -166,11 +171,11 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     constexpr const double bottomScore = std::numeric_limits<double>::lowest();
     double bestScore = bottomScore;
     int32_t bestChainEnd = -1;
-    chobo::small_vector<int32_t> bestChainEndList;
     double avgseed = 31.0;
     f.clear();
     p.clear();
     keepMem.clear();
+    bestChainEndList.clear();
     //auto lastHitId = static_cast<int32_t>(memList.size() - 1);
 
     // Compact mems before chaining.

@@ -46,6 +46,7 @@ private:
   chobo::small_vector<int32_t> p;
   chobo::small_vector<uint8_t> keepMem;
   chobo::small_vector<uint64_t> memIndicesInReverse;
+  chobo::small_vector<int32_t> bestChainEndList;
 };
 
 #endif //PUFFERFISH_CHAINFINDER_H
