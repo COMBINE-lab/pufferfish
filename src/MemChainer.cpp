@@ -110,8 +110,11 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs, verbose))
     return false;
 
-  std::vector<double> f;
-  std::vector<int32_t> p;
+  chobo::small_vector<double> f;
+  chobo::small_vector<int32_t> p;
+  chobo::small_vector<uint8_t> keepMem;
+  chobo::small_vector<uint64_t> memIndicesInReverse;
+  // chobo::small_vector<pufferfish::util::MemInfo> newMemList;
   for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
     auto &trOri = trMem.first;
     auto &tid = trOri.first;
@@ -163,38 +166,41 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     double avgseed = 31.0;
     f.clear();
     p.clear();
+    keepMem.clear();
     //auto lastHitId = static_cast<int32_t>(memList.size() - 1);
-    chobo::small_vector<pufferfish::util::MemInfo> newMemList;
+
+    // Compact mems before chaining.
+    // UniMEMs can terminate because of the end of a contig, even if
+    // there is still an exact match between the read and one or more references.
+    // Here, we compact UniMEMs that would have constituted a larger (contiguous)
+    // MEM with respect to the current reference.
     uint32_t prev_qposi = 0;
     uint32_t prev_rposi = 0;
+    size_t currentMemIdx = 0;
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
       auto qposi = hi.isFw ? hi.memInfo->rpos + hi.extendedlen : readLen - hi.rpos;
       auto rposi = hi.tpos + hi.extendedlen;
       if (i > 0 and std::labs(qposi - prev_qposi) == std::labs(rposi - prev_rposi) and hi.tpos < prev_rposi) {
-        auto &lastMem = newMemList.back();
+        auto &lastMem = memList[currentMemIdx];
         uint32_t extension = rposi - prev_rposi;
-        //lastMem.memInfo->memlen += extension;
         lastMem.extendedlen += extension;
         if (!isFw) {
           lastMem.rpos = hi.memInfo->rpos;
         }
-        //lastMem.rpos -= extension;
+        keepMem.push_back(0);
       } else {
-        newMemList.emplace_back(hi.memInfo, hi.tpos, hi.isFw);
+        currentMemIdx=i;
+        keepMem.push_back(1);
       }
       prev_qposi = qposi;
       prev_rposi = rposi;
     }
-    auto before = memList.size();
-    if (memList.size() != newMemList.size()) {
-      trMem.second = newMemList;
-      memList = trMem.second;
-    }
-    auto after = newMemList.size();
-    if (verbose and after != before) {
-      std::cerr << before << "\t" << after << "\t" << memList.size() << "\n";
-    }
+
+    size_t tidx{0};
+    memList.erase(std::remove_if(memList.begin(), memList.end(), [&tidx, &keepMem](pufferfish::util::MemInfo& m) { bool r = (keepMem[tidx] == 0); ++tidx; return r; }),
+                  memList.end());
+    
     if (verbose) {
       std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
@@ -203,6 +209,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       }
     }
 
+    p.reserve(memList.size());
+    f.reserve(memList.size());
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
       //if (hi.extendedlen != hi.memInfo->memlen)
@@ -280,11 +288,11 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       }
     }
     // Do backtracking
-    std::vector<uint8_t> seen(f.size(), 0);
+    chobo::small_vector<uint8_t> seen(f.size(), 0);
     for (auto bestChainEnd : bestChainEndList) {
       if (bestChainEnd >= 0) {
         bool shouldBeAdded = true;
-        std::vector<uint64_t> memIndicesInReverse;
+        memIndicesInReverse.clear();
         auto lastPtr = p[bestChainEnd];
         while (lastPtr < bestChainEnd) {
           if (seen[bestChainEnd] > 0) {

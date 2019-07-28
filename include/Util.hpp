@@ -60,6 +60,39 @@ namespace pufferfish {
         }
       };
 
+
+      /*
+      template <typename K, typename V, typename H>
+      class CachedVectorMap {
+
+        CachedVectorMap(){}
+
+        chobo::small_vector<T>& operator[](const K&) {
+          auto it = index_map_.find(K);
+          if (it == index_map_.end()) {
+            auto idx = next_avail_;
+            ++next_avail_;
+            index_map_[K] = idx;
+            if (idx >= cache_.size()) {
+              cache_.emplace_back(chobo::small_vector<T>());
+              return cache_.back();
+            } else {
+              cache_[idx].clear();
+              return cache_[idx];
+            }
+          } else {
+            return *it;
+          }
+        }
+
+      private:
+        phmap::flat_hash_map<K, uint32_t, H> index_map_;
+        std::vector<chobo::small_vector<T>> cache_;
+        uint32_t next_avail_{0};
+      };
+      */
+
+
 // Adapted from
 // https://github.com/mengyao/Complete-Striped-Smith-Waterman-Library/blob/8c9933a1685e0ab50c7d8b7926c9068bc0c9d7d2/src/main.c#L36
         inline void reverseRead(std::string &seq,
