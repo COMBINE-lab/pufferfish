@@ -117,7 +117,8 @@ namespace pufferfish {
         public:
             explicit iterator(CachedVectorMap &vmIn): vm(vmIn) {
               key = vm.index_map_.begin();
-              setKV();
+              if (key != vm.index_map_.end())
+                setKV();
             }
 
             reference operator*() {
@@ -128,7 +129,8 @@ namespace pufferfish {
 
             iterator& operator++() {
                 key++;
-                setKV();
+                if (key != vm.index_map_.end())
+                    setKV();
                 return *this;
             }
 
