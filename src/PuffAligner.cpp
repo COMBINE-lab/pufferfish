@@ -59,7 +59,7 @@ int32_t addCigar(pufferfish::util::cigarGenerator &cigarGen, ksw_extz_t ez, bool
 
 std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
     if (memlen == 0) return "";
-    std::string tseq = "";
+    std::string tseq; tseq.reserve(memlen);
     uint64_t bucket_offset = (refAccPos + tpos) * 2;
     auto len_on_vector = memlen * 2;
     for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
