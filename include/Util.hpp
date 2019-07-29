@@ -117,8 +117,9 @@ namespace pufferfish {
         public:
             explicit iterator(CachedVectorMap &vmIn): vm(vmIn) {
               key = vm.index_map_.begin();
-              if (key != vm.index_map_.end())
+              if (key != vm.index_map_.end()) {
                 setKV();
+              }
             }
 
             reference operator*() {
@@ -128,8 +129,7 @@ namespace pufferfish {
             pointer operator->() { return &operator*(); }
 
             iterator& operator++() {
-                key++;
-                if (key != vm.index_map_.end())
+                if (++key != vm.index_map_.end())
                     setKV();
                 return *this;
             }
@@ -929,8 +929,8 @@ Compile-time selection between list-like and map-like printing.
 
                 // if we're in the forward orientation, then our position is
                 // just the contig offset plus or relative position
-                uint32_t rpos{0};
-                bool rfw{false};
+                uint32_t rpos;//{0};
+                bool rfw;//{false};
                 if (contigFW and contigOrientation_) {
                     // kmer   :          AGC
                     // contig :      ACTTAGC
@@ -949,7 +949,7 @@ Compile-time selection between list-like and map-like printing.
                     // ref    :  GCA[ACTTAGC]CA
                     rpos = p.pos() + contigLen_ - (contigPos_ + k_);
                     rfw = false;
-                } else if (!contigFW and !contigOrientation_) {
+                } else {// if (!contigFW and !contigOrientation_) {
                     // kmer   :          ACT
                     // contig :      GCTAAGT
                     // ref    :  GCA[ACTTAGC]CA

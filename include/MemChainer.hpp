@@ -16,7 +16,7 @@
 class MemClusterer {
 private:
     uint32_t maxAllowedRefsPerHit = 1000;
-  using RefMemMap = pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, chobo::small_vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash>;
+  using RefMemMap = pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash>;
 
 public:
 

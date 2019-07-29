@@ -55,10 +55,19 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
     return false;
   }
 
+  size_t totSize{0};
+  for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
+    auto &refs = hit.second.refRange;
+    auto rs = refs.size();
+    totSize +=  (static_cast<uint64_t>(rs) < maxAllowedRefsPerHit) ? rs : 0;
+  }
+
   // here we guarantee that even if later we fill up
   // every gap between the hits and before the first and after the last hit
   // still the memCollection size doesn't change and hence the pointers are valid
-  memCollection.reserve(maxAllowedRefsPerHit * 2 * hits.size() + 1);
+  //memCollection.reserve(maxAllowedRefsPerHit * 2 * hits.size() + 1);
+  memCollection.reserve(totSize);
+
   //if (verbose)
   //  std::cerr << "\nreserved memCollection size: " << maxAllowedRefsPerHit * 2 * hits.size() + 1 << "\n";
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
@@ -107,8 +116,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
-  //phmap::flat_hash_map<std::pair<ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>, pair_hash>
-  //        trMemMap;
   if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs, verbose))
     return false;
 

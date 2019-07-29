@@ -55,7 +55,7 @@ private:
   bool isSingleEnd = false;
   MemClusterer mc;
   //pufferfish::common_types::RefMemMapT trMemMap;
-  pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, chobo::small_vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash> trMemMap;
+  pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash> trMemMap;
 
 
   phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;

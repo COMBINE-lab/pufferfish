@@ -12,7 +12,7 @@ namespace pufferfish {
     template <typename T>
     using IterRange = core::range<typename T::iterator>;
     //using RefMemMapT = phmap::flat_hash_map<std::pair<pufferfish::common_types::ReferenceID, bool>, chobo::small_vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash>;
-    using RefMemMApT = pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, pufferfish::util::MemInfo, pufferfish::util::pair_hash>;
+    using RefMemMapT = pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, pufferfish::util::MemInfo, pufferfish::util::pair_hash>;
   }
 }
 
