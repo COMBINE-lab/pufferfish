@@ -742,7 +742,7 @@ int32_t PuffAligner::calculateAlignments(pufferfish::util::JointMems &jointHit, 
 }
 
 bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_right, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
-  int32_t anchorLen = anchorIsLeft ? read_left_.length() : read_right_.length();
+  int32_t anchorLen = anchorIsLeft ? read_left.length() : read_right.length();
   auto tpos = clust.mems[0].tpos;
   auto anchorStart = clust.mems[0].isFw ? clust.mems[0].rpos : anchorLen - (clust.mems[0].rpos + clust.mems[0].extendedlen);
   uint32_t anchorPos = tpos >= anchorStart ? tpos - anchorStart : 0;
@@ -750,10 +750,10 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   bool recovered_fwd;
   uint32_t recovered_pos=-1;
 
-  auto* r1 = read_left_.data();
-  auto* r2 = read_right_.data();
-  auto l1 = static_cast<int32_t>(read_left_.length());
-  auto l2 = static_cast<int32_t>(read_right_.length());
+  auto* r1 = read_left.data();
+  auto* r2 = read_right.data();
+  auto l1 = static_cast<int32_t>(read_left.length());
+  auto l2 = static_cast<int32_t>(read_right.length());
   const char* rptr{nullptr};
   bool anchorFwd{clust.isFw};
   int32_t startPos = -1, maxDist = -1, otherLen = -1, rlen = -1;
@@ -774,14 +774,14 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     anchorLen = l1;
     otherLen = l2;
     maxDist = maxDistRight;
-    otherReadPtr = &read_right_;
+    otherReadPtr = &read_right;
     otherRead = r2;
     otherReadRC = r2rc;
   } else {
     anchorLen = l2;
     otherLen = l1;
     maxDist = maxDistLeft;
-    otherReadPtr = &read_left_;
+    otherReadPtr = &read_left;
     otherRead = r1;
     otherReadRC = r1rc;
   }
@@ -836,9 +836,4 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     edlibFreeAlignResult(result);
     return false;
   }
-}
-
-
-bool PuffAligner::recoverSingleOrphan(pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
-  recoverSingleOrphan(read_left_, read_right_, clust, recoveredMemClusters, tid, anchorIsLeft, verbose);
 }

@@ -60,7 +60,6 @@ public:
   AlignmentResult alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
 
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
-  bool recoverSingleOrphan(pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
 
   void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
   void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();  memset(&ez, 0, sizeof(ksw_extz_t)); }

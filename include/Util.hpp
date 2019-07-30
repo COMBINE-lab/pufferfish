@@ -63,6 +63,7 @@ namespace pufferfish {
       };
 
 
+      enum class BestHitReferenceType : uint8_t { NON_FILTERED, FILTERED, BOTH };
 
       template <typename K, typename V, typename H>
       class CachedVectorMap {
@@ -615,6 +616,10 @@ Compile-time selection between list-like and map-like printing.
 
             bool isOrphan() { return !isLeftAvailable() || !isRightAvailable(); }
 
+          // NOTE: needed for vector compatibility, should not be used.
+          JointMems() {
+            std::cerr << "JointMems default constructor called; should not happen!";
+          }
             JointMems(uint32_t tidIn,
                       std::vector<pufferfish::util::MemCluster>::iterator leftClustIn,
                       std::vector<pufferfish::util::MemCluster>::iterator rightClustIn,
