@@ -306,14 +306,14 @@ void recoverOrphans(std::string& leftRead, std::string& rightRead, std::vector<p
     auto& rightClust = jointMem.rightClust;
     auto tid = jointMem.tid;
     if (jointMem.mateStatus == MateStatus::PAIRED_END_LEFT) {
-      bool recovered = puffaligner.recoverSingleOrphan(leftRead, *leftClust, recoveredMemClusters, tid, true, verbose);
+      bool recovered = puffaligner.recoverSingleOrphan(leftRead, rightRead, *leftClust, recoveredMemClusters, tid, true, verbose);
      if (recovered) {
        jointMem.rightClust = recoveredMemClusters.begin() + recoveredMemClusters.size() - 1;
        jointMem.recovered = true;
        jointMem.mateStatus = MateStatus::PAIRED_END_PAIRED;
     }
   } else if (jointMem.mateStatus == MateStatus::PAIRED_END_RIGHT) {
-      bool recovered = puffaligner.recoverSingleOrphan(rightRead, *rightClust, recoveredMemClusters, tid, false, verbose);
+      bool recovered = puffaligner.recoverSingleOrphan(leftRead, rightRead, *rightClust, recoveredMemClusters, tid, false, verbose);
       if (recovered) {
         jointMem.leftClust = recoveredMemClusters.begin() + recoveredMemClusters.size() - 1;
         jointMem.recovered = true;
