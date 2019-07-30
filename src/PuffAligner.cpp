@@ -699,11 +699,11 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         ar_left.score = minScore;
         alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
                   jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
-        jointHit.orphanClust()->coverage =
+        jointHits.alignmentScore =
           ar_left.score > threshold(read_orphan.length())  ? ar_left.score : std::numeric_limits<decltype(ar_left.score)>::min();
-        if (computeCIGAR) { jointHit.orphanClust()->cigar = ar_left.cigar; }
+        jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_left.cigar : "*";
         jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
-        jointHit.alignmentScore = static_cast<int32_t >(jointHit.orphanClust()->coverage);
+        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         if (jointHit.alignmentScore < 0 and verbose) {
           std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
         }
@@ -734,6 +734,9 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         if (computeCIGAR) {
           jointHit.leftClust->cigar = ar_left.cigar;
           jointHit.rightClust->cigar = ar_right.cigar;
+        } else {
+          jointHit.leftClust->cigar = "*";
+          jointHit.rightClust->cigar = "*";
         }
         return jointHit.alignmentScore;
     }
