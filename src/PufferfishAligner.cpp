@@ -389,6 +389,7 @@ void processReadsPair(paired_parser *parser,
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
                             mopts, aligner, allowMultipleHitsPerRef);
 
+    std::vector<QuasiAlignment> jointAlignments;
 
     //For filtering reads
     bool verbose = mopts->verbose;
@@ -456,10 +457,6 @@ void processReadsPair(paired_parser *parser,
                                mopts->noOrphan,
                                verbose);
 
-            PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
-                                    rpair.first.seq, rpair.second.seq, mopts, aligner, true);
-
-
             bool mergeStatusOR = (mergeRes == pufferfish::util::MergeResult::HAD_EMPTY_INTERSECTION or
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_LEFT or
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_RIGHT);
@@ -468,7 +465,6 @@ void processReadsPair(paired_parser *parser,
               recoverOrphans(recoveredHits, jointHits, puffaligner, verbose);
             }
 
-            std::vector<QuasiAlignment> jointAlignments;
 
             hctr.peHits += jointHits.size();
 
@@ -476,6 +472,7 @@ void processReadsPair(paired_parser *parser,
             if (verbose)
                 std::cerr<<"Number of hits: "<<jointHits.size()<<"\n";
 #endif // ALLOW_VERBOSE
+            jointAlignments.clear();
 
             if (!mopts->justMap) {
               puffaligner.clear();
@@ -622,7 +619,7 @@ void processReadsPair(paired_parser *parser,
                     }
 #endif // ALLOW_VERBOSE
                     jointAlignments.emplace_back(jointHit.tid,           // reference id
-                                                 0, //jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
+                                                 jointHit.orphanClust()->getTrFirstHitPos(),     // reference pos
                                                  jointHit.orphanClust()->isFw,     // fwd direction
                                                  readLen, // read length
                                                  jointHit.orphanClust()->cigar, // cigar string
@@ -675,11 +672,9 @@ void processReadsPair(paired_parser *parser,
                 } else if (mopts->salmonOut) {
                   // writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, false);
                 } else if (jointAlignments.size() > 0) {
-                    writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan,
-                                            mopts->justMap);
+                    writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
                 } else if (jointAlignments.size() == 0) {
-                    writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan,
-                                                    mopts->justMap);
+                    writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
                 }
             }
 
@@ -800,7 +795,7 @@ void processReadsSingle(single_parser *parser,
             std::vector<QuasiAlignment> jointAlignments;
             std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>> validHits;
 
-            if (mopts->justMap) {
+            if (!mopts->justMap) {
 //                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
                 PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
                                         read.seq, NULL, mopts, aligner, jointHits.size() > 1);
@@ -946,12 +941,11 @@ void processReadsSingle(single_parser *parser,
                                             validHits, bstream, false);
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
-                writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,
-                                              !mopts->noOrphan, mopts->justMap);
+                writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream, !mopts->noOrphan);
             } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
                 writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
-                                                      sstream, !mopts->noOrphan, mopts->justMap);
+                                                      sstream, !mopts->noOrphan);
             }
 
             // write them on cmd

@@ -358,9 +358,8 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 template <typename ReadT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans) {
   (void) writeOrphans;
-  (void) justMappings;
 
 	//auto& read1Temp = formatter.read1Temp;
 	//auto& read2Temp = formatter.read2Temp;
@@ -414,9 +413,8 @@ inline uint32_t writeUnmappedAlignmentsToStreamSingle(
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeUnmappedAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans) {
   (void) writeOrphans;
-  (void) justMappings;
 	//auto& read1Temp = formatter.read1Temp;
 	//auto& read2Temp = formatter.read2Temp;
 	// auto& qual1Temp = formatter.qual1Temp;
@@ -499,7 +497,7 @@ inline uint32_t writeUnmappedAlignmentsToStream(
 template <typename ReadT, typename IndexT>
 inline uint32_t writeAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, bool justMappings) {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans) {
   (void) writeOrphans;
   auto& read1Temp = formatter.read1Temp;
   //auto& read2Temp = formatter.read2Temp;
@@ -576,7 +574,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
+              << (qa.cigar.empty() ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
@@ -593,8 +591,7 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
-    bool writeOrphans, 
-    bool justMappings) {
+    bool writeOrphans) {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
@@ -703,7 +700,7 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << (justMappings ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
+              << (qa.cigar.empty() ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
               //<< "100M" << '\t'
               //<< qa.cigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
@@ -720,7 +717,7 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.matePos + 1 << '\t'                      // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << (justMappings ? cigarStr2.c_str() : qa.mateCigar) << '\t'                   // CIGAR
+              << (qa.mateCigar.empty() ? cigarStr2.c_str() : qa.mateCigar) << '\t'                   // CIGAR
               //<< "100M" << '\t'
               //<< qa.mateCigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
@@ -809,7 +806,7 @@ inline uint32_t writeAlignmentsToStream(
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
-              << (justMappings ? (*cigarStr).c_str() : qa.cigar) << '\t'                   // CIGAR
+              << (qa.cigar.empty() ? (*cigarStr).c_str() : qa.cigar) << '\t'                   // CIGAR
               //<< "100M" << '\t' 
               << '=' << '\t'                                 // RNEXT
               << /* qa.matePos */ qa.pos + 1 << '\t'                      // PNEXT

@@ -642,8 +642,7 @@ Compile-time selection between list-like and map-like printing.
 
             // FIXME : what if the mapping is not orphan? who takes care of this function not being called from outside?
             std::vector<pufferfish::util::MemCluster>::iterator orphanClust() {
-                if (isLeftAvailable()) { return leftClust; }
-                return rightClust;
+              return isLeftAvailable() ? leftClust : rightClust;
             }
 
         };
