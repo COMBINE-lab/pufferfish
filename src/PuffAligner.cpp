@@ -1,5 +1,5 @@
+#include "nonstd/string_view.hpp"
 #include "PuffAligner.hpp"
-
 #include "Util.hpp"
 
 std::string extractReadSeq(const std::string& readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
@@ -85,23 +85,16 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
 bool fillRefSeqBuffer(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen, std::string& refBuffer_) {
   refBuffer_.clear();
   if (memlen == 0) return false;
-  //std::string tseq = "";
   uint64_t bucket_offset = (refAccPos + tpos) * 2;
   auto len_on_vector = memlen * 2;
-  for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
-    uint32_t len = std::min((uint32_t) 64, len_on_vector - w * 64);
-    if (len == 0) continue;
+  int32_t toFetch = len_on_vector;
+  while (toFetch > 0) {
+    uint32_t len = (toFetch >= 64) ? 64 : toFetch;
+    toFetch -= len;
     uint64_t word = refseq.get_int(bucket_offset, len);
     for (uint32_t i = 0; i < len; i += 2) {
       uint8_t next_bits = ((word >> i) & 0x03);
-      char next = 'A';
-      if (next_bits == 1)
-        next = 'C';
-      else if (next_bits == 2)
-        next = 'G';
-      else if (next_bits == 3)
-        next = 'T';
-      refBuffer_ += next;
+      refBuffer_ += "ACGT"[next_bits];
     }
     bucket_offset += len;
   }
@@ -109,9 +102,8 @@ bool fillRefSeqBuffer(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
 }
 
 
-AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
-                             bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
-//    verbose = true;
+bool PuffAligner::alignRead(std::string& original_read, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
+                            bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, AlignmentResult& arOut, bool verbose) {
     uint32_t refExtLength = mopts->refExtendLength;
     bool firstMem = true;
     int32_t lastHitEnd_read = -1;
@@ -121,56 +113,69 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
     int32_t alignmentScore{std::numeric_limits<int32_t>::lowest()};
     int32_t alignment{0};
     uint32_t openGapLen{0};
+
+    bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     auto& cigarGen = cigarGen_;
     cigarGen.clear();
 
     std::string cigar = "";
     memset(&ez, 0, sizeof(ksw_extz_t));
 
+    /*
     if (verbose) {
         for (size_t x = 0; x < 50; ++x)
             std::cerr << "-";
         std::cerr << " start mems\n";
     }
+    */
 
     uint64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
+    // length of the reference sequence we are aligning to
     uint64_t refTotalLength = refAccumLengths[tid] - refAccPos;
 
-    std::string original_read = read;
-    if (!isFw)
+
+    // @mohsen & @fataltes --- we should figure out how to
+    // avoid computing the rc of a read if we've already done it.
+    std::string read = original_read;
+    if (!isFw) {
         read = pufferfish::util::reverseComplement(read);
+    }
 
     int32_t keyLen = 0;
+
     std::unique_ptr<char[]> refSeq;
     std::string tseq = "";
 
-    auto rpos = mems[0].rpos;
-    auto memlen = mems[0].extendedlen;
+    if (mems.empty()) {
+      arOut.score = alignmentScore;
+      return false;
+    }
+    auto& frontMem = mems.front();
+    auto rpos = frontMem.rpos;
+    auto memlen = frontMem.extendedlen;
     auto readLen = read.length();
-    auto tpos = mems[0].tpos;
+    auto tpos = frontMem.tpos;
 
-    if (mems.size() == 0)
-        return AlignmentResult();
     currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
-    if (currHitStart_read < 0 or currHitStart_read >= (int32_t) readLen)
-        std::cerr << "Should not happen!\n";
+    if (currHitStart_read < 0 or currHitStart_read >= (int32_t) readLen) {
+        std::cerr << "[ERROR in PuffAligner::alignRead :] currHitStart_read is invalid; this hould not happen!\n";
+    }
 
     currHitStart_ref = tpos;
-    uint32_t refStart;
-    if (currHitStart_ref >= currHitStart_read) {
-        refStart = currHitStart_ref - currHitStart_read;
-    } else { // -- this is always true : else if (currHitStart_ref < currHitStart_read) {
-        refStart = 0;
-    }
-    if (verbose) std::cerr<< "tpos: " << refStart << "\n";
-    keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
-    tseq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen);
 
-    refSeq.reset(new char[tseq.length() + 1]);
-    strcpy(refSeq.get(), tseq.c_str());
     uint64_t hashKey{0};
     bool didHash{false};
-    if (!alnCache.empty()) {
+    uint32_t refStart, readStart;
+
+    /// ROB EDIT TESTING  ORIGINAL BELOW
+    if (!mopts->fullAlignment) {
+      refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
+      //if (verbose) std::cerr<< "tpos: " << refStart << "\n";
+      keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
+      tseq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen);
+      refSeq.reset(new char[tseq.length() + 1]);
+      strcpy(refSeq.get(), tseq.c_str());
+      if (!alnCache.empty()) {
         // hash the reference string
         MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq.get()), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
         didHash = true;
@@ -178,20 +183,54 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
         auto hit = alnCache.find(hashKey);
         // if so, we know the alignment score
         if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
-            alignmentScore = hit->second.score;
-            cigar = hit->second.cigar;
-            openGapLen = hit->second.openGapLen;
-            alignment = alignmentScore;
+          arOut.score = alignmentScore = hit->second.score;
+          if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
+          arOut.openGapLen = hit->second.openGapLen;
+          return true;
+          //alignment = alignmentScore;
         }
+      }
+    } else { // fullAlignment 
+      /// ROB EDIT TESTING  ORIGINAL ABOVE, BELOW ONLY WORKS WITH "fullAlignment"
+      if (currHitStart_ref > currHitStart_read) {
+        refStart = currHitStart_ref - currHitStart_read;
+        readStart = 0;
+      } else if (currHitStart_ref < currHitStart_read) {
+        readStart = currHitStart_read - currHitStart_ref;
+        refStart = 0;
+      } else {
+        readStart = currHitStart_read;
+        refStart = currHitStart_ref;
+      }
+      uint32_t buff{20};
+      auto refLength = keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+      fillRefSeqBuffer(allRefSeq, refAccPos, refStart, keyLen, refSeqBuffer_);
+      if (!alnCache.empty()) {
+        // hash the reference string
+        MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
+        didHash = true;
+        // see if we have this hash
+        auto hit = alnCache.find(hashKey);
+        // if so, we know the alignment score
+        if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
+          arOut.score = alignmentScore = hit->second.score;
+          if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
+          arOut.openGapLen = hit->second.openGapLen;
+          return true;
+          //alignment = alignmentScore;
+        }
+      }
     }
+    /// END ROB EDIT TESTING 
+
 
     if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
         if (perfectChain) {
-            alignmentScore = readLen * mopts->matchScore;
-            alignment = alignmentScore;
-            cigarGen.add_item(readLen, "M");
+            arOut.score = alignment = alignmentScore = readLen * mopts->matchScore;
+            if (computeCIGAR) { cigarGen.add_item(readLen, "M"); }
             hctr.skippedAlignments_byCov += 1;
         } else if (mopts->fullAlignment) {
+          /*
             uint32_t refStart, readStart;
             if (currHitStart_ref > currHitStart_read) {
                 refStart = currHitStart_ref - currHitStart_read;
@@ -203,16 +242,21 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
                 readStart = currHitStart_read;
                 refStart = currHitStart_ref;
             }
-            auto refLength = (refStart + readLen * 2 < refTotalLength) ? readLen * 2 : refTotalLength - refStart;
+            uint32_t buff{20};
+            auto refLength = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
 
-            //tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
             fillRefSeqBuffer(allRefSeq, refAccPos, refStart, refLength, refSeqBuffer_);
-            auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
+          */
+            // NO! --- what?!? ... NO
+            //auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
+            nonstd::string_view readView(read);
+            nonstd::string_view readSeq = readView.substr(readStart);
 
-            aligner(readSeq.c_str(), readSeq.length(), refSeqBuffer_.c_str(), refSeqBuffer_.length(), &ez,
+            aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                     ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-            alignmentScore = ez.mqe; //std::max(ez.mqe, ez.mte);
+            alignmentScore = std::max(ez.mqe, ez.mte);
             //openGapLen = addCigar(cigarGen, ez, false);
+            /*
             if (verbose) {
                 std::cerr << "Original read seq:\t" << original_read << "\n";
                 std::cerr << "Total alignment with the score\t" << alignmentScore << "\t from position\t" << readStart
@@ -223,6 +267,7 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
                     std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
                 std::cerr << "\n";
             }
+            */
         } else {
 
             alignmentScore = 0;
@@ -249,34 +294,49 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
                             currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
                 } else {
                     if (currHitStart_read <= lastHitEnd_read - (int32_t) k + 1) {
-                        if (verbose)
+                      /*
+                        if (verbose) {
                             std::cerr << "The mems on read and reference are not consistent(1)\t" << original_read
                                       << "\n";
+                        }
+                      */
                         break;
                     }
                     if (currHitStart_ref <= lastHitEnd_ref - (int32_t) k + 1) {
-                        if (verbose)
-                            std::cerr << "The mems on read and reference are not consistent(2)\t" << original_read
-                                      << "\n";
-                        break;
+                      /*
+                      if (verbose) {
+                        std::cerr << "The mems on read and reference are not consistent(2)\t" << original_read
+                                  << "\n";
+                      }
+                      */
+                      break;
                     }
                     if (currHitStart_ref > lastHitEnd_ref + (int32_t) readLen) {
-                        if (verbose)
-                            std::cerr << "The mems on read and reference are not consistent(3)\t" << original_read
-                                      << "\n";
-                        break;
+                      /*
+                      if (verbose) {
+                        std::cerr << "The mems on read and reference are not consistent(3)\t" << original_read
+                                  << "\n";
+                      }
+                      */
+                      break;
                     }
                     if (currHitStart_read <= lastHitEnd_read and
                         lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-                        if (verbose)
-                            std::cerr << "to align reads with indels\t" << original_read << "\n";
-                        break;
+                      /*
+                      if (verbose) {
+                        std::cerr << "to align reads with indels\t" << original_read << "\n";
+                      }
+                      */
+                      break;
                     }
                     if (currHitStart_ref <= lastHitEnd_ref and
                         lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-                        if (verbose)
-                            std::cerr << "to align reads with indels\t" << original_read << "\n";
-                        break;
+                      /*
+                        if (verbose) {
+                        std::cerr << "to align reads with indels\t" << original_read << "\n";
+                        }
+                      */
+                      break;
                     }
                 }
 
@@ -505,11 +565,11 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
                                                                                                          refExtLength :
                                     refTotalLength - lastHitEnd_ref - 1;
                 if (lastHitEnd_ref + readGapLength > refTotalLength) {
-                    AlignmentResult aln;
-                    aln.score = -1;
-                    aln.cigar = cigar;
-                    aln.openGapLen = openGapLen;
-                    return aln;
+                  //AlignmentResult aln;
+                  arOut.score = -1;
+                  if (computeCIGAR) { arOut.cigar = cigar; }
+                  arOut.openGapLen = openGapLen;
+                  return false;
                 }
 
                 // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
@@ -542,40 +602,57 @@ AlignmentResult PuffAligner::alignRead(std::string read, std::vector<pufferfish:
                 }
             }
         }
-        if (verbose)
+        /*
+        if (verbose) {
             std::cerr << "alignmentScore: " << alignmentScore << "\n";
+        }
+        */
 //        alignmentScore+=readLen*2; //addedByFatemeh
         bool cigar_fixed{false};
         //cigar = cigarGen.get_cigar(readLen, cigar_fixed);
-        
         /*if (cigar_fixed) {
           std::cerr<<read<<"\n";
         } */
         //std::cerr << cigar << " " << readLen << "\n";
         if (cigar_fixed) hctr.cigar_fixed_count++;
         if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
-            if (!didHash)
-              MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq.get()), keyLen, reinterpret_cast<uint8_t *>(&hashKey),
-                                  0);
-            AlignmentResult aln;
-            aln.score = alignmentScore;
-            aln.cigar = cigar;
-            aln.openGapLen = openGapLen;
-            alnCache[hashKey] = aln;
+          if (!didHash) {
+            MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
+            //MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq.get()), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
+          }
+          AlignmentResult aln;
+          aln.score = alignmentScore;
+          if (computeCIGAR) { aln.cigar = cigar; }
+          aln.openGapLen = openGapLen;
+          alnCache[hashKey] = aln;
         }
     } else {
         hctr.skippedAlignments_byCache += 1;
     }
     //delete refSeq;
+    /*
     if (verbose) {
         std::cerr << "alignmentScore\t" << alignmentScore << "\talignmment\t" << alignment << "\n";
         std::cerr << "cigar\t" << cigar << "\n";
     }
+    */
     //if (alignmentScore > 150 and alignment > alignmentScore)// != and std::abs(alignmentScore - alignment) > 5)
     //  std::cerr<< alignmentScore << " " << alignment << " " << original_read << "\n";
 
-    return AlignmentResult{alignmentScore, cigar, openGapLen};
+    arOut.score = alignmentScore;
+    arOut.cigar = cigar;
+    arOut.openGapLen = openGapLen;
+    return true;
+    //return AlignmentResult{alignmentScore, cigar, openGapLen};
 }
+
+AlignmentResult PuffAligner::alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
+                                       bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
+  AlignmentResult ar;
+  alignRead(read, mems, perfectChain, isFw, tid, alnCache, hctr, ar, verbose);
+  return ar;
+}
+
 
 
 int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& read_right, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
@@ -587,33 +664,43 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         return (mopts->mimicBt2Default or !mopts->matchScore)?(-0.6+-0.6*len):optFrac*mopts->matchScore*len;
     };
 
+    // If this read is in an orphaned mapping
     if (jointHit.isOrphan()) {
-      if (verbose) {std::cerr << "orphan\n";}
+      // if (verbose) {std::cerr << "orphan\n";}
         hctr.totalAlignmentAttempts += 1;
 
-        std::string read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
+        std::string& read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
 //        int32_t maxScore = mopts->matchScore * read_orphan.length();
-        AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
-                                       jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, verbose);
+        //AlignmentResult ar = alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
+        //                                       jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, verbose);
+        alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
+                  jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
         jointHit.orphanClust()->coverage =
-                ar.score > threshold(read_orphan.length())  ? ar.score : std::numeric_limits<decltype(ar.score)>::min();
-        jointHit.orphanClust()->cigar = ar.cigar;
-        jointHit.orphanClust()->openGapLen = ar.openGapLen;
+          ar_left.score > threshold(read_orphan.length())  ? ar_left.score : std::numeric_limits<decltype(ar_left.score)>::min();
+        jointHit.orphanClust()->cigar = ar_left.cigar;
+        jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
         jointHit.alignmentScore = static_cast<int32_t >(jointHit.orphanClust()->coverage);
         if (jointHit.alignmentScore < 0 and verbose) {
-          std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar.score << "\n";
+          std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
         }
         return jointHit.alignmentScore;
     } else {
         hctr.totalAlignmentAttempts += 2;
 //        int32_t maxLeftScore = mopts->matchScore * read_left.length();
 //        int32_t maxRightScore = mopts->matchScore * read_right.length();
+        ar_left.score = ar_right.score = std::numeric_limits<decltype(ar_left.score)>::min();
         if (verbose) { std::cerr << "left\n"; }
-        AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
-                                            jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, verbose);
+        //AlignmentResult ar_left = alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
+        //                                    jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, verbose);
+        alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
+                                            jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
+
         if (verbose) { std::cerr << "right\n"; }
-        AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
-                                             jointHit.rightClust->isFw, tid, alnCacheRight, hctr, verbose);
+        //AlignmentResult ar_right = alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
+        //                                     jointHit.rightClust->isFw, tid, alnCacheRight, hctr, verbose);
+        alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
+                                             jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right, verbose);
+
         auto score_left = ar_left.score > threshold(read_left.length()) ? ar_left.score
                                                                         : std::numeric_limits<decltype(ar_left.score)>::min();
         auto score_right = ar_right.score > threshold(read_right.length()) ? ar_right.score

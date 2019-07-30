@@ -240,7 +240,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {
             // fragmentLen is set to 0
-            std::vector<pufferfish::util::MemCluster> dummyCluster;
+            // std::vector<pufferfish::util::MemCluster> dummyCluster;
             for (auto &clustItr : memClusters) {
                 // reference id
                 size_t tid = clustItr.first;
@@ -250,10 +250,10 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                     if (clust->coverage >= coverageRatio * maxLeftOrRight) {
                         if (isLeft) {
                             leftOrphan = true;
-                            jointMemsList.emplace_back(tid, clust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
+                            jointMemsList.emplace_back(tid, clust, /*dummy*/ clust, 0, MateStatus::PAIRED_END_LEFT);
                         } else {
                             rightOrphan = true;
-                            jointMemsList.emplace_back(tid, dummyCluster.end(), clust, 0, MateStatus::PAIRED_END_RIGHT);
+                            jointMemsList.emplace_back(tid, /*dummy*/ clust , clust, 0, MateStatus::PAIRED_END_RIGHT);
                         }
                         uint32_t currCoverage = jointMemsList.back().coverage();
                         if (maxCoverage < currCoverage) {
@@ -938,11 +938,11 @@ void processReadsSingle(single_parser *parser,
 
             // write puffkrak format output
             if (mopts->krakOut) {
-              //writeAlignmentsToKrakenDump(read, // formatter,  
-              //                            validHits, bstream);
+              writeAlignmentsToKrakenDump(read, // formatter,  
+                                          validHits, bstream);
             } else if (mopts->salmonOut) {
-              //writeAlignmentsToKrakenDump(read, / formatter,  
-              //                              validHits, bstream, false);
+              writeAlignmentsToKrakenDump(read, // formatter,  
+                                            validHits, bstream, false);
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream,

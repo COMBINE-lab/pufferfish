@@ -16,6 +16,12 @@ struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
 };
 
+enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, CIGAR };
+
+struct PuffAlignmentOptions {
+  PuffAlignmentMode mode;
+};
+
 using HitCounters = pufferfish::util::HitCounters;
 using AlignmentResult = pufferfish::util::AlignmentResult;
 using AlnCacheMap = tsl::hopscotch_map<uint64_t, AlignmentResult, PassthroughHash>;
@@ -50,7 +56,8 @@ public:
 
   int32_t calculateAlignments(pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose);
 
-  AlignmentResult alignRead(std::string read, std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
+  bool alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool verbose);
+  AlignmentResult alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
 
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
   bool recoverSingleOrphan(pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
@@ -71,6 +78,8 @@ private:
   std::string read_left_;
   std::string read_right_;
   std::string refSeqBuffer_;
+  AlignmentResult ar_left;
+  AlignmentResult ar_right;
 
   bool multiMapping;
   AlnCacheMap alnCacheLeft;
