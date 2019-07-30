@@ -394,7 +394,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     args.push_back("-t");
     args.push_back(std::to_string(indexOpts.p));
     args.push_back("-f");
-    args.push_back("32");
+    args.push_back(std::to_string(indexOpts.filt_size));
     args.push_back("--outfile");
     args.push_back(outdir+"/tmp_dbg.bin");
     args.push_back("--tmpdir");
