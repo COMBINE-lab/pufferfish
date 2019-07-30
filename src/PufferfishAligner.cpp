@@ -375,6 +375,7 @@ void processReadsPair(paired_parser *parser,
     config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
+    bool allowMultipleHitsPerRef = true;
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
 
     // don't think we should have these, they should
@@ -386,7 +387,7 @@ void processReadsPair(paired_parser *parser,
 
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
-                            mopts, aligner, true);
+                            mopts, aligner, allowMultipleHitsPerRef);
 
 
     //For filtering reads

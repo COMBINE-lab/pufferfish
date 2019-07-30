@@ -74,7 +74,7 @@ private:
   ksw2pp::KSW2Aligner& aligner;
   ksw_extz_t ez;
 
-  pufferfish::util::cigarGenerator cigarGen_;
+  pufferfish::util::CIGARGenerator cigarGen_;
   std::string read_left_;
   std::string read_right_;
   std::string refSeqBuffer_;

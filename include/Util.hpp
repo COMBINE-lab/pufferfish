@@ -315,70 +315,70 @@ Compile-time selection between list-like and map-like printing.
             return ContainerPrinter<T, has_key<T>::value>::str(container);
         }
 
-        struct cigarGenerator {
-            std::vector<uint32_t> cigar_counts;
-            std::vector<std::string> cigar_types;
+      struct CIGARGenerator {
+        std::vector<uint32_t> cigar_counts;
+        std::vector<std::string> cigar_types;
 
-          void clear() { cigar_counts.clear(); cigar_types.clear(); }
-            void add_item(uint32_t count, std::string type) {
-                cigar_counts.push_back(count);
-                cigar_types.push_back(type);
+        void clear() { cigar_counts.clear(); cigar_types.clear(); }
+        void add_item(uint32_t count, std::string type) {
+          cigar_counts.push_back(count);
+          cigar_types.push_back(type);
+        }
+
+        std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
+          cigar_fixed = false;
+          std::string cigar = "";
+          if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0)
+            return "NOT VALID";
+          if (cigar_counts.size() == 0)
+            return NULL;
+
+          uint32_t cigar_length = 0;
+          uint32_t count = cigar_counts[0];
+
+          if (cigar_counts.size() == 1) {
+            if (count != readLen) {
+              count = readLen;
+              cigar_fixed = true;
             }
+            cigar += std::to_string(count);
+            cigar += cigar_types[0];
+            return cigar;
+          }
 
-            std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
-                cigar_fixed = false;
-                std::string cigar = "";
-                if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0)
-                    return "NOT VALID";
-                if (cigar_counts.size() == 0)
-                    return NULL;
-
-                uint32_t cigar_length = 0;
-                uint32_t count = cigar_counts[0];
-
-                if (cigar_counts.size() == 1) {
-                    if (count != readLen) {
-                        count = readLen;
-                        cigar_fixed = true;
-                    }
-                    cigar += std::to_string(count);
-                    cigar += cigar_types[0];
-                    return cigar;
-                }
-
-                std::string type = cigar_types[0];
-                if (type == "I" or type == "M")
-                    cigar_length += count;
-                for (size_t i = 1; i < cigar_counts.size(); i++) {
-                    if (cigar_types[i] == "I" or cigar_types[i] == "M")
-                        cigar_length += cigar_counts[i];
-                    if (type == cigar_types[i]) {
-                        count += cigar_counts[i];
-                    } else {
-                        cigar += std::to_string(count);
-                        cigar += type;
-                        count = cigar_counts[i];
-                        type = cigar_types[i];
-                    }
-                    if (i == cigar_counts.size() - 1) {
-                        cigar += std::to_string(count);
-                        cigar += type;
-                        if (cigar_length < readLen) {
-                            cigar_fixed = true;
-                            count = readLen - cigar_length;
-                            cigar += std::to_string(count);
-                            cigar += "I";
-                        } else if (cigar_length > readLen) {
-                            cigar_fixed = true;
-                            count = cigar_length - readLen;
-                            cigar += std::to_string(count);
-                            cigar += "I";
-                        }
-                    }
-                }
-                return cigar;
+          std::string type = cigar_types[0];
+          if (type == "I" or type == "M")
+            cigar_length += count;
+          for (size_t i = 1; i < cigar_counts.size(); i++) {
+            if (cigar_types[i] == "I" or cigar_types[i] == "M")
+              cigar_length += cigar_counts[i];
+            if (type == cigar_types[i]) {
+              count += cigar_counts[i];
+            } else {
+              cigar += std::to_string(count);
+              cigar += type;
+              count = cigar_counts[i];
+              type = cigar_types[i];
             }
-        };
+            if (i == cigar_counts.size() - 1) {
+              cigar += std::to_string(count);
+              cigar += type;
+              if (cigar_length < readLen) {
+                cigar_fixed = true;
+                count = readLen - cigar_length;
+                cigar += std::to_string(count);
+                cigar += "I";
+              } else if (cigar_length > readLen) {
+                cigar_fixed = true;
+                count = cigar_length - readLen;
+                cigar += std::to_string(count);
+                cigar += "I";
+              }
+            }
+          }
+          return cigar;
+        }
+      };
 
         //Mapped object contains all the information
         //about mapping the struct is a bit changed from
