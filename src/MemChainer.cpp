@@ -44,13 +44,8 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
                                      //pufferfish::common_types::RefMemMapT &trMemMap,
                                      RefMemMap& trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, pufferfish::util::ReadEnd re,
-                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs, bool verbose) {
-  //if (verbose)
-  //  std::cerr << "\n[FIND_OPT_CHAIN]\n";
-
+                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs) {
   using namespace pufferfish::common_types;
-  //(void)verbose;
-
   if (hits.empty()) {
     return false;
   }
@@ -68,16 +63,12 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
   //memCollection.reserve(maxAllowedRefsPerHit * 2 * hits.size() + 1);
   memCollection.reserve(totSize);
 
-  //if (verbose)
-  //  std::cerr << "\nreserved memCollection size: " << maxAllowedRefsPerHit * 2 * hits.size() + 1 << "\n";
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
     auto &readPos = hit.first;
     auto &projHits = hit.second;
     // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
     // Maybe we want to change the interface (make these members public or provide accessors)?
     auto &refs = projHits.refRange;
-    //if (verbose)
-    //  std::cerr << "total number of references found: " << refs.size() << "\n";
     if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit) {
       uint32_t mappings{0};
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
@@ -88,14 +79,11 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
       //If we want to let the the hits to the references also found by the other end to be accepted
       //if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit or other_end_refs.find(posIt.transcript_id()) != other_end_refs.end() ) {
         const auto& refPosOri = projHits.decodeHit(posIt);
-        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)].emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
+        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)].
+        emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
         mappings++;
       //}
       }
-
-      //if (verbose) {
-      //  std::cerr << "total number of mappings found: " << mappings << "\n";
-      //}
     }
   }
   return true;
@@ -116,7 +104,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
-  if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs, verbose))
+  if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs))
     return false;
 
   size_t maxHits{0};
@@ -254,13 +242,13 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
         //To fix cases where there are repetting sequences in the read or reference
-        int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
-        int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos + hi.extendedlen);
-        /*if (rdiff == 0 or qdiff == 0 or rdiff * qdiff < 0 or rdiff_mem * qdiff_mem < 0 or hi.rpos == hj.rpos or
-            hi.tpos == hj.tpos) {
-          extensionScore = -std::numeric_limits<double>::infinity();
-        }
-        */
+          /*int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
+          int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos + hi.extendedlen);
+          if (rdiff == 0 or qdiff == 0 or rdiff * qdiff < 0 or rdiff_mem * qdiff_mem < 0 or hi.rpos == hj.rpos or
+              hi.tpos == hj.tpos) {
+            extensionScore = -std::numeric_limits<double>::infinity();
+          }
+          */
         /*
         if (verbose) {
           std::cerr << i << " " << j <<
