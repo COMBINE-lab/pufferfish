@@ -17,11 +17,10 @@ void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::ve
         // left mem clusters
         auto &lClusts = *(leftClustItr.second);
         // Compare the left clusters to the right clusters to filter by positional constraints
-        std::vector<pufferfish::util::MemCluster> dummyCluster;
         for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
             auto totalCoverage = lclust->coverage;
             if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage) {
-                jointMemsList.emplace_back(tid, lclust, dummyCluster.end(), 0, MateStatus::PAIRED_END_LEFT);
+                jointMemsList.emplace_back(tid, lclust, lclust, 0, MateStatus::PAIRED_END_LEFT);
                 uint32_t currCoverage = jointMemsList.back().coverage();
                 if (maxCoverage < currCoverage) {
                     maxCoverage = currCoverage;

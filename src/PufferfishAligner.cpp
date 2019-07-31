@@ -458,12 +458,17 @@ void processReadsSingle(single_parser *parser,
     config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
-    config.bandwidth = 10;
+    config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
+    config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
+    bool allowMultipleHitsPerRef = true;
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
+
+    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
+                            mopts, aligner, allowMultipleHitsPerRef);
 
     auto &txpNames = pfi.getRefNames();
     auto rg = parser->getReadGroup();
@@ -504,10 +509,7 @@ void processReadsSingle(single_parser *parser,
             std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>> validHits;
 
             if (!mopts->justMap) {
-//                ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
-                PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
-                                        read.seq, NULL, mopts, aligner, jointHits.size() > 1);
-
+              puffaligner.clear();
                 int32_t bestScore = invalidScore;
                 std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
                 size_t idx{0};
@@ -516,7 +518,7 @@ void processReadsSingle(single_parser *parser,
                 bool bestScoreTxpomic{false};
                 std::map<int32_t, std::vector<int32_t>> transcript_set;
                 for (auto &jointHit : jointHits) {
-                    int32_t hitScore = puffaligner.calculateAlignments(jointHit, hctr, verbose);
+                  int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, verbose);
                     scores[idx] = hitScore;
 
                     std::string ref_name = txpNames[jointHit.tid];
