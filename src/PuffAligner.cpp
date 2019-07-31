@@ -740,8 +740,37 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
     }
 }
 
-int32_t PuffAligner::calculateAlignments(pufferfish::util::JointMems &jointHit, HitCounters &hctr, bool verbose) {
-  return calculateAlignments(read_left_, read_right_, jointHit, hctr, verbose);
+
+
+/**
+ *  Align read, filling the relevant alignment information into the output joinHit structure.
+ *  The behavior of alignment (whether the alignment is done only between MEMs or over the full read length, and
+ *  if CIGAR strings are computed or just scores, is controlled by the configuration that has been passed to this
+ *  PuffAligner object).
+ **/
+int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
+
+    auto tid = jointHit.tid;
+    double optFrac{mopts->minScoreFraction};
+    bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+    auto threshold = [&, optFrac] (uint64_t len) -> double {
+        return (mopts->mimicBt2Default or !mopts->matchScore)?(-0.6+-0.6*len):optFrac*mopts->matchScore*len;
+    };
+    constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
+
+    hctr.totalAlignmentAttempts += 1;
+    ar_left.score = invalidScore;
+    const auto& oc = jointHit.orphanClust();
+    alignRead(read, oc->mems, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
+    jointHit.alignmentScore =
+      ar_left.score > threshold(read.length())  ? ar_left.score : invalidScore;
+    jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_left.cigar : "";
+    jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
+    //        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
+    if (jointHit.alignmentScore < 0 and verbose) {
+      std::cerr << read.length() << " " << threshold(read.length()) << " " << ar_left.score << "\n";
+    }
+    return jointHit.alignmentScore;
 }
 
 bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_right, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
@@ -763,6 +792,7 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   std::string* otherReadPtr{nullptr};
   const char* otherRead{nullptr};
   char* otherReadRC{nullptr};
+  std::string* otherRCSpace{nullptr};
   char* r1rc = nullptr;
   char* r2rc = nullptr;
 
@@ -778,13 +808,29 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     otherLen = l2;
     maxDist = maxDistRight;
     otherReadPtr = &read_right;
+    otherRCSpace = &rc2_;
     otherRead = r2;
     otherReadRC = r2rc;
+    /* from rapmap
+    anchorLen = l1;
+    otherLen = l2;
+    maxDist = maxDistRight;
+    lpos = anchorPos;
+    rpos = -1;
+    lfwd = anchorFwd;
+    rfwd = !lfwd;
+    otherReadPtr = &rightRead;
+    otherRCSpace = &rc2;
+    otherRead = r2;
+    otherReadRC = r2rc;
+    leftChainStatus = anchorHit.chainStatus.getLeft();
+    */
   } else {
     anchorLen = l2;
     otherLen = l1;
     maxDist = maxDistLeft;
     otherReadPtr = &read_left;
+    otherRCSpace = &rc1_;
     otherRead = r1;
     otherReadRC = r1rc;
   }
@@ -794,13 +840,12 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
 
   if (anchorFwd) {
     if (!otherReadRC){
-      auto read = pufferfish::util::reverseComplement(*otherReadPtr);
-      otherReadRC = const_cast<char*>(read.data());
+      pufferfish::util::reverseRead(*otherReadPtr, *otherRCSpace);
+      otherReadRC = const_cast<char*>(otherRCSpace->data());
     }
     rptr = otherReadRC;
     rlen = otherLen;
     startPos = std::max(signedZero, static_cast<int32_t>(anchorPos));
-
     windowLength = std::min(500, static_cast<int32_t>(refLength - startPos));
   } else {
     rptr = otherRead;
@@ -811,11 +856,14 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   }
 
   if (verbose) { std::cerr<< anchorPos<< "\n"; }
-  auto tseq = getRefSeq(allRefSeq, refAccPos, startPos, windowLength);
-  windowSeq.reset(new char[tseq.length() + 1]);
+  fillRefSeqBuffer(allRefSeq, refAccPos, startPos, windowLength, refSeqBuffer_);
+  /*windowSeq.reset(new char[tseq.length() + 1]);
   strcpy(windowSeq.get(), tseq.c_str());
+  */
 
-  EdlibAlignResult result = edlibAlign(rptr, rlen, windowSeq.get(), windowLength,
+  // Note -- we use score only mode to find approx end position in rapmap, can we
+  // do the same here?
+  EdlibAlignResult result = edlibAlign(rptr, rlen, refSeqBuffer_.data(), windowLength,
                                        edlibNewAlignConfig(maxDist, EDLIB_MODE_HW, EDLIB_TASK_LOC));
 
   if (result.editDistance > -1) {

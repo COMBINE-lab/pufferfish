@@ -40,7 +40,7 @@ public:
 
 /*
   PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_,
-              std::string r1, std::string r2, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : 
+              std::string r1, std::string r2, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) :
               allRefSeq(ar), refAccumLengths(ral), k(k_), read_left_(r1), read_right_(r2),
               mopts(m), aligner(a), multiMapping(mult) {
 		memset(&ez, 0, sizeof(ksw_extz_t));
@@ -55,8 +55,7 @@ public:
   PuffAligner& operator=(PuffAligner&& other) = delete;
 
   int32_t calculateAlignments(std::string& rl, std::string& rr, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose);
-
-  int32_t calculateAlignments(pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose);
+  int32_t calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose);
 
   bool alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool verbose);
   AlignmentResult alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
@@ -76,6 +75,8 @@ private:
   ksw_extz_t ez;
 
   pufferfish::util::CIGARGenerator cigarGen_;
+  std::string rc1_;
+  std::string rc2_;
   std::string read_left_;
   std::string read_right_;
   std::string refSeqBuffer_;

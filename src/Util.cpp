@@ -1,7 +1,235 @@
 #include "Util.hpp"
 
+#define ALLOW_VERBOSE 0
+
 namespace pufferfish {
     namespace util {
+
+void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                               //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                              std::vector<pufferfish::util::JointMems> &jointMemsList,
+                              uint32_t perfectCoverage,
+                              double coverageRatio) {
+    uint32_t maxCoverage{0};
+    for (auto &leftClustItr : leftMemClusters) {
+        // reference id
+        size_t tid = leftClustItr.first;
+        // left mem clusters
+        auto &lClusts = *(leftClustItr.second);
+        // Compare the left clusters to the right clusters to filter by positional constraints
+        for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
+            auto totalCoverage = lclust->coverage;
+            if (totalCoverage >= coverageRatio * maxCoverage or totalCoverage == perfectCoverage) {
+                jointMemsList.emplace_back(tid, lclust, lclust, 0, MateStatus::PAIRED_END_LEFT);
+                uint32_t currCoverage = jointMemsList.back().coverage();
+                if (maxCoverage < currCoverage) {
+                    maxCoverage = currCoverage;
+                }
+            }
+        }
+    }
+}
+
+
+pufferfish::util::MergeResult joinReadsAndFilter(
+                                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& rightMemClusters,
+                                                 //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                                                 //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
+                        std::vector<pufferfish::util::JointMems> &jointMemsList,
+                        uint32_t maxFragmentLength,
+                        uint32_t perfectCoverage,
+                        double coverageRatio,
+                        bool noDiscordant,
+                        bool noOrphans) {
+
+  // NOTE : We will fill in `jointMemsList` with iterators to MemClusters from the left and right read.
+  // multiple JointMems can share the same iterator (i.e., multiple JointMems can point to the same MemCluster).
+
+    using pufferfish::util::MergeResult;
+    MergeResult mergeRes{MergeResult::HAD_NONE};
+
+#if ALLOW_VERBOSE
+    std::cerr << "\n[JOINREADSANDFILTER]\n";
+#endif // ALLOW_VERBOSE
+
+    // If we will allow orphans in the output, then we compute here the
+    // maximum coverage of any optimal chain for the left and right read.
+    // Later, we will report orphans, in addition to concordant alignments,
+    // if they have sufficiently high coverage with respect to the maximum.
+    uint64_t maxLeft{0}, maxRight{0}, maxLeftCnt{0}, maxRightCnt{0};
+    bool isMaxLeftAndRight = false;
+    if (!noOrphans) {
+        for (auto &kv : leftMemClusters) {
+#if ALLOW_VERBOSE
+          std::cerr << "\ntid:" << kv.first << "\n"; 
+#endif // ALLOW_VERBOSE
+            auto &lClusts = *(kv.second);
+            for (auto clust = lClusts.begin(); clust != lClusts.end(); clust++) {
+                if (maxLeft == clust->coverage) {
+                    maxLeftCnt += 1;
+                } else if (maxLeft < clust->coverage) {
+                    maxLeft = clust->coverage;
+                    maxLeftCnt = 1;
+                }
+            }
+        } // leftMemClusters
+        for (auto &kv : rightMemClusters) {
+#if ALLOW_VERBOSE
+          std::cerr << "\ntid:" << kv.first << "\n"; 
+#endif // ALLOW_VERBOSE
+          auto &rClusts = *(kv.second);
+          for (auto clust = rClusts.begin(); clust != rClusts.end(); clust++) {
+            if (maxRight == clust->coverage) {
+              maxRightCnt += 1;
+            } else if (maxRight < clust->coverage) {
+              maxRight = clust->coverage;
+              maxRightCnt = 1;
+            }
+          }
+        } // rightMemClusters
+    } // !noOrphans
+
+
+    // The maximum coverage of a mem cluster for the left or right read
+    auto maxLeftOrRight = maxLeft > maxRight ? maxLeft : maxRight;
+
+    //orphan reads should be taken care of maybe with a flag!
+    uint32_t maxCoverage{0};
+    uint8_t round{0};
+    uint32_t sameTxpCount{0};
+
+    while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
+      for (auto &leftClustItr : leftMemClusters) {
+            // reference id
+            size_t tid = leftClustItr.first;
+            // left mem clusters
+            auto &lClusts = *(leftClustItr.second);
+            // right mem clusters for the same reference id
+            auto &rClusts = rightMemClusters[tid];
+
+            // Compare the left clusters to the right clusters to filter by positional constraints
+            for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
+
+                for (auto rclust = rClusts.begin(); rclust != rClusts.end(); rclust++) {
+                    // if both the left and right clusters are oriented in the same direction, skip this pair
+                    // NOTE: This should be optional as some libraries could allow this.
+                    if (round == 0 and lclust->isFw == rclust->isFw) { // if priority 0, ends should be concordant
+                        continue;
+                    }
+
+                    // FILTER 1
+                    // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
+                    int32_t fragmentLen = rclust->lastRefPos() + rclust->lastMemLen() - lclust->firstRefPos();
+                    if (lclust->firstRefPos() > rclust->firstRefPos()) {
+                        fragmentLen = lclust->lastRefPos() + lclust->lastMemLen() - rclust->firstRefPos();
+                    }
+                    if (fragmentLen < 0) { // @fatemeh : should we even be checking for this?
+                        std::cerr << "Fragment length cannot be smaller than zero!\n";
+                        exit(1);
+                    }
+
+                    // FILTERING fragments with size smaller than maxFragmentLength
+                    // FILTER just in case of priority 0 (round 0)
+                    if ((fragmentLen < maxFragmentLength) or (round > 0)) {
+                        // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
+                        // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
+                        auto totalCoverage = lclust->coverage + rclust->coverage;
+                        if ( (totalCoverage >= coverageRatio * maxCoverage) or
+                              (totalCoverage == perfectCoverage) ) {
+                            ++sameTxpCount;
+                            jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
+                            uint32_t currCoverage = jointMemsList.back().coverage();
+                            if (maxCoverage < currCoverage) {
+                                maxCoverage = currCoverage;
+                                if ( (lclust->coverage < maxLeft) or (rclust->coverage < maxRight)) {
+                                    isMaxLeftAndRight = false;
+                                } else {
+                                    isMaxLeftAndRight = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } // @fatemeh : this nesting just seems too many levels deep.  Can we re-work the logic here to make things simpler?
+        round++;
+    }
+
+#if ALLOW_VERBOSE
+    // If we couldn't find any pair and we are allowed to add orphans
+        std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
+#endif // ALLOW_VERBOSE
+    
+    bool leftOrphan = false; bool rightOrphan = false;
+    if (!noOrphans and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
+        auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
+        (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
+                 bool isLeft) {
+            // fragmentLen is set to 0
+            // std::vector<pufferfish::util::MemCluster> dummyCluster;
+            for (auto &clustItr : memClusters) {
+                // reference id
+                size_t tid = clustItr.first;
+                // left mem clusters
+                auto &Clusts = *(clustItr.second);
+                for (auto clust = Clusts.begin(); clust != Clusts.end(); clust++) {
+                    if (clust->coverage >= coverageRatio * maxLeftOrRight) {
+                        if (isLeft) {
+                            leftOrphan = true;
+                            jointMemsList.emplace_back(tid, clust, /*dummy*/ clust, 0, MateStatus::PAIRED_END_LEFT);
+                        } else {
+                            rightOrphan = true;
+                            jointMemsList.emplace_back(tid, /*dummy*/ clust , clust, 0, MateStatus::PAIRED_END_RIGHT);
+                        }
+                        uint32_t currCoverage = jointMemsList.back().coverage();
+                        if (maxCoverage < currCoverage) {
+                            maxCoverage = currCoverage;
+                        }
+                    }
+                }
+            }
+        };
+        orphanFiller(leftMemClusters, true);
+        orphanFiller(rightMemClusters, false);
+    }
+    if (sameTxpCount == 0) {
+      if (leftOrphan and !rightOrphan) {
+        mergeRes = MergeResult::HAD_ONLY_LEFT;
+      } else if (!leftOrphan and rightOrphan) {
+        mergeRes = MergeResult::HAD_ONLY_RIGHT;
+      } else if (leftOrphan and rightOrphan) {
+        mergeRes = MergeResult::HAD_EMPTY_INTERSECTION;
+      } else {
+        mergeRes = MergeResult::HAD_NONE;
+      }
+    } else {
+      // round is always incremented, so if it's value is 1, we found a concordant
+      // mapping and incremented round only one time.
+      mergeRes = (round == 1) ? MergeResult::HAD_CONCORDANT : MergeResult::HAD_DISCORDANT;
+    }
+
+#if ALLOW_VERBOSE
+        std::cerr << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
+#endif // ALLOW_VERBOSE
+
+    jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
+                                       [&maxCoverage, coverageRatio](pufferfish::util::JointMems &pairedReadMems) -> bool {
+                                           return pairedReadMems.coverage() < coverageRatio * maxCoverage;
+                                       }),
+                        jointMemsList.end());
+
+#if ALLOW_VERBOSE
+        std::cerr << "\nAfter:" << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
+        std::cerr << "\n[END OF JOINREADSANDFILTER]\n";
+#endif // ALLOW_VERBOSE
+
+    return mergeRes;
+}
+
+
+
+
 
         char complement(char &c) {
           switch (c) {
