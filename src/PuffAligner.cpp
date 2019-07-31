@@ -703,7 +703,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
           ar_left.score > threshold(read_orphan.length())  ? ar_left.score : invalidScore;
         jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_left.cigar : "";
         jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
-        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
+//        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         if (jointHit.alignmentScore < 0 and verbose) {
           std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
         }
@@ -718,13 +718,15 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
                                              jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right, verbose);
 
-        auto score_left = ar_left.score > threshold(read_left.length()) ? ar_left.score : invalidScore;
-        auto score_right = ar_right.score > threshold(read_right.length()) ? ar_right.score : invalidScore;
+        jointHit.alignmentScore = ar_left.score > threshold(read_left.length()) ? ar_left.score : invalidScore;
+        jointHit.mateAlignmentScore = ar_right.score > threshold(read_right.length()) ? ar_right.score : invalidScore;
+/*
         jointHit.alignmentScore = (score_left == invalidScore or score_right == invalidScore)?
                                   invalidScore : score_left + score_right;
-        jointHit.leftClust->coverage = score_left;
+*/
+//        jointHit.leftClust->coverage = score_left;
         jointHit.leftClust->openGapLen = ar_left.openGapLen;
-        jointHit.rightClust->coverage = score_right;
+//        jointHit.rightClust->coverage = score_right;
         jointHit.rightClust->openGapLen = ar_right.openGapLen;
         if (computeCIGAR) {
           jointHit.leftClust->cigar = ar_left.cigar;
@@ -733,7 +735,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
           jointHit.leftClust->cigar = "";
           jointHit.rightClust->cigar = "";
         }
-        return jointHit.alignmentScore;
+        return (jointHit.alignmentScore == invalidScore or jointHit.mateAlignmentScore == invalidScore) ?
+        invalidScore:jointHit.alignmentScore+jointHit.mateAlignmentScore;
     }
 }
 
