@@ -459,7 +459,7 @@ void processReadsPair(paired_parser *parser,
 
             if ( mopts->recoverOrphans and mergeStatusOR ) {
               // NOTE : onging work -- currently uses locally-freed memory.
-              // recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
+              recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
             }
 
             hctr.peHits += jointHits.size();

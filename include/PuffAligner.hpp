@@ -74,6 +74,8 @@ private:
   ksw_extz_t ez;
 
   pufferfish::util::CIGARGenerator cigarGen_;
+  std::string rc1_;
+  std::string rc2_;
   std::string read_left_;
   std::string read_right_;
   std::string refSeqBuffer_;

@@ -652,6 +652,112 @@ Compile-time selection between list-like and map-like printing.
 
         };
 
+      /*
+    struct QuasiAlignment {
+  	QuasiAlignment() :
+		tid(std::numeric_limits<uint32_t>::max()),
+		pos(std::numeric_limits<int32_t>::max()),
+		fwd(true),
+		fragLen(std::numeric_limits<uint32_t>::max()),
+		readLen(std::numeric_limits<uint32_t>::max()),
+		isPaired(false)
+#ifdef PUFFERFISH_SALMON_SUPPORT
+        ,format(LibraryFormat::formatFromID(0))
+#endif // PUFFERFISH_SALMON_SUPPORT
+        {}
+
+        QuasiAlignment(uint32_t tidIn, int32_t posIn,
+                bool fwdIn, uint32_t readLenIn,
+                uint32_t fragLenIn = 0,
+                bool isPairedIn = false) :
+            tid(tidIn), pos(posIn), fwd(fwdIn),
+            fragLen(fragLenIn), readLen(readLenIn), 
+            isPaired(isPairedIn)
+#ifdef PUFFERFISH_SALMON_SUPPORT
+        ,format(LibraryFormat::formatFromID(0))
+#endif // PUFFERFISH_SALMON_SUPPORT
+        {}
+        QuasiAlignment(QuasiAlignment&& other) = default;
+        QuasiAlignment& operator=(QuasiAlignment&) = default;
+        QuasiAlignment& operator=(QuasiAlignment&& o) = default;
+        QuasiAlignment(const QuasiAlignment& o) = default;
+        QuasiAlignment(QuasiAlignment& o) = default;
+
+      inline void setChainScore(double chainScoreIn) {
+        chainScore_ = chainScoreIn;
+      }
+
+      inline double chainScore() const {
+        return chainScore_;
+      }
+
+      inline uint32_t transcriptID() const { return tid; }
+      inline double score() const { return score_; }
+      inline void score(double scoreIn) { score_ = scoreIn; }
+      inline int32_t alnScore() const { return alnScore_; }
+      inline void alnScore(int32_t alnScoreIn) { alnScore_ = alnScoreIn; }
+      inline uint32_t fragLength() const { return fragLen; }
+      inline int32_t hitPos() { return std::min(pos, matePos); }
+
+// Some convenience functions to allow salmon interop
+#ifdef RAPMAP_SALMON_SUPPORT
+      inline uint32_t fragLengthPedantic(uint32_t txpLen) const {
+        if (mateStatus != rapmap::utils::MateStatus::PAIRED_END_PAIRED
+            or fwd == mateIsFwd) {
+          return 0;
+        }
+        int32_t p1 = fwd ? pos : matePos;
+        int32_t sTxpLen = static_cast<int32_t>(txpLen);
+        p1 = (p1 < 0) ? 0 : p1;
+        p1 = (p1 > sTxpLen) ? sTxpLen : p1;
+        int32_t p2 = fwd ? matePos + mateLen : pos + readLen;
+        p2 = (p2 < 0) ? 0 : p2;
+        p2 = (p2 > sTxpLen) ? sTxpLen : p2;
+
+        return (p1 > p2) ? p1 - p2 : p2 - p1;
+      }
+
+      double logProb{HUGE_VAL};
+      double logBias{HUGE_VAL};
+      inline LibraryFormat libFormat() { return format; }
+      LibraryFormat format;
+#endif // RAPMAP_SALMON_SUPPORT
+       bool hasMultiPos{false};
+       chobo::small_vector<int32_t> allPositions;
+       chobo::small_vector<int32_t> oppositeStrandPositions;
+
+        // Only 1 since the mate must have the same tid
+        // we won't call *chimeric* alignments here.
+        uint32_t tid;
+        // Left-most position of the hit
+        int32_t pos;
+        // left-most position of the mate
+        int32_t matePos;
+        // Is the read from the forward strand
+        bool fwd;
+        // Is the mate from the forward strand
+        bool mateIsFwd;
+        // The fragment length (template length)
+        // This is 0 for single-end or orphaned reads.
+        uint32_t fragLen;
+        // The read's length
+        uint32_t readLen;
+        // The mate's length
+        uint32_t mateLen;
+        // Is this a paired *alignment* or not
+        bool isPaired;
+        MateStatus mateStatus;
+        // numeric score associated with this mapping
+        double score_{1.0};
+        // actual ``alignment'' score associated with this mapping.
+        int32_t alnScore_{0};
+        // If one or both of the reads is a complete match (no mismatch, indels), say what kind.
+        FragmentChainStatus chainStatus;
+        double chainScore_{std::numeric_limits<double>::lowest()};
+      //int32_t queryOffset{-1};
+      //MateStatus completeMatchType{MateStatus::NOTHING};
+    };
+    */
 
         struct QuasiAlignment {
             QuasiAlignment() :

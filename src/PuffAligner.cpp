@@ -760,6 +760,7 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   std::string* otherReadPtr{nullptr};
   const char* otherRead{nullptr};
   char* otherReadRC{nullptr};
+  std::string* otherRCSpace{nullptr};
   char* r1rc = nullptr;
   char* r2rc = nullptr;
 
@@ -775,13 +776,29 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     otherLen = l2;
     maxDist = maxDistRight;
     otherReadPtr = &read_right;
+    otherRCSpace = &rc2_;
     otherRead = r2;
     otherReadRC = r2rc;
+    /* from rapmap
+    anchorLen = l1;
+    otherLen = l2;
+    maxDist = maxDistRight;
+    lpos = anchorPos;
+    rpos = -1;
+    lfwd = anchorFwd;
+    rfwd = !lfwd;
+    otherReadPtr = &rightRead;
+    otherRCSpace = &rc2;
+    otherRead = r2;
+    otherReadRC = r2rc;
+    leftChainStatus = anchorHit.chainStatus.getLeft();
+    */
   } else {
     anchorLen = l2;
     otherLen = l1;
     maxDist = maxDistLeft;
     otherReadPtr = &read_left;
+    otherRCSpace = &rc1_;
     otherRead = r1;
     otherReadRC = r1rc;
   }
@@ -791,13 +808,12 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
 
   if (anchorFwd) {
     if (!otherReadRC){
-      auto read = pufferfish::util::reverseComplement(*otherReadPtr);
-      otherReadRC = const_cast<char*>(read.data());
+      pufferfish::util::reverseRead(*otherReadPtr, *otherRCSpace);
+      otherReadRC = const_cast<char*>(otherRCSpace->data());
     }
     rptr = otherReadRC;
     rlen = otherLen;
     startPos = std::max(signedZero, static_cast<int32_t>(anchorPos));
-
     windowLength = std::min(500, static_cast<int32_t>(refLength - startPos));
   } else {
     rptr = otherRead;
@@ -808,11 +824,14 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   }
 
   if (verbose) { std::cerr<< anchorPos<< "\n"; }
-  auto tseq = getRefSeq(allRefSeq, refAccPos, startPos, windowLength);
-  windowSeq.reset(new char[tseq.length() + 1]);
+  fillRefSeqBuffer(allRefSeq, refAccPos, startPos, windowLength, refSeqBuffer_);
+  /*windowSeq.reset(new char[tseq.length() + 1]);
   strcpy(windowSeq.get(), tseq.c_str());
+  */
 
-  EdlibAlignResult result = edlibAlign(rptr, rlen, windowSeq.get(), windowLength,
+  // Note -- we use score only mode to find approx end position in rapmap, can we
+  // do the same here?
+  EdlibAlignResult result = edlibAlign(rptr, rlen, refSeqBuffer_.data(), windowLength,
                                        edlibNewAlignConfig(maxDist, EDLIB_MODE_HW, EDLIB_TASK_LOC));
 
   if (result.editDistance > -1) {
