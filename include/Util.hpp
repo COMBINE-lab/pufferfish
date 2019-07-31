@@ -32,6 +32,13 @@
 #endif
 #endif
 
+#define PUFF_DEBUG_VERBOSE 0
+#ifdef PUFF_DEBUG_VERBOSE
+#  define VERB(x) x
+#else
+#  define VERB(x)
+#endif // PUFF_DEBUG_VERBOSE
+
 namespace pufferfish {
 
     namespace util {
