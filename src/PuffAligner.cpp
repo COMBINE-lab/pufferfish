@@ -175,7 +175,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
 
   uint64_t hashKey{0};
   bool didHash{false};
-  uint32_t refStart, readStart;
+  uint32_t refStart, readStart{0};
 
     /// ROB EDIT TESTING  ORIGINAL BELOW
     if (!mopts->fullAlignment) {
@@ -223,7 +223,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
         refStart = currHitStart_ref;
       }
       uint32_t buff{20};
-      auto refLength = keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+      auto keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
       fillRefSeqBuffer(allRefSeq, refAccPos, refStart, keyLen, refSeqBuffer_);
       if (!alnCache.empty()) {
         // hash the reference string
@@ -464,6 +464,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                                 std::cerr << "\n" << score << "\n";
                             }
                             int32_t insertionDeletion = 0; //TODO should be fixed for cigars
+                            (void) insertionDeletion;
                             /*if (readGapLength > refGapLength + insertionDeletion) {
                                 int32_t startHang = readGapLength - refGapLength - insertionDeletion;
                                 alignmentScore +=

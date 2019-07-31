@@ -50,19 +50,28 @@ int pufferfishExamine(ExamineOptions& opts) {
     std::cerr << "Index type = " << indexType << '\n';
     infoStream.close();
   }
-
+  bool s{false};
   if (indexType == "sparse") {
     PufferfishSparseIndex pi(opts.index_dir);
     if (dump_fasta) {
-      bool s = dump_index_fasta(pi, opts.fasta_out);
+      s = dump_index_fasta(pi, opts.fasta_out);
+
     }
   } else if (indexType == "dense") {
     PufferfishIndex pi(opts.index_dir);
     if (dump_fasta) {
-      bool s = dump_index_fasta(pi, opts.fasta_out);
+      s = dump_index_fasta(pi, opts.fasta_out);
+    }
+  } else if (indexType == "lossy") {
+    PufferfishLossyIndex pi(opts.index_dir);
+    if (dump_fasta) {
+      s = dump_index_fasta(pi, opts.fasta_out);
     }
   }
 
+  if (!s) {
+    std::cerr << "Didn't dump reference fasta.";
+  }
 
   return 0;
 }
