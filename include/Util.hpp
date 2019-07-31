@@ -10,7 +10,6 @@
 #include <type_traits>
 #include <vector>
 
-
 #include "CanonicalKmer.hpp"
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
@@ -1083,6 +1082,22 @@ Compile-time selection between list-like and map-like printing.
             uint32_t openGapLen;
         };
 
+
+      void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                                     //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                                     std::vector<pufferfish::util::JointMems> &jointMemsList,
+                                     uint32_t perfectCoverage,
+                                     double coverageRatio);
+
+      pufferfish::util::MergeResult joinReadsAndFilter(
+                                                       pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                                                       pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& rightMemClusters,
+                                                       std::vector<pufferfish::util::JointMems> &jointMemsList,
+                                                       uint32_t maxFragmentLength,
+                                                       uint32_t perfectCoverage,
+                                                       double coverageRatio,
+                                                       bool noDiscordant,
+                                                       bool noOrphans);
 
         char complement(char &c);
 

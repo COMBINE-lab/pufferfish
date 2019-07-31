@@ -94,7 +94,7 @@ target_compile_options(puffer PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>
 add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-target_link_libraries(pufferfish Threads::Threads puffer ksw2pp ${JEMALLOC_LIBRARIES} z twopaco graphdump ntcard ${TBB_LIBRARIES})
+target_link_libraries(pufferfish puffer Threads::Threads ${JEMALLOC_LIBRARIES} z twopaco graphdump ntcard ${TBB_LIBRARIES} ksw2pp )
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
