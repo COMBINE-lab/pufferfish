@@ -630,7 +630,7 @@ void processReadsPair(paired_parser *parser,
               } else if (jointAlignments.size() > 0) {
                 writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
               } else if (jointAlignments.size() == 0) {
-                writeUnmappedAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
+                writeUnalignedPairToStream(rpair, sstream);
               }
             }
 
@@ -899,8 +899,7 @@ void processReadsSingle(single_parser *parser,
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream, !mopts->noOrphan);
             } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
-                writeUnmappedAlignmentsToStreamSingle(read, formatter, jointAlignments,
-                                                      sstream, !mopts->noOrphan);
+              writeUnalignedSingleToStream(read, sstream);
             }
 
             // write them on cmd
