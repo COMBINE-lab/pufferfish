@@ -63,7 +63,7 @@ namespace pufferfish {
       };
 
 
-      enum class BestHitReferenceType : uint8_t { NON_FILTERED, FILTERED, BOTH };
+      enum class BestHitReferenceType : uint8_t { NON_FILTERED, FILTERED, BOTH, UNKNOWN };
 
       template <typename K, typename V, typename H>
       class CachedVectorMap {
@@ -601,6 +601,7 @@ Compile-time selection between list-like and map-like printing.
             size_t fragmentLen;
             size_t rmemMaxLen{0}, lmemMaxLen{0};
             int32_t alignmentScore{0};
+            int32_t mateAlignmentScore{0};
             MateStatus mateStatus;
             bool recovered{false};
 

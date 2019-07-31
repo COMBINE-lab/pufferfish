@@ -343,8 +343,7 @@ void processReadsPair(paired_parser *parser,
     BinWriter bstream;
 
     //size_t batchSize{2500} ;
-    size_t readLen{0}, mateLen{0};
-    size_t totLen{0};
+    uint32_t readLen{0}, mateLen{0}, totLen{0};
 
 
     pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> leftHits;
@@ -357,7 +356,7 @@ void processReadsPair(paired_parser *parser,
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
     pufferfish::util::QueryCache qc;
 
-    //@fatemeh Initialize aligner ksw
+    //Initialize aligner ksw
     ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
     ksw2pp::KSW2Config config;
 
@@ -387,14 +386,14 @@ void processReadsPair(paired_parser *parser,
 
     std::vector<QuasiAlignment> jointAlignments;
     using pufferfish::util::BestHitReferenceType;
-    BestHitReferenceType bestHitRefType;
+    BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};
     //For filtering reads
     bool verbose = mopts->verbose;
     auto &txpNames = pfi.getRefNames();
     while (parser->refill(rg)) {
         for (auto &rpair : rg) {
-            readLen = rpair.first.seq.length();
-            mateLen = rpair.second.seq.length();
+            readLen = static_cast<uint32_t >(rpair.first.seq.length());
+            mateLen = static_cast<uint32_t >(rpair.second.seq.length());
             totLen = readLen + mateLen;
 
             ++hctr.numReads;
@@ -444,8 +443,6 @@ void processReadsPair(paired_parser *parser,
             //otherwise orphan
 
             // We also handle orphans inside this function
-            //TODO uncomment this part if you want to get back to the original joinReadsAndFilter
-
             auto mergeRes = joinReadsAndFilter(leftHits, rightHits, jointHits,
                                mopts->maxFragmentLength,
                                totLen,
@@ -458,7 +455,7 @@ void processReadsPair(paired_parser *parser,
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_RIGHT);
 
             if ( mopts->recoverOrphans and mergeStatusOR ) {
-              // NOTE : onging work -- currently uses locally-freed memory.
+              // TODO NOTE : do futher testing
               recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
             }
 
@@ -489,14 +486,16 @@ void processReadsPair(paired_parser *parser,
                         if (hitScore > bestScore) {
                           bestHitRefType = BestHitReferenceType::FILTERED;
                         } else if (hitScore == bestScore) {
-                          bestHitRefType = (bestHitRefType == BestHitReferenceType::NON_FILTERED) ?
+                          bestHitRefType = (bestHitRefType == BestHitReferenceType::NON_FILTERED or
+                                  bestHitRefType == BestHitReferenceType::BOTH) ?
                             BestHitReferenceType::BOTH : BestHitReferenceType::FILTERED;
                         }
                       } else { // the current hit was not in the list of references to filter
                         if (hitScore > bestScore) {
                           bestHitRefType = BestHitReferenceType::NON_FILTERED;
                         } else if (hitScore == bestScore) {
-                          bestHitRefType = (bestHitRefType == BestHitReferenceType::FILTERED) ?
+                          bestHitRefType = (bestHitRefType == BestHitReferenceType::FILTERED or
+                                  bestHitRefType == BestHitReferenceType::BOTH) ?
                             BestHitReferenceType::BOTH : BestHitReferenceType::NON_FILTERED;
                         }
                       }
@@ -504,7 +503,8 @@ void processReadsPair(paired_parser *parser,
 
                     bestScore = (hitScore > bestScore) ? hitScore : bestScore;
 
-                    // use SCORE, not COVERAGE
+                    // use ALIGNMENT SCORE, not COVERAGE
+                    // We should have valid alignment scores at this point as we are inside !justMap if and passed calculating alignment score
                     if (!mopts->genomicReads) {
                         // removing dupplicate hits from a read to the same transcript
                       auto it = bestScorePerTranscript.find(jointHit.tid);
@@ -512,13 +512,13 @@ void processReadsPair(paired_parser *parser,
                           // if we didn't have any alignment for this transcript yet, then
                           // this is the current best
                           // cast is a hack :(
-                          bestScorePerTranscript[jointHit.tid].first = static_cast<int32_t>(jointHit.coverage());
+                          bestScorePerTranscript[jointHit.tid].first = jointHit.alignmentScore+jointHit.mateAlignmentScore;/*static_cast<int32_t>(jointHit.coverage());*/
                           bestScorePerTranscript[jointHit.tid].second = idx;
                         } else if (jointHit.coverage() > it->second.first) {
                           // otherwise, if we had an alignment for this transcript and it's
                           // better than the current best, then set the best score to this
                           // alignment's score, and invalidate the previous alignment
-                          it->second.first = static_cast<int32_t>(jointHit.coverage());
+                          it->second.first = jointHit.alignmentScore+jointHit.mateAlignmentScore;/*static_cast<int32_t>(jointHit.coverage());*/
                           scores[it->second.second] = invalidScore;
                           it->second.second = idx;
                         } else {
@@ -593,9 +593,9 @@ void processReadsPair(paired_parser *parser,
                                              false);
                 auto &qaln = jointAlignments.back();
                 // NOTE : score should not be filled in from a double
-                qaln.score = jointHit.orphanClust()->coverage;
+                qaln.score = mopts->justMap ? static_cast<int32_t >(jointHit.orphanClust()->coverage):jointHit.alignmentScore;//()->coverage;
                 // NOTE : wth is numHits?
-                qaln.numHits = jointHit.orphanClust()->coverage;
+                qaln.numHits = static_cast<uint32_t >(jointHits.size());//orphanClust()->coverage;
                 qaln.mateStatus = jointHit.mateStatus;
               } else {
                 jointAlignments.emplace_back(jointHit.tid,           // reference id
@@ -609,14 +609,14 @@ void processReadsPair(paired_parser *parser,
                 auto &qaln = jointAlignments.back();
                 qaln.mateLen = mateLen;
                 qaln.mateCigar = jointHit.rightClust->cigar;
-                qaln.matePos = jointHit.rightClust->getTrFirstHitPos();
+                qaln.matePos = static_cast<int32_t >(jointHit.rightClust->getTrFirstHitPos());
                 qaln.mateIsFwd = jointHit.rightClust->isFw;
                 qaln.mateStatus = MateStatus::PAIRED_END_PAIRED;
                 // NOTE : wth is numHits?
-                qaln.numHits = jointHit.coverage();
+                qaln.numHits = static_cast<uint32_t >(jointHits.size());
                 // NOTE : score should not be filled in from a double
-                qaln.score = jointHit.leftClust->coverage;
-                qaln.mateScore = jointHit.rightClust->coverage;
+                qaln.score = mopts->justMap ? static_cast<int32_t >(jointHit.leftClust->coverage):jointHit.alignmentScore;
+                qaln.mateScore = mopts->justMap ? static_cast<int32_t >(jointHit.rightClust->coverage):jointHit.mateAlignmentScore;;
               }
             }
 
