@@ -38,6 +38,17 @@ public:
 		alnCacheRight.reserve(32);
   }
 
+/*
+  PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_,
+              std::string r1, std::string r2, AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) :
+              allRefSeq(ar), refAccumLengths(ral), k(k_), read_left_(r1), read_right_(r2),
+              mopts(m), aligner(a), multiMapping(mult) {
+		memset(&ez, 0, sizeof(ksw_extz_t));
+
+		alnCacheLeft.reserve(32);
+		alnCacheRight.reserve(32);
+  }
+*/
   PuffAligner(const PuffAligner& other) = delete;
   PuffAligner& operator=(const PuffAligner& other) = delete;
   PuffAligner(PuffAligner&& other) = delete;

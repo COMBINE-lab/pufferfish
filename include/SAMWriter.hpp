@@ -227,6 +227,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
                                    //PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<pufferfish::util::JointMems>& validJointHits,
                                    BinWriter& bstream,
+                                   bool justMap,
                                    bool wrtIntervals=true) {
   if (validJointHits.empty()) return 0;
   auto& readName = r.first.name;
@@ -280,7 +281,11 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 
       if (qa.isLeftAvailable()) {
           //std::cerr << " lrefpos: " << leftRefPos;
-        bstream << static_cast<double>(clustLeft->coverage);
+        if (justMap) {
+          bstream << qa.alignmentScore;
+        } else {
+          bstream << clustLeft->coverage;
+        }
         bstream << static_cast<refLenType>(leftRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustLeft->mems) {
@@ -291,7 +296,11 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 	  }
       if (qa.isRightAvailable()) {
           //std::cerr << " rrefpos: " << rightRefPos;
-        bstream << static_cast<double>(clustRight->coverage);
+          if (justMap) {
+            bstream << qa.mateAlignmentScore;
+          } else {
+            bstream << clustRight->coverage;
+          }
         bstream << static_cast<refLenType>(rightRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustRight->mems) {
@@ -343,7 +352,8 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
       binStream << static_cast<rLenType>(clust->mems.size());
 //    }
     //std::cerr << qa.first << "\t" << clust->mems.size() << "\n";
-    binStream << static_cast<double>(clust->coverage);
+    binStream << clust->coverage;
+
     binStream << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
     if (wrtIntervals) {
       for (auto& mem: clust->mems){
