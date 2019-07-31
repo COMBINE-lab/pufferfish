@@ -8,6 +8,7 @@
 #include "Util.hpp"
 #include "BinWriter.hpp"
 #include "parallel_hashmap/phmap.h"
+#include "nonstd/string_view.hpp"
 
 typedef uint16_t rLenType;
 typedef uint32_t refLenType;
@@ -595,46 +596,37 @@ inline uint32_t writeAlignmentsToStream(
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
-  // auto& qual1Temp = formatter.qual1Temp;
-  // auto& qual2Temp = formatter.qual2Temp;
   auto& cigarStr1 = formatter.cigarStr1;
   auto& cigarStr2 = formatter.cigarStr2;
+
+  uint16_t flags1, flags2;
+
+  auto processReadName = [](const std::string& name) -> fmt::StringRef {
+                           nonstd::string_view readNameView(name);
+                           // If the read name contains multiple space-separated parts,
+                           // print only the first
+                           size_t splitPos = readNameView.find(' ');
+                           if (splitPos < readNameView.length()) {
+                             readNameView.remove_suffix(readNameView.length() - splitPos);
+                           } else {
+                             splitPos = readNameView.length();
+                           }
+
+                           // trim /1 from the pe read
+                           if (splitPos > 2 and readNameView[splitPos - 2] == '/') {
+                             readNameView.remove_suffix(2);
+                             //readName[splitPos - 2] = '\0';
+                           }
+                           return fmt::StringRef(readNameView.data(), readNameView.size());
+                         };
+
+  auto readNameView = processReadName(r.first.name);
+  auto mateNameView = processReadName(r.second.name);
 
   cigarStr1.clear();
   cigarStr2.clear();
   cigarStr1.write("{}M", r.first.seq.length());
   cigarStr2.write("{}M", r.second.seq.length());
-  //std::cerr << cigarStr1.c_str() << "\n";
-  uint16_t flags1, flags2;
-
-  auto& readName = r.first.name;
-  // If the read name contains multiple space-separated parts,
-  // print only the first
-  size_t splitPos = readName.find(' ');
-  if (splitPos < readName.length()) {
-    readName[splitPos] = '\0';
-  } else {
-    splitPos = readName.length();
-  }
-
-  if (splitPos > 2 and readName[splitPos - 2] == '/') {
-    readName[splitPos - 2] = '\0';
-  }
-
-  auto& mateName = r.second.name;
-  // If the read name contains multiple space-separated parts,
-  // print only the first
-  splitPos = mateName.find(' ');
-  if (splitPos < mateName.length()) {
-    mateName[splitPos] = '\0';
-  } else {
-    splitPos = mateName.length();
-  }
-
-  // trim /2 from the pe read
-  if (splitPos > 2 and mateName[splitPos - 2] == '/') {
-    mateName[splitPos - 2] = '\0';
-  }
 
   std::string numHitFlag = fmt::format("NH:i:{}", jointHits.size());
   uint32_t alnCtr{0};
@@ -643,7 +635,6 @@ inline uint32_t writeAlignmentsToStream(
   bool haveRev1{false};
   bool haveRev2{false};
   bool* haveRev = nullptr;
-
   size_t i{0};
   for (auto& qa : jointHits) {
     ++i;
@@ -657,7 +648,6 @@ inline uint32_t writeAlignmentsToStream(
         flags2 |= 0x100;
       }
 
-      /** NOTE : WHY IS txpLen 100 here --- we should store and read this from the index. **/
       adjustOverhang(qa, txpLen, cigarStr1, cigarStr2);
       // Reverse complement the read and reverse
       // the quality string if we need to
@@ -682,19 +672,19 @@ inline uint32_t writeAlignmentsToStream(
         readSeq2 = &(read2Temp);
         // qstr2 = &(qual2Temp);
       }
-      // If the fragment overhangs the right end of the reference
+
+
+      // If the fragment overhangs the right end of the transcript
       // adjust fragLen (overhanging the left end is already handled).
       int32_t read1Pos = qa.pos;
       int32_t read2Pos = qa.matePos;
       const bool read1First{read1Pos < read2Pos};
-
-      // TODO : We don't have access to the txp len yet
       const int32_t minPos = read1First ? read1Pos : read2Pos;
-      if (minPos + qa.fragLen > txpLen) { qa.fragLen = txpLen - minPos; }
-
+      if ((minPos + static_cast<int32_t>(qa.fragLen)) > static_cast<int32_t>(txpLen)) { qa.fragLen = txpLen - minPos; }
       // get the fragment length as a signed int
       const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
-      sstream << readName.c_str() << '\t'                    // QNAME
+
+      sstream << readNameView << '\t'                    // QNAME
               //<< qa.numHits << '\t'
               << flags1 << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
@@ -708,10 +698,11 @@ inline uint32_t writeAlignmentsToStream(
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
               << *readSeq1 << '\t'                           // SEQ
               << "*\t"                                       // QUAL
-              << "AS:i:"<< qa.score << ' '
-              << numHitFlag << '\n';
+              << numHitFlag << '\t'
+              << "HI:i:" << i << '\t'
+              << "AS:i:" << qa.score << '\n';
 
-      sstream << mateName.c_str() << '\t'                    // QNAME
+      sstream << mateNameView << '\t'                    // QNAME
               //<< qa.numHits << '\t'
               << flags2 << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
@@ -725,12 +716,10 @@ inline uint32_t writeAlignmentsToStream(
               << ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
               << *readSeq2 << '\t'                           // SEQ
               << "*\t"                                       // QUAL
-              << "AS:i:"<< qa.mateScore << ' '
-              << numHitFlag << '\n';
-
-    }
-
-    else if(writeOrphans) {
+              << numHitFlag << '\t'
+              << "HI:i:" << i << '\t'
+              << "AS:i:" << qa.mateScore << '\n';
+    } else if(writeOrphans) {
 		//added orphan support
 	  //std::cerr<<"orphans here";
 
@@ -749,9 +738,9 @@ inline uint32_t writeAlignmentsToStream(
 
       uint32_t flags, unalignedFlags ;
 
-      std::string* alignedName{nullptr} ;
-      std::string* unalignedName{nullptr} ;
-      std::string* readTemp{nullptr} ;
+      fmt::StringRef* alignedName{nullptr};
+      fmt::StringRef* unalignedName{nullptr};
+      std::string* readTemp{nullptr};
 
       auto* cigarStr = &formatter.cigarStr1;
       cigarStr->clear();
@@ -759,8 +748,8 @@ inline uint32_t writeAlignmentsToStream(
 
       //logic for assigning orphans
       if(qa.mateStatus == pufferfish::util::MateStatus::PAIRED_END_LEFT){ //left read
-        alignedName = &readName ;
-        unalignedName = &mateName ;
+        alignedName = &readNameView;
+        unalignedName = &mateNameView;
 
         readSeq = &(r.first.seq) ;
         unalignedSeq = &(r.second.seq) ;
@@ -771,11 +760,12 @@ inline uint32_t writeAlignmentsToStream(
         haveRev = &haveRev1 ;
         readTemp = &read1Temp ;
       } else {
+        alignedName = &mateNameView;
+        unalignedName = &readNameView;
+
         cigarStr = &formatter.cigarStr2;
         cigarStr->clear();
         cigarStr->write("{}M", r.second.seq.length());
-        alignedName = &mateName ;
-        unalignedName = &readName ;
 
         readSeq = &(r.second.seq) ;
         unalignedSeq = &(r.first.seq) ;
@@ -801,7 +791,7 @@ inline uint32_t writeAlignmentsToStream(
       // If the fragment overhangs the right end of the reference
       // adjust fragLen (overhanging the left end is already handled).
 
-      sstream << alignedName->c_str() << '\t'                    // QNAME
+      sstream << *(alignedName) << '\t'                    // QNAME
               << flags << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
@@ -813,10 +803,12 @@ inline uint32_t writeAlignmentsToStream(
               << 0 << '\t'                                     // TLEN
               << *readSeq << '\t'                           // SEQ
               << "*\t"                                       // QUAL
-              << "AS:i:"<< qa.score << ' '
-              << numHitFlag << '\n';
+              << numHitFlag << '\t'
+              << "HI:i:" << i << '\t'
+              << "AS:i:" << qa.score << '\n';
 
-      sstream << unalignedName->c_str() << '\t'                    // QNAME
+
+      sstream << *(unalignedName) << '\t'                    // QNAME
               << unalignedFlags << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                      // POS (1-based)
@@ -827,8 +819,9 @@ inline uint32_t writeAlignmentsToStream(
               << 0 << '\t'                                   // TLEN
               << *unalignedSeq << '\t'                           // SEQ
               << "*\t"                                       // QUAL
-              << "AS:i:"<< qa.mateScore << ' '
-              << numHitFlag << '\n';
+              << numHitFlag << '\t'
+              << "HI:i:" << i << '\t'
+              << "AS:i:" << qa.mateScore << '\n';
 
     }
     ++alnCtr;
