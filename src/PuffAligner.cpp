@@ -25,14 +25,14 @@ int32_t addCigar(pufferfish::util::CIGARGenerator &cigarGen, ksw_extz_t ez, bool
     if (!beginGap) {
         int32_t insertionDeletion = 0;
         for (int i = 0; i < ez.n_cigar; ++i) {
-            std::string cigar_type = "";
-            if ((ez.cigar[i] & 0xf) == 0) cigar_type = "M";
+            char cigar_type = 'N';
+            if ((ez.cigar[i] & 0xf) == 0) cigar_type = 'M';
             if ((ez.cigar[i] & 0xf) == 1) {
-                cigar_type = "I";
+                cigar_type = 'I';
                 insertionDeletion += ez.cigar[i] >> 4;
             }
             if ((ez.cigar[i] & 0xf) == 2) {
-                cigar_type = "D";
+                cigar_type = 'D';
                 insertionDeletion -= ez.cigar[i] >> 4;
             }
             cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
@@ -41,14 +41,14 @@ int32_t addCigar(pufferfish::util::CIGARGenerator &cigarGen, ksw_extz_t ez, bool
     } else {
         uint32_t gapSize = 0;
         for (int i = ez.n_cigar - 1; i >= 0; --i) {
-            std::string cigar_type = "";
+            char cigar_type = 'N';
             if ((ez.cigar[i] & 0xf) == 0) {
-                cigar_type = "M";
+                cigar_type = 'M';
                 gapSize += ez.cigar[i] >> 4;
             }
-            if ((ez.cigar[i] & 0xf) == 1) { cigar_type = "I"; }
+            if ((ez.cigar[i] & 0xf) == 1) { cigar_type = 'I'; }
             if ((ez.cigar[i] & 0xf) == 2) {
-                cigar_type = "D";
+                cigar_type = 'D';
                 gapSize += ez.cigar[i] >> 4;
             }
             cigarGen.add_item(ez.cigar[i] >> 4, cigar_type);
@@ -101,6 +101,28 @@ bool fillRefSeqBuffer(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
   return true;
 }
 
+// NOTE: This fills in refBuffer_ with the reference sequence from tpos to tpos+memlen in *reverse* order.
+// refBuffer will contain the reverse of the reference substring, *NOT* the reverse-complement.
+bool fillRefSeqBufferReverse(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen, std::string& refBuffer_) {
+  refBuffer_.resize(memlen, 'N');
+  if (memlen == 0) return false;
+  uint64_t bucket_offset = (refAccPos + tpos) * 2;
+  auto len_on_vector = memlen * 2;
+  int32_t toFetch = len_on_vector;
+  int32_t offset = static_cast<int32_t>(memlen)-1;
+  while (toFetch > 0) {
+    uint32_t len = (toFetch >= 64) ? 64 : toFetch;
+    toFetch -= len;
+    uint64_t word = refseq.get_int(bucket_offset, len);
+    for (uint32_t i = 0; i < len; i += 2) {
+      uint8_t next_bits = ((word >> i) & 0x03);
+      refBuffer_[offset] = "ACGT"[next_bits];
+      --offset;
+    }
+    bucket_offset += len;
+  }
+  return true;
+}
 
 /**
  *  Align the read `original_read`, whose mems consist of `mems` against the index and return the result
@@ -134,14 +156,6 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
   std::string cigar = "";
   memset(&ez, 0, sizeof(ksw_extz_t));
 
-  /*
-    if (verbose) {
-    for (size_t x = 0; x < 50; ++x)
-    std::cerr << "-";
-    std::cerr << " start mems\n";
-    }
-  */
-
   // where this reference starts, and its length.
   uint64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
   uint64_t refTotalLength = refAccumLengths[tid] - refAccPos;
@@ -160,8 +174,10 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
   auto tpos = frontMem.tpos;
 
   currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
+
   if (currHitStart_read < 0 or currHitStart_read >= (int32_t) readLen) {
     std::cerr << "[ERROR in PuffAligner::alignRead :] currHitStart_read is invalid; this hould not happen!\n";
+    return false;
   }
 
   currHitStart_ref = tpos;
@@ -170,38 +186,20 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
   // alignment cache (or to compute a full alignment).
   int32_t keyLen = 0;
 
-  std::unique_ptr<char[]> refSeq;
-  std::string tseq = "";
+  std::string tseq;
 
   uint64_t hashKey{0};
   bool didHash{false};
   uint32_t refStart, readStart{0};
+  uint32_t buff{20};
 
-    /// ROB EDIT TESTING  ORIGINAL BELOW
+  /// ROB TESTING
+
+  // If we are only aligning between MEMs
     if (!mopts->fullAlignment) {
       refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
       keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
-      tseq = getRefSeq(allRefSeq, refAccPos, refStart, keyLen);
-      refSeq.reset(new char[tseq.length() + 1]);
-      strcpy(refSeq.get(), tseq.c_str());
-      if (!alnCache.empty()) {
-        // hash the reference string
-        MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq.get()), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
-        didHash = true;
-        // see if we have this hash
-        auto hit = alnCache.find(hashKey);
-        // if so, we know the alignment score
-        if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
-          arOut.score = alignmentScore = hit->second.score;
-          if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
-          arOut.openGapLen = hit->second.openGapLen;
-          return true;
-          //alignment = alignmentScore;
-        }
-      }
-    } else { // fullAlignment 
-      /// ROB EDIT TESTING  ORIGINAL ABOVE, BELOW ONLY WORKS WITH "fullAlignment"
-
+    } else { // we are aligning from the start of the read
       // If the first hit starts further in the reference than in the
       // read, then we align from the beginning of the read and (ref_start - read_start) on
       // the reference.
@@ -221,23 +219,29 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
         readStart = currHitStart_read;
         refStart = currHitStart_ref;
       }
-      uint32_t buff{20};
-      auto keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
-      fillRefSeqBuffer(allRefSeq, refAccPos, refStart, keyLen, refSeqBuffer_);
-      if (!alnCache.empty()) {
-        // hash the reference string
-        MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
-        didHash = true;
-        // see if we have this hash
-        auto hit = alnCache.find(hashKey);
-        // if so, we know the alignment score
-        if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
-          arOut.score = alignmentScore = hit->second.score;
-          if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
-          arOut.openGapLen = hit->second.openGapLen;
-          return true;
-          //alignment = alignmentScore;
-        }
+      keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+    }
+
+
+    fillRefSeqBuffer(allRefSeq, refAccPos, refStart, keyLen, refSeqBuffer_);
+    int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
+    // If we're not using fullAlignment, we'll need the full reference sequence later
+    // so copy it into tseq.
+    if (!mopts->fullAlignment) { tseq = refSeqBuffer_; }
+
+    if (!alnCache.empty()) {
+      // hash the reference string
+      MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
+      didHash = true;
+      // see if we have this hash
+      auto hit = alnCache.find(hashKey);
+      // if so, we know the alignment score
+      if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
+        arOut.score = alignmentScore = hit->second.score;
+        if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
+        arOut.openGapLen = hit->second.openGapLen;
+        return true;
+        //alignment = alignmentScore;
       }
     }
     /// END ROB EDIT TESTING 
@@ -246,7 +250,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
     if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
         if (perfectChain) {
             arOut.score = alignment = alignmentScore = readLen * mopts->matchScore;
-            if (computeCIGAR) { cigarGen.add_item(readLen, "M"); }
+            if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
             hctr.skippedAlignments_byCov += 1;
         } else if (mopts->fullAlignment) {
           /*
@@ -275,7 +279,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
             alignmentScore = std::max(ez.mqe, ez.mte);
             //openGapLen = addCigar(cigarGen, ez, false);
         } else {
-
+          nonstd::string_view readView(read);
             alignmentScore = 0;
             for (auto mem : mems) {
                 rpos = mem.rpos;
@@ -292,37 +296,38 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                 currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
                 currHitStart_ref = tpos;
 
-                VERB(std::cerr << "currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n";)
-                VERB(std::cerr << "lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref << "\n";)
+                if (verbose) { std::cerr << "currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n"; }
+                if (verbose) { std::cerr << "lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref << "\n"; }
 
                 if (firstMem) {
                     lastHitEnd_ref =
                             currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
                 } else {
                     if (currHitStart_read <= lastHitEnd_read - (int32_t) k + 1) {
-                      VERB(std::cerr << "The mems on read and reference are not consistent(1)\t" << original_read << "\n";)
+                      if (verbose) { std::cerr << "The mems on read and reference are not consistent(1)\t" << original_read << "\n"; }
                         break;
                     }
                     if (currHitStart_ref <= lastHitEnd_ref - (int32_t) k + 1) {
-                      VERB(std::cerr << "The mems on read and reference are not consistent(2)\t" << original_read << "\n";)
+                      if (verbose) { std::cerr << "The mems on read and reference are not consistent(2)\t" << original_read << "\n"; }
                       break;
                     }
                     if (currHitStart_ref > lastHitEnd_ref + (int32_t) readLen) {
-                      VERB(std::cerr << "The mems on read and reference are not consistent(3)\t" << original_read << "\n";)
+                      if (verbose) { std::cerr << "The mems on read and reference are not consistent(3)\t" << original_read << "\n"; }
                       break;
                     }
                     if (currHitStart_read <= lastHitEnd_read and
                         lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-                      VERB(std::cerr << "to align reads with indels\t" << original_read << "\n";)
+                      if (verbose) { std::cerr << "to align reads with indels\t" << original_read << "\n"; }
                       break;
                     }
                     if (currHitStart_ref <= lastHitEnd_ref and
                         lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-                      VERB(std::cerr << "to align reads with indels\t" << original_read << "\n";)
+                      if (verbose) { std::cerr << "to align reads with indels\t" << original_read << "\n"; }
                       break;
                     }
                 }
 
+                /*
                 // Performing full alignment to validate the socres
                 if (verbose and firstMem) {
                     uint32_t refStart, readStart;
@@ -336,7 +341,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                         readStart = currHitStart_read;
                         refStart = currHitStart_ref;
                     }
-                    auto refLength = (refStart + readLen * 2 < refTotalLength) ? readLen * 2 : refTotalLength -
+                    auto refLength = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength -
                                                                                                refStart;
 
                     tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
@@ -357,15 +362,21 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                         std::cerr << "\n";
                     }
                 }
+                */
+
                 // If there is a gap in the read or reference or both
                 bool gapAligned = false;
                 if (currHitStart_read > lastHitEnd_read + 1 or currHitStart_ref > lastHitEnd_ref + 1) {
                     gapAligned = true;
                     auto readGapLength = currHitStart_read - lastHitEnd_read - 1;
                     auto refGapLength = currHitStart_ref - lastHitEnd_ref - 1;
-                    VERB(std::cerr << "readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n";)
-                    auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
-                    VERB(
+                    if (verbose) { std::cerr << "readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n"; }
+
+                    // get the next segment of the read sequence we wish to align
+                    auto readSeq = readView.substr(lastHitEnd_read + 1, readGapLength).to_string();
+                    //auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+
+                    if (verbose) { 
                          for (size_t x = 0; x < 50; ++x) {
                            std::cerr << "+";
                          }
@@ -376,7 +387,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                          << lastHitEnd_read << " currHitStart_ref: " << currHitStart_ref << " lastHitEnd_ref: "
                          << lastHitEnd_ref << "\n";
                          std::cerr << mems[0].rpos << "\t" << readLen << "\t" << rpos << "\t" << memlen << "\n";
-                    )
+                    }
                     if (firstMem) {
                         ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
                         // Not extending the reference beyond its beginning
@@ -385,17 +396,17 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
 
                         // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
                         if (refGapLength > 0) {
-                            // We reverse the strings because of ksw force alignment from the beginning of the sequences
+                            // We reverse the strings because of ksw forces alignment from the beginning of the sequences
                             std::reverse(readSeq.begin(), readSeq.end());
-                            tseq = getRefSeq(allRefSeq, refAccPos, refStartPos, refGapLength);
-                            std::reverse(tseq.begin(), tseq.end());
+                            fillRefSeqBufferReverse(allRefSeq, refAccPos, refStartPos, refGapLength, refSeqBuffer_);
                             ksw_reset_extz(&ez);
-                            aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
+                            aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                                     ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+                            // TODO : @fataltes & @mohsen --- why not the max below; check this.
                             score = ez.mqe; //std::max(ez.mqe, ez.mte);
                             openGapLen = addCigar(cigarGen, ez, true);
 
-                            VERB(
+                            if (verbose) {
                                 std::cerr << "It's a gap at the beginning, so the reverse read from "
                                           << lastHitEnd_read + 1 << " is\t" << readSeq << "\n";
                                 std::cerr << "The reverse reference from " << refStartPos << " with the length "
@@ -404,7 +415,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                                 for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
                                     std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
                                 std::cerr << "\n" << score << "\n";
-                            )
+                            }
 
                             int32_t insertionDeletion = 0; //TODO should be fixed for cigars
                             (void) insertionDeletion;
@@ -413,34 +424,39 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                             int32_t startHang = readGapLength - refGapLength;
                             alignmentScore +=
                                     (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (startHang);
-                            cigarGen.add_item(startHang, "I");
+                            cigarGen.add_item(startHang, 'I');
                         }
                     } else {
                         //Considering the case where the gap in either the read or reference is empty
                         if (readGapLength <= 0) {
-                          VERB(std::cerr << "read gap lengths was of length 0 for the ref gap length of \t"
-                               << refGapLength << "\n";)
+                          if (verbose) {
+                            std::cerr << "read gap lengths was of length 0 for the ref gap length of \t"
+                               << refGapLength << "\n";
+                          }
                             score = (-1) * mopts->gapOpenPenalty +
                                     (-1) * mopts->gapExtendPenalty * (refGapLength + std::abs(readGapLength));
-                            cigarGen.add_item(refGapLength, "D");
+                            cigarGen.add_item(refGapLength, 'D');
                         } else if (refGapLength <= 0) {
-                          VERB(std::cerr << "ref gap lengths was of length 0 for the read gap length of \t"
-                               << readGapLength << "\n";)
+                          if (verbose) {
+                            std::cerr << "ref gap lengths was of length 0 for the read gap length of \t"
+                               << readGapLength << "\n";
+                          }
                             score = (-1) * mopts->gapOpenPenalty +
                                     (-1) * mopts->gapExtendPenalty * (readGapLength + std::abs(refGapLength));
-                            cigarGen.add_item(readGapLength, "I");
+                            cigarGen.add_item(readGapLength, 'I');
                         } else {
                             if (lastHitEnd_ref + 1 - refStart < 0 or
-                                lastHitEnd_ref + 1 - refStart >= (int32_t) std::strlen(refSeq.get())) {
+                                lastHitEnd_ref + 1 - refStart >= originalRefSeqLen) {
                               std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref
                                         << "and refStart is " << refStart << ", but refSeq length is "
-                                        << std::strlen(refSeq.get()) << "\n";
+                                        << originalRefSeqLen << "\n";
                             }
-                            char *refSeq1 = refSeq.get() + lastHitEnd_ref + 1 - refStart;
+                            //char *refSeq1 = refSeq.get() + lastHitEnd_ref + 1 - refStart;
+                            const char* refSeq1 = refSeqBuffer_.data() + lastHitEnd_ref + 1 - refStart;
                             score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez,
                                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
                             addCigar(cigarGen, ez, false);
-                            VERB(
+                            if (verbose) {
                                 tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
                                 std::cerr << "read from " << lastHitEnd_read + 1 << " with the gap length of "
                                           << readGapLength << " is \t" << readSeq << "\n";
@@ -449,17 +465,18 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                                 for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
                                     std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
                                 std::cout << "\n";
-                            )
+                            }
                         }
                     }
                     alignmentScore += score;
-                    VERB(std::cerr << isFw << " at " << currHitStart_ref << " on " << tid << " for " << refGapLength
+                    if (verbose) {
+                      std::cerr << isFw << " at " << currHitStart_ref << " on " << tid << " for " << refGapLength
                          << "\n";
                          std::cerr << "curr score2:\t" << score << "\n";
                          for (size_t x = 0; x < 50; ++x)
                            std::cerr << "+";
                          std::cerr << " end gap alignments\n";
-                   )
+                    }
                 }
 
                 auto longest_match_extension =
@@ -469,14 +486,14 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                         mopts->matchScore * memlen;
                 auto num_match = (currHitStart_ref <= lastHitEnd_ref) ? (longest_match_extension - 1) : memlen;
                 if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
-                  VERB(
+                  if (verbose) {
                         auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
                         auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
                         std::cerr << "read from " << currHitStart_read << "\t with the sequence \n" << readSeq << "\n";
                         std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
                                   << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
                         std::cerr << "with the score1:\t" << score << "\n";
-                    )
+                  }
                 } else {
                     int32_t gapLength = std::abs(
                             lastHitEnd_ref - currHitStart_ref - lastHitEnd_read + currHitStart_read);
@@ -484,12 +501,13 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                     int32_t penalty = mopts->gapOpenPenalty + mopts->gapExtendPenalty * gapLength;
                     if (!gapAligned) {
                         score -= penalty;
-                        if (currHitStart_ref - lastHitEnd_ref > currHitStart_read - lastHitEnd_read)
-                            cigarGen.add_item(gapLength, "D");
-                        else
-                            cigarGen.add_item(gapLength, "I");
+                        if (currHitStart_ref - lastHitEnd_ref > currHitStart_read - lastHitEnd_read) {
+                            cigarGen.add_item(gapLength, 'D');
+                        } else {
+                            cigarGen.add_item(gapLength, 'I');
+                        }
                     }
-                    VERB(
+                    if (verbose) {
                       if (!gapAligned) { std::cerr << "penalty\t" << penalty << "\n"; }
                         auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
                         auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
@@ -497,16 +515,16 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
                         std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
                                   << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
                         std::cerr << "with the score1:\t" << score << "\n";
-                    )
+                    }
                 }
                 alignmentScore += score;
-                cigarGen.add_item(num_match, "M");
+                cigarGen.add_item(num_match, 'M');
 
                 lastHitEnd_read = currHitStart_read + memlen - 1;
                 lastHitEnd_ref = tpos + memlen - 1;
-                if (lastHitEnd_ref - refStart + 1 > (int32_t) std::strlen(refSeq.get()) + 1) {
+                if (lastHitEnd_ref - refStart + 1 > originalRefSeqLen + 1) {
                     std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is "
-                              << refStart << ", but refSeq length is " << std::strlen(refSeq.get()) << "\n";
+                              << refStart << ", but refSeq length is " << originalRefSeqLen << "\n";
                 }
                 firstMem = false;
             }
@@ -527,53 +545,48 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
 
                 // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
                 if (refGapLength != 0) {
-                    auto readSeq = extractReadSeq(read, lastHitEnd_read + 1, lastHitEnd_read + 1 + readGapLength, 1);
+                  auto readSeq = readView.substr(lastHitEnd_read + 1, readGapLength).to_string();
                     auto refStartPos = lastHitEnd_ref + 1;
-                    tseq = getRefSeq(allRefSeq, refAccPos, refStartPos, refGapLength);
-                    aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), refGapLength, &ez,
+                    fillRefSeqBuffer(allRefSeq, refAccPos, refStartPos, refGapLength, refSeqBuffer_);
+                    aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refGapLength, &ez,
                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
                     auto score = ez.mqe; //std::max(ez.mqe, ez.mte);
                     alignmentScore += score;
                     auto insertionDeletion = addCigar(cigarGen, ez, false);
 
-                    VERB(
+                    if (verbose) {
                         std::cerr << "read from " << lastHitEnd_read + 1 << "\t\t\t" << readSeq << "\n";
                         std::cerr << "at " << lastHitEnd_ref << " for " << refGapLength << "\t" << tseq << "\n";
                         for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
                             std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
                         std::cerr << "\ncurr score3:\t" << score << "\n";
                         std::cerr << ez.mqe << "\t " << ez.mte << "\n";
-                    )
+                    }
 
                     if (readGapLength > refGapLength + insertionDeletion) {
                         int32_t endHang = readGapLength - refGapLength - insertionDeletion;
                         alignmentScore += (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (endHang);
-                        cigarGen.add_item(endHang, "I");
+                        cigarGen.add_item(endHang, 'I');
                     }
                 } else {
                     int32_t endHang = readGapLength;
                     alignmentScore += (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (endHang);
-                    cigarGen.add_item(endHang, "I");
+                    cigarGen.add_item(endHang, 'I');
                 }
             }
         }
-        /*
-        if (verbose) {
-            std::cerr << "alignmentScore: " << alignmentScore << "\n";
-        }
-        */
-//        alignmentScore+=readLen*2; //addedByFatemeh
         bool cigar_fixed{false};
-        //cigar = cigarGen.get_cigar(readLen, cigar_fixed);
-        /*if (cigar_fixed) {
-          std::cerr<<read<<"\n";
-        } */
-        //std::cerr << cigar << " " << readLen << "\n";
-        if (cigar_fixed) hctr.cigar_fixed_count++;
+        if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
+        if (cigar_fixed) { hctr.cigar_fixed_count++; }
         if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
           if (!didHash) {
-            MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
-            //MetroHash64::Hash(reinterpret_cast<uint8_t *>(refSeq.get()), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
+            // We want the alignment cache to be on the hash of the full underlying reference sequence.
+            // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment
+            // then refSeqBuffer_ could have been used to store shorter portions of the reference during
+            // the alignment procedure.  In that case, get the original reference sequence from tseq, which
+            // was copied from the full reference sequence in the beginning of the function.
+            char* ptr = const_cast<char*>((mopts->fullAlignment ? refSeqBuffer_.data() : tseq.data()));
+            MetroHash64::Hash(reinterpret_cast<uint8_t *>(ptr), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
           }
           AlignmentResult aln;
           aln.score = alignmentScore;
@@ -584,21 +597,10 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
     } else {
         hctr.skippedAlignments_byCache += 1;
     }
-    //delete refSeq;
-    /*
-    if (verbose) {
-        std::cerr << "alignmentScore\t" << alignmentScore << "\talignmment\t" << alignment << "\n";
-        std::cerr << "cigar\t" << cigar << "\n";
-    }
-    */
-    //if (alignmentScore > 150 and alignment > alignmentScore)// != and std::abs(alignmentScore - alignment) > 5)
-    //  std::cerr<< alignmentScore << " " << alignment << " " << original_read << "\n";
-
     arOut.score = alignmentScore;
     arOut.cigar = cigar;
     arOut.openGapLen = openGapLen;
     return true;
-    //return AlignmentResult{alignmentScore, cigar, openGapLen};
 }
 
 AlignmentResult PuffAligner::alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,

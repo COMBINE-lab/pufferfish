@@ -323,11 +323,13 @@ Compile-time selection between list-like and map-like printing.
         }
 
       struct CIGARGenerator {
+        // TODO: @fataltes --- think about just replacing this
+        // with CIGAR Op class or some such.
         std::vector<uint32_t> cigar_counts;
-        std::vector<std::string> cigar_types;
+        std::string cigar_types;
 
         void clear() { cigar_counts.clear(); cigar_types.clear(); }
-        void add_item(uint32_t count, std::string type) {
+        void add_item(uint32_t count, char type) {
           cigar_counts.push_back(count);
           cigar_types.push_back(type);
         }
@@ -335,10 +337,12 @@ Compile-time selection between list-like and map-like printing.
         std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
           cigar_fixed = false;
           std::string cigar = "";
-          if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0)
-            return "NOT VALID";
-          if (cigar_counts.size() == 0)
-            return NULL;
+          if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
+            return "!";
+          }
+          if (cigar_counts.size() == 0) {
+            return cigar;
+          }
 
           uint32_t cigar_length = 0;
           uint32_t count = cigar_counts[0];
@@ -353,11 +357,11 @@ Compile-time selection between list-like and map-like printing.
             return cigar;
           }
 
-          std::string type = cigar_types[0];
-          if (type == "I" or type == "M")
+          char type = cigar_types[0];
+          if (type == 'I' or type == 'M')
             cigar_length += count;
           for (size_t i = 1; i < cigar_counts.size(); i++) {
-            if (cigar_types[i] == "I" or cigar_types[i] == "M")
+            if (cigar_types[i] == 'I' or cigar_types[i] == 'M')
               cigar_length += cigar_counts[i];
             if (type == cigar_types[i]) {
               count += cigar_counts[i];
@@ -374,12 +378,12 @@ Compile-time selection between list-like and map-like printing.
                 cigar_fixed = true;
                 count = readLen - cigar_length;
                 cigar += std::to_string(count);
-                cigar += "I";
+                cigar += 'I';
               } else if (cigar_length > readLen) {
                 cigar_fixed = true;
                 count = cigar_length - readLen;
                 cigar += std::to_string(count);
-                cigar += "I";
+                cigar += 'I';
               }
             }
           }
