@@ -226,7 +226,7 @@ void processReadsPair(paired_parser *parser,
                 if (!mopts->genomicReads) { bestScorePerTranscript.clear(); }
                 bestHitRefType = BestHitReferenceType::UNKNOWN;
                 bool isMultimapping = (jointHits.size() > 1);
-                for (auto &jointHit : jointHits) {
+                for (auto &&jointHit : jointHits) {
                   auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
                   scores[idx] = hitScore;
 
@@ -334,7 +334,7 @@ void processReadsPair(paired_parser *parser,
                 hctr.maxMultimapping = jointHits.size();
             }
 
-            for (auto &jointHit : jointHits) {
+            for (auto &&jointHit : jointHits) {
               if (jointHit.isOrphan()) {
                 readLen = jointHit.isLeftAvailable() ? readLen : mateLen;
                 jointAlignments.emplace_back(jointHit.tid,           // reference id

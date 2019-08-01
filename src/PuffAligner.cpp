@@ -259,7 +259,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     alignmentScore = std::max(ez.mqe, ez.mte);
     if (computeCIGAR) { openGapLen = addCigar(cigarGen, ez, false); }
   } else {
-    //nonstd::string_view readView(read);
     alignmentScore = 0;
     for (auto&& mem : mems) {
       rpos = mem.rpos;
@@ -268,9 +267,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       // To work around seg fault from mems
       // TODO: What?  why should we need a special case here?
-      if (!firstMem and tpos + memlen - refStart > readLen) {
-        break;
-      }
+      //if (!firstMem and tpos + memlen - refStart > readLen) {
+      //  break;
+      //}
 
       int score = 0;
       currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
@@ -429,13 +428,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
             cigarGen.add_item(readGapLength, 'I');
           } else {
             if (lastHitEnd_ref + 1 - refStart < 0 or
-                lastHitEnd_ref + 1 - refStart >= originalRefSeqLen) {
+                lastHitEnd_ref + 1 - refStart >= (originalRefSeqLen + buff)) {
               std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref
                         << "and refStart is " << refStart << ", but refSeq length is "
                         << originalRefSeqLen << "\n";
             }
             //char *refSeq1 = refSeq.get() + lastHitEnd_ref + 1 - refStart;
-            const char* refSeq1 = refSeqBuffer_.data() + lastHitEnd_ref + 1 - refStart;
+            const char* refSeq1 = tseq.data() + (lastHitEnd_ref + 1 - refStart);
             score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez,
                             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
             addCigar(cigarGen, ez, false);
@@ -508,7 +507,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       lastHitEnd_read = currHitStart_read + memlen - 1;
       lastHitEnd_ref = tpos + memlen - 1;
-      if (lastHitEnd_ref - refStart + 1 > originalRefSeqLen + 1) {
+      if (lastHitEnd_ref - refStart + 1 > originalRefSeqLen + 1 + buff) {
         std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is "
                   << refStart << ", but refSeq length is " << originalRefSeqLen << "\n";
       }
