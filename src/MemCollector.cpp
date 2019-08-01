@@ -197,13 +197,13 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
         std::cerr <<"tid:" <<  kv.first.first << "\n";
         for (auto mem : kv.second) {
           std::cerr << "--- t" << mem.tpos << " r"
-              << mem.memInfo->rpos << " cid:"
+              << mem.rpos << " cid:"
               << mem.memInfo->cid << " cpos: "
               << mem.memInfo->cpos << " len:"
-              << mem.memInfo->memlen << " re:"
+              << mem.extendedlen << " re:"
               << mem.memInfo->readEnd << " fw:"
               << mem.isFw << "\n";
-          std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
+          std::cerr << read.substr(mem.rpos,mem.extendedlen) << "\n";
         }
       }
     }

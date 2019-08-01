@@ -289,8 +289,8 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
         bstream << static_cast<refLenType>(leftRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustLeft->mems) {
-         	   	bstream << static_cast<rLenType>(mem.memInfo->rpos) 
-                  		<< static_cast<rLenType>(mem.memInfo->memlen);
+         	   	bstream << static_cast<rLenType>(mem.rpos) 
+                  		<< static_cast<rLenType>(mem.extendedlen);
         	}
       	}
 	  }
@@ -304,8 +304,8 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
         bstream << static_cast<refLenType>(rightRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustRight->mems) {
-          		bstream << static_cast<rLenType>(mem.memInfo->rpos) 
-                  		<< static_cast<rLenType>(mem.memInfo->memlen);
+          		bstream << static_cast<rLenType>(mem.rpos) 
+                  		<< static_cast<rLenType>(mem.extendedlen);
         	}
       	}
       }
@@ -357,8 +357,8 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     binStream << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
     if (wrtIntervals) {
       for (auto& mem: clust->mems){
-        binStream << static_cast<rLenType>(mem.memInfo->rpos) 
-                  << static_cast<rLenType>(mem.memInfo->memlen);
+        binStream << static_cast<rLenType>(mem.rpos) 
+                  << static_cast<rLenType>(mem.extendedlen);
       }
     }
   }

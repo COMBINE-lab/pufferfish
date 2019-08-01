@@ -126,10 +126,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     // sort memList according to mem reference positions
     std::sort(memList.begin(), memList.end(),
               [isFw](pufferfish::util::MemInfo &q1, pufferfish::util::MemInfo &q2) -> bool {
-                  auto q1ref = q1.tpos + q1.memInfo->memlen;
-                  auto q2ref = q2.tpos + q2.memInfo->memlen;
-                  auto q1read = q1.memInfo->rpos + q1.memInfo->memlen;
-                  auto q2read = q2.memInfo->rpos + q2.memInfo->memlen;
+                  auto q1ref = q1.tpos + q1.extendedlen;
+                  auto q2ref = q2.tpos + q2.extendedlen;
+                  auto q1read = q1.rpos + q1.extendedlen;
+                  auto q2read = q2.rpos + q2.extendedlen;
                   return q1ref != q2ref ? q1ref < q2ref :
                          (isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
               });
@@ -177,32 +177,70 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     // there is still an exact match between the read and one or more references.
     // Here, we compact UniMEMs that would have constituted a larger (contiguous)
     // MEM with respect to the current reference.
-    uint32_t prev_qposi = 0;
-    uint32_t prev_rposi = 0;
+    int32_t prev_qposi_end = 0;
+    int32_t prev_rposi_end = 0;
     size_t currentMemIdx = 0;
+
+    int32_t prev_qposi_start = -1;
+    int32_t prev_rposi_start = -1;
+
+    auto& m = memList.front();
+    bool didOinkWithoutPizza = false;
+    bool chainOfInterest{false};
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
-      auto qposi = hi.isFw ? hi.memInfo->rpos + hi.extendedlen : readLen - hi.rpos;
-      auto rposi = hi.tpos + hi.extendedlen;
-      if (i > 0 and std::labs(qposi - prev_qposi) == std::labs(rposi - prev_rposi) and hi.tpos < prev_rposi) {
+      chainOfInterest = chainOfInterest or (hi.rpos == 0 and hi.tpos == 162 and tid == 151214);
+      int32_t qposi_start = hi.isFw ? hi.rpos : readLen - (hi.rpos + hi.extendedlen);
+      int32_t rposi_start = hi.tpos;
+
+      int32_t qposi_end = hi.isFw ? (hi.rpos + hi.extendedlen) : (readLen - hi.rpos);
+      int32_t rposi_end = hi.tpos + hi.extendedlen;
+
+      if (chainOfInterest) {
+        std::stringstream ss;
+        ss << "##\n";
+        ss << "oink oink!\n";
+        ss << "qposi_start = " << qposi_start << ", qposi_end = " << qposi_end << "\n";
+        ss << "prev_qposi_start = " << prev_qposi_start << ", prev_qposi_end =" << prev_qposi_end << "\n";
+        ss << "rposi_start = " << rposi_start << ", rposi_end = " << rposi_end << "\n";
+        ss << "prev_rposi_start = " << prev_rposi_start << ", prev_rposi_end = " << prev_rposi_end << "\n";
+        ss << "hi.tpos = " << hi.tpos << "\n##\n";
+        std::cerr << ss.str();
+        didOinkWithoutPizza = true;
+      }
+
+      int32_t overlap_read = (prev_qposi_end - qposi_start);
+      int32_t overlap_ref = (prev_rposi_end - rposi_start);
+      if (i > 0 and overlap_ref >= 0 and (overlap_ref == overlap_read)) {
+        //if (i > 0 and (qposi - prev_qposi) == (rposi - prev_rposi) and static_cast<int32_t>(hi.tpos) < prev_rposi) {
+        if (chainOfInterest){
+          std::cerr << "pizza pizza!\n";
+          didOinkWithoutPizza = false;
+        }
+
         auto &lastMem = memList[currentMemIdx];
-        uint32_t extension = rposi - prev_rposi;
+        uint32_t extension = rposi_end - prev_rposi_end;
         lastMem.extendedlen += extension;
         if (!isFw) {
-          lastMem.rpos = hi.memInfo->rpos;
+          lastMem.rpos = hi.rpos;
         }
-        keepMem.push_back(0);
+        hi.extendedlen = std::numeric_limits<decltype(hi.extendedlen)>::max();
+        //keepMem.push_back(0);
       } else {
         currentMemIdx=i;
-        keepMem.push_back(1);
+        //keepMem.push_back(1);
       }
-      prev_qposi = qposi;
-      prev_rposi = rposi;
+      //if (didOinkWithoutPizza) { std::cerr << "\n\nNOOOOOOOOOO!!!!!!!!\n\n"; }
+      prev_qposi_start = qposi_start;
+      prev_rposi_start = rposi_start;
+      prev_qposi_end = qposi_end;
+      prev_rposi_end = rposi_end;
     }
 
-    size_t tidx{0};
-    memList.erase(std::remove_if(memList.begin(), memList.end(), [&tidx, this](pufferfish::util::MemInfo& m) { bool r = (this->keepMem[tidx] == 0); ++tidx; return r; }),
-                  memList.end());
+    memList.erase(std::remove_if(memList.begin(), memList.end(),
+                                 [](pufferfish::util::MemInfo& m) {
+                                   bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); return r;
+                                 }), memList.end());
     /*
     if (verbose) {
       std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
@@ -220,8 +258,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       //if (hi.extendedlen != hi.memInfo->memlen)
       //  std::cerr<< hi.extendedlen << "  " <<  hi.memInfo->memlen << "\n";
 
-      auto qposi = hi.rpos + hi.extendedlen;
-      auto rposi = hi.tpos + hi.extendedlen;
+      int32_t qposi = hi.rpos + hi.extendedlen;
+      int32_t rposi = hi.tpos + hi.extendedlen;
 
       double baseScore = static_cast<double>(hi.extendedlen);
       p.push_back(i);
@@ -233,14 +271,26 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       for (int32_t j = i - 1; j >= 0; --j) {
         auto &hj = memList[j];
 
-        auto qposj = hj.rpos + hj.extendedlen;
-        auto rposj = hj.tpos + hj.extendedlen;
+        int32_t qposj = hj.rpos + hj.extendedlen;
+        int32_t rposj = hj.tpos + hj.extendedlen;
 
         int32_t qdiff = isFw ? qposi - qposj :
                         (qposj - hj.extendedlen) - (qposi - hi.extendedlen);
         int32_t rdiff = rposi - rposj;
 
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
+        if (chainOfInterest and hj.rpos == 7 and hj.tpos == 161) {
+          std::cerr << "qdiff = " << qdiff << "\n";
+          std::cerr << "rdiff = " << rdiff << "\n";
+          std::cerr << "hi.len = " << hi.extendedlen << "\n";
+          std::cerr << "hj.len = " << hj.extendedlen << "\n";
+          std::cerr << "hi.rpos = " << hi.rpos<< "\n";
+          std::cerr << "hi.tpos = " << hi.tpos<< "\n";
+          std::cerr << "hj.rpos = " << hj.rpos<< "\n";
+          std::cerr << "hj.tpos = " << hj.tpos<< "\n";
+          std::cerr << "extensionScore = " << extensionScore << "\n";
+        }
+
         //To fix cases where there are repetting sequences in the read or reference
           /*int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
           int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos + hi.extendedlen);

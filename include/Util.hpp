@@ -526,20 +526,6 @@ Compile-time selection between list-like and map-like printing.
 
             MemCluster() {}
 
-            // Add the new mem to the list and update the coverage
-            void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, bool isFw) {
-                if (mems.empty())
-                    coverage = uniMemInfo->memlen;
-                else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
-                    coverage += (uniMemInfo->memlen);
-                } else { // they overlap
-                    coverage += (uint32_t) std::max(
-                            (int) (tpos + uniMemInfo->memlen) - (int) (mems.back().tpos + mems.back().memInfo->memlen),
-                            0);
-                }
-                mems.emplace_back(uniMemInfo, tpos, isFw);
-            }
-
             // Add the new mem to the list and update the coverage, designed for clustered Mems
             void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, uint32_t extendedlen, uint32_t rpos,
                         bool isFw) {
@@ -554,13 +540,7 @@ Compile-time selection between list-like and map-like printing.
                 mems.emplace_back(uniMemInfo, tpos, extendedlen, rpos, isFw);
             }
 
-            // Add the new mem to the list and update the coverage
-            void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, size_t i) {
-                mems.insert(mems.begin() + i, MemInfo(uniMemInfo, tpos));
-                coverage += uniMemInfo->memlen;
-            }
-
-            size_t getReadLastHitPos() const { return mems.empty() ? 0 : mems.back().memInfo->rpos; }
+            size_t getReadLastHitPos() const { return mems.empty() ? 0 : mems.back().rpos; }
 
             size_t getTrLastHitPos() const {
                 return mems.empty() ? 0 : mems.back().tpos;
