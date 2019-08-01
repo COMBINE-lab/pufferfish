@@ -10,7 +10,7 @@
 #include "KSW2Aligner.hpp"
 #include "edlib.h"
 
-#include <sparsepp/spp.h>
+#include "parallel_hashmap/phmap.h"
 
 struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
@@ -24,14 +24,14 @@ struct PuffAlignmentOptions {
 
 using HitCounters = pufferfish::util::HitCounters;
 using AlignmentResult = pufferfish::util::AlignmentResult;
-using AlnCacheMap = tsl::hopscotch_map<uint64_t, AlignmentResult, PassthroughHash>;
+using AlnCacheMap = phmap::flat_hash_map<uint64_t, AlignmentResult, PassthroughHash>;
 
 class PuffAligner {
 public:
   PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, 
-              AlignmentOpts* m, ksw2pp::KSW2Aligner& a, bool mult) : 
+              AlignmentOpts* m, ksw2pp::KSW2Aligner& a) : 
     allRefSeq(ar), refAccumLengths(ral), k(k_), 
-    mopts(m), aligner(a), multiMapping(mult) {
+    mopts(m), aligner(a) {
 		memset(&ez, 0, sizeof(ksw_extz_t));
 
 		alnCacheLeft.reserve(32);
@@ -54,16 +54,15 @@ public:
   PuffAligner(PuffAligner&& other) = delete;
   PuffAligner& operator=(PuffAligner&& other) = delete;
 
-  int32_t calculateAlignments(std::string& rl, std::string& rr, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose);
-  int32_t calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose);
+  int32_t calculateAlignments(std::string& rl, std::string& rr, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose);
+  int32_t calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose);
 
-  bool alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool verbose);
-  AlignmentResult alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, bool verbose);
+  bool alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool verbose);
 
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
 
   void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
-  void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();  memset(&ez, 0, sizeof(ksw_extz_t)); }
+  void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();  read_left_rc_.clear(); read_right_rc_.clear(); memset(&ez, 0, sizeof(ksw_extz_t)); }
 
   std::vector<pufferfish::util::UniMemInfo> orphanRecoveryMemCollection;
 private:
@@ -77,13 +76,13 @@ private:
   pufferfish::util::CIGARGenerator cigarGen_;
   std::string rc1_;
   std::string rc2_;
-  std::string read_left_;
-  std::string read_right_;
+  std::string read_left_rc_;
+  std::string read_right_rc_;
   std::string refSeqBuffer_;
   AlignmentResult ar_left;
   AlignmentResult ar_right;
 
-  bool multiMapping;
+  bool isMultimapping_;
   AlnCacheMap alnCacheLeft;
   AlnCacheMap alnCacheRight;
 };

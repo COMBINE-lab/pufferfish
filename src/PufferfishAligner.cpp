@@ -122,7 +122,6 @@ void processReadsPair(paired_parser *parser,
     config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
-    bool allowMultipleHitsPerRef = true;
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
 
     // don't think we should have these, they should
@@ -134,8 +133,7 @@ void processReadsPair(paired_parser *parser,
 
     phmap::flat_hash_map<uint32_t, std::pair<int32_t, int32_t>> bestScorePerTranscript;
 
-    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
-                            mopts, aligner, allowMultipleHitsPerRef);
+    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner);
 
     std::vector<QuasiAlignment> jointAlignments;
     using pufferfish::util::BestHitReferenceType;
@@ -227,8 +225,9 @@ void processReadsPair(paired_parser *parser,
 
                 if (!mopts->genomicReads) { bestScorePerTranscript.clear(); }
                 bestHitRefType = BestHitReferenceType::UNKNOWN;
+                bool isMultimapping = (jointHits.size() > 1);
                 for (auto &jointHit : jointHits) {
-                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, verbose);
+                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
                   scores[idx] = hitScore;
 
 
@@ -472,9 +471,7 @@ void processReadsSingle(single_parser *parser,
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
 
     auto &txpNames = pfi.getRefNames();
-    bool allowMultipleHitsPerRef = true;
-    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(),
-                            mopts, aligner, allowMultipleHitsPerRef);
+    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner);
 
     auto rg = parser->getReadGroup();
     while (parser->refill(rg)) {
@@ -525,8 +522,9 @@ void processReadsSingle(single_parser *parser,
                 std::map<int32_t, std::vector<int32_t>> transcript_set;
                 if (!mopts->genomicReads) { bestScorePerTranscript.clear(); }
                 bestHitRefType = BestHitReferenceType::UNKNOWN;
+                bool isMultimapping = (jointHits.size() > 1);
                 for (auto &jointHit : jointHits) {
-                  int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, verbose);
+                  int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
                     scores[idx] = hitScore;
 
                     const std::string& ref_name = txpNames[jointHit.tid];

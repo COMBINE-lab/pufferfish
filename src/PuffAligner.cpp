@@ -129,7 +129,7 @@ bool fillRefSeqBufferReverse(compact::vector<uint64_t, 2> &refseq, uint64_t refA
  *  in `arOut`.  How the alignment is computed (i.e. full vs between-mem and CIGAR vs. score only) depends
  *  on the parameters of how this PuffAligner object was constructed.
  **/
-bool PuffAligner::alignRead(std::string& original_read, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
+bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
                             bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, AlignmentResult& arOut, bool verbose) {
 
   int32_t alignmentScore{std::numeric_limits<decltype(arOut.score)>::min()};
@@ -159,13 +159,6 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
   // where this reference starts, and its length.
   uint64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
   uint64_t refTotalLength = refAccumLengths[tid] - refAccPos;
-
-  // @mohsen & @fataltes --- we should figure out how to
-  // avoid computing the rc of a read if we've already done it.
-  std::string read = original_read;
-  if (!isFw) {
-    read = pufferfish::util::reverseComplement(read);
-  }
 
   auto& frontMem = mems.front();
   auto rpos = frontMem.rpos;
@@ -227,381 +220,381 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
   // so copy it into tseq.
   if (!mopts->fullAlignment) { tseq = refSeqBuffer_; }
 
-  if (!alnCache.empty()) {
+  if (!alnCache.empty() and isMultimapping_) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     didHash = true;
     // see if we have this hash
     auto hit = alnCache.find(hashKey);
     // if so, we know the alignment score
-    if (hit != alnCache.end() and refStart + readLen + refExtLength < refTotalLength) {
+    if (hit != alnCache.end() ) {//}and refStart + readLen + refExtLength < refTotalLength) {
+      hctr.skippedAlignments_byCache += 1;
       arOut.score = alignmentScore = hit->second.score;
       if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
       arOut.openGapLen = hit->second.openGapLen;
       return true;
-      //alignment = alignmentScore;
     }
   }
 
-  if (alignmentScore == std::numeric_limits<int32_t>::lowest()) {
-    if (perfectChain) {
-      arOut.score = alignment = alignmentScore = readLen * mopts->matchScore;
-      if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
-      hctr.skippedAlignments_byCov += 1;
-    } else if (mopts->fullAlignment) {
-      nonstd::string_view readView(read);
-      nonstd::string_view readSeq = readView.substr(readStart);
-      aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
-              ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-      alignmentScore = std::max(ez.mqe, ez.mte);
-      if (computeCIGAR) { openGapLen = addCigar(cigarGen, ez, false); }
-    } else {
-      nonstd::string_view readView(read);
-      alignmentScore = 0;
-      for (auto&& mem : mems) {
-        rpos = mem.rpos;
-        memlen = mem.extendedlen;
-        tpos = mem.tpos;
+  // @mohsen & @fataltes --- we should figure out how to
+  // avoid computing the rc of a read if we've already done it.
+  if (!isFw and read_rc.empty()) { read_rc = pufferfish::util::reverseComplement(read); }
+  nonstd::string_view readView = (isFw) ? read : read_rc;
+  /*
+    std::string read = original_read;
+    if (!isfw) {
+    read = pufferfish::util::reversecomplement(read);
+    }
+  */
 
-        // To work around seg fault from mems
-        // TODO: What?  why should we need a special case here?
-        if (!firstMem and tpos + memlen - refStart > readLen) {
+  if (perfectChain) {
+    arOut.score = alignment = alignmentScore = readLen * mopts->matchScore;
+    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    hctr.skippedAlignments_byCov += 1;
+  } else if (mopts->fullAlignment) {
+    //nonstd::string_view readView(read);
+    nonstd::string_view readSeq = readView.substr(readStart);
+    aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
+            ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+    alignmentScore = std::max(ez.mqe, ez.mte);
+    if (computeCIGAR) { openGapLen = addCigar(cigarGen, ez, false); }
+  } else {
+    //nonstd::string_view readView(read);
+    alignmentScore = 0;
+    for (auto&& mem : mems) {
+      rpos = mem.rpos;
+      memlen = mem.extendedlen;
+      tpos = mem.tpos;
+
+      // To work around seg fault from mems
+      // TODO: What?  why should we need a special case here?
+      if (!firstMem and tpos + memlen - refStart > readLen) {
+        break;
+      }
+
+      int score = 0;
+      currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
+      currHitStart_ref = tpos;
+
+      if (verbose) { std::cerr << "currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n"; }
+      if (verbose) { std::cerr << "lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref << "\n"; }
+
+      if (firstMem) {
+        lastHitEnd_ref =
+          currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
+      } else {
+        if (currHitStart_read <= lastHitEnd_read - (int32_t) k + 1) {
+          if (verbose) { std::cerr << "The mems on read and reference are not consistent(1)\t" << read << "\n"; }
           break;
         }
-
-        int score = 0;
-        currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
-        currHitStart_ref = tpos;
-
-        if (verbose) { std::cerr << "currHitStart_read:" << currHitStart_read << "\tcurrHitStart_ref:" << currHitStart_ref << "\n"; }
-        if (verbose) { std::cerr << "lastHitStart_read:" << lastHitEnd_read << "\tlastHitStart_ref:" << lastHitEnd_ref << "\n"; }
-
-        if (firstMem) {
-          lastHitEnd_ref =
-            currHitStart_ref - currHitStart_read >= 0 ? currHitStart_ref - currHitStart_read - 1 : -1;
-        } else {
-          if (currHitStart_read <= lastHitEnd_read - (int32_t) k + 1) {
-            if (verbose) { std::cerr << "The mems on read and reference are not consistent(1)\t" << original_read << "\n"; }
-            break;
-          }
-          if (currHitStart_ref <= lastHitEnd_ref - (int32_t) k + 1) {
-            if (verbose) { std::cerr << "The mems on read and reference are not consistent(2)\t" << original_read << "\n"; }
-            break;
-          }
-          if (currHitStart_ref > lastHitEnd_ref + (int32_t) readLen) {
-            if (verbose) { std::cerr << "The mems on read and reference are not consistent(3)\t" << original_read << "\n"; }
-            break;
-          }
-          if (currHitStart_read <= lastHitEnd_read and
-              lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-            if (verbose) { std::cerr << "to align reads with indels\t" << original_read << "\n"; }
-            break;
-          }
-          if (currHitStart_ref <= lastHitEnd_ref and
-              lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
-            if (verbose) { std::cerr << "to align reads with indels\t" << original_read << "\n"; }
-            break;
-          }
+        if (currHitStart_ref <= lastHitEnd_ref - (int32_t) k + 1) {
+          if (verbose) { std::cerr << "The mems on read and reference are not consistent(2)\t" << read << "\n"; }
+          break;
         }
-
-        /*
-        // Performing full alignment to validate the scores
-        if (verbose and firstMem) {
-        uint32_t refStart, readStart;
-        if (currHitStart_ref > currHitStart_read) {
-        refStart = currHitStart_ref - currHitStart_read;
-        readStart = 0;
-        } else if (currHitStart_ref < currHitStart_read) {
-        readStart = currHitStart_read - currHitStart_ref;
-        refStart = 0;
-        } else {
-        readStart = currHitStart_read;
-        refStart = currHitStart_ref;
+        if (currHitStart_ref > lastHitEnd_ref + (int32_t) readLen) {
+          if (verbose) { std::cerr << "The mems on read and reference are not consistent(3)\t" << read << "\n"; }
+          break;
         }
-        auto refLength = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength -
-        refStart;
-
-        tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
-        auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
-
-        aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
-        ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-        alignment = ez.mqe; //std::max(ez.mqe, ez.mte);
-
-        {
-        std::cerr << "Original read seq:\t" << original_read << "\n";
-        std::cerr << "Total alignment with the score\t" << alignment << "\t from position\t"
-        << readStart << "\t on the read:\n" << readSeq << "\n";
-        std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n"
-        << tseq << "\n";
-        for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-        std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
-        std::cerr << "\n";
+        if (currHitStart_read <= lastHitEnd_read and
+            lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
+          if (verbose) { std::cerr << "to align reads with indels\t" << read << "\n"; }
+          break;
         }
+        if (currHitStart_ref <= lastHitEnd_ref and
+            lastHitEnd_read - currHitStart_read != lastHitEnd_ref - currHitStart_ref) {
+          if (verbose) { std::cerr << "to align reads with indels\t" << read << "\n"; }
+          break;
         }
-        */
+      }
 
-        // If there is a gap in the read or reference or both
-        bool gapAligned = false;
-        if (currHitStart_read > (lastHitEnd_read + 1) or currHitStart_ref > (lastHitEnd_ref + 1)) {
-          gapAligned = true;
-          auto readGapLength = currHitStart_read - lastHitEnd_read - 1;
-          auto refGapLength = currHitStart_ref - lastHitEnd_ref - 1;
+      /*
+      // Performing full alignment to validate the scores
+      if (verbose and firstMem) {
+      uint32_t refStart, readStart;
+      if (currHitStart_ref > currHitStart_read) {
+      refStart = currHitStart_ref - currHitStart_read;
+      readStart = 0;
+      } else if (currHitStart_ref < currHitStart_read) {
+      readStart = currHitStart_read - currHitStart_ref;
+      refStart = 0;
+      } else {
+      readStart = currHitStart_read;
+      refStart = currHitStart_ref;
+      }
+      auto refLength = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength -
+      refStart;
 
-          if (verbose) { std::cerr << "readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n"; }
+      tseq = getRefSeq(allRefSeq, refAccPos, refStart, refLength);
+      auto readSeq = readStart > 0 ? extractReadSeq(read, readStart, readLen, 1) : read;
 
-          // get the next segment of the read sequence we wish to align
-          auto readSeq = readView.substr(lastHitEnd_read + 1, readGapLength).to_string();
+      aligner(readSeq.c_str(), readSeq.length(), tseq.c_str(), tseq.length(), &ez,
+      ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+      alignment = ez.mqe; //std::max(ez.mqe, ez.mte);
 
-          if (verbose) {
-            for (size_t x = 0; x < 50; ++x) {
-              std::cerr << "+";
-            }
-            std::cerr << " start gap alignment\n";
-            std::cerr << "read from " << lastHitEnd_read + 1 << " for length " << readGapLength
-                      << " of the read:\t " << readSeq << "\n";
-            std::cerr << "currHitStart_read: " << currHitStart_read << " lastHitEnd_read: "
-                      << lastHitEnd_read << " currHitStart_ref: " << currHitStart_ref << " lastHitEnd_ref: "
-                      << lastHitEnd_ref << "\n";
-            std::cerr << mems[0].rpos << "\t" << readLen << "\t" << rpos << "\t" << memlen << "\n";
+      {
+      std::cerr << "Original read seq:\t" << original_read << "\n";
+      std::cerr << "Total alignment with the score\t" << alignment << "\t from position\t"
+      << readStart << "\t on the read:\n" << readSeq << "\n";
+      std::cerr << "At\t" << refStart << "\t for length of\t" << refLength << "\t on reference:\n"
+      << tseq << "\n";
+      for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+      std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
+      std::cerr << "\n";
+      }
+      }
+      */
+
+      // If there is a gap in the read or reference or both
+      bool gapAligned = false;
+      if (currHitStart_read > (lastHitEnd_read + 1) or currHitStart_ref > (lastHitEnd_ref + 1)) {
+        gapAligned = true;
+        auto readGapLength = currHitStart_read - lastHitEnd_read - 1;
+        auto refGapLength = currHitStart_ref - lastHitEnd_ref - 1;
+
+        if (verbose) { std::cerr << "readGapLength " << readGapLength << "\trefGapLength " << refGapLength << "\n"; }
+
+        // get the next segment of the read sequence we wish to align
+        auto readSeq = readView.substr(lastHitEnd_read + 1, readGapLength).to_string();
+
+        if (verbose) {
+          for (size_t x = 0; x < 50; ++x) {
+            std::cerr << "+";
           }
+          std::cerr << " start gap alignment\n";
+          std::cerr << "read from " << lastHitEnd_read + 1 << " for length " << readGapLength
+                    << " of the read:\t " << readSeq << "\n";
+          std::cerr << "currHitStart_read: " << currHitStart_read << " lastHitEnd_read: "
+                    << lastHitEnd_read << " currHitStart_ref: " << currHitStart_ref << " lastHitEnd_ref: "
+                    << lastHitEnd_ref << "\n";
+          std::cerr << mems[0].rpos << "\t" << readLen << "\t" << rpos << "\t" << memlen << "\n";
+        }
           
-          if (firstMem) {
-            ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
-            // Not extending the reference beyond its beginning
-            auto refStartPos = lastHitEnd_ref > refExtLength ? lastHitEnd_ref + 1 - refExtLength : 0;
-            refGapLength = currHitStart_ref - refStartPos;
+        if (firstMem) {
+          ///// no need because of line 512: lastHitEnd_ref = currHitStart_ref > currHitStart_read ? currHitStart_ref - currHitStart_read -1: -1;
+          // Not extending the reference beyond its beginning
+          auto refStartPos = lastHitEnd_ref > refExtLength ? lastHitEnd_ref + 1 - refExtLength : 0;
+          refGapLength = currHitStart_ref - refStartPos;
 
-            // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
-            if (refGapLength > 0) {
-              // We reverse the strings because of ksw forces alignment from the beginning of the sequences
-              std::reverse(readSeq.begin(), readSeq.end());
-              fillRefSeqBufferReverse(allRefSeq, refAccPos, refStartPos, refGapLength, refSeqBuffer_);
-              ksw_reset_extz(&ez);
-              aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
-                      ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-              // TODO : @fataltes & @mohsen --- I changed from the line below to use the max.
-              // is there a reason we should not be using max? Please check this.
-              //score = ez.mqe;
-              score = std::max(ez.mqe, ez.mte);
-              openGapLen = addCigar(cigarGen, ez, true);
+          // SOFT CLIPPING for reads mapping with a left hanger at the beginning of a transcript
+          if (refGapLength > 0) {
+            // We reverse the strings because of ksw forces alignment from the beginning of the sequences
+            std::reverse(readSeq.begin(), readSeq.end());
+            fillRefSeqBufferReverse(allRefSeq, refAccPos, refStartPos, refGapLength, refSeqBuffer_);
+            ksw_reset_extz(&ez);
+            aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
+                    ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+            // TODO : @fataltes & @mohsen --- I changed from the line below to use the max.
+            // is there a reason we should not be using max? Please check this.
+            //score = ez.mqe;
+            score = std::max(ez.mqe, ez.mte);
+            openGapLen = addCigar(cigarGen, ez, true);
 
-              if (verbose) {
-                std::cerr << "It's a gap at the beginning, so the reverse read from "
-                          << lastHitEnd_read + 1 << " is\t" << readSeq << "\n";
-                std::cerr << "The reverse reference from " << refStartPos << " with the length "
-                          << refGapLength << " is\t" << tseq << "\n";
-                std::cerr << "mqe: " << ez.mqe << "\t mte: " << ez.mte << "\n";
-                for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-                  std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
-                std::cerr << "\n" << score << "\n";
-              }
-
-              int32_t insertionDeletion = 0; //TODO should be fixed for cigars
-              (void) insertionDeletion;
-            } else {
-              score = 0;
-              int32_t startHang = readGapLength - refGapLength;
-              alignmentScore +=
-                (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (startHang);
-              cigarGen.add_item(startHang, 'I');
+            if (verbose) {
+              std::cerr << "It's a gap at the beginning, so the reverse read from "
+                        << lastHitEnd_read + 1 << " is\t" << readSeq << "\n";
+              std::cerr << "The reverse reference from " << refStartPos << " with the length "
+                        << refGapLength << " is\t" << tseq << "\n";
+              std::cerr << "mqe: " << ez.mqe << "\t mte: " << ez.mte << "\n";
+              for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+                std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
+              std::cerr << "\n" << score << "\n";
             }
+
+            int32_t insertionDeletion = 0; //TODO should be fixed for cigars
+            (void) insertionDeletion;
           } else {
-            //Considering the case where the gap in either the read or reference is empty
-            if (readGapLength <= 0) {
-              if (verbose) {
-                std::cerr << "read gap lengths was of length 0 for the ref gap length of \t"
-                          << refGapLength << "\n";
-              }
-              score = (-1) * mopts->gapOpenPenalty +
-                (-1) * mopts->gapExtendPenalty * (refGapLength + std::abs(readGapLength));
-              cigarGen.add_item(refGapLength, 'D');
-            } else if (refGapLength <= 0) {
-              if (verbose) {
-                std::cerr << "ref gap lengths was of length 0 for the read gap length of \t"
-                          << readGapLength << "\n";
-              }
-              score = (-1) * mopts->gapOpenPenalty +
-                (-1) * mopts->gapExtendPenalty * (readGapLength + std::abs(refGapLength));
-              cigarGen.add_item(readGapLength, 'I');
-            } else {
-              if (lastHitEnd_ref + 1 - refStart < 0 or
-                  lastHitEnd_ref + 1 - refStart >= originalRefSeqLen) {
-                std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref
-                          << "and refStart is " << refStart << ", but refSeq length is "
-                          << originalRefSeqLen << "\n";
-              }
-              //char *refSeq1 = refSeq.get() + lastHitEnd_ref + 1 - refStart;
-              const char* refSeq1 = refSeqBuffer_.data() + lastHitEnd_ref + 1 - refStart;
-              score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez,
-                              ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-              addCigar(cigarGen, ez, false);
-              if (verbose) {
-                tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
-                std::cerr << "read from " << lastHitEnd_read + 1 << " with the gap length of "
-                          << readGapLength << " is \t" << readSeq << "\n";
-                std::cerr << "reference from " << lastHitEnd_ref + 1 << " with the length "
-                          << refGapLength << " is \t" << tseq << "\n";
-                for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-                  std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
-                std::cout << "\n";
-              }
-            }
-          }
-          alignmentScore += score;
-          if (verbose) {
-            std::cerr << isFw << " at " << currHitStart_ref << " on " << tid << " for " << refGapLength
-                      << "\n";
-            std::cerr << "curr score2:\t" << score << "\n";
-            for (size_t x = 0; x < 50; ++x)
-              std::cerr << "+";
-            std::cerr << " end gap alignments\n";
-          }
-        }
-
-        int32_t extension_ref = currHitStart_ref + memlen - lastHitEnd_ref;
-        int32_t extension_read = currHitStart_read + memlen - lastHitEnd_read;
-
-        auto longest_match_extension = std::max(extension_ref, extension_read);
-        //currHitStart_ref + memlen - lastHitEnd_ref > currHitStart_read + memlen - lastHitEnd_read ?
-        //currHitStart_ref + memlen - lastHitEnd_ref : currHitStart_read + memlen - lastHitEnd_read;
-        score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (longest_match_extension - 1) :
-          mopts->matchScore * memlen;
-        auto num_match = (currHitStart_ref <= lastHitEnd_ref) ? (longest_match_extension - 1) : memlen;
-        if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
-          if (verbose) {
-            auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
-            auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
-            std::cerr << "read from " << currHitStart_read << "\t with the sequence \n" << readSeq << "\n";
-            std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
-                      << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
-            std::cerr << "with the score1:\t" << score << "\n";
+            score = 0;
+            int32_t startHang = readGapLength - refGapLength;
+            alignmentScore +=
+              (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (startHang);
+            cigarGen.add_item(startHang, 'I');
           }
         } else {
-          int32_t gapLength = std::abs(
-                                       lastHitEnd_ref - currHitStart_ref - lastHitEnd_read + currHitStart_read);
-
-          int32_t penalty = mopts->gapOpenPenalty + mopts->gapExtendPenalty * gapLength;
-          if (!gapAligned) {
-            score -= penalty;
-            if (currHitStart_ref - lastHitEnd_ref > currHitStart_read - lastHitEnd_read) {
-              cigarGen.add_item(gapLength, 'D');
-            } else {
-              cigarGen.add_item(gapLength, 'I');
+          //Considering the case where the gap in either the read or reference is empty
+          if (readGapLength <= 0) {
+            if (verbose) {
+              std::cerr << "read gap lengths was of length 0 for the ref gap length of \t"
+                        << refGapLength << "\n";
             }
-          }
-          if (verbose) {
-            if (!gapAligned) { std::cerr << "penalty\t" << penalty << "\n"; }
-            auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
-            auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
-            std::cerr << "read from " << currHitStart_read << "\t with the sequence \n" << readSeq << "\n";
-            std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
-                      << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
-            std::cerr << "with the score1:\t" << score << "\n";
+            score = (-1) * mopts->gapOpenPenalty +
+              (-1) * mopts->gapExtendPenalty * (refGapLength + std::abs(readGapLength));
+            cigarGen.add_item(refGapLength, 'D');
+          } else if (refGapLength <= 0) {
+            if (verbose) {
+              std::cerr << "ref gap lengths was of length 0 for the read gap length of \t"
+                        << readGapLength << "\n";
+            }
+            score = (-1) * mopts->gapOpenPenalty +
+              (-1) * mopts->gapExtendPenalty * (readGapLength + std::abs(refGapLength));
+            cigarGen.add_item(readGapLength, 'I');
+          } else {
+            if (lastHitEnd_ref + 1 - refStart < 0 or
+                lastHitEnd_ref + 1 - refStart >= originalRefSeqLen) {
+              std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref
+                        << "and refStart is " << refStart << ", but refSeq length is "
+                        << originalRefSeqLen << "\n";
+            }
+            //char *refSeq1 = refSeq.get() + lastHitEnd_ref + 1 - refStart;
+            const char* refSeq1 = refSeqBuffer_.data() + lastHitEnd_ref + 1 - refStart;
+            score = aligner(readSeq.c_str(), readSeq.length(), refSeq1, refGapLength, &ez,
+                            ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
+            addCigar(cigarGen, ez, false);
+            if (verbose) {
+              tseq = getRefSeq(allRefSeq, refAccPos, lastHitEnd_ref + 1, refGapLength);
+              std::cerr << "read from " << lastHitEnd_read + 1 << " with the gap length of "
+                        << readGapLength << " is \t" << readSeq << "\n";
+              std::cerr << "reference from " << lastHitEnd_ref + 1 << " with the length "
+                        << refGapLength << " is \t" << tseq << "\n";
+              for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+                std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
+              std::cout << "\n";
+            }
           }
         }
         alignmentScore += score;
-        cigarGen.add_item(num_match, 'M');
-
-        lastHitEnd_read = currHitStart_read + memlen - 1;
-        lastHitEnd_ref = tpos + memlen - 1;
-        if (lastHitEnd_ref - refStart + 1 > originalRefSeqLen + 1) {
-          std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is "
-                    << refStart << ", but refSeq length is " << originalRefSeqLen << "\n";
+        if (verbose) {
+          std::cerr << isFw << " at " << currHitStart_ref << " on " << tid << " for " << refGapLength
+                    << "\n";
+          std::cerr << "curr score2:\t" << score << "\n";
+          for (size_t x = 0; x < 50; ++x)
+            std::cerr << "+";
+          std::cerr << " end gap alignments\n";
         }
-        firstMem = false;
       }
 
-      // Try and align any remaining sequence on the read
-      if (lastHitEnd_read < static_cast<int32_t>(readLen) - 1) {
-        auto readGapLength = readLen - 1 - lastHitEnd_read;
-        auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ?
-                            readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
+      int32_t extension_ref = currHitStart_ref + memlen - lastHitEnd_ref;
+      int32_t extension_read = currHitStart_read + memlen - lastHitEnd_read;
 
-        if (lastHitEnd_ref + readGapLength > refTotalLength) {
-          refGapLength = refTotalLength - (lastHitEnd_ref + 1);
-          // @mohsen & @fataltes --- I commented out the below way of
-          // dealing with this in favor of what is above.  Why would
-          // we not want to align to what remains of the ref in this case
-          // to see if the best alignment score is reasonable?
-          /*
-          //AlignmentResult aln;
-          arOut.score = -1;
-          if (computeCIGAR) { arOut.cigar = cigar; }
-          arOut.openGapLen = openGapLen;
-          return false;
-          */
+      auto longest_match_extension = std::max(extension_ref, extension_read);
+      //currHitStart_ref + memlen - lastHitEnd_ref > currHitStart_read + memlen - lastHitEnd_read ?
+      //currHitStart_ref + memlen - lastHitEnd_ref : currHitStart_read + memlen - lastHitEnd_read;
+      score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (longest_match_extension - 1) :
+        mopts->matchScore * memlen;
+      auto num_match = (currHitStart_ref <= lastHitEnd_ref) ? (longest_match_extension - 1) : memlen;
+      if (lastHitEnd_ref - currHitStart_ref == lastHitEnd_read - currHitStart_read or firstMem) {
+        if (verbose) {
+          auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
+          auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
+          std::cerr << "read from " << currHitStart_read << "\t with the sequence \n" << readSeq << "\n";
+          std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
+                    << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
+          std::cerr << "with the score1:\t" << score << "\n";
+        }
+      } else {
+        int32_t gapLength = std::abs(
+                                     lastHitEnd_ref - currHitStart_ref - lastHitEnd_read + currHitStart_read);
+
+        int32_t penalty = mopts->gapOpenPenalty + mopts->gapExtendPenalty * gapLength;
+        if (!gapAligned) {
+          score -= penalty;
+          if (currHitStart_ref - lastHitEnd_ref > currHitStart_read - lastHitEnd_read) {
+            cigarGen.add_item(gapLength, 'D');
+          } else {
+            cigarGen.add_item(gapLength, 'I');
+          }
+        }
+        if (verbose) {
+          if (!gapAligned) { std::cerr << "penalty\t" << penalty << "\n"; }
+          auto readSeq = extractReadSeq(read, currHitStart_read, currHitStart_read + memlen, 1);
+          auto tseq1 = getRefSeq(allRefSeq, refAccPos, currHitStart_ref, memlen);
+          std::cerr << "read from " << currHitStart_read << "\t with the sequence \n" << readSeq << "\n";
+          std::cerr << "orientation of\t" << isFw << " at " << currHitStart_ref << " on reference " << tid
+                    << " for the length of " << memlen << "\t with sequence:\n" << tseq1 << "\n";
+          std::cerr << "with the score1:\t" << score << "\n";
+        }
+      }
+      alignmentScore += score;
+      cigarGen.add_item(num_match, 'M');
+
+      lastHitEnd_read = currHitStart_read + memlen - 1;
+      lastHitEnd_ref = tpos + memlen - 1;
+      if (lastHitEnd_ref - refStart + 1 > originalRefSeqLen + 1) {
+        std::cerr << "Should not happen: lastHitEnd_ref is " << lastHitEnd_ref << " and refStart is "
+                  << refStart << ", but refSeq length is " << originalRefSeqLen << "\n";
+      }
+      firstMem = false;
+    }
+
+    // Try and align any remaining sequence on the read
+    if (lastHitEnd_read < static_cast<int32_t>(readLen) - 1) {
+      auto readGapLength = readLen - 1 - lastHitEnd_read;
+      auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ?
+                                                                              readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
+
+      if (lastHitEnd_ref + readGapLength > refTotalLength) {
+        refGapLength = refTotalLength - (lastHitEnd_ref + 1);
+        // @mohsen & @fataltes --- I commented out the below way of
+        // dealing with this in favor of what is above.  Why would
+        // we not want to align to what remains of the ref in this case
+        // to see if the best alignment score is reasonable?
+        /*
+        //AlignmentResult aln;
+        arOut.score = -1;
+        if (computeCIGAR) { arOut.cigar = cigar; }
+        arOut.openGapLen = openGapLen;
+        return false;
+        */
+      }
+
+      // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
+      if (refGapLength != 0) {
+        auto readSeq = readView.substr(lastHitEnd_read + 1, readGapLength).to_string();
+        auto refStartPos = lastHitEnd_ref + 1;
+        fillRefSeqBuffer(allRefSeq, refAccPos, refStartPos, refGapLength, refSeqBuffer_);
+        aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refGapLength, &ez,
+                ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+        // TODO : @fataltes & @mohsen --- I changed from the line below to use the max.
+        // is there a reason we should not be using max? Please check this.
+        //auto score = ez.mqe;
+        auto score = std::max(ez.mqe, ez.mte);
+
+        alignmentScore += score;
+        auto insertionDeletion = addCigar(cigarGen, ez, false);
+
+        if (verbose) {
+          std::cerr << "read from " << lastHitEnd_read + 1 << "\t\t\t" << readSeq << "\n";
+          std::cerr << "at " << lastHitEnd_ref << " for " << refGapLength << "\t" << tseq << "\n";
+          for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
+            std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
+          std::cerr << "\ncurr score3:\t" << score << "\n";
+          std::cerr << ez.mqe << "\t " << ez.mte << "\n";
         }
 
-        // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
-        if (refGapLength != 0) {
-          auto readSeq = readView.substr(lastHitEnd_read + 1, readGapLength).to_string();
-          auto refStartPos = lastHitEnd_ref + 1;
-          fillRefSeqBuffer(allRefSeq, refAccPos, refStartPos, refGapLength, refSeqBuffer_);
-          aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refGapLength, &ez,
-                  ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          // TODO : @fataltes & @mohsen --- I changed from the line below to use the max.
-          // is there a reason we should not be using max? Please check this.
-          //auto score = ez.mqe;
-          auto score = std::max(ez.mqe, ez.mte);
-
-          alignmentScore += score;
-          auto insertionDeletion = addCigar(cigarGen, ez, false);
-
-          if (verbose) {
-            std::cerr << "read from " << lastHitEnd_read + 1 << "\t\t\t" << readSeq << "\n";
-            std::cerr << "at " << lastHitEnd_ref << " for " << refGapLength << "\t" << tseq << "\n";
-            for (int i = 0; i < ez.n_cigar; ++i) // print CIGAR
-              std::cerr<< (ez.cigar[i]>>4) << "MID"[ez.cigar[i] & 0xf];
-            std::cerr << "\ncurr score3:\t" << score << "\n";
-            std::cerr << ez.mqe << "\t " << ez.mte << "\n";
-          }
-
-          if (readGapLength > refGapLength + insertionDeletion) {
-            int32_t endHang = readGapLength - refGapLength - insertionDeletion;
-            alignmentScore += (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (endHang);
-            cigarGen.add_item(endHang, 'I');
-          }
-        } else {
-          int32_t endHang = readGapLength;
+        if (readGapLength > refGapLength + insertionDeletion) {
+          int32_t endHang = readGapLength - refGapLength - insertionDeletion;
           alignmentScore += (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (endHang);
           cigarGen.add_item(endHang, 'I');
         }
+      } else {
+        int32_t endHang = readGapLength;
+        alignmentScore += (-1) * mopts->gapOpenPenalty + (-1) * mopts->gapExtendPenalty * (endHang);
+        cigarGen.add_item(endHang, 'I');
       }
     }
-    bool cigar_fixed{false};
-    if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
-    if (cigar_fixed) { hctr.cigar_fixed_count++; }
-    if (multiMapping) { // don't bother to fill up a cache unless this is a multi-mapping read
-      if (!didHash) {
-        // We want the alignment cache to be on the hash of the full underlying reference sequence.
-        // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment
-        // then refSeqBuffer_ could have been used to store shorter portions of the reference during
-        // the alignment procedure.  In that case, get the original reference sequence from tseq, which
-        // was copied from the full reference sequence in the beginning of the function.
-        char* ptr = const_cast<char*>((mopts->fullAlignment ? refSeqBuffer_.data() : tseq.data()));
-        MetroHash64::Hash(reinterpret_cast<uint8_t *>(ptr), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
-      }
-      AlignmentResult aln;
-      aln.score = alignmentScore;
-      if (computeCIGAR) { aln.cigar = cigar; }
-      aln.openGapLen = openGapLen;
-      alnCache[hashKey] = aln;
+  }
+  bool cigar_fixed{false};
+  if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
+  if (cigar_fixed) { hctr.cigar_fixed_count++; }
+  if (isMultimapping_) { // don't bother to fill up a cache unless this is a multi-mapping read
+    if (!didHash) {
+      // We want the alignment cache to be on the hash of the full underlying reference sequence.
+      // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment
+      // then refSeqBuffer_ could have been used to store shorter portions of the reference during
+      // the alignment procedure.  In that case, get the original reference sequence from tseq, which
+      // was copied from the full reference sequence in the beginning of the function.
+      char* ptr = const_cast<char*>((mopts->fullAlignment ? refSeqBuffer_.data() : tseq.data()));
+      MetroHash64::Hash(reinterpret_cast<uint8_t *>(ptr), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     }
-  } else {
-    hctr.skippedAlignments_byCache += 1;
+    AlignmentResult aln;
+    aln.score = alignmentScore;
+    if (computeCIGAR) { aln.cigar = cigar; }
+    aln.openGapLen = openGapLen;
+    alnCache[hashKey] = aln;
   }
   arOut.score = alignmentScore;
   arOut.cigar = cigar;
   arOut.openGapLen = openGapLen;
   return true;
-}
-
-AlignmentResult PuffAligner::alignRead(std::string& read, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
-                                       bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, bool verbose) {
-  AlignmentResult ar;
-  alignRead(read, mems, perfectChain, isFw, tid, alnCache, hctr, ar, verbose);
-  return ar;
 }
 
 
@@ -611,8 +604,9 @@ AlignmentResult PuffAligner::alignRead(std::string& read, const std::vector<puff
  *  if CIGAR strings are computed or just scores, is controlled by the configuration that has been passed to this
  *  PuffAligner object).
  **/
-int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& read_right, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
-
+int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& read_right, pufferfish::util::JointMems& jointHit,
+                                         HitCounters& hctr, bool isMultimapping, bool verbose) {
+  isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
     double optFrac{mopts->minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
@@ -629,7 +623,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         // If this mapping was an orphan, then this is the orphaned read
         std::string& read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
         ar_left.score = invalidScore;
-        alignRead(read_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
+        alignRead(read_orphan, read_left_rc_, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
                   jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
         jointHit.alignmentScore =
           ar_left.score > threshold(read_orphan.length())  ? ar_left.score : invalidScore;
@@ -644,10 +638,10 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         hctr.totalAlignmentAttempts += 2;
         ar_left.score = ar_right.score = invalidScore;
         if (verbose) { std::cerr << "left\n"; }
-        alignRead(read_left, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
+        alignRead(read_left, read_left_rc_, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
                                             jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
         if (verbose) { std::cerr << "right\n"; }
-        alignRead(read_right, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
+        alignRead(read_right, read_right_rc_, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
                                              jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right, verbose);
 
         jointHit.alignmentScore = ar_left.score > threshold(read_left.length()) ? ar_left.score : invalidScore;
@@ -680,8 +674,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
  *  if CIGAR strings are computed or just scores, is controlled by the configuration that has been passed to this
  *  PuffAligner object).
  **/
-int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool verbose) {
-
+int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose) {
+  isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
     double optFrac{mopts->minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
@@ -693,7 +687,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     hctr.totalAlignmentAttempts += 1;
     ar_left.score = invalidScore;
     const auto& oc = jointHit.orphanClust();
-    alignRead(read, oc->mems, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
+    alignRead(read, read_left_rc_, oc->mems, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
     jointHit.alignmentScore =
       ar_left.score > threshold(read.length())  ? ar_left.score : invalidScore;
     jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_left.cigar : "";
