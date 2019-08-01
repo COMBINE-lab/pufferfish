@@ -459,9 +459,12 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
           }
         }
 
-        auto longest_match_extension =
-          currHitStart_ref + memlen - lastHitEnd_ref > currHitStart_read + memlen - lastHitEnd_read ?
-          currHitStart_ref + memlen - lastHitEnd_ref : currHitStart_read + memlen - lastHitEnd_read;
+        int32_t extension_ref = currHitStart_ref + memlen - lastHitEnd_ref;
+        int32_t extension_read = currHitStart_read + memlen - lastHitEnd_read;
+
+        auto longest_match_extension = std::max(extension_ref, extension_read);
+        //currHitStart_ref + memlen - lastHitEnd_ref > currHitStart_read + memlen - lastHitEnd_read ?
+        //currHitStart_ref + memlen - lastHitEnd_ref : currHitStart_read + memlen - lastHitEnd_read;
         score = (currHitStart_ref <= lastHitEnd_ref) ? mopts->matchScore * (longest_match_extension - 1) :
           mopts->matchScore * memlen;
         auto num_match = (currHitStart_ref <= lastHitEnd_ref) ? (longest_match_extension - 1) : memlen;
@@ -512,15 +515,22 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
       // Try and align any remaining sequence on the read
       if (lastHitEnd_read < static_cast<int32_t>(readLen) - 1) {
         auto readGapLength = readLen - 1 - lastHitEnd_read;
-        auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ? readGapLength +
-                                                                                refExtLength :
-          refTotalLength - lastHitEnd_ref - 1;
+        auto refGapLength = lastHitEnd_ref + 1 + readGapLength + refExtLength < refTotalLength ?
+                            readGapLength + refExtLength : refTotalLength - lastHitEnd_ref - 1;
+
         if (lastHitEnd_ref + readGapLength > refTotalLength) {
+          refGapLength = refTotalLength - (lastHitEnd_ref + 1);
+          // @mohsen & @fataltes --- I commented out the below way of
+          // dealing with this in favor of what is above.  Why would
+          // we not want to align to what remains of the ref in this case
+          // to see if the best alignment score is reasonable?
+          /*
           //AlignmentResult aln;
           arOut.score = -1;
           if (computeCIGAR) { arOut.cigar = cigar; }
           arOut.openGapLen = openGapLen;
           return false;
+          */
         }
 
         // SOFT CLIPPING for reads mapping with a right hanger at the beginning of a transcript
@@ -534,6 +544,7 @@ bool PuffAligner::alignRead(std::string& original_read, const std::vector<puffer
           // is there a reason we should not be using max? Please check this.
           //auto score = ez.mqe;
           auto score = std::max(ez.mqe, ez.mte);
+
           alignmentScore += score;
           auto insertionDeletion = addCigar(cigarGen, ez, false);
 
