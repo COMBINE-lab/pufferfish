@@ -310,7 +310,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         int32_t gapDiff = std::abs(gapRef - gapRead);
         score = (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * gapDiff);
         score += (gapRef < gapRead) ?  (mopts->matchScore * gapDiff * -1) : 0;
-      } else if (gapRead > 0 and gapRef > 0) {
+    } else if (gapRead > 0 and gapRef > 0) {
         auto readWindow = readView.substr(prevMemEnd_read + 1, gapRead);//isFw ? readView.substr(prevMemEnd_read, gapRead) : readView.substr(prevMemEnd_read - gapRead, gapRead);
         const char* refSeq1 = tseq.data() + (prevMemEnd_ref + 1);
         score = aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
@@ -332,12 +332,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           ss << "mem len = " << mem.memInfo->memlen << ", prev mem len = " << (it-1)->memInfo->memlen << "\n";
           ss << "##\n";
           std::cerr << ss.str();
-          if (chainOfInterest) {std::exit(1);}
+                       if (chainOfInterest) {std::exit(1);}
         }
       }
 
       // now score the mem match
-      score += mopts->matchScore * memlen;
+      alignmentScore += mopts->matchScore * memlen;
       prevMemEnd_read = isFw ? (rpos + memlen - 1) : rpos;
       prevMemEnd_ref = tpos + memlen - 1;
       prevMemLen = memlen;
