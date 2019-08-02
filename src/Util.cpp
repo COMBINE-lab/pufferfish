@@ -114,9 +114,9 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                 for (auto rclust = rClusts.begin(); rclust != rClusts.end(); rclust++) {
 
                   bool chainOfInterest = (lclust->isFw and lclust->mems.front().rpos == 0 and lclust->mems.front().tpos == 162 and tid == 151214);
-                  if (chainOfInterest) { std::cerr << "LEFT: REASONABLE LOG!\n"; std::exit(1);}
+                  if (chainOfInterest) { std::cerr << "LEFT: REASONABLE LOG!\n"; }
                   chainOfInterest = (rclust->isFw and rclust->mems.front().rpos == 0 and rclust->mems.front().tpos == 162 and tid == 151214);
-                  if (chainOfInterest) { std::cerr << "RIGHT: REASONABLE LOG!\n"; std::exit(1);}
+                  if (chainOfInterest) { std::cerr << "RIGHT: REASONABLE LOG!\n"; }
 
                     // if both the left and right clusters are oriented in the same direction, skip this pair
                     // NOTE: This should be optional as some libraries could allow this.
