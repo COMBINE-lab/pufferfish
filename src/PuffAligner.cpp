@@ -337,10 +337,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       }
 
       // now score the mem match
-      alignmentScore += mopts->matchScore * memlen;
+      score += mopts->matchScore * memlen;
       prevMemEnd_read = isFw ? (rpos + memlen - 1) : rpos;
       prevMemEnd_ref = tpos + memlen - 1;
       prevMemLen = memlen;
+      alignmentScore += score;
     }
 
 
