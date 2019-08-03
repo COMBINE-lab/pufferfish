@@ -299,7 +299,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
     int32_t prevMemEnd_read = isFw ? rpos : readLen - (rpos+memlen);//isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
     int32_t prevMemEnd_ref = tpos;//tpos + memlen - 1;
-    int32_t prevMemLen = memlen;
+    //int32_t prevMemLen = memlen;
 
     ss << "\t Aligning through MEM chain : \n";
     // for the second through the last mem
@@ -358,9 +358,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         */
       }
 
-      prevMemEnd_read = isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
+      prevMemEnd_read = currMemStart_read + memlen - 1;//isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
       prevMemEnd_ref = tpos + memlen - 1;
-      prevMemLen = memlen;
+      //prevMemLen = memlen;
       alignmentScore += score;
     }
 
