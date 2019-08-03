@@ -286,15 +286,16 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       openGapLen = addCigar(cigarGen, ez, true);
     }
 
+    // @fataltes --- trying not to treat the first mem in a special way.
     // score for the first mem
-    alignmentScore += mopts->matchScore * memlen;
+    //alignmentScore += mopts->matchScore * memlen;
 
-    int32_t prevMemEnd_read = isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
-    int32_t prevMemEnd_ref = tpos + memlen - 1;
+    int32_t prevMemEnd_read = isFw ? rpos : readLen - (rpos+memlen);//isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
+    int32_t prevMemEnd_ref = tpos;//tpos + memlen - 1;
     int32_t prevMemLen = memlen;
 
     // for the second through the last mem
-    for(auto it = mems.begin()+1; it != mems.end(); ++it) {
+    for(auto it = mems.begin(); it != mems.end(); ++it) {
       auto& mem = *it;
       rpos = mem.rpos;
       memlen = mem.extendedlen;
@@ -310,14 +311,15 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
         int32_t gapDiff = std::abs(gapRef - gapRead);
         score += (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * gapDiff);
-        //score += (gapRef < gapRead) ?  (mopts->matchScore * gapDiff * -1) : 0;
+        score += (gapRef < gapRead) ?  (mopts->matchScore * gapDiff * -1) : 0;
     } else if (gapRead > 0 and gapRef > 0) {
-        auto readWindow = readView.substr(prevMemEnd_read/* + 1*/, gapRead);//isFw ? readView.substr(prevMemEnd_read, gapRead) : readView.substr(prevMemEnd_read - gapRead, gapRead);
-        const char* refSeq1 = tseq.data() + (prevMemEnd_ref/* + 1*/);
+        auto readWindow = readView.substr(prevMemEnd_read, gapRead);
+        const char* refSeq1 = tseq.data() + (prevMemEnd_ref);
         score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
         addCigar(cigarGen, ez, false);
       } else {
+        /*
         if (isFw) {
           std::stringstream ss;
           bool chainOfInterest = (isFw and mems.front().rpos == 0 and mems.front().tpos == 162 and tid == 151214);
@@ -335,6 +337,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           std::cerr << ss.str();
                        if (chainOfInterest) {std::exit(1);}
         }
+        */
       }
 
       prevMemEnd_read = isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
