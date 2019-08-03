@@ -262,6 +262,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
     // ROB ATTEMPT ---
     alignmentScore = 0;
+
+    std::stringstream ss;
+    ss << "[[\n";
     // If the first mem does not start at the beginning of the
     // read, then there is a gap to align.
     int32_t firstMemStart_read = (isFw) ? rpos : readLen - (rpos + memlen);
@@ -275,9 +278,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       int32_t refWindowStart = (readStartPosOnRef - refExtLength) > 0 ? (readStartPosOnRef - refExtLength) : 0;
       int32_t refWindowLength = tpos - refWindowStart;
-
       fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart, refWindowLength, refSeqBuffer_);
       auto readWindow = readView.substr(0, firstMemStart_read).to_string();
+
+      ss << "PRE:\n";
+      ss << "read : [" << readWindow << "\n";
+      ss << "ref  : [" << refSeqBuffer_ << "\n";
+
       std::reverse(readWindow.begin(), readWindow.end());
       ksw_reset_extz(&ez);
       aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
@@ -294,6 +301,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     int32_t prevMemEnd_ref = tpos;//tpos + memlen - 1;
     int32_t prevMemLen = memlen;
 
+    ss << "\t Aligning through MEM chain : \n";
     // for the second through the last mem
     for(auto it = mems.begin(); it != mems.end(); ++it) {
       auto& mem = *it;
@@ -308,13 +316,23 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       int32_t currMemStart_read = isFw ? rpos : readLen - (rpos + memlen);
       int32_t gapRef = currMemStart_ref - prevMemEnd_ref - 1; // both inclusive
       int32_t gapRead = currMemStart_read - prevMemEnd_read - 1; // both inclusive
+
+      ss << "\t MEM : \n";
+      ss << "\t read [" << readView.substr(currMemStart_read, memlen) << "], pos : " << rpos << ", len : " << memlen << ", ori : " << (isFw ? "FW" : "RC") << "\n";
+      ss << "\t ref  [" << nonstd::string_view(tseq.data() + tpos - refStart, memlen) << "], pos : " << tpos << ", len : " << memlen << "\n";
+
       if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
         int32_t gapDiff = std::abs(gapRef - gapRead);
         score += (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * gapDiff);
-        score += (gapRef < gapRead) ?  (mopts->matchScore * gapDiff * -1) : 0;
-    } else if (gapRead > 0 and gapRef > 0) {
-        auto readWindow = readView.substr(prevMemEnd_read, gapRead);
-        const char* refSeq1 = tseq.data() + (prevMemEnd_ref);
+        //score += (gapRef < gapRead) ?  (mopts->matchScore * gapDiff * -1) : 0;
+      } else if (gapRead > 0 and gapRef > 0) {
+        auto readWindow = readView.substr(prevMemEnd_read + 1, gapRead);
+        const char* refSeq1 = tseq.data() + (prevMemEnd_ref) - refStart + 1;
+
+        ss << "\t\t aligning\n";
+        ss << "\t\t [" << readWindow << "]\n";
+        ss << "\t\t [" << nonstd::string_view(refSeq1, gapRef) << "]\n";
+
         score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
         addCigar(cigarGen, ez, false);
@@ -346,21 +364,30 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       alignmentScore += score;
     }
 
-
     // If we got to the end, and there is a read gap left, then align that as well
     bool gapAtEnd = isFw ? (prevMemEnd_read < readLen - 1) : (prevMemEnd_read > 0);
     if (gapAtEnd) {
-      int32_t gapRead = /*isFw ?*/ ((readLen - 1) - prevMemEnd_read);// : prevMemEnd_read;
-      int32_t refStart = prevMemEnd_ref;
-      int32_t refEnd = refStart + gapRead + refExtLength;
-      if (refEnd >= refTotalLength) {refEnd = refTotalLength - 1;}
-      int32_t refLen = refEnd - refStart;// + 1;
-      auto readWindow = /*isFw ?*/ readView.substr(prevMemEnd_read);// : readView.substr(0, gapRead);
-      const char* refSeq1 = tseq.data() + refStart;
-      aligner(readWindow.data(), readWindow.length(), refSeq1, refLen, &ez,
+      int32_t gapRead = ((readLen - 1) - prevMemEnd_read);
+      int32_t refTailStart = prevMemEnd_ref;
+      int32_t dataDepBuff = std::min(static_cast<int32_t>(refExtLength), 2*gapRead);
+      int32_t refTailEnd = refTailStart + gapRead + refExtLength;
+      if (refTailEnd >= refTotalLength) {refTailEnd = refTotalLength - 1;}
+      int32_t refLen = refTailEnd - refTailStart;
+      auto readWindow = readView.substr(prevMemEnd_read);
+      fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
+
+      ss << "POST:\n";
+      ss << "read : [" << readWindow << "]\n";
+      ss << "ref  : [" << refSeqBuffer_ << "]\n";
+
+      aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
       alignmentScore += std::max(ez.mqe, ez.mte);
     }
+    
+    ss << "]]\n";
+//std::cerr << ss.str() << "\n";
+
 
     /*
     alignmentScore = 0;
