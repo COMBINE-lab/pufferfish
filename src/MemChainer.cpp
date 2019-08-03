@@ -349,7 +349,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         bestChainEndList.push_back(i);
       }
     }
-    if (chainOfInterest) { std::cerr << "bestScore = " << bestScore << "\n"; }
+    //if (chainOfInterest) { std::cerr << "bestScore = " << bestScore << "\n"; }
     // Do backtracking
     chobo::small_vector<uint8_t> seen(f.size(), 0);
     for (auto bestChainEnd : bestChainEndList) {

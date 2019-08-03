@@ -277,7 +277,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       int32_t refWindowLength = tpos - refWindowStart;
 
       fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart, refWindowLength, refSeqBuffer_);
-      auto readWindow = /*isFw ? */readView.substr(0, firstMemStart_read).to_string();// : readView.substr(firstMemStart_read).to_string();
+      auto readWindow = readView.substr(0, firstMemStart_read).to_string();
       std::reverse(readWindow.begin(), readWindow.end());
       ksw_reset_extz(&ez);
       aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
