@@ -265,6 +265,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
     std::stringstream ss;
     ss << "[[\n";
+    ss << "read sequence (" << (isFw ? "FW" : "RC") << ") : " << readView << "\n";
+    ss << "ref  sequence      : " << tseq << "\n";
     // If the first mem does not start at the beginning of the
     // read, then there is a gap to align.
     int32_t firstMemStart_read = (isFw) ? rpos : readLen - (rpos + memlen);
@@ -275,17 +277,20 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       // first start position on the reference.
       int32_t firstMemStart_ref = tpos;
       int32_t readStartPosOnRef = tpos - firstMemStart_read;
+      int32_t dataDepBuff = std::min(static_cast<int32_t>(refExtLength), 5*firstMemStart_read);
 
       int32_t refWindowStart = (readStartPosOnRef - refExtLength) > 0 ? (readStartPosOnRef - refExtLength) : 0;
       int32_t refWindowLength = tpos - refWindowStart;
       fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart, refWindowLength, refSeqBuffer_);
       auto readWindow = readView.substr(0, firstMemStart_read).to_string();
 
-      ss << "PRE:\n";
-      ss << "read : [" << readWindow << "\n";
-      ss << "ref  : [" << refSeqBuffer_ << "\n";
-
       std::reverse(readWindow.begin(), readWindow.end());
+      
+      ss << "PRE:\n";
+      ss << "read : [" << readWindow << "]\n";
+      ss << "ref  : [" << refSeqBuffer_ << "]\n";
+
+
       ksw_reset_extz(&ez);
       aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -317,14 +322,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       int32_t gapRef = currMemStart_ref - prevMemEnd_ref - 1; // both inclusive
       int32_t gapRead = currMemStart_read - prevMemEnd_read - 1; // both inclusive
 
-      ss << "\t MEM : \n";
-      ss << "\t read [" << readView.substr(currMemStart_read, memlen) << "], pos : " << rpos << ", len : " << memlen << ", ori : " << (isFw ? "FW" : "RC") << "\n";
-      ss << "\t ref  [" << nonstd::string_view(tseq.data() + tpos - refStart, memlen) << "], pos : " << tpos << ", len : " << memlen << "\n";
-
       if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
         int32_t gapDiff = std::abs(gapRef - gapRead);
         score += (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * gapDiff);
         //score += (gapRef < gapRead) ?  (mopts->matchScore * gapDiff * -1) : 0;
+        ss << "\t\t overlaps : \n";
+        ss << "\t\t gapRef : " << gapRef << ", gapRead : " << gapRead << "\n";
       } else if (gapRead > 0 and gapRef > 0) {
         auto readWindow = readView.substr(prevMemEnd_read + 1, gapRead);
         const char* refSeq1 = tseq.data() + (prevMemEnd_ref) - refStart + 1;
@@ -332,53 +335,55 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         ss << "\t\t aligning\n";
         ss << "\t\t [" << readWindow << "]\n";
         ss << "\t\t [" << nonstd::string_view(refSeq1, gapRef) << "]\n";
-
+        if (prevMemEnd_ref - refStart + 1 + gapRef >= tseq.size()) {
+          ss << "\t\t tseq was not long enough; need to fetch more!\n";
+        }
         score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
         addCigar(cigarGen, ez, false);
-      } else {
-        /*
-        if (isFw) {
-          std::stringstream ss;
-          bool chainOfInterest = (isFw and mems.front().rpos == 0 and mems.front().tpos == 162 and tid == 151214);
-          ss << "##\n";
-          ss << "read = " << readView << "\n";
-          ss << "ref  = " << tseq << "\n";
-                                     ss << "read mem start = " << mems.front().rpos << "\n";
-                                                                                        ss << "txp mem start = " << mems.front().tpos << "\n";
-                                                                                                                                         ss << "txp id = " << tid << "\n";
-          ss << "shouldn't happen; should have a non-zero gap in either read or ref -- gapRead = " << gapRead << ", gapRef = " << gapRef << "!\n";
-          ss << "prev end read : " << prevMemEnd_read << ", curr start read : " << currMemStart_read << ", prev len : " << prevMemLen << ", curr len : " << memlen << "\n";
-          ss << "prev end ref : " << prevMemEnd_ref << ", curr start ref : " << currMemStart_ref << "\n";
-          ss << "mem len = " << mem.memInfo->memlen << ", prev mem len = " << (it-1)->memInfo->memlen << "\n";
-          ss << "##\n";
-          std::cerr << ss.str();
-                       if (chainOfInterest) {std::exit(1);}
-        }
-        */
+      } else if ( it > mems.begin() and ((currMemStart_read <= prevMemEnd_read) or (currMemStart_ref <= prevMemEnd_ref)) ){
+        ss << "]]\n";
+        std::cerr << ss.str() << "\n";
+        std::cerr << "[ERROR in PuffAligner, between-MEM alignment] : Improperly compacted MEM chain.  Should not happen!\n";
+        std::cerr << "gapRef : " << gapRef << ", gapRead : " << gapRead << ", memlen : " << memlen << "\n";
+        std::cerr << "prevMemEnd_read : " << prevMemEnd_read << ", currMemStart_read : " << currMemStart_read << "\n";
+        std::cerr << "prevMemEnd_ref  : " << prevMemEnd_ref <<  ", currMemStart_ref  : " << currMemStart_ref << "\n";
+        std::exit(1);
+      }
+      ss << "\t MEM : \n";
+      auto printView = readView.substr(currMemStart_read, memlen);
+      auto refView = nonstd::string_view(tseq.c_str() + tpos - refStart, memlen);
+      ss << "\t read [" << printView << "], pos : " << currMemStart_read << ", len : " << memlen << ", ori : " << (isFw ? "FW" : "RC") << "\n";
+      ss << "\t ref  [" << refView << "], pos : " << currMemStart_ref << ", len : " << memlen << "\n";
+      if (printView.length() != refView.length()) {
+        ss << "\t\t tseq was not long enough; need to fetch more!\n";
+        std::exit(1);
       }
 
-      prevMemEnd_read = isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
+      prevMemEnd_read = currMemStart_read + memlen - 1;//isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
       prevMemEnd_ref = tpos + memlen - 1;
       prevMemLen = memlen;
       alignmentScore += score;
     }
 
     // If we got to the end, and there is a read gap left, then align that as well
-    bool gapAtEnd = isFw ? (prevMemEnd_read < readLen - 1) : (prevMemEnd_read > 0);
+    //int32_t gapRead = ((readLen - 1) - prevMemEnd_read);
+    bool gapAtEnd = (prevMemEnd_read + 1) < (readLen - 1);// : (prevMemEnd_read - memle > 0);
     if (gapAtEnd) {
-      int32_t gapRead = ((readLen - 1) - prevMemEnd_read);
-      int32_t refTailStart = prevMemEnd_ref;
-      int32_t dataDepBuff = std::min(static_cast<int32_t>(refExtLength), 2*gapRead);
-      int32_t refTailEnd = refTailStart + gapRead + refExtLength;
+      int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1); //isFw ? ((readLen - 1) - prevMemEnd_read) : (prevMemEnd_read);
+      int32_t refTailStart = prevMemEnd_ref + 1;
+      int32_t dataDepBuff = std::min(static_cast<int32_t>(refExtLength), 5*gapRead);
+      int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
       if (refTailEnd >= refTotalLength) {refTailEnd = refTotalLength - 1;}
-      int32_t refLen = refTailEnd - refTailStart;
-      auto readWindow = readView.substr(prevMemEnd_read);
+      int32_t refLen = (refTailEnd > refTailStart) ? refTailEnd - refTailStart : 0;
+      auto readWindow = readView.substr(prevMemEnd_read + 1);//isFw ? readView.substr(prevMemEnd_read) : readView.substr(0,gapRead);
       fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
 
       ss << "POST:\n";
       ss << "read : [" << readWindow << "]\n";
       ss << "ref  : [" << refSeqBuffer_ << "]\n";
+      ss << "gapRead : " << gapRead << ", refLen : " << refLen  << ", refBuffer_.size() : "
+         << refSeqBuffer_.size() << ", refTotalLength : " << refTotalLength << "\n";
 
       aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -386,7 +391,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
     
     ss << "]]\n";
-//std::cerr << ss.str() << "\n";
+    //std::cerr << ss.str() << "\n";
 
 
     /*
