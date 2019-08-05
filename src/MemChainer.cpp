@@ -184,7 +184,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     int32_t prev_qposi_start = -1;
     int32_t prev_rposi_start = -1;
 
-    auto& m = memList.front();
+//    auto& m = memList.front();
     //bool didOinkWithoutPizza = false;
     //bool chainOfInterest{false};
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
