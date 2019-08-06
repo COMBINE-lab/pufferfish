@@ -172,7 +172,8 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
-                  phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
+                                                pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
+                                                //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain,
@@ -189,22 +190,24 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
     auto& other_end_refs = isLeft ? right_refs : left_refs;
     trMemMap.clear();
     mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, trMemMap, verbose);
+    /*
     if (verbose) {
       std::cerr << "lets see what we have\n";
       for (auto kv : trMemMap) {
         std::cerr <<"tid:" <<  kv.first.first << "\n";
         for (auto mem : kv.second) {
           std::cerr << "--- t" << mem.tpos << " r"
-              << mem.memInfo->rpos << " cid:"
+              << mem.rpos << " cid:"
               << mem.memInfo->cid << " cpos: "
               << mem.memInfo->cpos << " len:"
-              << mem.memInfo->memlen << " re:"
+              << mem.extendedlen << " re:"
               << mem.memInfo->readEnd << " fw:"
               << mem.isFw << "\n";
-          std::cerr << read.substr(mem.memInfo->rpos,mem.memInfo->memlen) << "\n";
+          std::cerr << read.substr(mem.rpos,mem.extendedlen) << "\n";
         }
       }
     }
+    */
     return true;
   }
   return false;

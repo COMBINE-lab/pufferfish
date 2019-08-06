@@ -82,8 +82,11 @@ public:
   bool heuristicChaining{true};
   bool genomicReads{false};
   std::string genesNamesFile{""};
+  std::string rrnaFile{""};
   bool filterGenomics{false};
+  bool filterMicrobiomBestScore{false};
   bool filterMicrobiom{false};
+  bool filterRrna{false};
   bool primaryAlignment{false};
   bool listOfReads{false};
   uint32_t maxAllowedRefsPerHit{1000};

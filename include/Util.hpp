@@ -10,7 +10,6 @@
 #include <type_traits>
 #include <vector>
 
-
 #include "CanonicalKmer.hpp"
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
@@ -19,6 +18,8 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
+#include "chobo/small_vector.hpp"
+#include "parallel_hashmap/phmap.h"
 
 #ifndef __DEFINE_LIKELY_MACRO__
 #define __DEFINE_LIKELY_MACRO__
@@ -30,6 +31,13 @@
 #define UNLIKELY(x) (x)
 #endif
 #endif
+
+#define PUFF_DEBUG_VERBOSE 0
+#ifdef PUFF_DEBUG_VERBOSE
+#  define VERB(x) x
+#else
+#  define VERB(x)
+#endif // PUFF_DEBUG_VERBOSE
 
 namespace pufferfish {
 
@@ -61,36 +69,117 @@ namespace pufferfish {
       };
 
 
-      /*
+      enum class BestHitReferenceType : uint8_t { NON_FILTERED, FILTERED, BOTH, UNKNOWN };
+
       template <typename K, typename V, typename H>
       class CachedVectorMap {
-
+      private:
+        phmap::flat_hash_map<K, uint32_t, H> index_map_;
+        std::vector<V> cache_;
+        uint32_t next_avail_{0};
+      public:
         CachedVectorMap(){}
 
-        chobo::small_vector<T>& operator[](const K&) {
-          auto it = index_map_.find(K);
+        V& operator[](const K& k) {
+          auto it = index_map_.find(k);
           if (it == index_map_.end()) {
             auto idx = next_avail_;
             ++next_avail_;
-            index_map_[K] = idx;
+            index_map_[k] = idx;
             if (idx >= cache_.size()) {
-              cache_.emplace_back(chobo::small_vector<T>());
+              cache_.emplace_back(V());
               return cache_.back();
             } else {
               cache_[idx].clear();
               return cache_[idx];
             }
           } else {
-            return *it;
+            return cache_[it->second];
           }
         }
 
-      private:
-        phmap::flat_hash_map<K, uint32_t, H> index_map_;
-        std::vector<chobo::small_vector<T>> cache_;
-        uint32_t next_avail_{0};
+        V& cache_index(uint32_t ci) {
+          return cache_[ci];
+        }
+
+        decltype(index_map_.begin()) key_begin() { return index_map_.begin(); }
+        decltype(index_map_.end()) key_end() { return index_map_.end(); }
+
+        size_t size() const { return index_map_.size(); }
+
+        void clear() {
+          next_avail_ = 0;
+          index_map_.clear();
+        }
+
+        class iterator {
+
+            typedef iterator self_type;
+            typedef std::pair<K,V*> value_type;
+            typedef value_type& reference;
+            typedef value_type* pointer;
+//            typedef std::input_iterator_tag iterator_category;
+//            typedef int64_t difference_type;
+
+        public:
+            explicit iterator(CachedVectorMap &vmIn): vm(vmIn) {
+              key = vm.index_map_.begin();
+              if (key != vm.index_map_.end()) {
+                setKV();
+              }
+            }
+
+            reference operator*() {
+                return kv;
+            }
+
+            pointer operator->() { return &operator*(); }
+
+            iterator& operator++() {
+                if (++key != vm.index_map_.end())
+                    setKV();
+                return *this;
+            }
+
+            iterator operator++(int) {
+                auto tmp = *this;
+                ++*this;
+                return tmp;
+            }
+
+            bool operator==(const self_type& itr) {
+                if (key == itr.key and key == vm.index_map_.end()) return true;
+                if (key != itr.key) return false;
+                if (kv.first != itr.kv.first) return false;
+                if (kv.second->size() != itr.kv.second->size()) return false;
+                for (uint64_t i = 0; i < kv.second->size(); i++) {
+                    if ((*kv.second)[i] != (*itr.kv.second)[i]) return false;
+                }
+                return true;
+            }
+
+            bool operator!=(const self_type& itr) {
+                return !((*this) == itr);
+            }
+
+            void set2End() {key = vm.index_map_.end();}
+
+          private:
+            CachedVectorMap &vm;
+            value_type kv;
+            decltype(index_map_.begin()) key;
+
+            void setKV() {
+                kv.first = key->first;
+                kv.second = key->second >= vm.cache_.size()?nullptr:&vm.cache_[key->second];
+            }
+
+          };
+
+        iterator begin() {iterator it_(*this); return it_;}
+        iterator end() {iterator it_(*this); it_.set2End(); return it_;}
       };
-      */
+
 
 
 // Adapted from
@@ -233,70 +322,74 @@ Compile-time selection between list-like and map-like printing.
             return ContainerPrinter<T, has_key<T>::value>::str(container);
         }
 
-        struct cigarGenerator {
-            std::vector<uint32_t> cigar_counts;
-            std::vector<std::string> cigar_types;
+      struct CIGARGenerator {
+        // TODO: @fataltes --- think about just replacing this
+        // with CIGAR Op class or some such.
+        std::vector<uint32_t> cigar_counts;
+        std::string cigar_types;
 
-          void clear() { cigar_counts.clear(); cigar_types.clear(); }
-            void add_item(uint32_t count, std::string type) {
-                cigar_counts.push_back(count);
-                cigar_types.push_back(type);
+        void clear() { cigar_counts.clear(); cigar_types.clear(); }
+        void add_item(uint32_t count, char type) {
+          cigar_counts.push_back(count);
+          cigar_types.push_back(type);
+        }
+
+        std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
+          cigar_fixed = false;
+          std::string cigar = "";
+          if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
+            return "!";
+          }
+          if (cigar_counts.size() == 0) {
+            return cigar;
+          }
+
+          uint32_t cigar_length = 0;
+          uint32_t count = cigar_counts[0];
+
+          if (cigar_counts.size() == 1) {
+            if (count != readLen) {
+              count = readLen;
+              cigar_fixed = true;
             }
+            cigar += std::to_string(count);
+            cigar += cigar_types[0];
+            return cigar;
+          }
 
-            std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
-                cigar_fixed = false;
-                std::string cigar = "";
-                if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0)
-                    return "NOT VALID";
-                if (cigar_counts.size() == 0)
-                    return NULL;
-
-                uint32_t cigar_length = 0;
-                uint32_t count = cigar_counts[0];
-
-                if (cigar_counts.size() == 1) {
-                    if (count != readLen) {
-                        count = readLen;
-                        cigar_fixed = true;
-                    }
-                    cigar += std::to_string(count);
-                    cigar += cigar_types[0];
-                    return cigar;
-                }
-
-                std::string type = cigar_types[0];
-                if (type == "I" or type == "M")
-                    cigar_length += count;
-                for (size_t i = 1; i < cigar_counts.size(); i++) {
-                    if (cigar_types[i] == "I" or cigar_types[i] == "M")
-                        cigar_length += cigar_counts[i];
-                    if (type == cigar_types[i]) {
-                        count += cigar_counts[i];
-                    } else {
-                        cigar += std::to_string(count);
-                        cigar += type;
-                        count = cigar_counts[i];
-                        type = cigar_types[i];
-                    }
-                    if (i == cigar_counts.size() - 1) {
-                        cigar += std::to_string(count);
-                        cigar += type;
-                        if (cigar_length < readLen) {
-                            cigar_fixed = true;
-                            count = readLen - cigar_length;
-                            cigar += std::to_string(count);
-                            cigar += "I";
-                        } else if (cigar_length > readLen) {
-                            cigar_fixed = true;
-                            count = cigar_length - readLen;
-                            cigar += std::to_string(count);
-                            cigar += "I";
-                        }
-                    }
-                }
-                return cigar;
+          char type = cigar_types[0];
+          if (type == 'I' or type == 'M')
+            cigar_length += count;
+          for (size_t i = 1; i < cigar_counts.size(); i++) {
+            if (cigar_types[i] == 'I' or cigar_types[i] == 'M')
+              cigar_length += cigar_counts[i];
+            if (type == cigar_types[i]) {
+              count += cigar_counts[i];
+            } else {
+              cigar += std::to_string(count);
+              cigar += type;
+              count = cigar_counts[i];
+              type = cigar_types[i];
             }
-        };
+            if (i == cigar_counts.size() - 1) {
+              cigar += std::to_string(count);
+              cigar += type;
+              if (cigar_length < readLen) {
+                cigar_fixed = true;
+                count = readLen - cigar_length;
+                cigar += std::to_string(count);
+                cigar += 'I';
+              } else if (cigar_length > readLen) {
+                cigar_fixed = true;
+                count = cigar_length - readLen;
+                cigar += std::to_string(count);
+                cigar += 'I';
+              }
+            }
+          }
+          return cigar;
+        }
+      };
 
         //Mapped object contains all the information
         //about mapping the struct is a bit changed from
@@ -383,6 +476,12 @@ Compile-time selection between list-like and map-like printing.
             MemInfo(std::vector<UniMemInfo>::iterator uniMemInfoIn, size_t tposIn, uint32_t extendedlenIn,
                     uint32_t rposIn, bool isFwIn = true) :
                     memInfo(uniMemInfoIn), tpos(tposIn), isFw(isFwIn), extendedlen(extendedlenIn), rpos(rposIn) {}
+            bool operator==(const MemInfo& mi) {
+                return memInfo == mi.memInfo and tpos == mi.tpos and isFw == mi.isFw and extendedlen == mi.extendedlen and rpos == mi.rpos;
+            }
+            bool operator!=(const MemInfo& mi) {
+                return !((*this) == mi);
+            }
         };
 
         struct MemCluster {
@@ -391,7 +490,7 @@ Compile-time selection between list-like and map-like printing.
             bool isFw;
             bool isVisited = false;
             double coverage{0};
-            std::vector<std::pair<std::string, std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
+//            std::vector<std::pair<std::string, std::string>> alignableStrings; //NOTE we don't need it [cigar on the fly]
             int score;
             std::string cigar;
             bool perfectChain = false;
@@ -410,21 +509,22 @@ Compile-time selection between list-like and map-like printing.
 
             MemCluster &operator=(const MemCluster &other) = default;
 
-            MemCluster() {}
-
-            // Add the new mem to the list and update the coverage
-            void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, bool isFw) {
-                if (mems.empty())
-                    coverage = uniMemInfo->memlen;
-                else if (tpos > mems.back().tpos + mems.back().memInfo->memlen) {
-                    coverage += (uniMemInfo->memlen);
-                } else { // they overlap
-                    coverage += (uint32_t) std::max(
-                            (int) (tpos + uniMemInfo->memlen) - (int) (mems.back().tpos + mems.back().memInfo->memlen),
-                            0);
+            bool operator==(const MemCluster& mc) {
+                if (!(isFw == mc.isFw and score == mc.score and coverage == mc.coverage
+                and cigar == mc.cigar and perfectChain == mc.perfectChain
+                and readLen == mc.readLen and openGapLen == mc.openGapLen)) return false;
+                if (mems.size() != mc.mems.size()) return false;
+                for (uint64_t i = 0; i < mems.size(); i++) {
+                    if (mems[i] != mc.mems[i]) return false;
                 }
-                mems.emplace_back(uniMemInfo, tpos, isFw);
+                return true;
             }
+
+            bool operator!=(const MemCluster& mc) {
+                return !((*this) == mc);
+            }
+
+            MemCluster() {}
 
             // Add the new mem to the list and update the coverage, designed for clustered Mems
             void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, uint32_t extendedlen, uint32_t rpos,
@@ -440,13 +540,7 @@ Compile-time selection between list-like and map-like printing.
                 mems.emplace_back(uniMemInfo, tpos, extendedlen, rpos, isFw);
             }
 
-            // Add the new mem to the list and update the coverage
-            void addMem(std::vector<UniMemInfo>::iterator uniMemInfo, size_t tpos, size_t i) {
-                mems.insert(mems.begin() + i, MemInfo(uniMemInfo, tpos));
-                coverage += uniMemInfo->memlen;
-            }
-
-            size_t getReadLastHitPos() const { return mems.empty() ? 0 : mems.back().memInfo->rpos; }
+            size_t getReadLastHitPos() const { return mems.empty() ? 0 : mems.back().rpos; }
 
             size_t getTrLastHitPos() const {
                 return mems.empty() ? 0 : mems.back().tpos;
@@ -497,6 +591,7 @@ Compile-time selection between list-like and map-like printing.
             size_t fragmentLen;
             size_t rmemMaxLen{0}, lmemMaxLen{0};
             int32_t alignmentScore{0};
+            int32_t mateAlignmentScore{0};
             MateStatus mateStatus;
             bool recovered{false};
 
@@ -512,6 +607,10 @@ Compile-time selection between list-like and map-like printing.
 
             bool isOrphan() { return !isLeftAvailable() || !isRightAvailable(); }
 
+          // NOTE: needed for vector compatibility, should not be used.
+          JointMems() {
+            std::cerr << "JointMems default constructor called; should not happen!";
+          }
             JointMems(uint32_t tidIn,
                       std::vector<pufferfish::util::MemCluster>::iterator leftClustIn,
                       std::vector<pufferfish::util::MemCluster>::iterator rightClustIn,
@@ -539,12 +638,117 @@ Compile-time selection between list-like and map-like printing.
 
             // FIXME : what if the mapping is not orphan? who takes care of this function not being called from outside?
             std::vector<pufferfish::util::MemCluster>::iterator orphanClust() {
-                if (isLeftAvailable()) { return leftClust; }
-                return rightClust;
+              return isLeftAvailable() ? leftClust : rightClust;
             }
 
         };
 
+      /*
+    struct QuasiAlignment {
+  	QuasiAlignment() :
+		tid(std::numeric_limits<uint32_t>::max()),
+		pos(std::numeric_limits<int32_t>::max()),
+		fwd(true),
+		fragLen(std::numeric_limits<uint32_t>::max()),
+		readLen(std::numeric_limits<uint32_t>::max()),
+		isPaired(false)
+#ifdef PUFFERFISH_SALMON_SUPPORT
+        ,format(LibraryFormat::formatFromID(0))
+#endif // PUFFERFISH_SALMON_SUPPORT
+        {}
+
+        QuasiAlignment(uint32_t tidIn, int32_t posIn,
+                bool fwdIn, uint32_t readLenIn,
+                uint32_t fragLenIn = 0,
+                bool isPairedIn = false) :
+            tid(tidIn), pos(posIn), fwd(fwdIn),
+            fragLen(fragLenIn), readLen(readLenIn), 
+            isPaired(isPairedIn)
+#ifdef PUFFERFISH_SALMON_SUPPORT
+        ,format(LibraryFormat::formatFromID(0))
+#endif // PUFFERFISH_SALMON_SUPPORT
+        {}
+        QuasiAlignment(QuasiAlignment&& other) = default;
+        QuasiAlignment& operator=(QuasiAlignment&) = default;
+        QuasiAlignment& operator=(QuasiAlignment&& o) = default;
+        QuasiAlignment(const QuasiAlignment& o) = default;
+        QuasiAlignment(QuasiAlignment& o) = default;
+
+      inline void setChainScore(double chainScoreIn) {
+        chainScore_ = chainScoreIn;
+      }
+
+      inline double chainScore() const {
+        return chainScore_;
+      }
+
+      inline uint32_t transcriptID() const { return tid; }
+      inline double score() const { return score_; }
+      inline void score(double scoreIn) { score_ = scoreIn; }
+      inline int32_t alnScore() const { return alnScore_; }
+      inline void alnScore(int32_t alnScoreIn) { alnScore_ = alnScoreIn; }
+      inline uint32_t fragLength() const { return fragLen; }
+      inline int32_t hitPos() { return std::min(pos, matePos); }
+
+// Some convenience functions to allow salmon interop
+#ifdef RAPMAP_SALMON_SUPPORT
+      inline uint32_t fragLengthPedantic(uint32_t txpLen) const {
+        if (mateStatus != rapmap::utils::MateStatus::PAIRED_END_PAIRED
+            or fwd == mateIsFwd) {
+          return 0;
+        }
+        int32_t p1 = fwd ? pos : matePos;
+        int32_t sTxpLen = static_cast<int32_t>(txpLen);
+        p1 = (p1 < 0) ? 0 : p1;
+        p1 = (p1 > sTxpLen) ? sTxpLen : p1;
+        int32_t p2 = fwd ? matePos + mateLen : pos + readLen;
+        p2 = (p2 < 0) ? 0 : p2;
+        p2 = (p2 > sTxpLen) ? sTxpLen : p2;
+
+        return (p1 > p2) ? p1 - p2 : p2 - p1;
+      }
+
+      double logProb{HUGE_VAL};
+      double logBias{HUGE_VAL};
+      inline LibraryFormat libFormat() { return format; }
+      LibraryFormat format;
+#endif // RAPMAP_SALMON_SUPPORT
+       bool hasMultiPos{false};
+       chobo::small_vector<int32_t> allPositions;
+       chobo::small_vector<int32_t> oppositeStrandPositions;
+
+        // Only 1 since the mate must have the same tid
+        // we won't call *chimeric* alignments here.
+        uint32_t tid;
+        // Left-most position of the hit
+        int32_t pos;
+        // left-most position of the mate
+        int32_t matePos;
+        // Is the read from the forward strand
+        bool fwd;
+        // Is the mate from the forward strand
+        bool mateIsFwd;
+        // The fragment length (template length)
+        // This is 0 for single-end or orphaned reads.
+        uint32_t fragLen;
+        // The read's length
+        uint32_t readLen;
+        // The mate's length
+        uint32_t mateLen;
+        // Is this a paired *alignment* or not
+        bool isPaired;
+        MateStatus mateStatus;
+        // numeric score associated with this mapping
+        double score_{1.0};
+        // actual ``alignment'' score associated with this mapping.
+        int32_t alnScore_{0};
+        // If one or both of the reads is a complete match (no mismatch, indels), say what kind.
+        FragmentChainStatus chainStatus;
+        double chainScore_{std::numeric_limits<double>::lowest()};
+      //int32_t queryOffset{-1};
+      //MateStatus completeMatchType{MateStatus::NOTHING};
+    };
+    */
 
         struct QuasiAlignment {
             QuasiAlignment() :
@@ -826,8 +1030,8 @@ Compile-time selection between list-like and map-like printing.
 
                 // if we're in the forward orientation, then our position is
                 // just the contig offset plus or relative position
-                uint32_t rpos{0};
-                bool rfw{false};
+                uint32_t rpos;//{0};
+                bool rfw;//{false};
                 if (contigFW and contigOrientation_) {
                     // kmer   :          AGC
                     // contig :      ACTTAGC
@@ -846,7 +1050,7 @@ Compile-time selection between list-like and map-like printing.
                     // ref    :  GCA[ACTTAGC]CA
                     rpos = p.pos() + contigLen_ - (contigPos_ + k_);
                     rfw = false;
-                } else if (!contigFW and !contigOrientation_) {
+                } else {// if (!contigFW and !contigOrientation_) {
                     // kmer   :          ACT
                     // contig :      GCTAAGT
                     // ref    :  GCA[ACTTAGC]CA
@@ -869,6 +1073,22 @@ Compile-time selection between list-like and map-like printing.
             uint32_t openGapLen;
         };
 
+
+      void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                                     //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                                     std::vector<pufferfish::util::JointMems> &jointMemsList,
+                                     uint32_t perfectCoverage,
+                                     double coverageRatio);
+
+      pufferfish::util::MergeResult joinReadsAndFilter(
+                                                       pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                                                       pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& rightMemClusters,
+                                                       std::vector<pufferfish::util::JointMems> &jointMemsList,
+                                                       uint32_t maxFragmentLength,
+                                                       uint32_t perfectCoverage,
+                                                       double coverageRatio,
+                                                       bool noDiscordant,
+                                                       bool noOrphans);
 
         char complement(char &c);
 

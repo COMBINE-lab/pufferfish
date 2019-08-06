@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
                     ),
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
-                            "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
+                            "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs (default:1000)",
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
                     (option("--orphanRecovery").set(alignmentOpt.recoverOrphans, true)) % "Recover mappings for the other end of orphans using alignment",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
@@ -168,12 +168,13 @@ int main(int argc, char* argv[]) {
                     (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Whether or not perform only 2 rounds of chaining",
                     (option("--bestStrata").set(alignmentOpt.bestStrata, true)) % "Keep only the alignments with the best score for each read",
 					(option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Align genomic dna-seq reads instead of RNA-seq reads",
-					(option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true)) % "Report at most one alignment per read",
+					(option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true).set(alignmentOpt.bestStrata, true)) % "Report at most one alignment per read",
                     (option("--filterGenomics").set(alignmentOpt.filterGenomics, true) & value("genes names file", alignmentOpt.genesNamesFile)) % 
                          "Path to the file containing gene IDs. Filters alignments to the IDs listed in the file. Used to filter genomic reads while aligning to both genome and transcriptome."
                          "A read will be reported with only the valid gene ID alignments and will be discarded if the best alignment is to an invalid ID"
                          "The IDs are the same as the IDs in the fasta file provided for the index construction phase",
-                    (option("--filterMicrobiom").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
+                    (option("--filterBestScoreMicrobiome").set(alignmentOpt.filterMicrobiomBestScore, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
+                    (option("--filterMicrobiome").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.rrnaFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if an invalid gene ID is in the list of alignments.",
                     (option("--bt2DefaultThreshold").set(alignmentOpt.mimicBt2Default, true)) % "mimic the default threshold function of Bowtie2 which is t = -0.6 -0.6 * read_len",
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)"
   );
