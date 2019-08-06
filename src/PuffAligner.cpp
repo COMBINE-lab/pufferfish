@@ -193,7 +193,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   uint32_t buff{20};
 
   // If we are only aligning between MEMs
-  if (doFullAlignment) {
+  if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
     keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
@@ -224,7 +224,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
   // If we're not using fullAlignment, we'll need the full reference sequence later
   // so copy it into tseq.
-  if (doFullAlignment) { tseq = refSeqBuffer_; }
+  if (!doFullAlignment) { tseq = refSeqBuffer_; }
 
   if (!alnCache.empty() and isMultimapping_) {
     // hash the reference string
