@@ -301,7 +301,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     int32_t prevMemEnd_ref = tpos;//tpos + memlen - 1;
     //int32_t prevMemLen = memlen;
 
-    ss << "\t Aligning through MEM chain : \n";
+    /*ss << "\t Aligning through MEM chain : \n";*/
     // for the second through the last mem
     for(auto it = mems.begin(); it != mems.end(); ++it) {
       auto& mem = *it;
@@ -317,10 +317,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       int32_t gapRef = currMemStart_ref - prevMemEnd_ref - 1; // both inclusive
       int32_t gapRead = currMemStart_read - prevMemEnd_read - 1; // both inclusive
 
-      ss << "\t MEM : \n";
+      /*ss << "\t MEM : \n";
       ss << "\t read [" << readView.substr(currMemStart_read, memlen) << "], pos : " << rpos << ", len : " << memlen << ", ori : " << (isFw ? "FW" : "RC") << "\n";
       ss << "\t ref  [" << nonstd::string_view(tseq.data() + tpos - refStart, memlen) << "], pos : " << tpos << ", len : " << memlen << "\n";
-
+*/
       if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
         int32_t gapDiff = std::abs(gapRef - gapRead);
         score += (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * gapDiff);
@@ -329,10 +329,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         auto readWindow = readView.substr(prevMemEnd_read + 1, gapRead);
         const char* refSeq1 = tseq.data() + (prevMemEnd_ref) - refStart + 1;
 
-        ss << "\t\t aligning\n";
+        /*ss << "\t\t aligning\n";
         ss << "\t\t [" << readWindow << "]\n";
         ss << "\t\t [" << nonstd::string_view(refSeq1, gapRef) << "]\n";
-
+*/
         score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
         addCigar(cigarGen, ez, false);

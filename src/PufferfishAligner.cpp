@@ -87,6 +87,7 @@ void processReadsPair(paired_parser *parser,
                       std::shared_ptr<spdlog::logger> outQueue,
                       HitCounters &hctr,
                       phmap::flat_hash_set<std::string>& gene_names,
+                      phmap::flat_hash_set<std::string>& rrna_names,
                       AlignmentOpts *mopts) {
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
@@ -128,6 +129,7 @@ void processReadsPair(paired_parser *parser,
     // be baked into the index I think.
     bool filterGenomics = mopts->filterGenomics;
     bool filterMicrobiom = mopts->filterMicrobiom;
+    bool filterBestScoreMicrobiom = mopts->filterMicrobiomBestScore;
 
     auto rg = parser->getReadGroup();
 
@@ -138,6 +140,7 @@ void processReadsPair(paired_parser *parser,
     std::vector<QuasiAlignment> jointAlignments;
     using pufferfish::util::BestHitReferenceType;
     BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};
+    BestHitReferenceType hitRefType{BestHitReferenceType::UNKNOWN};
     //For filtering reads
     bool verbose = mopts->verbose;
     auto &txpNames = pfi.getRefNames();
@@ -194,6 +197,19 @@ void processReadsPair(paired_parser *parser,
             //otherwise orphan
 
             // We also handle orphans inside this function
+            /*if (rpair.first.name == "SRR3192367.14734") {
+                std::stringstream ss;
+                ss << "\n\nBefore joining:\n";
+                for (auto &kv: leftHits) {
+                    ss << kv.first << ":" << txpNames[kv.first] << " ";
+                }
+                ss << "\n";
+                for (auto &kv: rightHits) {
+                    ss << kv.first << ":" << txpNames[kv.first] << " ";
+                }
+                ss << "\n\n";
+                std::cerr << ss.str();
+            }*/
             auto mergeRes = pufferfish::util::joinReadsAndFilter(leftHits, rightHits, jointHits,
                                mopts->maxFragmentLength,
                                totLen,
@@ -225,33 +241,58 @@ void processReadsPair(paired_parser *parser,
 
                 if (!mopts->genomicReads) { bestScorePerTranscript.clear(); }
                 bestHitRefType = BestHitReferenceType::UNKNOWN;
+                hitRefType = BestHitReferenceType::UNKNOWN;
                 bool isMultimapping = (jointHits.size() > 1);
+//                if (rpair.first.name == "SRR3192367.14734") {
+//                    verbose = true;
+//                }
+//                std::stringstream ss;
+//                if (verbose)
+//                   ss << "\n\n found the read:\n" << rpair.first.name << " " << jointHits.size() <<"\n";
                 for (auto &&jointHit : jointHits) {
-                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
+                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, false);
                   scores[idx] = hitScore;
-
-
+//                    if (verbose)
+//                        ss << txpNames[jointHit.tid] << " " << jointHit.alignmentScore << " " << scores[idx] << "\n";
                     const std::string& ref_name = txpNames[jointHit.tid];
-                    if (filterGenomics or filterMicrobiom) {
+                    if (filterMicrobiom and hitScore != invalidScore
+                    and hitRefType != BestHitReferenceType::FILTERED) {
+                        bool inFilteredList = (rrna_names.find(ref_name) != rrna_names.end());
+                        if (inFilteredList) {
+/*
+                            std::stringstream ss;
+                            ss << ref_name << " " << hitScore << "\n";
+                            std::cerr << ss.str();
+*/
+                            hitRefType = BestHitReferenceType::FILTERED;
+                        }
+                    }
+                    if (filterGenomics or filterBestScoreMicrobiom) {
                       bool inFilteredList = (gene_names.find(ref_name) != gene_names.end());
                       if (inFilteredList) {
-                        scores[idx] = invalidScore;
-                        if (hitScore > bestScore) {
-                          bestHitRefType = BestHitReferenceType::FILTERED;
-                        } else if (hitScore == bestScore) {
-                          bestHitRefType = (bestHitRefType == BestHitReferenceType::NON_FILTERED or
-                                  bestHitRefType == BestHitReferenceType::BOTH) ?
-                            BestHitReferenceType::BOTH : BestHitReferenceType::FILTERED;
-                        }
+//                          ss << "in filterMicrobiom\n";
+                          scores[idx] = invalidScore;
+                          if (hitScore > bestScore) {
+                              bestHitRefType = BestHitReferenceType::FILTERED;
+//                            if (verbose) ss << "1 " << bestScore;
+                          } else if (hitScore == bestScore) {
+                              bestHitRefType = (bestHitRefType == BestHitReferenceType::NON_FILTERED or
+                                                bestHitRefType == BestHitReferenceType::BOTH) ?
+                                               BestHitReferenceType::BOTH : BestHitReferenceType::FILTERED;
+//                            if (verbose) ss << "2 " << bestScore;
+                          }
                       } else { // the current hit was not in the list of references to filter
-                        if (hitScore > bestScore) {
-                          bestHitRefType = BestHitReferenceType::NON_FILTERED;
-                        } else if (hitScore == bestScore) {
-                          bestHitRefType = (bestHitRefType == BestHitReferenceType::FILTERED or
-                                  bestHitRefType == BestHitReferenceType::BOTH) ?
-                            BestHitReferenceType::BOTH : BestHitReferenceType::NON_FILTERED;
-                        }
+                          if (hitScore > bestScore) {
+                              bestHitRefType = BestHitReferenceType::NON_FILTERED;
+//                            if (verbose) ss << "3 " << bestScore;
+                          } else if (hitScore == bestScore) {
+                              bestHitRefType = (bestHitRefType == BestHitReferenceType::FILTERED or
+                                                bestHitRefType == BestHitReferenceType::BOTH) ?
+                                               BestHitReferenceType::BOTH : BestHitReferenceType::NON_FILTERED;
+//                            if (verbose) ss << "4 " << bestScore;
+                          }
                       }
+//                      if (verbose) ss << "\n";
                     }
 
                     bestScore = (hitScore > bestScore) ? hitScore : bestScore;
@@ -282,15 +323,45 @@ void processReadsPair(paired_parser *parser,
                     ++idx;
                 }
 
-
+                /*if (verbose) {
+                    ss << "\n\nbestHitRefType: ";
+                    switch(bestHitRefType) {
+                        case BestHitReferenceType::UNKNOWN:
+                            ss << "unknown\n"; break;
+                        case BestHitReferenceType::FILTERED:
+                            ss << "filtered\n"; break;
+                        case BestHitReferenceType::NON_FILTERED:
+                            ss << "nonFiltered\n"; break;
+                        case BestHitReferenceType::BOTH:
+                            ss << "both\n"; break;
+                    }
+                }
+                if (verbose) {std::cerr << ss.str();  verbose = false; std::exit(1);}*/
                 if (filterGenomics and (bestHitRefType == BestHitReferenceType::FILTERED) ) {
                     // This read is likely come from decoy sequence and should be discarded from reference alignments
                     continue;
                 }
-                if (filterMicrobiom and (bestHitRefType != BestHitReferenceType::NON_FILTERED)) {
+               /* std::stringstream ss;
+
+                ss << filterMicrobiom << " ";
+                switch(bestHitRefType) {
+                    case BestHitReferenceType::UNKNOWN:
+                        ss << "unknown\n"; break;
+                    case BestHitReferenceType::FILTERED:
+                        ss << "filtered\n"; break;
+                    case BestHitReferenceType::NON_FILTERED:
+                        ss << "nonFiltered\n"; break;
+                    case BestHitReferenceType::BOTH:
+                        ss << "both\n"; break;
+                }
+                std::cerr << ss.str();*/
+                if (filterBestScoreMicrobiom and (bestHitRefType != BestHitReferenceType::NON_FILTERED)) {
                     continue;
                 }
-
+                if (filterMicrobiom and (hitRefType == BestHitReferenceType::FILTERED)) {
+//                    std::cerr << "filtered\n";
+                    continue;
+                }
                 // Filter out these alignments with low scores
                 uint32_t ctr{0};
                 if (bestScore > invalidScore) {
@@ -716,6 +787,7 @@ bool spawnProcessReadsThreads(
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
         phmap::flat_hash_set<std::string>& gene_names,
+        phmap::flat_hash_set<std::string>& rrna_names,
         AlignmentOpts *mopts) {
 
     std::vector<std::thread> threads;
@@ -729,6 +801,7 @@ bool spawnProcessReadsThreads(
                              outQueue,
                              std::ref(hctr),
                              std::ref(gene_names),
+                             std::ref(rrna_names),
                              mopts);
     }
     for (auto &t : threads) { t.join(); }
@@ -807,7 +880,7 @@ bool alignReads(
     std::shared_ptr<spdlog::logger> outLog{nullptr};
 
     phmap::flat_hash_set<std::string> gene_names;
-    if (mopts->filterGenomics or mopts->filterMicrobiom) {
+    if (mopts->filterGenomics or mopts->filterMicrobiomBestScore) {
         std::ifstream gene_names_file;
         std::string gene_name;
         gene_names_file.open(mopts->genesNamesFile);
@@ -822,6 +895,24 @@ bool alignReads(
             gene_names.insert(processedName);
         }
         gene_names_file.close();
+    }
+
+    phmap::flat_hash_set<std::string> rrna_names;
+    if (mopts->filterMicrobiom) {
+        std::ifstream rrna_names_file;
+        std::string rrna_name;
+        rrna_names_file.open(mopts->rrnaFile);
+        if (!rrna_names_file) {
+            std::cerr << "Genomic file does not exist\n";
+            exit(1);
+        }
+        std::string sepStr = " \t";
+        while (rrna_names_file >> rrna_name) {
+            auto processedName =
+                    rrna_name.substr(0, rrna_name.find_first_of(sepStr));
+            rrna_names.insert(processedName);
+        }
+        rrna_names_file.close();
     }
 
 
@@ -858,8 +949,11 @@ bool alignReads(
         // If nothing gets printed by this time we are in trouble
         if (mopts->krakOut || mopts->salmonOut) {
             writeKrakOutHeader(pfi, outLog, mopts);
-        } else {
-            writeSAMHeader(pfi, outLog, mopts->filterGenomics or mopts->filterMicrobiom, gene_names);
+        } else { //TODO do we need to remove the txp from the list? The ids are then invalid
+            writeSAMHeader(pfi, outLog,
+                    mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore,
+                    gene_names,
+                    rrna_names);
         }
     }
 
@@ -887,7 +981,7 @@ bool alignReads(
         pairParserPtr.reset(new paired_parser(read1Vec, read2Vec, nthread, nprod, chunkSize));
         pairParserPtr->start();
         spawnProcessReadsThreads(nthread, pairParserPtr.get(), pfi, iomutex,
-                                 outLog, hctrs, gene_names, mopts);
+                                 outLog, hctrs, gene_names, rrna_names, mopts);
         pairParserPtr->stop();
         consoleLog->info("flushing output queue.");
         printAlignmentSummary(hctrs, consoleLog);

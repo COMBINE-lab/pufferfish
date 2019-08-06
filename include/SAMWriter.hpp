@@ -145,7 +145,10 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
 }
 
 template <typename IndexT>
-inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, bool filterGenomics, phmap::flat_hash_set<std::string> gene_names) {
+inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
+        bool filterGenomics,
+        phmap::flat_hash_set<std::string> gene_names,
+        phmap::flat_hash_set<std::string> rrna_names) {
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
@@ -158,7 +161,8 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, boo
   // TODO read reference information
   // while reading the index
   for (size_t i = 0; i < numRef; ++i) {
-    if (filterGenomics and gene_names.find(txpNames[i]) != gene_names.end())
+    if (filterGenomics and
+    (gene_names.find(txpNames[i]) != gene_names.end() or rrna_names.find(txpNames[i]) != rrna_names.end()))
       continue; 
     hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
   }
@@ -366,7 +370,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 
 }
 
-      uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
+uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                                           fmt::MemoryWriter& sstream) {
         constexpr uint16_t flags1 = 0x1 | 0x4 | 0x8 | 0x40;
         constexpr uint16_t flags2 = 0x1 | 0x4 | 0x8 | 0x80;
@@ -427,7 +431,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
         return 0;
       }
 
-      uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
+uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                                             fmt::MemoryWriter& sstream) {
         constexpr uint16_t flags = 0x4;
 

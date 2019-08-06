@@ -173,7 +173,8 @@ int main(int argc, char* argv[]) {
                          "Path to the file containing gene IDs. Filters alignments to the IDs listed in the file. Used to filter genomic reads while aligning to both genome and transcriptome."
                          "A read will be reported with only the valid gene ID alignments and will be discarded if the best alignment is to an invalid ID"
                          "The IDs are the same as the IDs in the fasta file provided for the index construction phase",
-                    (option("--filterMicrobiom").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
+                    (option("--filterBestScoreMicrobiome").set(alignmentOpt.filterMicrobiomBestScore, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
+                    (option("--filterMicrobiome").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.rrnaFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if an invalid gene ID is in the list of alignments.",
                     (option("--bt2DefaultThreshold").set(alignmentOpt.mimicBt2Default, true)) % "mimic the default threshold function of Bowtie2 which is t = -0.6 -0.6 * read_len",
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)"
   );
