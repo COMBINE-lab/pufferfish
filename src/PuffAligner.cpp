@@ -166,6 +166,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto readLen = read.length();
   auto tpos = frontMem.tpos;
 
+  // do full alignment if we are in that mode, or if the
+  // current read was recovered via orphan recovery.
+  // @mohsen & @fataltes : we need a better signal than memlen == 1
+  // to designate this was a recovered orphan.
+  bool recoveredOrphan = memlen == 1;
+  bool doFullAlignment = mopts->fullAlignment or recoveredOrphan;  
   currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
 
   if (currHitStart_read < 0 or currHitStart_read >= (int32_t) readLen) {
@@ -187,7 +193,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   uint32_t buff{20};
 
   // If we are only aligning between MEMs
-  if (!mopts->fullAlignment) {
+  if (doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
     keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
@@ -218,7 +224,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
   // If we're not using fullAlignment, we'll need the full reference sequence later
   // so copy it into tseq.
-  if (!mopts->fullAlignment) { tseq = refSeqBuffer_; }
+  if (doFullAlignment) { tseq = refSeqBuffer_; }
 
   if (!alnCache.empty() and isMultimapping_) {
     // hash the reference string
@@ -251,7 +257,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     arOut.score /*= alignment*/ = alignmentScore = readLen * mopts->matchScore;
     if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
     hctr.skippedAlignments_byCov += 1;
-  } else if (mopts->fullAlignment) {
+  } else if (doFullAlignment) {
     nonstd::string_view readSeq = readView.substr(readStart);
     aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -741,7 +747,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       // then refSeqBuffer_ could have been used to store shorter portions of the reference during
       // the alignment procedure.  In that case, get the original reference sequence from tseq, which
       // was copied from the full reference sequence in the beginning of the function.
-      char* ptr = const_cast<char*>((mopts->fullAlignment ? refSeqBuffer_.data() : tseq.data()));
+      char* ptr = const_cast<char*>((doFullAlignment ? refSeqBuffer_.data() : tseq.data()));
       MetroHash64::Hash(reinterpret_cast<uint8_t *>(ptr), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     }
     AlignmentResult aln;
@@ -776,18 +782,23 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
 
     // If this read is in an orphaned mapping
     if (jointHit.isOrphan()) {
-      // if (verbose) {std::cerr << "orphan\n";}
         hctr.totalAlignmentAttempts += 1;
 
         // If this mapping was an orphan, then this is the orphaned read
-        std::string& read_orphan = jointHit.isLeftAvailable() ? read_left : read_right;
-        ar_left.score = invalidScore;
-        alignRead(read_orphan, read_left_rc_, jointHit.orphanClust()->mems, jointHit.orphanClust()->perfectChain,
-                  jointHit.orphanClust()->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
+        bool isLeft = jointHit.isLeftAvailable();
+        std::string& read_orphan = isLeft ? read_left : read_right;
+        std::string& rc_orphan = isLeft ? read_left_rc_ : read_right_rc_;
+        auto& ar_orphan = isLeft ? ar_left : ar_right;
+        auto& orphan_aln_cache = isLeft ? alnCacheLeft : alnCacheRight;
+     
+        ar_orphan.score = invalidScore;
+        alignRead(read_orphan, rc_orphan, jointHit.orphanClust()->mems,
+                  jointHit.orphanClust()->perfectChain,
+                  jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, verbose);
         jointHit.alignmentScore =
-          ar_left.score > threshold(read_orphan.length())  ? ar_left.score : invalidScore;
-        jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_left.cigar : "";
-        jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
+          ar_orphan.score > threshold(read_orphan.length())  ? ar_orphan.score : invalidScore;
+        jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_orphan.cigar : "";
+        jointHit.orphanClust()->openGapLen = ar_orphan.openGapLen;
 //        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         if (jointHit.alignmentScore < 0 and verbose) {
           std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
