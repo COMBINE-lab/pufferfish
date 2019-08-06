@@ -223,7 +223,8 @@ void processReadsPair(paired_parser *parser,
 
             if ( mopts->recoverOrphans and mergeStatusOR ) {
               // TODO NOTE : do futher testing
-              selective_alignment::utils::recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
+              bool recoveredAny = selective_alignment::utils::recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
+              (void)recoveredAny;
             }
 
             hctr.peHits += jointHits.size();
