@@ -53,10 +53,14 @@ protected:
   const core::range<std::vector<pufferfish::util::Position>::iterator> refList(uint64_t contigRank);
 
   // Get the name of a given reference sequence
-  const std::string& refName(uint64_t refRank);
+  inline const std::string& refName(uint64_t refRank) {
+    return underlying().refNames_[refRank-underlying().refExt_[refRank]];
+  }
 
   // Get the length of a reference sequence
-  uint32_t refLength(uint64_t refRank) const;
+  inline uint32_t refLength(uint64_t refRank) const {
+    return underlying().refLengths_[refRank-underlying().refExt_[refRank]];
+  }
 
   // Get the list of reference names
   const std::vector<std::string>& getFullRefNames() ;
@@ -65,7 +69,9 @@ protected:
 
   uint64_t getValidRefCount() const;
 
-  uint64_t getRefId(uint64_t id) const;
+  inline uint64_t getRefId(uint64_t id) const {
+    return id + underlying().refExt_[id];
+  }
 
   // Returns true if pos is a valid position in the compacted sequence array
   // and false otherwise.
