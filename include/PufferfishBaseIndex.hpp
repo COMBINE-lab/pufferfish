@@ -59,10 +59,13 @@ protected:
   uint32_t refLength(uint64_t refRank) const;
 
   // Get the list of reference names
-  const std::vector<std::string>& getRefNames() ;
+  const std::vector<std::string>& getFullRefNames() ;
   // and lengths
-  const std::vector<uint32_t>& getRefLengths() const;
+  const std::vector<uint32_t>& getFullRefLengths() const;
 
+  uint64_t getValidRefCount() const;
+
+  uint64_t getRefId(uint64_t id) const;
 
   // Returns true if pos is a valid position in the compacted sequence array
   // and false otherwise.

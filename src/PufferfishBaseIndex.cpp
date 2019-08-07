@@ -307,22 +307,32 @@ bool PufferfishBaseIndex<T>::hasReferenceSequence() const {
 
 template <typename T>
 const std::string& PufferfishBaseIndex<T>::refName(uint64_t refRank) {
-  return underlying().refNames_[refRank];
+  return underlying().refNames_[refRank-underlying().refExt_[refRank]];
 }
 
 template <typename T>
 uint32_t PufferfishBaseIndex<T>::refLength(uint64_t refRank) const {
-  return underlying().refLengths_[refRank];
+  return underlying().refLengths_[refRank-underlying().refExt_[refRank]];
 }
 
 template <typename T>
-const std::vector<std::string>& PufferfishBaseIndex<T>::getRefNames() {
+const std::vector<std::string>& PufferfishBaseIndex<T>::getFullRefNames() {
   return underlying().refNames_;
 }
 
 template <typename T>
-const std::vector<uint32_t>& PufferfishBaseIndex<T>::getRefLengths() const {
+const std::vector<uint32_t>& PufferfishBaseIndex<T>::getFullRefLengths() const {
   return underlying().refLengths_;
+}
+
+template <typename T>
+uint64_t PufferfishBaseIndex<T>::getValidRefCount() const {
+  return underlying().refNames_.size();
+}
+
+template <typename T>
+uint64_t PufferfishBaseIndex<T>::getRefId(uint64_t id) const {
+  return id + underlying().refExt_[id];
 }
 
 template <typename T>

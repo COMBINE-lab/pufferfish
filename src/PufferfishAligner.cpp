@@ -143,7 +143,7 @@ void processReadsPair(paired_parser *parser,
     BestHitReferenceType hitRefType{BestHitReferenceType::UNKNOWN};
     //For filtering reads
     bool verbose = mopts->verbose;
-    auto &txpNames = pfi.getRefNames();
+//    auto &txpNames = pfi.getRefNames();
     while (parser->refill(rg)) {
         for (auto &rpair : rg) {
             readLen = static_cast<uint32_t >(rpair.first.seq.length());
@@ -255,7 +255,7 @@ void processReadsPair(paired_parser *parser,
                   scores[idx] = hitScore;
 //                    if (verbose)
 //                        ss << txpNames[jointHit.tid] << " " << jointHit.alignmentScore << " " << scores[idx] << "\n";
-                    const std::string& ref_name = txpNames[jointHit.tid];
+                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
                     if (filterMicrobiom and hitScore != invalidScore
                     and hitRefType != BestHitReferenceType::FILTERED) {
                         bool inFilteredList = (rrna_names.find(ref_name) != rrna_names.end());
@@ -449,9 +449,9 @@ void processReadsPair(paired_parser *parser,
 
             if (!mopts->noOutput) {
               if (mopts->krakOut) {
-                writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, mopts->justMap);
+                writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap);
               } else if (mopts->salmonOut) {
-                writeAlignmentsToKrakenDump(rpair, /* formatter,  */jointHits, bstream, mopts->justMap, false);
+                writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap, false);
               } else if (jointAlignments.size() > 0) {
                 writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
               } else if (jointAlignments.size() == 0) {
@@ -542,7 +542,7 @@ void processReadsSingle(single_parser *parser,
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
 
-    auto &txpNames = pfi.getRefNames();
+//    auto &txpNames = pfi.getRefNames();
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner);
 
     auto rg = parser->getReadGroup();
@@ -599,7 +599,7 @@ void processReadsSingle(single_parser *parser,
                   int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
                     scores[idx] = hitScore;
 
-                    const std::string& ref_name = txpNames[jointHit.tid];
+                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
                     if (filterGenomics or filterMicrobiom) {
                         bool inFilteredList = (gene_names.find(ref_name) != gene_names.end());
                         if (inFilteredList) {
@@ -719,10 +719,10 @@ void processReadsSingle(single_parser *parser,
 
             // write puffkrak format output
             if (mopts->krakOut) {
-              writeAlignmentsToKrakenDump(read, // formatter,  
+              writeAlignmentsToKrakenDump(read, formatter,
                                           validHits, bstream);
             } else if (mopts->salmonOut) {
-              writeAlignmentsToKrakenDump(read, // formatter,  
+              writeAlignmentsToKrakenDump(read, formatter,
                                             validHits, bstream, false);
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads

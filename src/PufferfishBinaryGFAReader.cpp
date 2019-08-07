@@ -291,7 +291,9 @@ namespace pufferfish {
     }
 
 // Note : We assume that odir is the name of a valid (i.e., existing) directory.
-    void BinaryGFAReader::serializeContigTable(const std::string &odir) {
+    void BinaryGFAReader::serializeContigTable(const std::string &odir,
+                                               const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
+                                               const std::vector<uint32_t>& refIdExtensions) {
         std::string ofile = odir + "/ctable.bin";
         std::string eqfile = odir + "/eqtable.bin";
         std::string rlfile = odir + "/reflengths.bin";
@@ -301,19 +303,55 @@ namespace pufferfish {
         cereal::BinaryOutputArchive ar(ct);
         cereal::BinaryOutputArchive eqAr(et);
         cereal::BinaryOutputArchive rlAr(rl);
+        decltype(refLengths) tmpRefLen;
+        uint64_t shortRefCnt = refIdExtensions.empty()?0:*(refIdExtensions.end()-1);
+        tmpRefLen.reserve(refLengths.size() + shortRefCnt);
+
+        uint64_t shortIdx{0}, longIdx{0}, prevExt{0};
+        for (uint64_t i = 0; i < refLengths.size(); i++) {
+            if (refIdExtensions[i] == prevExt) { // If no new short reference
+                tmpRefLen.push_back(refLengths[longIdx]); // add the next long reference
+                longIdx++;
+            } else {
+                tmpRefLen.push_back(shortRefsNameLen[shortIdx].second); // add the next short reference
+                prevExt++;
+                shortIdx++;
+            }
+        }
+        // add all remaining short references
+        for (uint64_t i = shortRefCnt; i < shortRefsNameLen.size(); i++) {
+            tmpRefLen.push_back(shortRefsNameLen[i].second);
+        }
+
         {
             // Write out the reference lengths
-            rlAr(refLengths);
+            rlAr(tmpRefLen);
 
             // We want to iterate over the contigs in precisely the
             // order they appear in the contig array (i.e., the iterator
             // order of contigid2seq).
             std::vector<std::string> refNames;
-            refNames.reserve(refMap.size());
-            for (size_t i = 0; i < refMap.size(); ++i) {
-                refNames.push_back(refMap[i]);
+            shortRefCnt = refIdExtensions.empty()?0:*(refIdExtensions.end()-1);
+            refNames.reserve(refMap.size() + shortRefCnt);
+
+            shortIdx = 0; longIdx = 0; prevExt = 0;
+            for (uint64_t i = 0; i < refMap.size(); i++) {
+                if (refIdExtensions[i] == prevExt) {
+                    refNames.push_back(refMap[longIdx]);
+                    longIdx++;
+                } else {
+                    refNames.push_back(shortRefsNameLen[shortIdx].first);
+                    prevExt++;
+                    shortIdx++;
+                }
             }
+            for (uint64_t i = shortRefCnt; i < shortRefsNameLen.size(); i++) {
+                refNames.push_back(shortRefsNameLen[i].first);
+            }
+
             ar(refNames);
+
+            ar(refIdExtensions);
 
             class VecHasher {
             public:

@@ -92,8 +92,8 @@ template <typename IndexT>
 inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, AlignmentOpts* mopts) {
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)
-  auto& txpNames = pfi.getRefNames();
-  auto& txpLens = pfi.getRefLengths();
+  auto& txpNames = pfi.getFullRefNames();
+  auto& txpLens = pfi.getFullRefLengths();
   auto numRef = txpNames.size();
   bw << static_cast<uint64_t>(numRef); // refCount (size_t)
   std::cerr << "is paired: " << !mopts->singleEnd << "\n";
@@ -111,8 +111,8 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
-  auto& txpNames = pfi.txpNames;
-  auto& txpLens = pfi.txpLens;
+  auto& txpNames = pfi.getFullRefNames();
+  auto& txpLens = pfi.getFullRefLengths();
 
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
@@ -132,8 +132,8 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
-  auto& txpNames = pfi.txpNames;
-  auto& txpLens = pfi.txpLens;
+  auto& txpNames = pfi.getFullRefNames();
+  auto& txpLens = pfi.getFullRefLengths();
 
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
@@ -152,8 +152,8 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
-  auto& txpNames = pfi.getRefNames();
-  auto& txpLens = pfi.getRefLengths();
+  auto& txpNames = pfi.getFullRefNames();
+  auto& txpLens = pfi.getFullRefLengths();
 
   auto numRef = txpNames.size();
 
@@ -226,9 +226,9 @@ inline void adjustOverhang(pufferfish::util::QuasiAlignment& qa, uint32_t txpLen
 }
 
 // dump paired end read
-template <typename ReadT/* , typename IndexT */>
+template <typename ReadT , typename IndexT >
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
-                                   //PairedAlignmentFormatter<IndexT>& formatter,
+                                   PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<pufferfish::util::JointMems>& validJointHits,
                                    BinWriter& bstream,
                                    bool justMap,
@@ -275,7 +275,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
       rightNumOfIntervals = clustRight->mems.size();
       rightRefPos = clustRight->getTrFirstHitPos() | (static_cast<refLenType>(clustRight->isFw) << (sizeof(refLenType)*8-1));
     }
-    bstream << static_cast<uint32_t>(qa.tid);
+    bstream << static_cast<uint32_t>(formatter.index->getRefId(qa.tid));
       /*std::cerr << "r " << readName << " puffid: " << qa.tid << " lcnt:" << leftNumOfIntervals
                 << " rcnt:" << rightNumOfIntervals;*/
 //	if (wrtIntervals) {
@@ -318,9 +318,9 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   return 0;
 }
 // dump single end read
-template <typename ReadT/* , typename IndexT */>
+template <typename ReadT , typename IndexT >
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
-                                   //PairedAlignmentFormatter<IndexT>& formatter,
+                                   PairedAlignmentFormatter<IndexT>& formatter,
                                    std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>>& validHits,
                                    BinWriter& binStream,
                                    bool wrtIntervals=true) {
@@ -351,7 +351,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
   //std::cerr << readName << "\t" << validHits.size() << "\t" << r.seq.length() << "\n";
   for (auto& qa : validHits) {
     auto& clust = qa.second;
-    binStream << static_cast<uint32_t>(qa.first);
+    binStream << static_cast<uint32_t>(formatter.index->getRefId(qa.first));
 //    if (wrtIntervals) {
       binStream << static_cast<rLenType>(clust->mems.size());
 //    }

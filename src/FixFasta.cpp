@@ -34,7 +34,9 @@ void fixFasta(single_parser* parser,
               spp::sparse_hash_set<std::string>& decoyNames,
               bool keepDuplicates, uint32_t k,
               std::string& sepStr, std::mutex& iomutex,
-              std::shared_ptr<spdlog::logger> log, std::string outFile) {
+              std::shared_ptr<spdlog::logger> log, std::string outFile,
+              std::vector<uint32_t>& refIdExtensions,
+              std::vector<std::pair<std::string, uint16_t>>& shortRefs) {
   (void)iomutex;
 
   ghc::filesystem::path outFilePath{outFile};
@@ -374,13 +376,19 @@ void fixFasta(single_parser* parser,
   std::ofstream ffa(outFile);
   size_t prev1{0};
   size_t numWritten{0};
+  uint32_t prevExt{0};
+  refIdExtensions.reserve(transcriptNames.size());
   for (size_t i = 0; i < transcriptNames.size(); ++i) {
     size_t next1 = onePos[i];
     size_t len = next1 - prev1;
     if(!shortFlag[transcriptNames[i]]){
         ffa << ">" << transcriptNames[i] << "\n";
         ffa << concatTextView.substr(prev1, len) << "\n";
+        refIdExtensions.push_back(prevExt);
         ++numWritten;
+    } else {
+      shortRefs.emplace_back(transcriptNames[i], len);
+      prevExt++;
     }
     prev1 = next1;
   }
@@ -449,7 +457,9 @@ spp::sparse_hash_set<std::string> populateDecoyHash(const std::string& fname, st
 
 
 
-int fixFastaMain(std::vector<std::string>& args) {
+int fixFastaMain(std::vector<std::string>& args,
+        std::vector<uint32_t>& refIdExtension,
+        std::vector<std::pair<std::string, uint16_t>>& shortRefs) {
   using namespace clipp;
 
   uint32_t k{31};
@@ -501,7 +511,7 @@ int fixFastaMain(std::vector<std::string>& args) {
     transcriptParserPtr->start();
     std::mutex iomutex;
     fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, console,
-             outFile);
+             outFile, refIdExtension, shortRefs);
     transcriptParserPtr->stop();
     return 0;
   } else {

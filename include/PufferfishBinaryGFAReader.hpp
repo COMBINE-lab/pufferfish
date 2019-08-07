@@ -90,7 +90,9 @@ public:
   void parseFile();
   void mapContig2Pos();
   void clearContigTable();
-  void serializeContigTable(const std::string& odir);
+  void serializeContigTable(const std::string& odir,
+          const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
+          const std::vector<uint32_t>& refIdExtensions);
   void deserializeContigTable();
   // void writeFile(std::string fileName);
 };

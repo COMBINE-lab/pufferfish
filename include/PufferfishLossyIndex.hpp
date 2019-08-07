@@ -36,6 +36,7 @@ private:
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
   std::vector<uint32_t> refLengths_;
+  std::vector<uint32_t> refExt_;
   std::vector<pufferfish::util::Position> contigTable_;
   std::vector<uint64_t> contigOffsets_;
   uint64_t numContigs_{0};

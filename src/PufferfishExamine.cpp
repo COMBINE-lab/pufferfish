@@ -14,8 +14,8 @@
 
 template <typename Index>
 bool dump_index_fasta(Index& pi, std::string& out) {
-  const auto& refNames = pi.getRefNames();
-  const auto& refLengths = pi.getRefLengths();
+  //const auto& refNames = pi.getRefNames();
+  //const auto& refLengths = pi.getRefLengths();
   if (!pi.hasReferenceSequence()) {
     std::cerr << "cannot dump fasta from an index that does not contain reference sequence\n";
     return false;
@@ -23,11 +23,11 @@ bool dump_index_fasta(Index& pi, std::string& out) {
 
   std::ofstream ofile(out);
 
-  size_t nr = refNames.size();
+  size_t nr = pi.getValidRefCount();
   size_t curr{0};
   for (size_t i = 0; i < nr; ++i) {
-    const auto& s = refNames[i];
-    const auto& l = refLengths[i];
+    const auto& s = pi.refName(i);
+    const auto& l = pi.refLength(i);
     ofile << ">" << s << "\n";
     ofile << pi.getRefSeqStr(curr, static_cast<int64_t>(l)) << "\n";
     curr += l;

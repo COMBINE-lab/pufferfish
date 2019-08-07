@@ -275,7 +275,9 @@ void dumpCompactToFile(VecT& v, std::string fname) {
   bfile.close();
 }
 
-int fixFastaMain(std::vector<std::string>& args);
+int fixFastaMain(std::vector<std::string>& args,
+        std::vector<uint32_t>& refIdExtension,
+                 std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen);
 int buildGraphMain(std::vector<std::string>& args);
 int dumpGraphMain(std::vector<std::string>& args);
 uint64_t getNumDistinctKmers(unsigned kmlen, const std::string& ifile);
@@ -319,6 +321,9 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   std::string gfa_file = indexOpts.outdir;
   bool buildEdgeVec = indexOpts.buildEdgeVec;
 
+  std::vector<uint32_t> refIdExtensions;
+  std::vector<std::pair<std::string, uint16_t>> shortRefsNameLen;
+
   // If the user included the '/' in the output directory path, remove
   // it here
   if (outdir.back() == '/') {
@@ -360,7 +365,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     args.push_back("--output");
     args.push_back(outdir+"/ref_k"+std::to_string(k)+"_fixed.fa");
 
-    int ffres = fixFastaMain(args);
+    int ffres = fixFastaMain(args, refIdExtensions, shortRefsNameLen);
     if (ffres != 0) {
         console->error("The fixFasta phase failed with exit code {}", ffres);
         std::exit(ffres);
@@ -437,7 +442,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, console);
   pf.parseFile();
   pf.mapContig2Pos();
-  pf.serializeContigTable(outdir);
+  pf.serializeContigTable(outdir, shortRefsNameLen, refIdExtensions);
   {
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {

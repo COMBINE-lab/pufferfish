@@ -43,6 +43,7 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     std::ifstream contigTableStream(indexDir + "/ctable.bin");
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
+    contigTableArchive(refExt_);
     contigTableArchive(contigTable_);
     contigTableArchive(contigOffsets_);
     contigTableStream.close();

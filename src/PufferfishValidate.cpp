@@ -101,13 +101,13 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
   auto& seq = pi.getSeq();
 
   // iterate over all reference sequences
-  const auto& refLengths = pi.getRefLengths();
+//  const auto& refLengths = pi.getRefLengths();
   uint32_t rn{0};
   uint64_t gpos{0};
   uint64_t totalKmersSearched{0};
-
-  for (auto refLen : refLengths) {
-
+  uint64_t validCnt = pi.getValidRefCount();
+  for (uint64_t i = 0; i < validCnt; i++) {
+    auto refLen = pi.refLength(i);
     uint32_t posWithinRef{0};
 
     if (static_cast<int32_t>(refLen) < k) {
@@ -143,7 +143,7 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
       ++totalKmersSearched;
       ++gpos;
       if (gpos % 10000000 == 0) {
-        console->info("processed {} of {} positions.", gpos, refSeq.size() - (k*refLengths.size()) + (refLengths.size()));
+        console->info("processed {} of {} positions.", gpos, refSeq.size() - (k*validCnt) + (validCnt));
       }
     }
 
