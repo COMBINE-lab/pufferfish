@@ -81,11 +81,11 @@ protected:
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits;
 
-  // Returns the string value of contig sequence vector starting from position `globalPos` with `length` bases
+  // Returns a copy of the string value of contig sequence vector starting from position `globalPos` with `length` bases
   // and reverse-complements the string if `isFw` is false
   std::string getSeqStr(size_t globalPos, int64_t length, bool isFw=true);
 
-  // Returns the string value of the reference sequence vector starting from position `start` for `length` bases
+  // Returns a copy of the string value of the reference sequence vector starting from position `start` for `length` bases
   std::string getRefSeqStr(size_t start, int64_t length);
 
   // Returns a ProjectedHits object that contains all of the
