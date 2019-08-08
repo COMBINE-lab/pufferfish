@@ -54,12 +54,12 @@ protected:
 
   // Get the name of a given reference sequence
   inline const std::string& refName(uint64_t refRank) {
-    return underlying().refNames_[refRank-underlying().refExt_[refRank]];
+    return underlying().refNames_[refRank+underlying().refExt_[refRank]];
   }
 
   // Get the length of a reference sequence
   inline uint32_t refLength(uint64_t refRank) const {
-    return underlying().refLengths_[refRank-underlying().refExt_[refRank]];
+    return underlying().refLengths_[refRank+underlying().refExt_[refRank]];
   }
 
   // Get the list of reference names
