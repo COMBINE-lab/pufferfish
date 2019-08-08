@@ -304,12 +304,12 @@ namespace pufferfish {
         cereal::BinaryOutputArchive eqAr(et);
         cereal::BinaryOutputArchive rlAr(rl);
         decltype(refLengths) tmpRefLen;
-        uint64_t shortRefCnt = refIdExtensions.empty()?0:*(refIdExtensions.end()-1);
-        tmpRefLen.reserve(refLengths.size() + shortRefCnt);
+        tmpRefLen.reserve(refLengths.size() + shortRefsNameLen.size());
 
         uint64_t shortIdx{0}, longIdx{0}, prevExt{0};
-        for (uint64_t i = 0; i < refLengths.size(); i++) {
-            if (refIdExtensions[i] == prevExt) { // If no new short reference
+//        for (uint64_t i = 0; i < refLengths.size(); i++) {
+        while (longIdx < refLengths.size()) {
+            if (refIdExtensions[longIdx] == prevExt) { // If no new short reference
                 tmpRefLen.push_back(refLengths[longIdx]); // add the next long reference
                 longIdx++;
             } else {
@@ -331,12 +331,12 @@ namespace pufferfish {
             // order they appear in the contig array (i.e., the iterator
             // order of contigid2seq).
             std::vector<std::string> refNames;
-            shortRefCnt = refIdExtensions.empty()?0:*(refIdExtensions.end()-1);
-            refNames.reserve(refMap.size() + shortRefCnt);
+            refNames.reserve(refMap.size() + shortRefsNameLen.size());
 
             shortIdx = 0; longIdx = 0; prevExt = 0;
-            for (uint64_t i = 0; i < refMap.size(); i++) {
-                if (refIdExtensions[i] == prevExt) {
+//            for (uint64_t i = 0; i < refMap.size(); i++) {
+            while (longIdx < refLengths.size()) {
+                if (refIdExtensions[longIdx] == prevExt) {
                     refNames.push_back(refMap[longIdx]);
                     longIdx++;
                 } else {
