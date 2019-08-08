@@ -337,10 +337,20 @@ int pufferfishIndex(IndexOptions& indexOpts) {
   size_t nread{0};
   CanonicalKmer::k(k);
 
-  if (puffer::fs::MakePath(outdir.c_str()) != 0) {
+  if (ghc::filesystem::exists(outdir.c_str())) {
+      if (!ghc::filesystem::is_directory(outdir.c_str())) {
+          console->error("{} is a file. Cannot create a directory of the same name.", outdir.c_str());
+          std::exit(1);
+      }
+  } else {
+      ghc::filesystem::create_directory(outdir.c_str());
+  }
+
+  /*if (puffer::fs::MakePath(outdir.c_str()) != 0) {
+      std::cerr << "\nyup that's it\n";
     console->error(std::strerror(errno));
     std::exit(1);
-  }
+  }*/
 
   // running fixFasta
   {
