@@ -212,7 +212,7 @@ void fixFasta(single_parser* parser,
                       "This is probably a chromosome instead of a transcript.",
                       read.name, tooLong);
           } else if (readStr.size() <= k) { // <= instead of < because of twopaco!
-            log->warn("Entry with header [{}], had length less than "
+            log->warn("Entry with header [{}], had length less than equal to "
                       "the k-mer length of {} (perhaps after poly-A clipping)",
                       read.name, k);
             tooShort = true;

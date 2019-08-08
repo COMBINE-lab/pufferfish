@@ -339,7 +339,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
 
   if (ghc::filesystem::exists(outdir.c_str())) {
       if (!ghc::filesystem::is_directory(outdir.c_str())) {
-          console->error("{} is a file. Cannot create a directory of the same name.", outdir.c_str());
+          console->error("{} exists as a file. Cannot create a directory of the same name.", outdir.c_str());
           std::exit(1);
       }
   } else {
