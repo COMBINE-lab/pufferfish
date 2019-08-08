@@ -209,10 +209,9 @@ void fixFasta(single_parser* parser,
           // than a transcriptome, say so here.
           if (readStr.size() >= tooLong and !isDecoy) {
             log->warn("Entry with header [{}] was longer than {} nucleotides.  "
-                      "Are you certain that "
-                      "we are indexing a transcriptome and not a genome?",
+                      "This is probably a chromosome instead of a transcript.",
                       read.name, tooLong);
-          } else if (readStr.size() < k) {
+          } else if (readStr.size() <= k) { // <= instead of < because of twopaco!
             log->warn("Entry with header [{}], had length less than "
                       "the k-mer length of {} (perhaps after poly-A clipping)",
                       read.name, k);
@@ -362,10 +361,8 @@ void fixFasta(single_parser* parser,
   dupClusterStream.close();
   */
 
-  std::cerr << "Replaced " << numNucleotidesReplaced
-            << " non-ATCG nucleotides\n";
-  std::cerr << "Clipped poly-A tails from " << numPolyAsClipped
-            << " transcripts\n";
+  log->info("Replaced {:n} non-ATCG nucleotides", numNucleotidesReplaced);
+  log->info("Clipped poly-A tails from {:n} transcripts", numPolyAsClipped);
 
   // Put the concatenated text in a string
   std::string concatText = txpSeqStream.str();
@@ -393,7 +390,7 @@ void fixFasta(single_parser* parser,
     prev1 = next1;
   }
   ffa.close();
-  std::cerr << "wrote " << numWritten << " contigs\n";
+  std::cerr << "wrote " << numWritten << " cleaned references\n";
 
 
   {

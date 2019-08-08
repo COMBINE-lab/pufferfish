@@ -98,7 +98,6 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
   auto console = spdlog::stderr_color_mt("console");
 
   auto& refSeq = pi.refseq_;
-  auto& seq = pi.getSeq();
 
   // iterate over all reference sequences
 //  const auto& refLengths = pi.getRefLengths();
@@ -110,8 +109,8 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
     auto refLen = pi.refLength(i);
     uint32_t posWithinRef{0};
 
-    if (static_cast<int32_t>(refLen) < k) {
-      console->warn("reference sequence of length < k; not validating.");
+    if (static_cast<int32_t>(refLen) <= k) {
+      console->warn("reference sequence of length l = {} (< k = {}); not validating.", refLen, k);
       gpos += refLen;
       continue;
     }
