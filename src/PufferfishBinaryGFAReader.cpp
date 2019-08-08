@@ -319,7 +319,7 @@ namespace pufferfish {
             }
         }
         // add all remaining short references
-        for (uint64_t i = shortRefCnt; i < shortRefsNameLen.size(); i++) {
+        for (uint64_t i = shortIdx; i < shortRefsNameLen.size(); i++) {
             tmpRefLen.push_back(shortRefsNameLen[i].second);
         }
 
@@ -345,7 +345,7 @@ namespace pufferfish {
                     shortIdx++;
                 }
             }
-            for (uint64_t i = shortRefCnt; i < shortRefsNameLen.size(); i++) {
+            for (uint64_t i = shortIdx; i < shortRefsNameLen.size(); i++) {
                 refNames.push_back(shortRefsNameLen[i].first);
             }
 
