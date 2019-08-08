@@ -67,7 +67,7 @@ protected:
   // and lengths
   const std::vector<uint32_t>& getFullRefLengths() const;
 
-  uint64_t getValidRefCount() const;
+  uint64_t getIndexedRefCount() const;
 
   inline uint64_t getRefId(uint64_t id) const {
     return id + underlying().refExt_[id];

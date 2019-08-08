@@ -316,8 +316,8 @@ const std::vector<uint32_t>& PufferfishBaseIndex<T>::getFullRefLengths() const {
 }
 
 template <typename T>
-uint64_t PufferfishBaseIndex<T>::getValidRefCount() const {
-  return underlying().refNames_.size();
+uint64_t PufferfishBaseIndex<T>::getIndexedRefCount() const {
+  return underlying().refExt_.size();
 }
 
 template <typename T>
