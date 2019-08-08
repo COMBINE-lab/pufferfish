@@ -343,7 +343,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
           std::exit(1);
       }
   } else {
-      ghc::filesystem::create_directory(outdir.c_str());
+      ghc::filesystem::create_directories(outdir.c_str());
   }
 
   /*if (puffer::fs::MakePath(outdir.c_str()) != 0) {
