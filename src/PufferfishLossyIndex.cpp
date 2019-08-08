@@ -34,7 +34,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading contig table", CLI::Timer::Big};
-    std::ifstream contigTableStream(indexDir + "/ctable.bin");
+    std::ifstream contigTableStream(indexDir + "/" + pufferfish::util::CTABLE);
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
     contigTableArchive(refExt_);
@@ -45,7 +45,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
   numContigs_ = contigOffsets_.size()-1;
 
   {
-    std::string rlPath = indexDir + "/reflengths.bin";
+    std::string rlPath = indexDir + "/" + pufferfish::util::REFLENGTH;
     if (puffer::fs::FileExists(rlPath.c_str())) {
       CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
       std::ifstream refLengthStream(rlPath);
@@ -58,7 +58,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading eq table", CLI::Timer::Big};
-    std::ifstream eqTableStream(indexDir + "/eqtable.bin");
+    std::ifstream eqTableStream(indexDir + "/" + pufferfish::util::EQTABLE);
     cereal::BinaryInputArchive eqTableArchive(eqTableStream);
     eqTableArchive(eqClassIDs_);
     eqTableArchive(eqLabels_);
@@ -67,7 +67,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading mphf table", CLI::Timer::Big};
-    std::string hfile = indexDir + "/mphf.bin";
+    std::string hfile = indexDir + "/" + pufferfish::util::MPH;
     std::ifstream hstream(hfile);
     hash_.reset(new boophf_t);
     hash_->load(hstream);
@@ -77,21 +77,21 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
-    std::string bfile = indexDir + "/rank.bin";
+    std::string bfile = indexDir + "/" + pufferfish::util::RANK;
     contigBoundary_.deserialize(bfile, false);
     rankSelDict = rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size());
   }
 
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
-    std::string sfile = indexDir + "/seq.bin";
+    std::string sfile = indexDir + "/" + pufferfish::util::SEQ;
     seq_.deserialize(sfile, true);
     lastSeqPos_ = seq_.size() - k_;
   }
 
   {
     CLI::AutoTimer timer{"Loading presence vector", CLI::Timer::Big};
-    std::string bfile = indexDir + "/presence.bin";
+    std::string bfile = indexDir + "/" + pufferfish::util::PRESENCE;
     presenceVec_.deserialize(bfile, false);
     presenceRank_ = rank9b(presenceVec_.get(), presenceVec_.size());//decltype(presenceVec_)::rank_1_type(&presenceVec_);
     //presenceSelect_ = decltype(presenceVec_)::select_1_type(&presenceVec_);
@@ -99,7 +99,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading sampled positions", CLI::Timer::Big};
-    std::string pfile = indexDir + "/sample_pos.bin";
+    std::string pfile = indexDir + "/" + pufferfish::util::SAMPLEPOS;
     auto bits_per_element = compact::get_bits_per_element(pfile);
     sampledPos_.set_m_bits(bits_per_element);
     sampledPos_.deserialize(pfile, false);
@@ -107,12 +107,12 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir) {
 
   if (haveRefSeq_) {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
-    std::string pfile = indexDir + "/refseq.bin";
+    std::string pfile = indexDir + "/" + pufferfish::util::REFSEQ;
     refseq_.deserialize(pfile, true);
   }
 
   {
-    std::string rlPath = indexDir + "/refAccumLengths.bin";
+    std::string rlPath = indexDir + "/" + pufferfish::util::REFACCUMLENGTH;
     if (puffer::fs::FileExists(rlPath.c_str())) {
       CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
       std::ifstream refLengthStream(rlPath);

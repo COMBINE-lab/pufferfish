@@ -1089,7 +1089,7 @@ int pufferfishIndex(IndexOptions& indexOpts) {
     }
     descStream.close();
 
-    std::ofstream hstream(outdir + "/mphf.bin");
+    std::ofstream hstream(outdir + "/" + pufferfish::util::MPH);
     dumpCompactToFile(presenceVec, outdir + "/presence.bin");
     dumpCompactToFile(samplePosVec, outdir + "/sample_pos.bin");
     bphf->save(hstream);
