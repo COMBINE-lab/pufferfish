@@ -35,7 +35,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading contig table", CLI::Timer::Big};
-    std::ifstream contigTableStream(indexDir + "/ctable.bin");
+    std::ifstream contigTableStream(indexDir + "/" + pufferfish::util::CTABLE);
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
     contigTableArchive(refExt_);
@@ -46,7 +46,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
   numContigs_ = contigOffsets_.size()-1;
 
   {
-    std::string rlPath = indexDir + "/reflengths.bin";
+    std::string rlPath = indexDir + "/" + pufferfish::util::REFLENGTH;
     if (puffer::fs::FileExists(rlPath.c_str())) {
       CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
       std::ifstream refLengthStream(rlPath);
@@ -59,7 +59,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading eq table", CLI::Timer::Big};
-    std::ifstream eqTableStream(indexDir + "/eqtable.bin");
+    std::ifstream eqTableStream(indexDir + "/" + pufferfish::util::EQTABLE);
     cereal::BinaryInputArchive eqTableArchive(eqTableStream);
     eqTableArchive(eqClassIDs_);
     eqTableArchive(eqLabels_);
@@ -68,7 +68,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading mphf table", CLI::Timer::Big};
-    std::string hfile = indexDir + "/mphf.bin";
+    std::string hfile = indexDir + "/" + pufferfish::util::MPH;
     std::ifstream hstream(hfile);
     hash_.reset(new boophf_t);
     hash_->load(hstream);
@@ -78,7 +78,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading contig boundaries", CLI::Timer::Big};
-    std::string bfile = indexDir + "/rank.bin";
+    std::string bfile = indexDir + "/" + pufferfish::util::RANK;
     contigBoundary_.deserialize(bfile, false);
     rankSelDict = rank9sel(&contigBoundary_, (uint64_t)contigBoundary_.size());
   }
@@ -93,14 +93,14 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 
   {
     CLI::AutoTimer timer{"Loading sequence", CLI::Timer::Big};
-    std::string sfile = indexDir + "/seq.bin";
+    std::string sfile = indexDir + "/" + pufferfish::util::SEQ;
     seq_.deserialize(sfile, false);
     lastSeqPos_ = seq_.size() - k_;
   }
 
   {
     CLI::AutoTimer timer{"Loading positions", CLI::Timer::Big};
-    std::string pfile = indexDir + "/pos.bin";
+    std::string pfile = indexDir + "/" + pufferfish::util::POS;
     auto bits_per_element = compact::get_bits_per_element(pfile);
     pos_.set_m_bits(bits_per_element);
     pos_.deserialize(pfile, false);
@@ -109,12 +109,12 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 
   if (haveRefSeq_) {
     CLI::AutoTimer timer{"Loading reference sequence", CLI::Timer::Big};
-    std::string pfile = indexDir + "/refseq.bin";
+    std::string pfile = indexDir + "/" + pufferfish::util::REFSEQ;
     refseq_.deserialize(pfile, false);
   }
 
   {
-    std::string rlPath = indexDir + "/refAccumLengths.bin";
+    std::string rlPath = indexDir + "/" + pufferfish::util::REFACCUMLENGTH;
     if (puffer::fs::FileExists(rlPath.c_str())) {
       CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
       std::ifstream refLengthStream(rlPath);
@@ -127,7 +127,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
 
   if (haveEdges_) {
     CLI::AutoTimer timer{"Loading edges", CLI::Timer::Big};
-    std::string pfile = indexDir + "/edge.bin";
+    std::string pfile = indexDir + "/" + pufferfish::util::EDGE;
     edge_.deserialize(pfile, false);
   }
 }

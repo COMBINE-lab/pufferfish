@@ -66,6 +66,36 @@ int main(int argc, char* argv[]) {
       return true;
   };
 
+  auto ensure_index_exists = [](const std::string& s) -> bool {
+      bool exists = ghc::filesystem::exists(s);
+      if (!exists) {
+        std::string e = "The index directory " + s + " does not seem to exist.";
+        throw std::runtime_error{e};
+      }
+      bool isDir = ghc::filesystem::is_directory(s);
+      if (!isDir) {
+          std::string e = s + " is not a directory containing index files.";
+          throw std::runtime_error{e};
+      }
+      for (auto & elem : {pufferfish::util::MPH,
+                          pufferfish::util::SEQ,
+                          pufferfish::util::RANK,
+                          pufferfish::util::POS,
+                          pufferfish::util::CTABLE,
+                          pufferfish::util::REFSEQ,
+                          pufferfish::util::REFNAME,
+                          pufferfish::util::REFLENGTH,
+                          pufferfish::util::REFACCUMLENGTH}) {
+          if (!ghc::filesystem::exists(s+"/"+elem)) {
+              std::string e = "Index is incomplete. Missing file ";
+              e+=elem;
+              throw std::runtime_error{e};
+          }
+      }
+      return true;
+  };
+
+
 
   auto indexMode = (
                     command("index").set(selected, mode::index),
@@ -131,7 +161,7 @@ int main(int argc, char* argv[]) {
 
   auto alignMode = (
                     command("align").set(selected, mode::align),
-                    (required("-i", "--index") & value("index", alignmentOpt.indexDir)) % "Directory where the Pufferfish index is stored",
+                    (required("-i", "--index") & value(ensure_index_exists, "index", alignmentOpt.indexDir)) % "Directory where the Pufferfish index is stored",
                     (
                       (
                         ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "Path to the left end of the read files"),

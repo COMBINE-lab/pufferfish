@@ -44,6 +44,24 @@ namespace pufferfish {
     namespace util {
         using namespace std;
 
+        constexpr const char MPH[] = "mphf.bin";
+        constexpr const char CTABLE[] = "ctable.bin";
+        constexpr const char EQTABLE[] = "eqtable.bin";
+        constexpr const char REFLENGTH[] = "reflengths.bin";
+        constexpr const char REFACCUMLENGTH[] = "refAccumLengths.bin";
+        constexpr const char REFNAME[] = "reflengths.bin";
+        constexpr const char RANK[] = "rank.bin";
+        constexpr const char SEQ[] = "seq.bin";
+        constexpr const char POS[] = "pos.bin";
+        constexpr const char REFSEQ[] = "refseq.bin";
+        constexpr const char EDGE[] = "edge.bin";
+        constexpr const char PRESENCE[] = "presence.bin";
+        constexpr const char CANONICAL[] = "canonical.bin";
+        constexpr const char SAMPLEPOS[] = "sample_pos.bin";
+        constexpr const char EXTENSION[] = "extension.bin";
+        constexpr const char EXTENSIONSIZE[] = "extensionSize.bin";
+        constexpr const char DIRECTION[] = "direction.bin";
+
         static constexpr int8_t rc_table[128] = {
                 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, // 15
                 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, // 31
