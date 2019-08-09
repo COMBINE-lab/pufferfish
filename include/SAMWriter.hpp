@@ -406,7 +406,7 @@ uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "255\t"              // MAPQ
                 << "*\t"                // CIGAR
                 << "*\t"                // RNEXT
-                << "*\t"                // PNEXT
+                << "0\t"                // PNEXT
                 << "0\t"                // TLEN
                 << *readSeq1 << '\t'    // SEQ
                 << "*\t"                // QUAL
@@ -421,7 +421,7 @@ uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "255\t"              // MAPQ
                 << "*\t"                // CIGAR
                 << "*\t"                // RNEXT
-                << "*\t"                // PNEXT
+                << "0\t"                // PNEXT
                 << "0\t"                // TLEN
                 << *readSeq2 << '\t'    // SEQ
                 << "*\t"                // QUAL
