@@ -195,7 +195,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
-    keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
+    //keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
+    keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
     // If the first hit starts further in the reference than in the
     // read, then we align from the beginning of the read and (ref_start - read_start) on
@@ -272,23 +273,24 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
     alignmentScore = std::max(ez.mqe, ez.mte);
-    /*
-    bool cigar_fixed{false};
-    cigarGen.clear();
-    cigar.clear();
-    openGapLen = addCigar(cigarGen, ez, false); 
-    cigar = cigarGen.get_cigar(readLen, cigar_fixed);
-    std::cerr << "readSeq : " << readSeq << "\n";
-    std::cerr << "refSeq  : " << refSeqBuffer_ << "\n";
-    std::cerr << "score : " << alignmentScore << "\n";
-    std::cerr << "cigar : " << cigar << "\n";
-    */
+    
+    //bool cigar_fixed{false};
+    //cigarGen.clear();
+    //cigar.clear();
+    //openGapLen = addCigar(cigarGen, ez, false); 
+    //cigar = cigarGen.get_cigar(readLen, cigar_fixed);
+    // std::cerr << "readSeq : " << readSeq << "\n";
+    // std::cerr << "refSeq  : " << refSeqBuffer_ << "\n";
+    // std::cerr << "score : " << alignmentScore << "\n";
+    // std::cerr << "cigar : " << cigar << "\n";
+    // std::cerr << "mqe : " << ez.mqe << ", mte : " << ez.mte << "\n";
+    
     if (computeCIGAR) { openGapLen = addCigar(cigarGen, ez, false); }
   } else {
     // ROB ATTEMPT ---
     alignmentScore = 0;
     
-    std::stringstream ss;
+    //std::stringstream ss;
     //ss << "[[\n";
     //ss << "read sequence (" << (isFw ? "FW" : "RC") << ") : " << readView << "\n";
     //ss << "ref  sequence      : " << tseq << "\n";
