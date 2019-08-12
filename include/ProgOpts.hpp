@@ -2,6 +2,7 @@
 #define __PUFFERFISH_PROG_OPTS_HPP__
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace pufferfish {
 class IndexOptions {
