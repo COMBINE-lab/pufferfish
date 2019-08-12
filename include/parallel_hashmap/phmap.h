@@ -289,7 +289,7 @@ inline __m128i _mm_cmpgt_epi8_fixed(__m128i a, __m128i b) {
   #pragma GCC diagnostic ignored "-Woverflow"
 
   if (std::is_unsigned<char>::value) {
-    const __m128i mask = _mm_set1_epi8(0x80);
+    const __m128i mask = _mm_set1_epi8(static_cast<char>(0x80));
     const __m128i diff = _mm_subs_epi8(b, a);
     return _mm_cmpeq_epi8(_mm_and_si128(diff, mask), mask);
   }
@@ -1202,6 +1202,8 @@ public:
         // compared to destruction of the elements of the container. So we pick the
         // largest bucket_count() threshold for which iteration is still fast and
         // past that we simply deallocate the array.
+        if (empty())
+            return;
         if (capacity_ > 127) {
             destroy_slots();
         } else if (capacity_) {
@@ -1541,7 +1543,7 @@ public:
         }
         // bitor is a faster way of doing `max` here. We will round up to the next
         // power-of-2-minus-1, so bitor is good enough.
-        auto m = NormalizeCapacity(std::max(n, size()));
+        auto m = NormalizeCapacity((std::max)(n, size()));
         // n == 0 unconditionally rehashes as per the standard.
         if (n == 0 || m > capacity_) {
             resize(m);
