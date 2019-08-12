@@ -1,3 +1,4 @@
+#include <numeric>
 #include "MemChainer.hpp"
 #include "chobo/small_vector.hpp"
 
@@ -50,6 +51,7 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
     return false;
   }
 
+  //setMaxAllowedRefsPerHit(1000000);
   size_t totSize{0};
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
     auto &refs = hit.second.refRange;
@@ -134,6 +136,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                          (isFw ? q1read < q2read : q1read > q2read);// sort based on tpos
               });
     /*if (verbose) {
+
       std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
         std::cerr << "\ttpos:" << m.tpos << " rpos:" << m.memInfo->rpos << " len:" << m.memInfo->memlen
@@ -184,54 +187,30 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     int32_t prev_qposi_start = -1;
     int32_t prev_rposi_start = -1;
 
-//    auto& m = memList.front();
-    //bool didOinkWithoutPizza = false;
-    //bool chainOfInterest{false};
+    int32_t totLen{0};
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
-      //chainOfInterest = /*chainOfInterest or */(hi.rpos == 1 and hi.tpos == 163 and tid == 151214);
       int32_t qposi_start = hi.isFw ? hi.rpos : readLen - (hi.rpos + hi.extendedlen);
       int32_t rposi_start = hi.tpos;
 
       int32_t qposi_end = hi.isFw ? (hi.rpos + hi.extendedlen) : (readLen - hi.rpos);
       int32_t rposi_end = hi.tpos + hi.extendedlen;
 
-      /*if (chainOfInterest) {
-        std::stringstream ss;
-        ss << "##\n";
-        ss << "oink oink!\n";
-        ss << "i = " << i << "\n";
-        ss << "qposi_start = " << qposi_start << ", qposi_end = " << qposi_end << "\n";
-        ss << "prev_qposi_start = " << prev_qposi_start << ", prev_qposi_end =" << prev_qposi_end << "\n";
-        ss << "rposi_start = " << rposi_start << ", rposi_end = " << rposi_end << "\n";
-        ss << "prev_rposi_start = " << prev_rposi_start << ", prev_rposi_end = " << prev_rposi_end << "\n";
-        ss << "hi.tpos = " << hi.tpos << "\n##\n";
-        std::cerr << ss.str();
-        didOinkWithoutPizza = true;
-      }*/
-
       int32_t overlap_read = (prev_qposi_end - qposi_start);
       int32_t overlap_ref = (prev_rposi_end - rposi_start);
       if (i > 0 and overlap_ref >= 0 and (overlap_ref == overlap_read)) {
-        //if (i > 0 and (qposi - prev_qposi) == (rposi - prev_rposi) and static_cast<int32_t>(hi.tpos) < prev_rposi) {
-        /*if (chainOfInterest){
-          std::cerr << "pizza pizza!\n";
-          didOinkWithoutPizza = false;
-        }
-*/
         auto &lastMem = memList[currentMemIdx];
         uint32_t extension = rposi_end - prev_rposi_end;
         lastMem.extendedlen += extension;
+        totLen += extension;
         if (!isFw) {
           lastMem.rpos = hi.rpos;
         }
         hi.extendedlen = std::numeric_limits<decltype(hi.extendedlen)>::max();
-        //keepMem.push_back(0);
       } else {
+        totLen += hi.extendedlen;
         currentMemIdx=i;
-        //keepMem.push_back(1);
       }
-      //if (didOinkWithoutPizza) { std::cerr << "\n\nNOOOOOOOOOO!!!!!!!!\n\n"; }
       prev_qposi_start = qposi_start;
       prev_rposi_start = rposi_start;
       prev_qposi_end = qposi_end;
@@ -242,6 +221,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                  [](pufferfish::util::MemInfo& m) {
                                    bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); return r;
                                  }), memList.end());
+    avgseed = totLen / static_cast<double>(memList.size());
+
     /*
     if (verbose) {
       std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
@@ -256,8 +237,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     f.reserve(memList.size());
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
-      //if (hi.extendedlen != hi.memInfo->memlen)
-      //  std::cerr<< hi.extendedlen << "  " <<  hi.memInfo->memlen << "\n";
 
       int32_t qposi = hi.rpos + hi.extendedlen;
       int32_t rposi = hi.tpos + hi.extendedlen;
@@ -303,19 +282,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         bool extendWithJ = (extensionScore > f[i]);
         p[i] = extendWithJ ? j : p[i];
         f[i] = extendWithJ ? extensionScore : f[i];
-        /*if ((hi.rpos == 0 and hi.tpos == 162 and tid == 151214) and hj.rpos == 7 and hj.tpos == 161) {
-          std::cerr << "qdiff = " << qdiff << "\n";
-          std::cerr << "rdiff = " << rdiff << "\n";
-          std::cerr << "hi.len = " << hi.extendedlen << "\n";
-          std::cerr << "hj.len = " << hj.extendedlen << "\n";
-          std::cerr << "hi.rpos = " << hi.rpos<< "\n";
-          std::cerr << "hi.tpos = " << hi.tpos<< "\n";
-          std::cerr << "hj.rpos = " << hj.rpos<< "\n";
-          std::cerr << "hj.tpos = " << hj.tpos<< "\n";
-          std::cerr << "extensionScore = " << extensionScore << "\n";
-          std::cerr << "p[" << i << "] = " << p[i] << "\n";
-          std::cerr << "f[" << i << "] = " << f[i] << "\n";
-        }*/
 
         // HEURISTIC : if we connected this match to an earlier one
         // i.e. if we extended the chain.
@@ -417,29 +383,9 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         int32_t qposi_end = hi.isFw ? (hi.rpos + hi.extendedlen) : (readLen - hi.rpos);
         int32_t rposi_end = hi.tpos + hi.extendedlen;
 
-        /*if (chainOfInterest) {
-          std::stringstream ss;
-          ss << "##\n";
-          ss << "oink oink!\n";
-          ss << "i = " << i << "\n";
-          ss << "qposi_start = " << qposi_start << ", qposi_end = " << qposi_end << "\n";
-          ss << "prev_qposi_start = " << prev_qposi_start << ", prev_qposi_end =" << prev_qposi_end << "\n";
-          ss << "rposi_start = " << rposi_start << ", rposi_end = " << rposi_end << "\n";
-          ss << "prev_rposi_start = " << prev_rposi_start << ", prev_rposi_end = " << prev_rposi_end << "\n";
-          ss << "hi.tpos = " << hi.tpos << "\n##\n";
-          std::cerr << ss.str();
-          didOinkWithoutPizza = true;
-        }*/
-
         int32_t overlap_read = (prev_qposi_end - qposi_start);
         int32_t overlap_ref = (prev_rposi_end - rposi_start);
         if (i > 0 and overlap_ref >= 0 and (overlap_ref == overlap_read)) {
-          //if (i > 0 and (qposi - prev_qposi) == (rposi - prev_rposi) and static_cast<int32_t>(hi.tpos) < prev_rposi) {
-          /*if (chainOfInterest){
-            std::cerr << "pizza pizza!\n";
-            didOinkWithoutPizza = false;
-          }*/
-
           auto &lastMem = memList[currentMemIdx];
           uint32_t extension = rposi_end - prev_rposi_end;
           lastMem.extendedlen += extension;
@@ -447,12 +393,9 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
             lastMem.rpos = hi.rpos;
           }
           hi.extendedlen = std::numeric_limits<decltype(hi.extendedlen)>::max();
-          //keepMem.push_back(0);
         } else {
           currentMemIdx=i;
-          //keepMem.push_back(1);
         }
-        //if (didOinkWithoutPizza) { std::cerr << "\n\nNOOOOOOOOOO!!!!!!!!\n\n"; }
         prev_qposi_start = qposi_start;
         prev_rposi_start = rposi_start;
         prev_qposi_end = qposi_end;
@@ -463,7 +406,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                    [](pufferfish::util::MemInfo& m) {
                                        bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); return r;
                                    }), memList.end());
-
     }
 
   }
