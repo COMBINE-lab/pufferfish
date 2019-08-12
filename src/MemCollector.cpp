@@ -94,6 +94,15 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(pufferfish::util::Proj
   return currReadStart;
 }
 
+template <typename PufferfishIndexT>
+void MemCollector<PufferfishIndexT>::setConsensusFraction(double cf) {
+  mc.setConsensusFraction(cf);
+}
+
+template <typename PufferfishIndexT>
+double MemCollector<PufferfishIndexT>::getConsensusFraction() const {
+  return mc.getConsensusFraction();
+}
 
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::operator()(std::string &read,

@@ -15,11 +15,14 @@
 
 class MemClusterer {
 private:
-    uint32_t maxAllowedRefsPerHit = 1000;
+  uint32_t maxAllowedRefsPerHit_ = 1000;
+  double consensusFraction_ = 0.65;
   using RefMemMap = pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash>;
 
 public:
 
+  void setConsensusFraction(double cf);
+  double getConsensusFraction() const;
   void setMaxAllowedRefsPerHit(uint32_t max);
   uint32_t getMaxAllowedRefsPerHit();
 

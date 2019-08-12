@@ -28,7 +28,7 @@ public:
   size_t expandHitEfficient(pufferfish::util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
                           ExpansionTerminationType& et);
-    
+
   bool operator()(std::string &read,
                   pufferfish::util::QueryCache& qc,
                   bool isLeft=false,
@@ -45,6 +45,10 @@ public:
   void clear();
 
   void configureMemClusterer(uint32_t max);
+
+  void setConsensusFraction(double cf);
+
+  double getConsensusFraction() const;
 
 private:
   PufferfishIndexT* pfi_;

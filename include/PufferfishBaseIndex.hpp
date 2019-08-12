@@ -49,6 +49,9 @@ protected:
   // Get the k value with which this index was built.
   uint32_t k();
 
+  // Get the number of contigs in the underlying indexed cDBG
+  uint64_t numContigs() const;
+
   // Get the list of reference sequences & positions corresponding to a contig
   const core::range<std::vector<pufferfish::util::Position>::iterator> refList(uint64_t contigRank);
 

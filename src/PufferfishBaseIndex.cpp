@@ -290,6 +290,12 @@ auto  PufferfishBaseIndex<T>::getContigBlock(uint64_t rank)->pufferfish::util::C
   return {rank,sp,clen,seq};
 }
 
+// Get the number of contigs in the underlying indexed cDBG
+template <typename T>
+uint64_t PufferfishBaseIndex<T>::numContigs() const {
+  return underlying().numContigs_;
+}
+
 /**
  * Return the position list (ref_id, pos) corresponding to a contig.
  */

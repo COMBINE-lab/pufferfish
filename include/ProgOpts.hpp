@@ -27,6 +27,7 @@ class ExamineOptions {
 public:
   std::string index_dir{""};
   std::string fasta_out{""};
+  std::string kmer_freq_out{""};
 };
 
 class TestOptions {
@@ -53,6 +54,7 @@ public:
   uint32_t maxSpliceGap{100};
   uint32_t maxFragmentLength{1000};
   double scoreRatio{0.6};
+  double consensusFraction{0.65};
   std::string outname;
   double quasiCov{0.0};
   bool pairedEnd{false};

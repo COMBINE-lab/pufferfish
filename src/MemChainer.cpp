@@ -33,12 +33,15 @@ static inline float fasterlog2(float x) {
   return y - 126.94269504f;
 }
 
-void MemClusterer::setMaxAllowedRefsPerHit(uint32_t max){
-  maxAllowedRefsPerHit = max;
+void MemClusterer::setConsensusFraction(double cf) { consensusFraction_ = cf; }
+double MemClusterer::getConsensusFraction() const { return consensusFraction_; }
+
+void MemClusterer::setMaxAllowedRefsPerHit(uint32_t maxh){
+  maxAllowedRefsPerHit_ = maxh;
 }
 
 uint32_t MemClusterer::getMaxAllowedRefsPerHit() {
-  return maxAllowedRefsPerHit;
+  return maxAllowedRefsPerHit_;
 }
 
 bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
@@ -51,12 +54,12 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
     return false;
   }
 
-  //setMaxAllowedRefsPerHit(1000000);
+  //setMaxAllowedRefsPerHit(82);
   size_t totSize{0};
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
     auto &refs = hit.second.refRange;
     auto rs = refs.size();
-    totSize +=  (static_cast<uint64_t>(rs) < maxAllowedRefsPerHit) ? rs : 0;
+    totSize +=  (static_cast<uint64_t>(rs) < maxAllowedRefsPerHit_) ? rs : 0;
   }
 
   // here we guarantee that even if later we fill up
@@ -71,7 +74,7 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
     // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
     // Maybe we want to change the interface (make these members public or provide accessors)?
     auto &refs = projHits.refRange;
-    if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit) {
+    if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit_) {
       uint32_t mappings{0};
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                  readPos, projHits.k_, projHits.contigPos_,
@@ -109,8 +112,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs))
     return false;
 
+  int32_t signedReadLen = static_cast<int32_t>(readLen);
   size_t maxHits{0};
-//  for (auto hitIt = trMemMap.key_begin(); hitIt != trMemMap.key_end(); ++hitIt) {
   for (auto hitIt = trMemMap.begin(); hitIt != trMemMap.end(); ++hitIt) {
 
     auto& trOri = hitIt->first;
@@ -122,7 +125,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     auto &memList = *hitIt->second;
 //    auto& memList = trMemMap.cache_index(hitIt->second);
     size_t hits = memList.size();
-    if (hits < 0.65 * maxHits) { continue; }
+    if (hits < consensusFraction_ * maxHits) { continue; }
     if (hits > maxHits) { maxHits = hits; }
 
     // sort memList according to mem reference positions
@@ -184,16 +187,16 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     int32_t prev_rposi_end = 0;
     size_t currentMemIdx = 0;
 
-    int32_t prev_qposi_start = -1;
-    int32_t prev_rposi_start = -1;
+    //int32_t prev_qposi_start = -1;
+    //int32_t prev_rposi_start = -1;
 
     int32_t totLen{0};
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
-      int32_t qposi_start = hi.isFw ? hi.rpos : readLen - (hi.rpos + hi.extendedlen);
+      int32_t qposi_start = hi.isFw ? hi.rpos : signedReadLen - (hi.rpos + hi.extendedlen);
       int32_t rposi_start = hi.tpos;
 
-      int32_t qposi_end = hi.isFw ? (hi.rpos + hi.extendedlen) : (readLen - hi.rpos);
+      int32_t qposi_end = hi.isFw ? (hi.rpos + hi.extendedlen) : (signedReadLen - hi.rpos);
       int32_t rposi_end = hi.tpos + hi.extendedlen;
 
       int32_t overlap_read = (prev_qposi_end - qposi_start);
@@ -211,8 +214,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         totLen += hi.extendedlen;
         currentMemIdx=i;
       }
-      prev_qposi_start = qposi_start;
-      prev_rposi_start = rposi_start;
+      //prev_qposi_start = qposi_start;
+      //prev_rposi_start = rposi_start;
       prev_qposi_end = qposi_end;
       prev_rposi_end = rposi_end;
     }
@@ -299,7 +302,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         }
         // If the last two hits are too far from each other, we are sure that 
         // every other hit will be even further since the mems are sorted
-        if (rdiff > readLen * 2) {
+        if (rdiff > signedReadLen * 2) {
           break;
         }
         // Mohsen: This heuristic hurts the accuracy of the chain in the case of this read:
@@ -342,14 +345,14 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         if (shouldBeAdded) {
           // @fataltes --- is there a reason we were inserting here before rather than
           // pushing back?
-          memClusters[tid].push_back(pufferfish::util::MemCluster(isFw, readLen));
+          memClusters[tid].push_back(pufferfish::util::MemCluster(isFw, signedReadLen));
           auto& justAddedCluster = memClusters[tid].back();
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
             justAddedCluster.addMem(memList[*it].memInfo, memList[*it].tpos,
                                        memList[*it].extendedlen, memList[*it].rpos, isFw);
           }
           justAddedCluster.coverage = bestScore;
-          if (justAddedCluster.coverage == readLen)
+          if (justAddedCluster.coverage == signedReadLen)
             justAddedCluster.perfectChain = true;
           /*
           if (verbose)
@@ -367,20 +370,15 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       }
     }
 
-
-
-
-
-
     for (auto & memClust : memClusters[tid]) {
       auto &memList = memClust.mems;
       for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
         auto &hi = memList[i];
         //chainOfInterest = /*chainOfInterest or */(hi.rpos == 1 and hi.tpos == 163 and tid == 151214);
-        int32_t qposi_start = hi.isFw ? hi.rpos : readLen - (hi.rpos + hi.extendedlen);
+        int32_t qposi_start = hi.isFw ? hi.rpos : signedReadLen - (hi.rpos + hi.extendedlen);
         int32_t rposi_start = hi.tpos;
 
-        int32_t qposi_end = hi.isFw ? (hi.rpos + hi.extendedlen) : (readLen - hi.rpos);
+        int32_t qposi_end = hi.isFw ? (hi.rpos + hi.extendedlen) : (signedReadLen - hi.rpos);
         int32_t rposi_end = hi.tpos + hi.extendedlen;
 
         int32_t overlap_read = (prev_qposi_end - qposi_start);
@@ -396,8 +394,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         } else {
           currentMemIdx=i;
         }
-        prev_qposi_start = qposi_start;
-        prev_rposi_start = rposi_start;
+        //prev_qposi_start = qposi_start;
+        //prev_rposi_start = rposi_start;
         prev_qposi_end = qposi_end;
         prev_rposi_end = rposi_end;
       }

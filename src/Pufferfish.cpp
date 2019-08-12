@@ -123,7 +123,9 @@ int main(int argc, char* argv[]) {
                       command("examine").set(selected, mode::examine),
                       (required("-i", "--index") & value("index", examineOpt.index_dir)) % "pufferfish index directory",
                       (option("--dump-fasta") & value("fasta_out", examineOpt.fasta_out)) %
-                      "dump the reference sequences in the index in the provided fasta file"
+                      "dump the reference sequences in the index in the provided fasta file",
+                      (option("--dump-kmer-freq") & value("kmer_freq_out", examineOpt.kmer_freq_out)) %
+                      "dump the frequency histogram of k-mers"
                       );
   /*
   auto testMode = (
@@ -206,7 +208,10 @@ int main(int argc, char* argv[]) {
                     (option("--filterBestScoreMicrobiome").set(alignmentOpt.filterMicrobiomBestScore, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
                     (option("--filterMicrobiome").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.rrnaFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if an invalid gene ID is in the list of alignments.",
                     (option("--bt2DefaultThreshold").set(alignmentOpt.mimicBt2Default, true)) % "mimic the default threshold function of Bowtie2 which is t = -0.6 -0.6 * read_len",
-                    (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)"
+                    (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)",
+                    (option("--consensusFraction") & value("consensus fraction", alignmentOpt.consensusFraction)) % "The fraction of mems, relative to the reference with "
+                    "the maximum number of mems, that a reference must contain in order "
+                    "to move forward with computing an optimal chain score (default=0.65)"
   );
 
   auto cli = (
