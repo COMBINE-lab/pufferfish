@@ -90,7 +90,7 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, pufferfish::util::QueryCache& qc, 
  * Check for internal consistency of the index
  **/
 template <typename IndexT>
-int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
+int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   (void)(validateOpts);
   int32_t k = pi.k();
   CanonicalKmer::k(k);
@@ -154,7 +154,7 @@ int doPufferfishInternalValidate(IndexT& pi, ValidateOptions& validateOpts) {
 }
 
 template <typename IndexT>
-int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
+int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   //size_t k = pi.k();
   CanonicalKmer::k(pi.k());
   size_t found = 0;
@@ -420,7 +420,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
 }
 
 
-int pufferfishValidate(ValidateOptions& validateOpts) {
+int pufferfishValidate(pufferfish::ValidateOptions& validateOpts) {
 
   auto indexDir = validateOpts.indexDir;
   std::string indexType;

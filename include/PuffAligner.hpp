@@ -29,7 +29,7 @@ using AlnCacheMap = phmap::flat_hash_map<uint64_t, AlignmentResult, PassthroughH
 class PuffAligner {
 public:
   PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, 
-              AlignmentOpts* m, ksw2pp::KSW2Aligner& a) : 
+              pufferfish::AlignmentOpts* m, ksw2pp::KSW2Aligner& a) : 
     allRefSeq(ar), refAccumLengths(ral), k(k_), 
     mopts(m), aligner(a) {
 		memset(&ez, 0, sizeof(ksw_extz_t));
@@ -69,7 +69,7 @@ private:
   compact::vector<uint64_t, 2>& allRefSeq;
   std::vector<uint64_t>& refAccumLengths;
   uint32_t k;
-  AlignmentOpts* mopts;
+  pufferfish::AlignmentOpts* mopts;
   ksw2pp::KSW2Aligner& aligner;
   ksw_extz_t ez;
 

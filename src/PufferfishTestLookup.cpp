@@ -22,7 +22,7 @@
 namespace kmers = combinelib::kmers;
 
 template <typename IndexT>
-int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
+int doPufferfishTestLookup(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   CanonicalKmer::k(pi.k());
   int k = pi.k();
   (void)k;
@@ -100,7 +100,7 @@ int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
   return 0;
 }
 
-int pufferfishTestLookup(ValidateOptions& validateOpts) {
+int pufferfishTestLookup(pufferfish::ValidateOptions& validateOpts) {
   auto indexDir = validateOpts.indexDir;
   std::string indexType;
   {

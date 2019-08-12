@@ -194,7 +194,7 @@ private:
   uint64_t word_{0};
 };
 
-int pufferfishTest(TestOptions& testOpts) {
+int pufferfishTest(pufferfish::TestOptions& testOpts) {
   (void)testOpts;
   std::cerr << "this command is not yet implemented\n";
   return 1;
@@ -313,7 +313,7 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
 }
 
 
-int pufferfishIndex(IndexOptions& indexOpts) {
+int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
   std::vector<std::string> rfiles = indexOpts.rfile;
   std::string rfile;

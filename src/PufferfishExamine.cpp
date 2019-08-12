@@ -70,7 +70,7 @@ bool dump_kmer_freq(Index& pi, std::string& out) {
   return true;
 }
 
-int pufferfishExamine(ExamineOptions& opts) {
+int pufferfishExamine(pufferfish::ExamineOptions& opts) {
   bool dump_fasta = !opts.fasta_out.empty();
   bool kmer_freq = !opts.kmer_freq_out.empty();
 

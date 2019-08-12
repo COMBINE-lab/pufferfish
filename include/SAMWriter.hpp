@@ -89,7 +89,7 @@ inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, bool peInp
 }
 
 template <typename IndexT>
-inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, AlignmentOpts* mopts) {
+inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts) {
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)
   auto& txpNames = pfi.getFullRefNames();

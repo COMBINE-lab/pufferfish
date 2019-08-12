@@ -34,14 +34,14 @@
 #include "Util.hpp"
 //#include "IndexHeader.hpp"
 
-int pufferfishIndex(IndexOptions& indexOpts); // int argc, char* argv[]);
-int pufferfishTest(TestOptions& testOpts);    // int argc, char* argv[]);
+int pufferfishIndex(pufferfish::IndexOptions& indexOpts); // int argc, char* argv[]);
+int pufferfishTest(pufferfish::TestOptions& testOpts);    // int argc, char* argv[]);
 int pufferfishValidate(
-    ValidateOptions& validateOpts); // int argc, char* argv[]);
+                       pufferfish::ValidateOptions& validateOpts); // int argc, char* argv[]);
 int pufferfishTestLookup(
-    ValidateOptions& lookupOpts); // int argc, char* argv[]);
-int pufferfishAligner(AlignmentOpts& alignmentOpts) ;
-int pufferfishExamine(ExamineOptions& examineOpts);
+                         pufferfish::ValidateOptions& lookupOpts); // int argc, char* argv[]);
+int pufferfishAligner(pufferfish::AlignmentOpts& alignmentOpts) ;
+int pufferfishExamine(pufferfish::ExamineOptions& examineOpts);
 
 int main(int argc, char* argv[]) {
   using namespace clipp;
@@ -50,12 +50,12 @@ int main(int argc, char* argv[]) {
 
   enum class mode {help, index, validate, lookup, align, examine};
   mode selected = mode::help;
-  AlignmentOpts alignmentOpt ;
-  IndexOptions indexOpt;
+  pufferfish::AlignmentOpts alignmentOpt ;
+  pufferfish::IndexOptions indexOpt;
   //TestOptions testOpt;
-  ValidateOptions validateOpt;
-  ValidateOptions lookupOpt;
-  ExamineOptions examineOpt;
+  pufferfish::ValidateOptions validateOpt;
+  pufferfish::ValidateOptions lookupOpt;
+  pufferfish::ExamineOptions examineOpt;
 
   auto ensure_file_exists = [](const std::string& s) -> bool {
       bool exists = ghc::filesystem::exists(s);

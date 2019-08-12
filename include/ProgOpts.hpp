@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+namespace pufferfish {
 class IndexOptions {
 public:
   uint32_t k{31};
@@ -95,6 +96,6 @@ public:
   bool recoverOrphans{false};
   bool mimicBt2Default{false};
 };
-
+}
 
 #endif

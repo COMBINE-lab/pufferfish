@@ -88,7 +88,7 @@ void processReadsPair(paired_parser *parser,
                       HitCounters &hctr,
                       phmap::flat_hash_set<std::string>& gene_names,
                       phmap::flat_hash_set<std::string>& rrna_names,
-                      AlignmentOpts *mopts) {
+                      pufferfish::AlignmentOpts *mopts) {
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
@@ -507,7 +507,7 @@ void processReadsSingle(single_parser *parser,
                         std::shared_ptr<spdlog::logger> outQueue,
                         HitCounters &hctr,
                         phmap::flat_hash_set<std::string>& gene_names,
-                        AlignmentOpts *mopts) {
+                        pufferfish::AlignmentOpts *mopts) {
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
@@ -792,7 +792,7 @@ bool spawnProcessReadsThreads(
         HitCounters &hctr,
         phmap::flat_hash_set<std::string>& gene_names,
         phmap::flat_hash_set<std::string>& rrna_names,
-        AlignmentOpts *mopts) {
+        pufferfish::AlignmentOpts *mopts) {
 
     std::vector<std::thread> threads;
 
@@ -825,7 +825,7 @@ bool spawnProcessReadsThreads(
         std::shared_ptr<spdlog::logger> outQueue,
         HitCounters &hctr,
         phmap::flat_hash_set<std::string>& gene_names,
-        AlignmentOpts *mopts) {
+        pufferfish::AlignmentOpts *mopts) {
 
     std::vector<std::thread> threads;
 
@@ -875,7 +875,7 @@ template<typename PufferfishIndexT>
 bool alignReads(
         PufferfishIndexT &pfi,
         std::shared_ptr<spdlog::logger> consoleLog,
-        AlignmentOpts *mopts) {
+        pufferfish::AlignmentOpts *mopts) {
 
     std::streambuf *outBuf;
     std::ofstream outFile;
@@ -1015,7 +1015,7 @@ template<typename PufferfishIndexT>
 bool alignReadsWrapper(
         PufferfishIndexT &pfi,
         std::shared_ptr<spdlog::logger> consoleLog,
-        AlignmentOpts *mopts) {
+        pufferfish::AlignmentOpts *mopts) {
     bool res = true;
     if (mopts->listOfReads) {
         if (mopts->singleEnd) {
@@ -1050,7 +1050,7 @@ bool alignReadsWrapper(
     return res;
 }
 
-int pufferfishAligner(AlignmentOpts &alnargs) {
+int pufferfishAligner(pufferfish::AlignmentOpts &alnargs) {
 
     auto consoleLog = spdlog::stderr_color_mt("console");
     bool success{false};
