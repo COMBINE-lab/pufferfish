@@ -27,12 +27,12 @@ if (NOT GAT_SOURCE_DIR)
 endif()
 
 set(KSW_FLAGS "-march=native;-DHAVE_KALLOC")
-set(RBF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
 set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-Wconversion;-Wctor-dtor-privacy;-Wdisabled-optimization;-Wdouble-promotion;-Wextra;-Wformat=2;-Winit-self;-Wlogical-op;-Wmissing-declarations;-Wmissing-include-dirs;-Wno-sign-conversion;-Wnoexcept;-Wold-style-cast;-Woverloaded-virtual;-Wpedantic;-Wredundant-decls;-Wshadow;-Wstrict-aliasing=1;-Wstrict-null-sentinel;-Wstrict-overflow=5;-Wswitch-default;-Wundef;-Wno-unknown-pragmas;-Wuseless-cast;-Wno-unused-parameter")
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
-set(OPT_FLAGS "-g;-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-mmmx;-msse;-msse2;-msse3;-msse4;-msse4.2;-march=native;-fno-strict-aliasing")
+set(OPT_FLAGS "-g;-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-ftree-vectorize;-fno-strict-aliasing")
 set(DEBUG_FLAGS "-pg;-g;-gstabs")
 
 ##
@@ -171,7 +171,7 @@ DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
 CONFIGURE_COMMAND ./configure 
-BUILD_COMMAND     make -j8 CXXFLAGS='-std=c++14'
+BUILD_COMMAND     make CXXFLAGS='-std=c++14'
 INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include && cp src/libseqlib.a <INSTALL_DIR>/lib && 
                   cp htslib/libhts.a <INSTALL_DIR>/lib &&
                   cp -r SeqLib <INSTALL_DIR>/include &&
@@ -199,8 +199,8 @@ ExternalProject_Add(libSetCover
 endif()
 
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
-set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${OPT_FLAGS}")
-set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${RBF_CPP_FLAGS};${DEBUG_FLAGS}")
+set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS}")
+set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${DEBUG_FLAGS}")
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/ntcard)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
