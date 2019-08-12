@@ -436,7 +436,7 @@ void fixFasta(single_parser* parser,
   */
 }
 
-spp::sparse_hash_set<std::string> populateDecoyHash(const std::string& fname, std::shared_ptr<spdlog::logger> log) {
+spp::sparse_hash_set<std::string> populateDecoyHashPuff(const std::string& fname, std::shared_ptr<spdlog::logger> log) {
   spp::sparse_hash_set<std::string> dset;
   std::ifstream dfile(fname);
 
@@ -497,7 +497,7 @@ int fixFastaMain(std::vector<std::string>& args,
         console->error("The decoy file {} does not exist.", decoyFile);
         std::exit(1);
       }
-      decoyNames = populateDecoyHash(decoyFile, console);
+      decoyNames = populateDecoyHashPuff(decoyFile, console);
     }
 
     size_t numThreads{1};
