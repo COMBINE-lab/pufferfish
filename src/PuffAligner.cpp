@@ -157,8 +157,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   memset(&ez, 0, sizeof(ksw_extz_t));
 
   // where this reference starts, and its length.
-  uint64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
-  uint64_t refTotalLength = refAccumLengths[tid] - refAccPos;
+  int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
+  int64_t refTotalLength = refAccumLengths[tid] - refAccPos;
 
   auto& frontMem = mems.front();
   auto rpos = frontMem.rpos;
@@ -243,6 +243,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
   }
 
+  //auto logger_ = spdlog::get("console");
+  //spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+  //logger_->set_pattern("%v");
+
   // @mohsen & @fataltes --- we should figure out how to
   // avoid computing the rc of a read if we've already done it.
   if (!isFw and read_rc.empty()) { read_rc = pufferfish::util::reverseComplement(read); }
@@ -258,21 +262,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     arOut.score /*= alignment*/ = alignmentScore = readLen * mopts->matchScore;
     if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
     hctr.skippedAlignments_byCov += 1;
-    // if (!doFullAlignment) {
-    //   std::stringstream ss;
-    //   ss << "[[\n";
-    //   ss << "read sequence (" << (isFw ? "FW" : "RC") << ") : " << readView << "\n";
-    //   ss << "ref  sequence      : " << tseq << "\n";
-    //   ss << "perfect chain!\n]]\n";
-    //   std::cerr << ss.str();
-    // } else {
-    //   std::stringstream ss;
-    //   ss << "[[\n";
-    //   ss << "read sequence (" << (isFw ? "FW" : "RC") << ") : " << readView << "\n";
-    //   ss << "ref  sequence      : " << refSeqBuffer_ << "\n";
-    //   ss << "perfect chain!\n]]\n";
-    //   std::cerr << ss.str();
-    // }
+    SPDLOG_DEBUG(logger_,"[[");
+    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
+    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
   } else if (doFullAlignment) {
     //aligner.config().flag = 0;
     //aligner.config().flag |= KSW_EZ_RIGHT;
@@ -287,24 +280,19 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     //openGapLen = addCigar(cigarGen, ez, false); 
     //cigar = cigarGen.get_cigar(readLen, cigar_fixed);
     //std::cerr << "cigar : " << cigar << "\n";
-    // std::cerr << "readSeq : " << readSeq << "\n";
-    // std::cerr << "refSeq  : " << refSeqBuffer_ << "\n";
-    // std::cerr << "score : " << alignmentScore << "\n";
-    // std::cerr << "readStart : " << readStart << ", refID : " << tid << ", refStart : " << refStart << "\n";
-    // std::cerr << "currHitStart_read : " << currHitStart_read << ", currHitStart_ref : " << currHitStart_ref << "\n";
-    // std::cerr << "mqe : " << ez.mqe << ", mte : " << ez.mte << "\n";
+    SPDLOG_DEBUG(logger_,"readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
+    SPDLOG_DEBUG(logger_,"currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
 
     if (computeCIGAR) { openGapLen = addCigar(cigarGen, ez, false); }
   } else {
     // ROB ATTEMPT ---
     alignmentScore = 0;
-    
+
     //std::stringstream ss;
-    //ss << "[[\n";
-    //ss << "read sequence (" << (isFw ? "FW" : "RC") << ") : " << readView << "\n";
-    //ss << "ref  sequence      : " << tseq << "\n";
-    //ss << "refID : " << tid << "\n";
-    
+    SPDLOG_DEBUG(logger_,"[[");
+    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}\nrefID : {}", tseq, tid);
+
     // If the first mem does not start at the beginning of the
     // read, then there is a gap to align.
     int32_t firstMemStart_read = (isFw) ? rpos : readLen - (rpos + memlen);
@@ -324,33 +312,23 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if (refSeqBuffer_.length() > 0) {
         auto readWindow = readView.substr(0, firstMemStart_read).to_string();
         std::reverse(readWindow.begin(), readWindow.end());
-        //ss << "PRE:\n";
-        //ss << "readStartPosOnRef : " << readStartPosOnRef << "\n";
-        //ss << "refWindowStart : " << refWindowStart << "\n";
-        //ss << "refWindowLength : " << refWindowLength << "\n";
-        //ss << "read : [" << readWindow << "]\n";
-        //ss << "ref  : [" << refSeqBuffer_ << "]\n";
-        ////ss << "score : " << std::max(ez.mqe, ez.mte) << "\n";
+        SPDLOG_DEBUG(logger_,"PRE:\nreadStartPosOnRef : {}\nrefWindowStart : {}", readStartPosOnRef, refWindowStart);
+        SPDLOG_DEBUG(logger_,"refWindowLength : {}\nread : [{}]\nref : [{}]", refWindowLength, readWindow, refSeqBuffer_);
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         alignmentScore += std::max(ez.mqe, ez.mte);
         openGapLen = addCigar(cigarGen, ez, true);
-        //ss << "score : " << std::max(ez.mqe, ez.mte) << "\n";
+        SPDLOG_DEBUG(logger_,"score : {}", std::max(ez.mqe, ez.mte));
       } else {
         // do any special soft clipping penalty here if we want
       }
     }
 
-    // @fataltes --- trying not to treat the first mem in a special way.
-    // score for the first mem
-    //alignmentScore += mopts->matchScore * memlen;
+    int32_t prevMemEnd_read = isFw ? rpos : readLen - (rpos+memlen);
+    int32_t prevMemEnd_ref = tpos;
 
-    int32_t prevMemEnd_read = isFw ? rpos : readLen - (rpos+memlen);//isFw ? (rpos + memlen - 1) : readLen - rpos - 1;
-    int32_t prevMemEnd_ref = tpos;//tpos + memlen - 1;
-    //int32_t prevMemLen = memlen;
-
-    //ss << "\t Aligning through MEM chain : \n";
+    SPDLOG_DEBUG(logger_,"\t Aligning through MEM chain : ");
     // for the second through the last mem
     for(auto it = mems.begin(); it != mems.end(); ++it) {
       auto& mem = *it;
@@ -372,54 +350,42 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         if (gapRead < 0) { // subtract off extra matches
           score += mopts->matchScore * gapRead;
         }
-        //ss << "\t GAP NOT THE SAME :\n";
-        //ss << "\t gapRef : " << gapRef << ", gapRead : " << gapRead << "\n";
-        //ss << ", total score (MEM + gapDiff) : " << score << "\n";
+        SPDLOG_DEBUG(logger_,"\t GAP NOT THE SAME:\n\t gapRef : {}, gapRead : {}", gapRef, gapRead);
+        SPDLOG_DEBUG(logger_,"\t totalScore (MEM + gapDiff) : {}", score);
       } else if (gapRead > 0 and gapRef > 0) {
-        
-        //ss << "\t\t overlaps : \n";
-        //ss << "\t\t gapRef : " << gapRef << ", gapRead : " << gapRead << "\n";
-        
+        SPDLOG_DEBUG(logger_,"\t\t overlaps : \n\t\t gapRef : {}, gapRead : {}", gapRef, gapRead);
 
         auto readWindow = readView.substr(prevMemEnd_read + 1, gapRead);
         const char* refSeq1 = tseq.data() + (prevMemEnd_ref) - refStart + 1;
 
-        
-        //ss << "\t\t aligning\n";
-        //ss << "\t\t [" << readWindow << "]\n";
-        //ss << "\t\t [" << nonstd::string_view(refSeq1, gapRef) << "]\n";
+        SPDLOG_DEBUG(logger_,"\t\t aligning\n\t\t [{}]\n\t\t\ [{}]", readWindow, nonstd::string_view(refSeq1, gapRef));
         if (prevMemEnd_ref - refStart + 1 + gapRef >= tseq.size()) {
-          //ss << "\t\t tseq was not long enough; need to fetch more!\n";
+          SPDLOG_DEBUG(logger_,"\t\t tseq was not long enough; need to fetch more!");
         }
-        
 
         score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
         addCigar(cigarGen, ez, false);
       } else if ( it > mems.begin() and ((currMemStart_read <= prevMemEnd_read) or (currMemStart_ref <= prevMemEnd_ref)) ){
-        
-        //ss << "]]\n";
-        //std::cerr << ss.str() << "\n";
-        
+        SPDLOG_DEBUG(logger_,"]]\n");
         std::cerr << "[ERROR in PuffAligner, between-MEM alignment] : Improperly compacted MEM chain.  Should not happen!\n";
         std::cerr << "gapRef : " << gapRef << ", gapRead : " << gapRead << ", memlen : " << memlen << "\n";
         std::cerr << "prevMemEnd_read : " << prevMemEnd_read << ", currMemStart_read : " << currMemStart_read << "\n";
         std::cerr << "prevMemEnd_ref  : " << prevMemEnd_ref <<  ", currMemStart_ref  : " << currMemStart_ref << "\n";
         std::exit(1);
       }
-      
-      //ss << "\t MEM (rpos : " << rpos << ", memlen : " << memlen << ", tpos : " << tpos <<  "): \n";
-      //ss << "\t gapRef : " << gapRef << ", gapRead : " << gapRead << "\n";
+
+      SPDLOG_DEBUG(logger_,"\t MEM (rpos : {}, memlen : {}, tpos : {})", rpos, memlen, tpos);
+      SPDLOG_DEBUG(logger_,"\t gapRef : {}, gapRead : {}", gapRef, gapRead);
       auto printView = readView.substr(currMemStart_read, memlen);
       auto refView = nonstd::string_view(tseq.c_str() + tpos - refStart, memlen);
-      
-      //ss << "\t read [" << printView << "], pos : " << currMemStart_read << ", len : " << memlen << ", ori : " << (isFw ? "FW" : "RC") << "\n";
-      //ss << "\t ref  [" << refView << "], pos : " << currMemStart_ref << ", len : " << memlen << "\n";
+
+      SPDLOG_DEBUG(logger_,"\t read [{}], pos : {}, len : {}, ori : {}", printView, currMemStart_read, memlen, (isFw ? "FW" : "RC"));
+      SPDLOG_DEBUG(logger_,"\t ref  [{}], pos : {}, len : {}", refView, currMemStart_ref, memlen);
       if (printView.length() != refView.length()) {
-        //ss << "\t\t tseq was not long enough; need to fetch more!\n";
+        SPDLOG_DEBUG(logger_,"\t readView length != refView length; should not happen!");
         std::exit(1);
       }
-      
 
       prevMemEnd_read = currMemStart_read + memlen - 1;
       prevMemEnd_ref = tpos + memlen - 1;
@@ -427,8 +393,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
 
     // If we got to the end, and there is a read gap left, then align that as well
-    //ss << "prevMemEnd_read : " << prevMemEnd_read << ", readLen : " << readLen << "\n";
-    bool gapAtEnd = (prevMemEnd_read + 1) <= (readLen - 1);
+    SPDLOG_DEBUG(logger_,"prevMemEnd_read : {}, readLen : {}", prevMemEnd_read, readLen);
+    bool gapAtEnd = (prevMemEnd_read + 1) <= (static_cast<int32_t>(readLen) - 1);
     if (gapAtEnd) {
       int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
       int32_t refTailStart = prevMemEnd_ref + 1;
@@ -439,27 +405,24 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       auto readWindow = readView.substr(prevMemEnd_read + 1);
       fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
 
-      
-      //ss << "POST:\n";
-      //ss << "read : [" << readWindow << "]\n";
-      //ss << "ref  : [" << refSeqBuffer_ << "]\n";
-      //ss << "gapRead : " << gapRead << ", refLen : " << refLen  << ", refBuffer_.size() : " << refSeqBuffer_.size() << ", refTotalLength : " << refTotalLength << "\n";
+      SPDLOG_DEBUG(logger_,"POST:");
+      SPDLOG_DEBUG(logger_,"read : [{}]", readWindow);
+      SPDLOG_DEBUG(logger_,"ref  : [{}]", refSeqBuffer_);
+      SPDLOG_DEBUG(logger_,"gapRead : {}, refLen : {}, refBuffer_.size() : {}, refTotalLength : {}", gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
+
       if (refLen > 0) {
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         int32_t alnCost = std::max(ez.mqe, ez.mte);
         int32_t delCost = (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * readWindow.length());
         alignmentScore += std::max(alnCost, delCost);
-        //ss << "POST score : " << std::max(ez.mqe, ez.mte) << "\n";
+        SPDLOG_DEBUG(logger_,"POST score : {}", std::max(ez.mqe, ez.mte));
       } else {
         // do any special soft-clipping penalty here if we want
       }
     }
 
-    //ss << "score : " << alignmentScore << "\n";
-    //ss << "]]\n";
-    //std::cerr << ss.str() << "\n";
-    
+    SPDLOG_DEBUG(logger_,"score : {}\n]]\n", alignmentScore);
 
     /*
     alignmentScore = 0;
