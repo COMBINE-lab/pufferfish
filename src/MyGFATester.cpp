@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <vector>
 //#include "PufferFS.hpp"
-#include "BooPHF.h"
+#include "BooPHF.hpp"
 //#include "OurGFAReader.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"

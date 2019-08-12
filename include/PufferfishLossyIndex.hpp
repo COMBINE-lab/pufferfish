@@ -8,7 +8,7 @@
 
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
-#include "BooPHF.h"
+#include "BooPHF.hpp"
 #include "Util.hpp"
 #include "PufferfishBaseIndex.hpp"
 #include "rank9sel.hpp"
@@ -36,8 +36,7 @@ private:
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
   std::vector<uint32_t> refLengths_;
-  std::vector<uint32_t> refExt_;
-  std::vector<pufferfish::util::Position> contigTable_;
+  std::vector<util::Position> contigTable_;
   std::vector<uint64_t> contigOffsets_;
   uint64_t numContigs_{0};
   bit_vector_t contigBoundary_;
@@ -64,8 +63,8 @@ public:
   PufferfishLossyIndex(const std::string& indexPath);
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
-  auto getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits;
-  auto getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache& qc) -> pufferfish::util::ProjectedHits;
+  auto getRefPos(CanonicalKmer& mer) -> util::ProjectedHits;
+  auto getRefPos(CanonicalKmer& mer, util::QueryCache& qc) -> util::ProjectedHits;
 };
 
 #endif // _PUFFERFISH_INDEX_HPP_

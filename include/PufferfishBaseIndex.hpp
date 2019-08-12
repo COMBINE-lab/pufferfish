@@ -10,7 +10,7 @@
 
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
-#include "BooPHF.h"
+#include "BooPHF.hpp"
 #include "Util.hpp"
 #include "PufferfishTypes.hpp"
 

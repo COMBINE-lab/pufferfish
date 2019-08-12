@@ -9,7 +9,7 @@
 
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
-#include "BooPHF.h"
+#include "BooPHF.hpp"
 #include "Util.hpp"
 #include "PufferfishBaseIndex.hpp"
 #include "rank9sel.hpp"

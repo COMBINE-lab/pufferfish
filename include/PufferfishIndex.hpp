@@ -6,7 +6,7 @@
 #include "cereal/archives/json.hpp"
 #include "core/range.hpp"
 
-#include "BooPHF.h"
+#include "BooPHF.hpp"
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "Util.hpp"
