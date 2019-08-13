@@ -465,7 +465,8 @@ uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
 template <typename ReadT, typename IndexT>
 inline uint32_t writeAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans) {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, 
+    bool tidsAlreadyDecoded = false) {
   (void) writeOrphans;
 
 
@@ -488,10 +489,14 @@ inline uint32_t writeAlignmentsToStreamSingle(
   uint32_t alnCtr{0};
   bool haveRev{false};
   size_t i{0};
+
+  auto* fullRefNames = tidsAlreadyDecoded ? &formatter.index->getFullRefNames() : nullptr;
+  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengths() : nullptr;
+
   for (auto& qa : jointHits) {
     ++i;
-    auto& refName = formatter.index->refName(qa.tid);
-    uint32_t txpLen = formatter.index->refLength(qa.tid);
+    auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
+    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLenghts)[qa.tid] : formatter.index->refLength(qa.tid);
     // === SAM
       getSamFlags(qa, flags);
       if (alnCtr != 0) {
@@ -535,7 +540,8 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
-    bool writeOrphans) {
+    bool writeOrphans,
+    bool tidsAlreadyDecoded = false) {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
@@ -579,10 +585,14 @@ inline uint32_t writeAlignmentsToStream(
   bool haveRev2{false};
   bool* haveRev = nullptr;
   size_t i{0};
+
+  auto* fullRefNames = tidsAlreadyDecoded ? &formatter.index->getFullRefNames() : nullptr;
+  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengths() : nullptr;
+
   for (auto& qa : jointHits) {
     ++i;
-    auto& refName = formatter.index->refName(qa.tid);
-    uint32_t txpLen = formatter.index->refLength(qa.tid);
+    auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
+    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLenghts)[qa.tid] : formatter.index->refLength(qa.tid);
     // === SAM
     if (qa.isPaired) {
       getSamFlags(qa, true, flags1, flags2);
