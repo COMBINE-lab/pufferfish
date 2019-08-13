@@ -101,6 +101,26 @@ namespace compact {
                 }
             }
 
+          vector& operator=(const vector& rhs) {
+            m_allocator = rhs.m_allocator;
+            m_size      = rhs.m_size;
+            m_capacity  = rhs.m_capacity;
+            m_mem       = m_allocator.allocate(elements_to_words(m_capacity, bits()));
+            std::memcpy(m_mem, rhs.m_mem, bytes());
+            return *this;
+          }
+
+          vector& operator=(vector&& rhs) {
+            m_allocator = std::move(rhs.m_allocator);
+            m_size      = rhs.m_size;
+            m_capacity  = rhs.m_capacity;
+            m_mem       = rhs.m_mem;
+
+            rhs.m_size = rhs.m_capacity = 0;
+            rhs.m_mem  = nullptr;
+            return *this;
+          }
+
             const_iterator begin() const { return const_iterator(m_mem, bits(), 0); }
 
             iterator begin() { return iterator(m_mem, bits(), 0); }
@@ -384,7 +404,32 @@ namespace compact {
             vector_dyn(unsigned b, Allocator allocator = Allocator())
                     : super(allocator), m_bits(b) {}
 
+          vector_dyn(vector_dyn&& rhs)
+            : super(std::move(rhs))
+            , m_bits(rhs.bits())
+          { }
+
+          vector_dyn(const vector_dyn& rhs)
+            : super(rhs)
+            , m_bits(rhs.bits())
+          { }
+
+
             inline unsigned bits() const { return m_bits; }
+
+          vector_dyn& operator=(const vector_dyn& rhs) {
+            if(bits() != rhs.bits())
+              throw std::invalid_argument("Bit length of compacted vector differ");
+            static_cast<super*>(this)->operator=(rhs);
+            return *this;
+          }
+
+          vector_dyn& operator=(vector_dyn&& rhs) {
+            if(bits() != rhs.bits())
+              throw std::invalid_argument("Bit length of compacted vector differ");
+            static_cast<super*>(this)->operator=(std::move(rhs));
+            return *this;
+          }
 
             void set_m_bits(size_t m) { m_bits = m; }
         };

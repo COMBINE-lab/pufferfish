@@ -823,6 +823,10 @@ Compile-time selection between list-like and map-like printing.
         double logBias{HUGE_VAL};
         inline LibraryFormat libFormat() { return format; }
         LibraryFormat format;
+        double estAlnProb;
+        double logProb;
+
+
 #endif // RAPMAP_SALMON_SUPPORT
 */
             // Only 1 since the mate must have the same tid
