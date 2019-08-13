@@ -48,6 +48,7 @@ namespace pufferfish {
         constexpr const char CTABLE[] = "ctable.bin";
         constexpr const char EQTABLE[] = "eqtable.bin";
         constexpr const char REFLENGTH[] = "reflengths.bin";
+        constexpr const char COMPLETEREFLENGTH[] = "complete_ref_lens.bin";
         constexpr const char REFACCUMLENGTH[] = "refAccumLengths.bin";
         constexpr const char REFNAME[] = "reflengths.bin";
         constexpr const char RANK[] = "rank.bin";

@@ -62,7 +62,17 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     }
   }
 
-
+  {
+    std::string rlPath = indexDir + "/" + pufferfish::util::COMPLETEREFLENGTH;
+    if (puffer::fs::FileExists(rlPath.c_str())) {
+      std::ifstream completeRefLengthStream(rlPath);
+      cereal::BinaryInputArchive completeRefLengthArchive(completeRefLengthStream);
+      completeRefLengthArchive(completeRefLengths_);
+    } else {
+      throw std::runtime_error("could not load complete reference lengths!");
+    }
+  }
+  
   {
     CLI::AutoTimer timer{"Loading eq table", CLI::Timer::Big};
     std::ifstream eqTableStream(indexDir + "/" + pufferfish::util::EQTABLE);

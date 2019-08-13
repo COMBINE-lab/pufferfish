@@ -65,10 +65,16 @@ protected:
     return underlying().refLengths_[refRank+underlying().refExt_[refRank]];
   }
 
+  inline uint32_t completeRefLength(uint64_t refRank) const {
+    return underlying().completeRefLengths_[refRank+underlying().refExt_[refRank]];
+  }
+
   // Get the list of reference names
   const std::vector<std::string>& getFullRefNames() ;
   // and lengths
   const std::vector<uint32_t>& getFullRefLengths() const;
+  // and lengths
+  const std::vector<uint32_t>& getFullRefLengthsComplete () const;
 
   uint64_t getIndexedRefCount() const;
 
