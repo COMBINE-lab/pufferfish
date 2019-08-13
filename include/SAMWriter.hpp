@@ -496,7 +496,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
   for (auto& qa : jointHits) {
     ++i;
     auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
-    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLenghts)[qa.tid] : formatter.index->refLength(qa.tid);
+    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLengths)[qa.tid] : formatter.index->refLength(qa.tid);
     // === SAM
       getSamFlags(qa, flags);
       if (alnCtr != 0) {
@@ -592,7 +592,7 @@ inline uint32_t writeAlignmentsToStream(
   for (auto& qa : jointHits) {
     ++i;
     auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
-    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLenghts)[qa.tid] : formatter.index->refLength(qa.tid);
+    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLengths)[qa.tid] : formatter.index->refLength(qa.tid);
     // === SAM
     if (qa.isPaired) {
       getSamFlags(qa, true, flags1, flags2);
