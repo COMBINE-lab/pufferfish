@@ -136,7 +136,16 @@ void processReadsPair(paired_parser *parser,
 
     phmap::flat_hash_map<uint32_t, std::pair<int32_t, int32_t>> bestScorePerTranscript;
 
-    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner);
+    pufferfish::util::AlignmentConfig aconf;
+    aconf.refExtendLength = mopts->refExtendLength;
+    aconf.fullAlignment = mopts->fullAlignment;
+    aconf.matchScore = mopts->matchScore;
+    aconf.gapExtendPenalty = mopts->gapExtendPenalty;
+    aconf.gapOpenPenalty = mopts->gapOpenPenalty;
+    aconf.minScoreFraction = mopts->minScoreFraction;
+    aconf.mimicBT2 = mopts->mimicBt2Default;
+
+    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
     std::vector<QuasiAlignment> jointAlignments;
     using pufferfish::util::BestHitReferenceType;
@@ -546,7 +555,17 @@ void processReadsSingle(single_parser *parser,
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
 
 //    auto &txpNames = pfi.getRefNames();
-    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), mopts, aligner);
+
+    pufferfish::util::AlignmentConfig aconf;
+    aconf.refExtendLength = mopts->refExtendLength;
+    aconf.fullAlignment = mopts->fullAlignment;
+    aconf.matchScore = mopts->matchScore;
+    aconf.gapExtendPenalty = mopts->gapExtendPenalty;
+    aconf.gapOpenPenalty = mopts->gapOpenPenalty;
+    aconf.minScoreFraction = mopts->minScoreFraction;
+    aconf.mimicBT2 = mopts->mimicBt2Default;
+
+    PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
     auto rg = parser->getReadGroup();
     while (parser->refill(rg)) {

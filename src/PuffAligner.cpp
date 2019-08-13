@@ -138,7 +138,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
-  int32_t refExtLength = static_cast<int32_t>(mopts->refExtendLength);
+  int32_t refExtLength = static_cast<int32_t>(mopts.refExtendLength);
   bool firstMem = true;
   int32_t lastHitEnd_read = -1;
   int32_t currHitStart_read = 0;
@@ -171,7 +171,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // @mohsen & @fataltes : we need a better signal than memlen == 1
   // to designate this was a recovered orphan.
   bool recoveredOrphan = memlen == 1;
-  bool doFullAlignment = mopts->fullAlignment or recoveredOrphan;
+  bool doFullAlignment = mopts.fullAlignment or recoveredOrphan;
   currHitStart_read = isFw ? rpos : readLen - (rpos + memlen);
 
   if (currHitStart_read < 0 or currHitStart_read >= (int32_t) readLen) {
@@ -259,7 +259,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   */
 
   if (perfectChain) {
-    arOut.score /*= alignment*/ = alignmentScore = readLen * mopts->matchScore;
+    arOut.score /*= alignment*/ = alignmentScore = readLen * mopts.matchScore;
     if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
     hctr.skippedAlignments_byCov += 1;
     SPDLOG_DEBUG(logger_,"[[");
@@ -337,7 +337,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       tpos = mem.tpos;
 
       // first score the mem match
-      int32_t score = mopts->matchScore * memlen;
+      int32_t score = mopts.matchScore * memlen;
 
       int32_t currMemStart_ref = tpos;
       int32_t currMemStart_read = isFw ? rpos : readLen - (rpos + memlen);
@@ -346,9 +346,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
         int32_t gapDiff = std::abs(gapRef - gapRead);
-        score += (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * gapDiff);
+        score += (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * gapDiff);
         if (gapRead < 0) { // subtract off extra matches
-          score += mopts->matchScore * gapRead;
+          score += mopts.matchScore * gapRead;
         }
         SPDLOG_DEBUG(logger_,"\t GAP NOT THE SAME:\n\t gapRef : {}, gapRead : {}", gapRef, gapRead);
         SPDLOG_DEBUG(logger_,"\t totalScore (MEM + gapDiff) : {}", score);
@@ -414,7 +414,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         int32_t alnCost = std::max(ez.mqe, ez.mte);
-        int32_t delCost = (-1 * mopts->gapOpenPenalty + -1 * mopts->gapExtendPenalty * readWindow.length());
+        int32_t delCost = (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * readWindow.length());
         alignmentScore += std::max(alnCost, delCost);
         SPDLOG_DEBUG(logger_,"POST score : {}", std::max(ez.mqe, ez.mte));
       } else {
@@ -781,10 +781,10 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
                                          HitCounters& hctr, bool isMultimapping, bool verbose) {
   isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
-    double optFrac{mopts->minScoreFraction};
+    double optFrac{mopts.minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     auto threshold = [&, optFrac] (uint64_t len) -> double {
-        return (mopts->mimicBt2Default or !mopts->matchScore)?(-0.6+-0.6*len):optFrac*mopts->matchScore*len;
+        return (mopts.mimicBT2 or !mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
 
@@ -855,10 +855,10 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
 int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose) {
   isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
-    double optFrac{mopts->minScoreFraction};
+    double optFrac{mopts.minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     auto threshold = [&, optFrac] (uint64_t len) -> double {
-        return (mopts->mimicBt2Default or !mopts->matchScore)?(-0.6+-0.6*len):optFrac*mopts->matchScore*len;
+        return (mopts.mimicBT2 or !mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
 

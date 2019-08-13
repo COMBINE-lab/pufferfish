@@ -769,6 +769,16 @@ Compile-time selection between list-like and map-like printing.
     };
     */
 
+      struct AlignmentConfig {
+        int32_t refExtendLength{20};
+        bool fullAlignment{false};
+        int16_t matchScore;
+        int16_t gapExtendPenalty;
+        int16_t gapOpenPenalty;
+        double minScoreFraction{0.0};
+        bool mimicBT2{false};
+      };
+
         struct QuasiAlignment {
             QuasiAlignment() :
                     tid(std::numeric_limits<uint32_t>::max()),
