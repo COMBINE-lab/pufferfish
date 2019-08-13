@@ -83,7 +83,9 @@ set(pufferfish_lib_srcs
 	  RefSeqConstructor.cpp
 	  metro/metrohash64.cpp
 )
-
+if (BUILD_PUFF_FOR_SALMON)
+ list(APPEND pufferfish_lib_srcs "${GAT_SOURCE_DIR}/src/LibraryFormat.cpp")
+endif()
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 
 
