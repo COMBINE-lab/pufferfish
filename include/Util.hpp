@@ -21,6 +21,10 @@
 #include "chobo/small_vector.hpp"
 #include "parallel_hashmap/phmap.h"
 
+#ifdef PUFFERFISH_SALMON_SUPPORT
+#include "LibraryFormat.hpp"
+#endif
+
 #ifndef __DEFINE_LIKELY_MACRO__
 #define __DEFINE_LIKELY_MACRO__
 #ifdef __GNUC__
