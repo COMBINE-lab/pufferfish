@@ -828,7 +828,7 @@ Compile-time selection between list-like and map-like printing.
           // Some convenience functions to allow salmon interop
 #ifdef PUFFERFISH_SALMON_SUPPORT
           inline uint32_t fragLengthPedantic(uint32_t txpLen) const {
-            if (mateStatus != rapmap::utils::MateStatus::PAIRED_END_PAIRED
+            if (mateStatus != pufferfish::util::MateStatus::PAIRED_END_PAIRED
                 or fwd == mateIsFwd) {
               return 0;
             }
