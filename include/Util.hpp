@@ -559,25 +559,25 @@ Compile-time selection between list-like and map-like printing.
                 mems.emplace_back(uniMemInfo, tpos, extendedlen, rpos, isFw);
             }
 
-            size_t getReadLastHitPos() const { return mems.empty() ? 0 : mems.back().rpos; }
+          inline int64_t getReadLastHitPos() const { return mems.empty() ? 0 : static_cast<int64_t>(mems.back().rpos); }
 
-            size_t getTrLastHitPos() const {
-                return mems.empty() ? 0 : mems.back().tpos;
-            }
+          inline int64_t getTrLastHitPos() const {
+            return mems.empty() ? 0 : static_cast<int64_t>(mems.back().tpos);
+          }
 
-            size_t getTrLastMemLen() const {
-                //return mems.empty()?0:mems.back().memInfo->memlen;
-                return mems.empty() ? 0 : mems.back().extendedlen;
-            }
+          inline int64_t getTrLastMemLen() const {
+            //return mems.empty()?0:mems.back().memInfo->memlen;
+            return mems.empty() ? 0 : static_cast<int64_t>(mems.back().extendedlen);
+          }
 
-            size_t getTrFirstHitPos() const {
-                return mems.empty() ? 0 : mems[0].tpos - openGapLen;
-                //return mems.empty() ? 0 : (mems[0].isFw ? mems[0].tpos-mems[0].rpos : mems[0].tpos - (readLen-mems[0].rpos-mems[0].extendedlen));
-            }
+          inline int64_t getTrFirstHitPos() const {
+            return mems.empty() ? 0 : static_cast<int64_t>(mems[0].tpos) - openGapLen;
+            //return mems.empty() ? 0 : (mems[0].isFw ? mems[0].tpos-mems[0].rpos : mems[0].tpos - (readLen-mems[0].rpos-mems[0].extendedlen));
+          }
 
-            inline size_t firstRefPos() const { return getTrFirstHitPos(); }
+            inline int64_t firstRefPos() const { return getTrFirstHitPos(); }
 
-            inline size_t lastRefPos() const { return getTrLastHitPos(); }
+            inline int64_t lastRefPos() const { return getTrLastHitPos(); }
 
             inline size_t lastMemLen() const { return getTrLastMemLen(); }
 
@@ -786,7 +786,11 @@ Compile-time selection between list-like and map-like printing.
                     fwd(true),
                     fragLen(std::numeric_limits<uint32_t>::max()),
                     readLen(std::numeric_limits<uint32_t>::max()),
-                    isPaired(false) {}
+                    isPaired(false)
+#ifdef PUFFERFISH_SALMON_SUPPORT
+                    ,format(LibraryFormat::formatFromID(0))
+#endif // PUFFERFISH_SALMON_SUPPORT
+          {}
 
             QuasiAlignment(uint32_t tidIn, int32_t posIn,
                            bool fwdIn, uint32_t readLenIn, std::string cigarIn, //NOTE can we make it uint32?
@@ -794,7 +798,11 @@ Compile-time selection between list-like and map-like printing.
                            bool isPairedIn = false) :
                     tid(tidIn), pos(posIn), fwd(fwdIn),
                     fragLen(fragLenIn), readLen(readLenIn),
-                    isPaired(isPairedIn), cigar(cigarIn) {}
+                    isPaired(isPairedIn), cigar(cigarIn)
+#ifdef PUFFERFISH_SALMON_SUPPORT
+                    ,format(LibraryFormat::formatFromID(0))
+#endif // PUFFERFISH_SALMON_SUPPORT
+          {}
 
             QuasiAlignment(QuasiAlignment &&other) = default;
 
@@ -806,7 +814,40 @@ Compile-time selection between list-like and map-like printing.
 
             QuasiAlignment(QuasiAlignment &o) = default;
 
-            // Some convenience functions to allow salmon interop
+          // Some convenience functions to allow salmon interop
+          inline uint32_t transcriptID() const { return tid; }
+          //inline int32_t alnScore() const { return alnScore_; }
+          //inline void alnScore(int32_t alnScoreIn) { alnScore_ = alnScoreIn; }
+          inline uint32_t fragLength() const { return fragLen; }
+          inline int32_t hitPos() { return std::min(pos, matePos); }
+
+          // Some convenience functions to allow salmon interop
+#ifdef PUFFERFISH_SALMON_SUPPORT
+          inline uint32_t fragLengthPedantic(uint32_t txpLen) const {
+            if (mateStatus != rapmap::utils::MateStatus::PAIRED_END_PAIRED
+                or fwd == mateIsFwd) {
+              return 0;
+            }
+            int32_t p1 = fwd ? pos : matePos;
+            int32_t sTxpLen = static_cast<int32_t>(txpLen);
+            p1 = (p1 < 0) ? 0 : p1;
+            p1 = (p1 > sTxpLen) ? sTxpLen : p1;
+            int32_t p2 = fwd ? matePos + mateLen : pos + readLen;
+            p2 = (p2 < 0) ? 0 : p2;
+            p2 = (p2 > sTxpLen) ? sTxpLen : p2;
+
+            return (p1 > p2) ? p1 - p2 : p2 - p1;
+          }
+
+          double estAlnProb_{0.0};
+          double logProb{HUGE_VAL};
+          inline LibraryFormat libFormat() { return format; }
+          LibraryFormat format;
+
+          inline double estAlnProb() const { return estAlnProb_; }
+          inline void estAlnProb(double scoreIn) { estAlnProb_ = scoreIn; }
+#endif // PUFFERFISH_SALMON_SUPPORT
+
 /*
 #ifdef RAPMAP_SALMON_SUPPORT
         inline uint32_t transcriptID() const { return tid; }
