@@ -89,11 +89,16 @@ add_library(puffer STATIC ${pufferfish_lib_srcs})
 
 target_compile_options(puffer PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(puffer PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-
+if (BUILD_PUFF_FOR_SALMON)
+   target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
+endif()
 
 add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+if (BUILD_PUFF_FOR_SALMON)
+   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
+endif()
 target_link_libraries(pufferfish puffer Threads::Threads ${JEMALLOC_LIBRARIES} z twopaco graphdump ntcard ${TBB_LIBRARIES} ksw2pp )
 
 if (NOT BUILD_PUFF_FOR_SALMON)
