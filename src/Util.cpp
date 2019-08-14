@@ -185,15 +185,18 @@ pufferfish::util::MergeResult joinReadsAndFilter(
         round++;
     }
     numDiscordant = sameTxpCount - numConcordant;
+    (void) numDiscordant;
 
 #if ALLOW_VERBOSE
     // If we couldn't find any pair and we are allowed to add orphans
         std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
 #endif // ALLOW_VERBOSE
    
-    bool noConcordantMappings = (numConcordant == 0);
+    // if we've collected any mappings the same transcript, either concordant or discordant (if we are allowing it)
+    // then don't consider orphans.
+    bool noPairedMappings = (sameTxpCount == 0);
     bool leftOrphan = false; bool rightOrphan = false;
-    if (!noOrphans and noConcordantMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
+    if (!noOrphans and noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {
