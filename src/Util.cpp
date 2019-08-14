@@ -100,10 +100,13 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     //orphan reads should be taken care of maybe with a flag!
     uint32_t maxCoverage{0};
     uint8_t round{0};
-    uint32_t sameTxpCount{0};
+    int32_t sameTxpCount{0};
+    int32_t numConcordant{0};
+    int32_t numDiscordant{0};
 
     //phmap::parallel_hash_set<uint32_t> refsWithJointMems;
     while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
+      bool concordantSearch = (round == 0);
       for (auto &leftClustItr : leftMemClusters) {
             // reference id
             size_t tid = leftClustItr.first;
@@ -128,7 +131,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                     // if both the left and right clusters are oriented in the same direction, skip this pair
                     // NOTE: This should be optional as some libraries could allow this.
 	            bool satisfiesOri = lclust->isFw != rclust->isFw;
-                    if (round == 0 and satisfiesOri) { // if priority 0, ends should be concordant
+                    if (concordantSearch and !satisfiesOri) { // if priority 0, ends should be concordant
                         continue;
                     }
 		    
@@ -137,7 +140,9 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 			isDovetail = lclust->isFw ? (lclust->firstRefPos() > rclust->firstRefPos()) :
 			             (rclust->firstRefPos() > lclust->firstRefPos());
 		    }
-		    if (noDovetail and isDovetail) {
+		    // if noDovetail is set, then dovetail mappings are considered discordant
+                    // otherwise we consider then concordant.
+		    if (isDovetail and noDovetail and concordantSearch) {
 			continue;
 		    }
 
@@ -161,6 +166,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                         if ( (totalCoverage >= coverageRatio * maxCoverage) or
                               (totalCoverage == perfectCoverage) ) {
                             ++sameTxpCount;
+			    numConcordant += concordantSearch ? 1 : 0;
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                             uint32_t currCoverage = jointMemsList.back().coverage();
                             if (maxCoverage < currCoverage) {
@@ -178,14 +184,16 @@ pufferfish::util::MergeResult joinReadsAndFilter(
         } // @fatemeh : this nesting just seems too many levels deep.  Can we re-work the logic here to make things simpler?
         round++;
     }
+    numDiscordant = sameTxpCount - numConcordant;
 
 #if ALLOW_VERBOSE
     // If we couldn't find any pair and we are allowed to add orphans
         std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
 #endif // ALLOW_VERBOSE
    
+    bool noConcordantMappings = (numConcordant == 0);
     bool leftOrphan = false; bool rightOrphan = false;
-    if (!noOrphans and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
+    if (!noOrphans and noConcordantMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {
