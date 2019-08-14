@@ -82,6 +82,14 @@ namespace pufferfish {
             LEFT, RIGHT
         };
 
+      // encapsulates policy choices about what types of mappings
+      // should be allowed (e.g. orphans, dovetails, etc.)
+      struct MappingConstraintPolicy {
+	bool noOrphans;
+	bool noDiscordant;
+	bool noDovetail;
+      };
+
       struct pair_hash
       {
         template <class T1, class T2>
@@ -1165,8 +1173,7 @@ Compile-time selection between list-like and map-like printing.
                                                        uint32_t maxFragmentLength,
                                                        uint32_t perfectCoverage,
                                                        double coverageRatio,
-                                                       bool noDiscordant,
-                                                       bool noOrphans);
+						       const pufferfish::util::MappingConstraintPolicy& mpol);
 
         char complement(char &c);
 

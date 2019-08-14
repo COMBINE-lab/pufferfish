@@ -40,14 +40,17 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
                         double coverageRatio,
-                        bool noDiscordant,
-                        bool noOrphans) {
+			const pufferfish::util::MappingConstraintPolicy& mpol) {
 
   // NOTE : We will fill in `jointMemsList` with iterators to MemClusters from the left and right read.
   // multiple JointMems can share the same iterator (i.e., multiple JointMems can point to the same MemCluster).
 
     using pufferfish::util::MergeResult;
     MergeResult mergeRes{MergeResult::HAD_NONE};
+    
+    bool noOrphans = mpol.noOrphans;
+    bool noDiscordant = mpol.noDiscordant;
+    bool noDovetail = mpol.noDovetail;
 
 #if ALLOW_VERBOSE
     std::cerr << "\n[JOINREADSANDFILTER]\n";
@@ -99,6 +102,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     uint8_t round{0};
     uint32_t sameTxpCount{0};
 
+    //phmap::parallel_hash_set<uint32_t> refsWithJointMems;
     while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
       for (auto &leftClustItr : leftMemClusters) {
             // reference id
@@ -107,22 +111,35 @@ pufferfish::util::MergeResult joinReadsAndFilter(
             auto &lClusts = *(leftClustItr.second);
             // right mem clusters for the same reference id
             auto &rClusts = rightMemClusters[tid];
+	
+	    // if we are allowing orphans, then don't 
+	    // report orphans to any reference that had joint mem hits
+	    // regardless of whether they are concordant or discordant.
+            /*
+	    if (!noOrphans and !rClusts.empty()) { 
+		refsWithJointMems.insert(tid);
+	    }
+            */
 
             // Compare the left clusters to the right clusters to filter by positional constraints
             for (auto lclust = lClusts.begin(); lclust != lClusts.end(); lclust++) {
 
                 for (auto rclust = rClusts.begin(); rclust != rClusts.end(); rclust++) {
-
-                  /*bool chainOfInterest = (lclust->isFw and lclust->mems.front().rpos == 0 and lclust->mems.front().tpos == 162 and tid == 151214);
-                  if (chainOfInterest) { std::cerr << "LEFT: REASONABLE LOG!\n"; }
-                  chainOfInterest = (rclust->isFw and rclust->mems.front().rpos == 0 and rclust->mems.front().tpos == 162 and tid == 151214);
-                  if (chainOfInterest) { std::cerr << "RIGHT: REASONABLE LOG!\n"; }
-*/
                     // if both the left and right clusters are oriented in the same direction, skip this pair
                     // NOTE: This should be optional as some libraries could allow this.
-                    if (round == 0 and lclust->isFw == rclust->isFw) { // if priority 0, ends should be concordant
+	            bool satisfiesOri = lclust->isFw != rclust->isFw;
+                    if (round == 0 and satisfiesOri) { // if priority 0, ends should be concordant
                         continue;
                     }
+		    
+		    bool isDovetail{false};
+		    if (satisfiesOri) {
+			isDovetail = lclust->isFw ? (lclust->firstRefPos() > rclust->firstRefPos()) :
+			             (rclust->firstRefPos() > lclust->firstRefPos());
+		    }
+		    if (noDovetail and isDovetail) {
+			continue;
+		    }
 
                     // FILTER 1
                     // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
@@ -166,7 +183,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     // If we couldn't find any pair and we are allowed to add orphans
         std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";
 #endif // ALLOW_VERBOSE
-    
+   
     bool leftOrphan = false; bool rightOrphan = false;
     if (!noOrphans and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]

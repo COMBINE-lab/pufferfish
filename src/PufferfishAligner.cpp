@@ -151,6 +151,11 @@ void processReadsPair(paired_parser *parser,
     using pufferfish::util::BestHitReferenceType;
     BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};
     BestHitReferenceType hitRefType{BestHitReferenceType::UNKNOWN};
+    pufferfish::util::MappingConstraintPolicy mpol;
+    mpol.noDiscordant = mopts->noDiscordant;
+    mpol.noOrphans = mopts->noOrphan;
+    mpol.noDovetail = false; // Add flag for this
+
     //For filtering reads
     bool verbose = mopts->verbose;
 //    auto &txpNames = pfi.getRefNames();
@@ -224,8 +229,7 @@ void processReadsPair(paired_parser *parser,
                                mopts->maxFragmentLength,
                                totLen,
                                mopts->scoreRatio,
-                               mopts->noDiscordant,
-                               mopts->noOrphan);
+			       mpol);
 
             bool mergeStatusOR = (mergeRes == pufferfish::util::MergeResult::HAD_EMPTY_INTERSECTION or
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_LEFT or
