@@ -416,7 +416,7 @@ void fixFasta(single_parser* parser,
     cereal::JSONOutputArchive ar(os);
     auto adjustedFirstDecoyIndex = firstDecoyIndex - numShortBeforeFirstDecoy;
     ar( cereal::make_nvp("num_decoys", numberOfDecoys));
-    ar( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
+    ar( cereal::make_nvp("first_decoy_index", adjustedFirstDecoyIndex));
     ar( cereal::make_nvp("SeqHash", seqHash256) );
     ar( cereal::make_nvp("NameHash", nameHash256) );
     ar( cereal::make_nvp("SeqHash512", seqHash512) );
