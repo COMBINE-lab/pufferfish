@@ -94,7 +94,6 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
   return true;
 }
 
-
 bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
                                 //phmap::flat_hash_map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
@@ -103,6 +102,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                 phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
                                 bool hChain,
                                 RefMemMap& trMemMap,
+                                uint64_t firstDecoyIndex,
                                 //pufferfish::common_types::RefMemMapT& trMemMap,
                                 bool verbose) {
   using namespace pufferfish::common_types;
@@ -117,16 +117,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   for (auto hitIt = trMemMap.begin(); hitIt != trMemMap.end(); ++hitIt) {
 
     auto& trOri = hitIt->first;
-    //    auto& 
-    //for (auto &trMem : core::range<decltype(trMemMap.begin())>(trMemMap.begin(), trMemMap.end())) {
-    //auto &trOri = trMem.first;
     auto &tid = trOri.first;
     auto &isFw = trOri.second;
     auto &memList = *hitIt->second;
-//    auto& memList = trMemMap.cache_index(hitIt->second);
     size_t hits = memList.size();
     if (hits < consensusFraction_ * maxHits) { continue; }
-    if (hits > maxHits) { maxHits = hits; }
+    if (hits > maxHits) { maxHits = (tid < firstDecoyIndex) ? hits : maxHits; }
 
     // sort memList according to mem reference positions
     std::sort(memList.begin(), memList.end(),

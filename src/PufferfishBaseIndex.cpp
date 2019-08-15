@@ -356,6 +356,9 @@ bool PufferfishBaseIndex<T>::isDecoy(uint64_t rank) const {
   return (underlying().numDecoys_ > 0) ? (rank >= underlying().firstDecoyIndex_) : false;
 }
 
+template <typename T>
+uint64_t PufferfishBaseIndex<T>::firstDecoyIndex() const { return underlying().firstDecoyIndex_ ;}
+
 template class  PufferfishBaseIndex<PufferfishIndex>;
 template class  PufferfishBaseIndex<PufferfishSparseIndex>;
 template class  PufferfishBaseIndex<PufferfishLossyIndex>;

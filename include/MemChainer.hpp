@@ -40,6 +40,7 @@ public:
                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
                     bool hChain,
                     RefMemMap& trMemMap,
+                    uint64_t firstDecoyIndex,
                     //pufferfish::common_types::RefMemMapT& trMemMap,
                     bool verbose = false);
 
