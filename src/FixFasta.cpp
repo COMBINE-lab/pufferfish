@@ -98,6 +98,7 @@ void fixFasta(single_parser* parser,
   //size_t numKmers{0};
   size_t currIndex{0};
   size_t numDups{0};
+  int64_t numShortBeforeFirstDecoy{0};
   std::map<XXH64_hash_t, std::vector<DupInfo>> potentialDuplicates;
   spp::sparse_hash_map<uint64_t, std::vector<std::string>> duplicateNames;
   std::cerr << "\n[Step 1 of 4] : counting k-mers\n";
@@ -274,6 +275,7 @@ void fixFasta(single_parser* parser,
           if(!tooShort) {
               shortFlag[processedName] = false ;
           } else {
+              numShortBeforeFirstDecoy += sawDecoy ? 0 : 1;
               shortFlag[processedName] = true ;
           }
           // nameHasher.process(processedName.begin(), processedName.end());
@@ -412,6 +414,7 @@ void fixFasta(single_parser* parser,
     ghc::filesystem::path sigPath = outDir / ghc::filesystem::path{"ref_sigs.json"};
     std::ofstream os(sigPath.string());
     cereal::JSONOutputArchive ar(os);
+    auto adjustedFirstDecoyIndex = firstDecoyIndex - numShortBeforeFirstDecoy;
     ar( cereal::make_nvp("num_decoys", numberOfDecoys));
     ar( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
     ar( cereal::make_nvp("SeqHash", seqHash256) );

@@ -74,9 +74,9 @@ set(pufferfish_lib_srcs
 #    PufferfishGFAReader.cpp
 	PufferfishBinaryGFAReader.cpp
     PufferFS.cpp
-	  xxhash.c
-		FixFasta.cpp
-	  MemCollector.cpp
+    xxhash.c
+    FixFasta.cpp
+    MemCollector.cpp
 	  MemChainer.cpp
 		PuffAligner.cpp
 	  PufferfishAligner.cpp
