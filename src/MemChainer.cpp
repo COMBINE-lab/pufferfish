@@ -117,6 +117,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     return false;
   }
 
+
+  enum class FilterPolicy : uint8_t { BEFORE_CHAIN, AFTER_CHAIN };
+
+  FilterPolicy fp = FilterPolicy::AFTER_CHAIN;
+
+  double maxChainScore{0.0};
   int32_t signedReadLen = static_cast<int32_t>(readLen);
   for (auto hitIt = trMemMap.begin(); hitIt != trMemMap.end(); ++hitIt) {
     auto& trOri = hitIt->first;
@@ -124,7 +130,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     auto &isFw = trOri.second;
     auto &memList = *hitIt->second;
     size_t hits = memList.size();
-    if (hits < consensusFraction_ * maxHits) { continue; }
+    //if (fp == FilterPolicy::BEFORE_CHAIN and (hits < consensusFraction_ * maxHits)) { continue; }
 
     // sort memList according to mem reference positions
     std::sort(memList.begin(), memList.end(),
@@ -189,6 +195,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     //int32_t prev_rposi_start = -1;
 
     int32_t totLen{0};
+    int32_t lastStartPos{0};
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
       int32_t qposi_start = hi.isFw ? hi.rpos : signedReadLen - (hi.rpos + hi.extendedlen);
@@ -217,6 +224,9 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       prev_qposi_end = qposi_end;
       prev_rposi_end = rposi_end;
     }
+
+    //if (bestBinCoverage < maxBinCoverage * consensusFraction_) { continue; }
+    //maxBinCoverage = std::max(bestBinCoverage, maxBinCoverage);
 
     memList.erase(std::remove_if(memList.begin(), memList.end(),
                                  [](pufferfish::util::MemInfo& m) {
@@ -316,6 +326,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         bestChainEndList.push_back(i);
       }
     }
+
+    // early exit if this doesn't seem a promising chain
+    //if (fp == FilterPolicy::AFTER_CHAIN and (bestScore < maxChainScore * consensusFraction_)) { continue; }
+    if (bestScore < maxChainScore * consensusFraction_) { continue; }
+    maxChainScore = std::max(bestScore, maxChainScore);
+
     //if (chainOfInterest) { std::cerr << "bestScore = " << bestScore << "\n"; }
     // Do backtracking
     chobo::small_vector<uint8_t> seen(f.size(), 0);
