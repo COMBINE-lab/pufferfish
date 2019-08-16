@@ -68,11 +68,11 @@ find_package(Jemalloc)
 endif()
 
 
+
+if (NOT BUILD_PUFF_FOR_SALMON)
 ## Try and find TBB first
 find_package(TBB 2018.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 
-
-if (NOT BUILD_PUFF_FOR_SALMON)
 ##
 #
 # Fetch and build Intel's Threading Building Blocks library.
