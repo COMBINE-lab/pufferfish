@@ -44,17 +44,17 @@ uint32_t MemClusterer::getMaxAllowedRefsPerHit() {
   return maxAllowedRefsPerHit_;
 }
 
-bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
+size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
                                      //pufferfish::common_types::RefMemMapT &trMemMap,
                                      RefMemMap& trMemMap,
-                                     std::vector<pufferfish::util::UniMemInfo> &memCollection, pufferfish::util::ReadEnd re,
+                                     std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
                                      phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs) {
   using namespace pufferfish::common_types;
   if (hits.empty()) {
-    return false;
+    return 0;
   }
 
-  //setMaxAllowedRefsPerHit(82);
+  size_t maxNonDecoyHits{0};
   size_t totSize{0};
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
     auto &refs = hit.second.refRange;
@@ -78,20 +78,23 @@ bool MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::util
       uint32_t mappings{0};
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                  readPos, projHits.k_, projHits.contigPos_,
-                                 projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_, re);
+                                 projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_, pufferfish::util::ReadEnd::LEFT);
       auto memItr = std::prev(memCollection.end());
       for (auto &posIt : refs) {
       //If we want to let the the hits to the references also found by the other end to be accepted
       //if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit or other_end_refs.find(posIt.transcript_id()) != other_end_refs.end() ) {
         const auto& refPosOri = projHits.decodeHit(posIt);
-        trMemMap[std::make_pair(posIt.transcript_id(), refPosOri.isFW)].
-        emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
+        auto tid = posIt.transcript_id();
+        auto& refHits = trMemMap[std::make_pair(tid, refPosOri.isFW)];
+        refHits.emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
+        auto nh = refHits.size();
+        maxNonDecoyHits = (tid < firstDecoyIndex) ? std::max(nh, maxNonDecoyHits) : maxNonDecoyHits;
         mappings++;
       //}
       }
     }
   }
-  return true;
+  return maxNonDecoyHits;
 }
 
 bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
@@ -109,20 +112,19 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
-  if (!fillMemCollection(hits, trMemMap, memCollection, pufferfish::util::ReadEnd::LEFT, other_end_refs))
+  size_t maxHits = fillMemCollection(hits, trMemMap, memCollection, firstDecoyIndex, other_end_refs);
+  if (maxHits == 0) {
     return false;
+  }
 
   int32_t signedReadLen = static_cast<int32_t>(readLen);
-  size_t maxHits{0};
   for (auto hitIt = trMemMap.begin(); hitIt != trMemMap.end(); ++hitIt) {
-
     auto& trOri = hitIt->first;
     auto &tid = trOri.first;
     auto &isFw = trOri.second;
     auto &memList = *hitIt->second;
     size_t hits = memList.size();
     if (hits < consensusFraction_ * maxHits) { continue; }
-    if (hits > maxHits) { maxHits = (tid < firstDecoyIndex) ? hits : maxHits; }
 
     // sort memList according to mem reference positions
     std::sort(memList.begin(), memList.end(),
