@@ -6,6 +6,11 @@ add_subdirectory(graphdump)
 add_subdirectory(graphconstructor)
 include(CPack)
 
+if (BUILD_PUFF_FOR_SALMON)
+add_dependencies(graphdump libtbb)
+add_dependencies(twopaco libtbb)
+endif()
+
 #install(
 #  FILES
 #  ${CMAKE_BINARY_DIR}/graphconstructor/libtwopaco.a
