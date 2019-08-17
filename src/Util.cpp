@@ -40,7 +40,8 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
                         double coverageRatio,
-			const pufferfish::util::MappingConstraintPolicy& mpol) {
+                                                 const pufferfish::util::MappingConstraintPolicy& mpol,
+                                                 pufferfish::util::HitCounters& hctr) {
 
   // NOTE : We will fill in `jointMemsList` with iterators to MemClusters from the left and right read.
   // multiple JointMems can share the same iterator (i.e., multiple JointMems can point to the same MemCluster).
@@ -103,7 +104,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     int32_t sameTxpCount{0};
     int32_t numConcordant{0};
     int32_t numDiscordant{0};
-
+    bool hadDovetail{false};
     //phmap::parallel_hash_set<uint32_t> refsWithJointMems;
     while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
       bool concordantSearch = (round == 0);
@@ -139,6 +140,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 		    if (satisfiesOri) {
 			isDovetail = lclust->isFw ? (lclust->firstRefPos() > rclust->firstRefPos()) :
 			             (rclust->firstRefPos() > lclust->firstRefPos());
+      if (isDovetail) { hadDovetail = true; }
 		    }
 		    // if noDovetail is set, then dovetail mappings are considered discordant
                     // otherwise we consider then concordant.
@@ -187,6 +189,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     numDiscordant = sameTxpCount - numConcordant;
     (void) numDiscordant;
 
+    hctr.numDovetails += hadDovetail ? 1 : 0;
 #if ALLOW_VERBOSE
     // If we couldn't find any pair and we are allowed to add orphans
         std::cerr << "isMaxLeftAndRight:" << isMaxLeftAndRight << "\n";

@@ -229,7 +229,7 @@ void processReadsPair(paired_parser *parser,
                                mopts->maxFragmentLength,
                                totLen,
                                mopts->scoreRatio,
-			       mpol);
+			       mpol, hctr);
 
             bool mergeStatusOR = (mergeRes == pufferfish::util::MergeResult::HAD_EMPTY_INTERSECTION or
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_LEFT or

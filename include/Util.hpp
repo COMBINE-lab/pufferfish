@@ -1046,6 +1046,7 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> totAlignment{0};
             std::atomic<uint64_t> correctAlignment{0};
             std::atomic<uint64_t> maxMultimapping{0};
+            std::atomic<uint64_t> numDovetails{0};
 
             std::atomic<uint64_t> skippedAlignments_byCache{0};
             std::atomic<uint64_t> skippedAlignments_byCov{0};
@@ -1173,7 +1174,8 @@ Compile-time selection between list-like and map-like printing.
                                                        uint32_t maxFragmentLength,
                                                        uint32_t perfectCoverage,
                                                        double coverageRatio,
-						       const pufferfish::util::MappingConstraintPolicy& mpol);
+                                                       const pufferfish::util::MappingConstraintPolicy& mpol,
+                                                       pufferfish::util::HitCounters& hctr);
 
         char complement(char &c);
 
