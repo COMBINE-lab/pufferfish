@@ -266,6 +266,25 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 
 
 
+      char * getRefSeqOwned(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, uint32_t refLen) {
+        if (refLen == 0) return nullptr;
+        char* seq = new char[refLen];
+        uint64_t c = 0;
+        uint64_t bucket_offset = (refAccPos) * 2;
+        auto len_on_vector = refLen * 2;
+        int32_t toFetch = len_on_vector;
+        while (toFetch > 0) {
+          uint32_t len = (toFetch >= 64) ? 64 : toFetch;
+          toFetch -= len;
+          uint64_t word = refseq.get_int(bucket_offset, len);
+          for (uint32_t i = 0; i < len; i += 2) {
+            uint8_t next_bits = ((word >> i) & 0x03);
+            seq[c++] += "ACGT"[next_bits];
+          }
+          bucket_offset += len;
+        }
+        return seq;
+      }
 
 
         char complement(char &c) {

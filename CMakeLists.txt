@@ -26,7 +26,7 @@ if (NOT GAT_SOURCE_DIR)
     set(GAT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
-set(KSW_FLAGS "-march=native;-DHAVE_KALLOC")
+set(KSW_FLAGS "-DHAVE_KALLOC")
 set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
 if (BUILD_PUFF_FOR_SALMON)
    list(APPEND PF_CPP_FLAGS "-DPUFFERFISH_SALMON_SUPPORT")

@@ -20,6 +20,7 @@
 #include "spdlog/fmt/fmt.h"
 #include "chobo/small_vector.hpp"
 #include "parallel_hashmap/phmap.h"
+#include "compact_vector/compact_vector.hpp"
 
 #ifdef PUFFERFISH_SALMON_SUPPORT
 #include "LibraryFormat.hpp"
@@ -1160,7 +1161,6 @@ Compile-time selection between list-like and map-like printing.
             uint32_t openGapLen;
         };
 
-
       void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
                                      //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
                                      std::vector<pufferfish::util::JointMems> &jointMemsList,
@@ -1176,6 +1176,8 @@ Compile-time selection between list-like and map-like printing.
                                                        double coverageRatio,
                                                        const pufferfish::util::MappingConstraintPolicy& mpol,
                                                        pufferfish::util::HitCounters& hctr);
+
+      char * getRefSeqOwned(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, uint32_t len);
 
         char complement(char &c);
 
