@@ -7,7 +7,7 @@ namespace selective_alignment {
   namespace utils {
 
 
-bool recoverOrphans(std::string& leftRead,
+inline bool recoverOrphans(std::string& leftRead,
                     std::string& rightRead,
                     std::vector<pufferfish::util::MemCluster> &recoveredMemClusters,
                     std::vector<pufferfish::util::JointMems> &jointMemsList,

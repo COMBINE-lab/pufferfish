@@ -370,7 +370,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
 
 }
 
-uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
+inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                                           fmt::MemoryWriter& sstream) {
         constexpr uint16_t flags1 = 0x1 | 0x4 | 0x8 | 0x40;
         constexpr uint16_t flags2 = 0x1 | 0x4 | 0x8 | 0x80;
@@ -431,7 +431,7 @@ uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
         return 0;
       }
 
-uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
+inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                                             fmt::MemoryWriter& sstream) {
         constexpr uint16_t flags = 0x4;
 
