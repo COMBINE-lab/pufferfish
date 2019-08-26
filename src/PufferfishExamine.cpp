@@ -34,7 +34,7 @@ bool dump_index_fasta(Index& pi, std::string& out) {
     // we don't store it's sequence (since nothing can ever map to it).
     std::string seq = (l <= k) ? std::string(l, 'N') : pi.getRefSeqStr(curr, static_cast<int64_t>(l));
     ofile << seq << "\n";
-    curr += (l < k) ? 0 : l;
+    curr += (l <= k) ? 0 : l;
   }
   ofile.close();
 
