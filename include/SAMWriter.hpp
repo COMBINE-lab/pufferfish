@@ -492,7 +492,6 @@ inline uint32_t writeAlignmentsToStreamSingle(
 
   auto* fullRefNames = tidsAlreadyDecoded ? &formatter.index->getFullRefNames() : nullptr;
   auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengths() : nullptr;
-
   for (auto& qa : jointHits) {
     ++i;
     auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
