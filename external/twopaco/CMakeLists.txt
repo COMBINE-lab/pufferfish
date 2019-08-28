@@ -7,8 +7,13 @@ add_subdirectory(graphconstructor)
 include(CPack)
 
 if (BUILD_PUFF_FOR_SALMON)
+if (FOUND_TBB)
 add_dependencies(graphdump libtbb)
 add_dependencies(twopaco libtbb)
+else ()
+add_dependencies(graphdump tbb)
+add_dependencies(twopaco tbb)
+endif()
 endif()
 
 #install(
