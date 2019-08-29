@@ -40,8 +40,14 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir) {
     contigTableArchive(refNames_);
     contigTableArchive(refExt_);
     contigTableArchive(contigTable_);
-    contigTableArchive(contigOffsets_);
     contigTableStream.close();
+  }
+  {
+    CLI::AutoTimer timer{"Loading contig offsets", CLI::Timer::Big};
+    std::string pfile = indexDir + "/" + pufferfish::util::CONTIG_OFFSETS;
+    auto bits_per_element = compact::get_bits_per_element(pfile);
+    contigOffsets_.set_m_bits(bits_per_element);
+    contigOffsets_.deserialize(pfile, false);
   }
   numContigs_ = contigOffsets_.size()-1;
 

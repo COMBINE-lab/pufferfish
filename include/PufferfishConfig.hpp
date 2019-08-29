@@ -5,11 +5,11 @@
 
 namespace pufferfish {
 constexpr char majorVersion[] = "0";
-constexpr char minorVersion[] = "2";
+constexpr char minorVersion[] = "3";
 constexpr char patchVersion[] = "0";
-constexpr char version[] = "0.2.0";
+constexpr char version[] = "0.3.0";
 constexpr char progname[] = "pufferfish";
-constexpr uint32_t indexVersion = 3;
+constexpr uint32_t indexVersion = 4;
 }
 
 #endif //__PUFFERFISH_CONFIG_HPP__

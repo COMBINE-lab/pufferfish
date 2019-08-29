@@ -38,7 +38,7 @@ private:
   std::vector<uint32_t> completeRefLengths_;
   std::vector<uint32_t> refExt_;
   std::vector<pufferfish::util::Position> contigTable_;
-  std::vector<uint64_t> contigOffsets_;
+  compact::vector<uint64_t> contigOffsets_{16};
 
   uint64_t numContigs_{0};
   bit_vector_t  contigBoundary_;

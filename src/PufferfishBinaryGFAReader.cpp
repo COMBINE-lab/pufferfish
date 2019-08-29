@@ -376,14 +376,14 @@ namespace pufferfish {
             logger_->info("total contig vec entries {:n}", contigVecSize);
             std::vector<pufferfish::util::Position> cpos;
             cpos.reserve(contigVecSize);
-            std::vector<uint64_t> cpos_offsets;
-            cpos_offsets.reserve(contigOffsetSize);
-            cpos_offsets.push_back(0);
+            size_t w = std::ceil(std::log2(contigVecSize));
+            logger_->info("bits per offset entry {:n}", w);
+            compact::vector<uint64_t> cpos_offsets(w, contigOffsetSize);
 
+            cpos_offsets[0] = 0;
             for (uint64_t idx = 0; idx < contigid2seq.size(); idx++) {
-                //cpos.push_back(contig2pos[kv.first]);
                 auto &b = contig2pos[idx];
-                cpos_offsets.push_back(cpos_offsets.back() + b.size());
+                cpos_offsets[idx+1] = cpos_offsets[idx] + b.size();
                 cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
                 std::vector<uint32_t> tlist;
                 for (auto &p : contig2pos[idx]) {
@@ -416,7 +416,13 @@ namespace pufferfish {
                       });
             eqAr(eqLabels);
             ar(cpos);
-            ar(cpos_offsets);
+
+            {
+              std::string fname = odir + "/" + pufferfish::util::CONTIG_OFFSETS;
+              std::ofstream bfile(fname, std::ios::binary);
+              cpos_offsets.serialize(bfile);
+              bfile.close();
+            }
         }
     }
 

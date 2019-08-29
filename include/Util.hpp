@@ -51,6 +51,7 @@ namespace pufferfish {
 
         constexpr const char MPH[] = "mphf.bin";
         constexpr const char CTABLE[] = "ctable.bin";
+        constexpr const char CONTIG_OFFSETS[] = "ctg_offsets.bin";
         constexpr const char EQTABLE[] = "eqtable.bin";
         constexpr const char REFLENGTH[] = "reflengths.bin";
         constexpr const char COMPLETEREFLENGTH[] = "complete_ref_lens.bin";
