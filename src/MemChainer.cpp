@@ -36,6 +36,14 @@ static inline float fasterlog2(float x) {
 void MemClusterer::setConsensusFraction(double cf) { consensusFraction_ = cf; }
 double MemClusterer::getConsensusFraction() const { return consensusFraction_; }
 
+void MemClusterer::setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp) {
+  hitFilterPolicy_ = hfp;
+}
+
+pufferfish::util::HitFilterPolicy MemClusterer::getHitFilterPolicy() const {
+  return hitFilterPolicy_;
+}
+
 void MemClusterer::setMaxAllowedRefsPerHit(uint32_t maxh){
   maxAllowedRefsPerHit_ = maxh;
 }
@@ -109,6 +117,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                 //pufferfish::common_types::RefMemMapT& trMemMap,
                                 bool verbose) {
   using namespace pufferfish::common_types;
+  using pufferfish::util::HitFilterPolicy;
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
@@ -117,10 +126,11 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     return false;
   }
 
+  bool filterBefore = (hitFilterPolicy_ == HitFilterPolicy::FILTER_BEFORE_CHAINING) or
+    (hitFilterPolicy_ == HitFilterPolicy::FILTER_BEFORE_AND_AFTER_CHAINING);
+  bool filterAfter= (hitFilterPolicy_ == HitFilterPolicy::FILTER_AFTER_CHAINING) or
+    (hitFilterPolicy_ == HitFilterPolicy::FILTER_BEFORE_AND_AFTER_CHAINING);
 
-  enum class FilterPolicy : uint8_t { BEFORE_CHAIN, AFTER_CHAIN };
-
-  FilterPolicy fp = FilterPolicy::AFTER_CHAIN;
 
   double maxChainScore{0.0};
   int32_t signedReadLen = static_cast<int32_t>(readLen);
@@ -130,7 +140,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     auto &isFw = trOri.second;
     auto &memList = *hitIt->second;
     size_t hits = memList.size();
-    //if (fp == FilterPolicy::BEFORE_CHAIN and (hits < consensusFraction_ * maxHits)) { continue; }
+    if (filterBefore and (hits < consensusFraction_ * maxHits)) { continue; }
 
     // sort memList according to mem reference positions
     std::sort(memList.begin(), memList.end(),
@@ -329,7 +339,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
     // early exit if this doesn't seem a promising chain
     //if (fp == FilterPolicy::AFTER_CHAIN and (bestScore < maxChainScore * consensusFraction_)) { continue; }
-    if (bestScore < maxChainScore * consensusFraction_) { continue; }
+    if (filterAfter and bestScore < maxChainScore * consensusFraction_) { continue; }
     maxChainScore = std::max(bestScore, maxChainScore);
 
     //if (chainOfInterest) { std::cerr << "bestScore = " << bestScore << "\n"; }

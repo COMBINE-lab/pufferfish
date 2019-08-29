@@ -84,6 +84,11 @@ namespace pufferfish {
             LEFT, RIGHT
         };
 
+      enum class HitFilterPolicy : uint8_t {
+            FILTER_AFTER_CHAINING = 0, FILTER_BEFORE_CHAINING,
+            FILTER_BEFORE_AND_AFTER_CHAINING
+      };
+
       // encapsulates policy choices about what types of mappings
       // should be allowed (e.g. orphans, dovetails, etc.)
       struct MappingConstraintPolicy {

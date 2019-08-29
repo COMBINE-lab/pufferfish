@@ -9,6 +9,7 @@
 #include "PufferfishSparseIndex.hpp"
 #include "PufferfishLossyIndex.hpp"
 #include "CommonTypes.hpp"
+#include "Util.hpp"
 
 #include <sparsepp/spp.h>
 #include "parallel_hashmap/phmap.h"
@@ -25,7 +26,8 @@ public:
   double getConsensusFraction() const;
   void setMaxAllowedRefsPerHit(uint32_t max);
   uint32_t getMaxAllowedRefsPerHit();
-
+  void setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp);
+  pufferfish::util::HitFilterPolicy getHitFilterPolicy() const;
 
   size_t fillMemCollection(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
                          //pufferfish::common_types::RefMemMapT& trMemMap,
@@ -50,6 +52,7 @@ private:
   chobo::small_vector<uint8_t> keepMem;
   chobo::small_vector<uint64_t> memIndicesInReverse;
   chobo::small_vector<int32_t> bestChainEndList;
+  pufferfish::util::HitFilterPolicy hitFilterPolicy_{pufferfish::util::HitFilterPolicy::FILTER_AFTER_CHAINING};
 };
 
 #endif //PUFFERFISH_CHAINFINDER_H

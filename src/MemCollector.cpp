@@ -11,6 +11,17 @@ void MemCollector<PufferfishIndexT>::configureMemClusterer(uint32_t max) {
 }
 
 template <typename PufferfishIndexT>
+void MemCollector<PufferfishIndexT>::setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp) {
+  mc.setHitFilterPolicy(hfp);
+}
+
+template <typename PufferfishIndexT>
+pufferfish::util::HitFilterPolicy MemCollector<PufferfishIndexT>::getHitFilterPolicy() const {
+  return mc.getHitFilterPolicy();
+}
+
+
+template <typename PufferfishIndexT>
 size_t MemCollector<PufferfishIndexT>::expandHitEfficient(pufferfish::util::ProjectedHits& hit,
                        pufferfish::CanonicalKmerIterator& kit, 
                        ExpansionTerminationType& et) {

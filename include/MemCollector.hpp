@@ -50,6 +50,10 @@ public:
 
   double getConsensusFraction() const;
 
+  void setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp);
+
+  pufferfish::util::HitFilterPolicy getHitFilterPolicy() const;
+
 private:
   PufferfishIndexT* pfi_;
   size_t k;
