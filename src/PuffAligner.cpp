@@ -192,6 +192,18 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   uint32_t refStart, readStart{0};
   uint32_t buff{20};
 
+  int32_t signedRefStartPos = currHitStart_ref - currHitStart_read;
+  int32_t signedRefEndPos = signedRefStartPos + read.length();
+  bool invalidStart = (signedRefStartPos < 0);
+  bool invalidEnd = (signedRefEndPos > refTotalLength);
+
+  if (mopts.mimicBT2 and (invalidStart or invalidEnd)) {
+    arOut.score = std::numeric_limits<decltype(arOut.score)>::min();
+    arOut.cigar = "";
+    arOut.openGapLen = 0;
+    return false;
+  }
+
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;

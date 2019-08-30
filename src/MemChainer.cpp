@@ -281,25 +281,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
 
-        //To fix cases where there are repetting sequences in the read or reference
-          /*int32_t rdiff_mem = hi.tpos - (hj.tpos + hj.extendedlen);
-          int32_t qdiff_mem = isFw ? hi.rpos - (hj.rpos + hj.extendedlen) : hj.rpos - (hi.rpos + hi.extendedlen);
-          if (rdiff == 0 or qdiff == 0 or rdiff * qdiff < 0 or rdiff_mem * qdiff_mem < 0 or hi.rpos == hj.rpos or
-              hi.tpos == hj.tpos) {
-            extensionScore = -std::numeric_limits<double>::infinity();
-          }
-          */
-        /*
-        if (verbose) {
-          std::cerr << i << " " << j <<
-                    " extendedleni:" << hi.extendedlen << " extendedlenj:" << hj.extendedlen <<
-                    " f[i]:" << f[i] << " f[j]:" << f[j] <<
-                    " readDiff:" << qdiff << " refDiff:" << rdiff <<
-                    " alpha:" << alpha(qdiff, rdiff, hi.extendedlen) <<
-                    " beta:" << beta(qdiff, rdiff, avgseed) <<
-                    " extensionScore: " << extensionScore << "\n";
-        }
-        */
         bool extendWithJ = (extensionScore > f[i]);
         p[i] = extendWithJ ? j : p[i];
         f[i] = extendWithJ ? extensionScore : f[i];
