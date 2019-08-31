@@ -206,7 +206,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
-    refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
+    refStart = (signedRefStartPos >= 0) ? signedRefStartPos : 0;
     //keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
     keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
@@ -792,11 +792,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& read_right, pufferfish::util::JointMems& jointHit,
                                          HitCounters& hctr, bool isMultimapping, bool verbose) {
   isMultimapping_ = isMultimapping;
+  bool zeroMatch = mopts.matchScore == 0;
     auto tid = jointHit.tid;
     double optFrac{mopts.minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     auto threshold = [&, optFrac] (uint64_t len) -> double {
-        return (mopts.mimicBT2 or !mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
+        return (zeroMatch)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
 
@@ -866,11 +867,12 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
  **/
 int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose) {
   isMultimapping_ = isMultimapping;
+  bool zeroMatch = mopts.matchScore == 0;
     auto tid = jointHit.tid;
     double optFrac{mopts.minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     auto threshold = [&, optFrac] (uint64_t len) -> double {
-        return (mopts.mimicBT2 or !mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
+        return (zeroMatch)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
 
