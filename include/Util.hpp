@@ -594,6 +594,13 @@ Compile-time selection between list-like and map-like printing.
             //return mems.empty() ? 0 : (mems[0].isFw ? mems[0].tpos-mems[0].rpos : mems[0].tpos - (readLen-mems[0].rpos-mems[0].extendedlen));
           }
 
+          inline int64_t approxReadStartPos() const {
+            if (mems.empty()) { return 0; }
+            auto& m = mems.front();
+            return isFw ? (static_cast<int64_t>(m.tpos) - static_cast<int64_t>(m.rpos)) :
+              (static_cast<int64_t>(m.tpos) - ((static_cast<int64_t>(readLen) - static_cast<int64_t>(m.rpos + m.extendedlen))));
+          }
+
             inline int64_t firstRefPos() const { return getTrFirstHitPos(); }
 
             inline int64_t lastRefPos() const { return getTrLastHitPos(); }
