@@ -155,6 +155,7 @@ void processReadsPair(paired_parser *parser,
     mpol.noDiscordant = mopts->noDiscordant;
     mpol.noOrphans = mopts->noOrphan;
     mpol.noDovetail = false; // Add flag for this
+    uint64_t firstDecoyIndex = pfi.firstDecoyIndex();
 
     //For filtering reads
     bool verbose = mopts->verbose;
@@ -226,10 +227,11 @@ void processReadsPair(paired_parser *parser,
                 std::cerr << ss.str();
             }*/
             auto mergeRes = pufferfish::util::joinReadsAndFilter(leftHits, rightHits, jointHits,
-                               mopts->maxFragmentLength,
-                               totLen,
-                               mopts->scoreRatio,
-			       mpol, hctr);
+                                                                 mopts->maxFragmentLength,
+                                                                 totLen,
+                                                                 mopts->scoreRatio,
+                                                                 firstDecoyIndex,
+                                                                 mpol, hctr);
 
             bool mergeStatusOR = (mergeRes == pufferfish::util::MergeResult::HAD_EMPTY_INTERSECTION or
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_LEFT or

@@ -1187,6 +1187,7 @@ Compile-time selection between list-like and map-like printing.
                                                        uint32_t maxFragmentLength,
                                                        uint32_t perfectCoverage,
                                                        double coverageRatio,
+                                                       uint64_t firstDecoyIndex,
                                                        const pufferfish::util::MappingConstraintPolicy& mpol,
                                                        pufferfish::util::HitCounters& hctr);
 

@@ -40,6 +40,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
                         double coverageRatio,
+                                                 uint64_t firstDecoyIndex,
                                                  const pufferfish::util::MappingConstraintPolicy& mpol,
                                                  pufferfish::util::HitCounters& hctr) {
 
@@ -140,7 +141,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 		    if (satisfiesOri) {
           isDovetail = lclust->isFw ? (lclust->approxReadStartPos() > rclust->approxReadStartPos()) :
 			             (rclust->approxReadStartPos() > lclust->approxReadStartPos());
-      if (isDovetail) { hadDovetail = true; }
+          if (isDovetail and (static_cast<uint64_t>(tid) < firstDecoyIndex)) { hadDovetail = true; }
 		    }
 		    // if noDovetail is set, then dovetail mappings are considered discordant
                     // otherwise we consider then concordant.
