@@ -435,7 +435,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         // do any special soft-clipping penalty here if we want
         // do any special soft clipping penalty here if we want
         alignmentScore += allowOverhangSoftclip ? 0 :
-          (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * firstMemStart_read);
+          (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * readWindow.length());
       }
     }
 
