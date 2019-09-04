@@ -803,6 +803,8 @@ Compile-time selection between list-like and map-like printing.
         int16_t gapOpenPenalty;
         double minScoreFraction{0.0};
         bool mimicBT2{false};
+        bool mimicBT2Strict{false};
+        bool allowOverhangSoftclip{false};
       };
 
         struct QuasiAlignment {

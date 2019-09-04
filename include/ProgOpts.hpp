@@ -96,6 +96,8 @@ public:
   uint32_t maxAllowedRefsPerHit{1000};
   bool recoverOrphans{false};
   bool mimicBt2Default{false};
+  bool mimicBt2Strict{false};
+  bool allowOverhangSoftclip{false};
 };
 }
 

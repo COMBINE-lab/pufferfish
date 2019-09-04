@@ -197,7 +197,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool invalidStart = (signedRefStartPos < 0);
   bool invalidEnd = (signedRefEndPos > refTotalLength);
 
-  if (mopts.mimicBT2 and (invalidStart or invalidEnd)) {
+  bool allowOverhangSoftclip = mopts.allowOverhangSoftclip;
+
+  if (mopts.mimicBT2Strict and (invalidStart or invalidEnd)) {
     arOut.score = std::numeric_limits<decltype(arOut.score)>::min();
     arOut.cigar = "";
     arOut.openGapLen = 0;
@@ -279,19 +281,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
     SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
   } else if (doFullAlignment) {
-    //aligner.config().flag = 0;
-    //aligner.config().flag |= KSW_EZ_RIGHT;
-    nonstd::string_view readSeq = readView.substr(readStart);
+    // if we allow softclipping of overhanging bases, then we can cut off the part of the read
+    // before the start of the reference
+    decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
+    nonstd::string_view readSeq = readView.substr(readOffset);
     aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-    alignmentScore = std::max(ez.mqe, ez.mte);
+    // if we allow softclipping of overhaning bases, then we only care about the best
+    // score to the end of the query or the end of the reference.  Otherwise, we care about
+    // the best score all the way until the end of the query.
+    alignmentScore = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
 
-    //bool cigar_fixed{false};
-    //cigarGen.clear();
-    //cigar.clear();
-    //openGapLen = addCigar(cigarGen, ez, false); 
-    //cigar = cigarGen.get_cigar(readLen, cigar_fixed);
-    //std::cerr << "cigar : " << cigar << "\n";
     SPDLOG_DEBUG(logger_,"readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
     SPDLOG_DEBUG(logger_,"currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
 
@@ -329,11 +329,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-        alignmentScore += std::max(ez.mqe, ez.mte);
+        alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
         openGapLen = addCigar(cigarGen, ez, true);
         SPDLOG_DEBUG(logger_,"score : {}", std::max(ez.mqe, ez.mte));
       } else {
         // do any special soft clipping penalty here if we want
+        alignmentScore += allowOverhangSoftclip ? 0 :
+          (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * firstMemStart_read);
       }
     }
 
@@ -425,12 +427,15 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if (refLen > 0) {
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-        int32_t alnCost = std::max(ez.mqe, ez.mte);
+        int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
         int32_t delCost = (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * readWindow.length());
         alignmentScore += std::max(alnCost, delCost);
         SPDLOG_DEBUG(logger_,"POST score : {}", std::max(ez.mqe, ez.mte));
       } else {
         // do any special soft-clipping penalty here if we want
+        // do any special soft clipping penalty here if we want
+        alignmentScore += allowOverhangSoftclip ? 0 :
+          (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * firstMemStart_read);
       }
     }
 
