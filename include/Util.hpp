@@ -86,7 +86,7 @@ namespace pufferfish {
 
       enum class HitFilterPolicy : uint8_t {
             FILTER_AFTER_CHAINING = 0, FILTER_BEFORE_CHAINING,
-            FILTER_BEFORE_AND_AFTER_CHAINING
+            FILTER_BEFORE_AND_AFTER_CHAINING, DO_NOT_FILTER
       };
 
       // encapsulates policy choices about what types of mappings
