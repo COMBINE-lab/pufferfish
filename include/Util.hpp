@@ -150,9 +150,6 @@ namespace pufferfish {
           index_map_.clear();
         }
 
-        void set_resting_capacity(uint32_t rc) { resting_capacity_ = rc; }
-        uint32_t get_resting_capacity(uint32_t rc) const { return resting_capacity_; }
-
         class iterator {
 
             typedef iterator self_type;
