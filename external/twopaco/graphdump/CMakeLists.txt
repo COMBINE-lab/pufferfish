@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.9)
 
 set(CMAKE_PROJECT_NAME graphdump)
 
-include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIR} "../common" "./" )
+include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIRS} "../common" "./" )
 link_directories(${TBB_LIB_DIR})
 
 add_library(graphdump STATIC graphdump.cpp ../common/dnachar.cpp ../common/streamfastaparser.cpp)
