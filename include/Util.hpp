@@ -811,13 +811,18 @@ Compile-time selection between list-like and map-like printing.
             QuasiAlignment() :
                     tid(std::numeric_limits<uint32_t>::max()),
                     pos(std::numeric_limits<int32_t>::max()),
+                    matePos(std::numeric_limits<int32_t>::max()),
                     fwd(true),
+                    mateIsFwd(true),
                     fragLen(std::numeric_limits<uint32_t>::max()),
                     readLen(std::numeric_limits<uint32_t>::max()),
-                    isPaired(false)
+                    mateLen(std::numeric_limits<uint32_t>::max()),
+                    isPaired(false),
 #ifdef PUFFERFISH_SALMON_SUPPORT
-                    ,format(LibraryFormat::formatFromID(0))
+                    format(LibraryFormat::formatFromID(0)),
 #endif // PUFFERFISH_SALMON_SUPPORT
+                    score(std::numeric_limits<int32_t>::min()),
+                    mateScore(std::numeric_limits<int32_t>::min())
           {}
 
             QuasiAlignment(uint32_t tidIn, int32_t posIn,
@@ -825,11 +830,15 @@ Compile-time selection between list-like and map-like printing.
                            uint32_t fragLenIn = 0,
                            bool isPairedIn = false) :
                     tid(tidIn), pos(posIn), fwd(fwdIn),
+                    mateIsFwd(true),
                     fragLen(fragLenIn), readLen(readLenIn),
-                    isPaired(isPairedIn), cigar(cigarIn)
+                    mateLen(std::numeric_limits<uint32_t>::max()),
+                    isPaired(isPairedIn), cigar(cigarIn),
 #ifdef PUFFERFISH_SALMON_SUPPORT
-                    ,format(LibraryFormat::formatFromID(0))
+                    format(LibraryFormat::formatFromID(0)),
 #endif // PUFFERFISH_SALMON_SUPPORT
+                    score(std::numeric_limits<int32_t>::min()),
+              mateScore(std::numeric_limits<int32_t>::min())
           {}
 
             QuasiAlignment(QuasiAlignment &&other) = default;
