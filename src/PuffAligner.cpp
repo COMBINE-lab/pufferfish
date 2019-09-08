@@ -295,7 +295,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
     SPDLOG_DEBUG(logger_,"currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
 
-    if (computeCIGAR) { openGapLen = addCigar(cigarGen, ez, false); }
+    if (computeCIGAR) {
+      openGapLen = addCigar(cigarGen, ez, false);
+    } else {
+      // can make start pos negative, but sam writer deals with this right now
+      openGapLen = currHitStart_read;
+      //((currHitStart_ref - currHitStart_read) < 0) ? 0 : (currHitStart_read);
+    }
   } else {
     // ROB ATTEMPT ---
     alignmentScore = 0;
@@ -330,12 +336,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
-        openGapLen = addCigar(cigarGen, ez, true);
+        openGapLen = computeCIGAR ? addCigar(cigarGen, ez, true) : (ez.mqe_t + 1);
         SPDLOG_DEBUG(logger_,"score : {}", std::max(ez.mqe, ez.mte));
       } else {
         // do any special soft clipping penalty here if we want
         alignmentScore += allowOverhangSoftclip ? 0 :
           (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * firstMemStart_read);
+        openGapLen = firstMemStart_read;
       }
     }
 
@@ -379,7 +386,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
         score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-        addCigar(cigarGen, ez, false);
+        if (computeCIGAR) { addCigar(cigarGen, ez, false); }
       } else if ( it > mems.begin() and ((currMemStart_read <= prevMemEnd_read) or (currMemStart_ref <= prevMemEnd_ref)) ){
         SPDLOG_DEBUG(logger_,"]]\n");
         std::cerr << "[ERROR in PuffAligner, between-MEM alignment] : Improperly compacted MEM chain.  Should not happen!\n";
