@@ -30,7 +30,8 @@ private:
   uint64_t numKmers_{0};
   bool haveEdges_{false};
   bool haveRefSeq_{false};
-
+  bool haveEqClasses_{true};
+  
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
   std::vector<std::string> refNames_;
@@ -56,7 +57,7 @@ private:
 
 public:
   PufferfishIndex();
-  PufferfishIndex(const std::string& indexPath);
+  PufferfishIndex(const std::string& indexPath, pufferfish::util::IndexLoadingOpts opts = pufferfish::util::IndexLoadingOpts());
   ~PufferfishIndex();
  
   compact::vector<uint64_t, 2> refseq_;

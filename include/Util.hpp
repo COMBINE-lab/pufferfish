@@ -80,6 +80,16 @@ namespace pufferfish {
                 78, 78, 78, 78, 65, 65, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78  // 127
         };
 
+      struct IndexLoadingOpts {
+        // These are the optional components for the index
+        // this says whether or not we will even try to load
+        // these things.  Obviously, if they were not built 
+        // during index construction, we cannot load them.
+        bool try_loading_eqclasses{false};
+        bool try_loading_edges{false};
+        bool try_loading_ref_seqs{true};
+      };
+
         enum ReadEnd : uint8_t {
             LEFT, RIGHT
         };

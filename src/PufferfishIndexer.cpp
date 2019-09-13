@@ -388,7 +388,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   if (indexOpts.filt_size == -1){
     console->info("Filter size not provided; estimating from number of distinct k-mers");
     auto nk = getNumDistinctKmers(k, rfile);
-    double p = 0.0001;
+    double p = 0.001;
     double k = 5.0;
     double logp_k = std::log(p) / k;
     double r = (-k) / std::log(1.0 - std::exp(logp_k));
