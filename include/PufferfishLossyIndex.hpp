@@ -31,6 +31,7 @@ private:
   uint64_t numSampledKmers_{0};
   bool haveEdges_{false};
   bool haveRefSeq_{false};
+  bool haveEqClasses_{true};
 
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
@@ -63,7 +64,7 @@ public:
 
 
   PufferfishLossyIndex();
-  PufferfishLossyIndex(const std::string& indexPath);
+  PufferfishLossyIndex(const std::string& indexPath, pufferfish::util::IndexLoadingOpts opts = pufferfish::util::IndexLoadingOpts());
   // Returns a ProjectedHits object that contains all of the
   // projected reference hits for the given kmer.
   auto getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits;

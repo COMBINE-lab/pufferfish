@@ -11,7 +11,7 @@
 
 PufferfishSparseIndex::PufferfishSparseIndex() {}
 
-PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
+PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir, pufferfish::util::IndexLoadingOpts opts) {
   if (!puffer::fs::DirExists(indexDir.c_str())) {
     std::cerr << "The index directory " << indexDir << " does not exist!\n";
     std::exit(1);
@@ -36,7 +36,10 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     twok_ = 2 * k_;
     infoStream.close();
   }
-
+  haveEdges_ = opts.try_loading_edges and haveEdges_;
+  haveRefSeq_ = opts.try_loading_ref_seqs and haveRefSeq_;
+  haveEqClasses_ = opts.try_loading_eqclasses and haveEqClasses_;
+  
   // std::cerr << "loading contig table ... ";
   {
     CLI::AutoTimer timer{"Loading contig table", CLI::Timer::Big};
@@ -79,7 +82,7 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir) {
     }
   }
   
-  {
+  if (haveEqClasses_) {
     CLI::AutoTimer timer{"Loading eq table", CLI::Timer::Big};
     std::ifstream eqTableStream(indexDir + "/" + pufferfish::util::EQTABLE);
     cereal::BinaryInputArchive eqTableArchive(eqTableStream);

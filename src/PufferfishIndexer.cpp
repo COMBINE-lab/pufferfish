@@ -414,12 +414,26 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     args.push_back(outdir+"/tmp_dbg.bin");
     args.push_back("--tmpdir");
 
-    std::string twopaco_tmp_path = outdir + "/twopaco_tmp";
-    if (puffer::fs::MakePath(twopaco_tmp_path.c_str()) != 0) {
-      console->error(std::strerror(errno));
-      std::exit(1);
+    std::string twopaco_tmp_path = indexOpts.twopaco_tmp_dir;
+    // if the tmp path wasn't set, then use a subdirectory 
+    // of the index directory (that we will later remove).
+    if (twopaco_tmp_path.empty()) {
+      twopaco_tmp_path = outdir + "/twopaco_tmp";
+    } 
+
+    // create the tmp directory if we need to (and can). Complain and exit
+    // if the user passed an existing file as the target path. 
+    if (ghc::filesystem::exists(twopaco_tmp_path.c_str())) {
+        if (!ghc::filesystem::is_directory(twopaco_tmp_path.c_str())) {
+            console->error("{} exists as a file. Cannot create a directory of the same name.", twopaco_tmp_path.c_str());
+            console->flush();
+            std::exit(1);
+        }
+    } else {
+        ghc::filesystem::create_directories(twopaco_tmp_path.c_str());
     }
     args.push_back(twopaco_tmp_path);
+
     args.push_back(rfile);
     buildGraphMain(args);
 

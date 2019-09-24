@@ -32,6 +32,7 @@ private:
   uint64_t numSampledKmers_{0};
   bool haveEdges_{false};
   bool haveRefSeq_{false};
+  bool haveEqClasses_{true};
 
   std::vector<uint32_t> eqClassIDs_;
   std::vector<std::vector<uint32_t>> eqLabels_;
@@ -74,7 +75,7 @@ public:
 
 
   PufferfishSparseIndex();
-  PufferfishSparseIndex(const std::string& indexPath);
+  PufferfishSparseIndex(const std::string& indexPath, pufferfish::util::IndexLoadingOpts opts = pufferfish::util::IndexLoadingOpts());
   //Returns the position in the compacted bBG sequence from the sparse
   //index the above routine can be replaced by this code in
   //future versions

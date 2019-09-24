@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Ignore build folder
+build/
+TESTOUT/
+external/
+example/
+include/sdsl/
+include/gtest/
+lib/
