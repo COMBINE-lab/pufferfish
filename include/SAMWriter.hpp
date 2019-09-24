@@ -268,12 +268,14 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     refLenType leftRefPos = 0;
     refLenType rightRefPos = 0;
     if (qa.isLeftAvailable()) {
+      uint64_t pos = clustLeft->getTrFirstHitPos() < 0 ? 0 : clustLeft->getTrFirstHitPos();
       leftNumOfIntervals = clustLeft->mems.size();
-      leftRefPos = clustLeft->getTrFirstHitPos() | (static_cast<refLenType>(clustLeft->isFw) << (sizeof(refLenType)*8-1));
+      leftRefPos = pos | (static_cast<refLenType>(clustLeft->isFw) << (sizeof(refLenType)*8-1));
     }
     if (qa.isRightAvailable()) {
+      uint64_t pos = clustRight->getTrFirstHitPos() < 0 ? 0 : clustRight->getTrFirstHitPos();
       rightNumOfIntervals = clustRight->mems.size();
-      rightRefPos = clustRight->getTrFirstHitPos() | (static_cast<refLenType>(clustRight->isFw) << (sizeof(refLenType)*8-1));
+      rightRefPos = pos | (static_cast<refLenType>(clustRight->isFw) << (sizeof(refLenType)*8-1));
     }
     bstream << static_cast<uint32_t>(formatter.index->getRefId(qa.tid));
       /*std::cerr << "r " << readName << " puffid: " << qa.tid << " lcnt:" << leftNumOfIntervals
@@ -308,7 +310,7 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
         bstream << static_cast<refLenType>(rightRefPos);
     	if (wrtIntervals) {
         	for (auto& mem: clustRight->mems) {
-          		bstream << static_cast<rLenType>(mem.rpos) 
+          		bstream << static_cast<rLenType>(mem.rpos)
                   		<< static_cast<rLenType>(mem.extendedlen);
         	}
       	}
@@ -635,6 +637,8 @@ inline uint32_t writeAlignmentsToStream(
       if ((minPos + static_cast<int32_t>(qa.fragLen)) > static_cast<int32_t>(txpLen)) { qa.fragLen = txpLen - minPos; }
       // get the fragment length as a signed int
       const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
+
+      std::stringstream ss;
 
       sstream << readNameView << '\t'                    // QNAME
               //<< qa.numHits << '\t'

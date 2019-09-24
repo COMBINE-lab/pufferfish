@@ -19,6 +19,9 @@
 //#include "LinearMultiArray.h"
 #include "SetCover.h"
 
+#define LIBASYNC_STATIC true
+#include "async++.h"
+
 struct set_data {
     unsigned int **sets;
     unsigned short **weights;
@@ -151,11 +154,14 @@ void Cedar<ReaderType, FileReaderType>::processAlignmentBatch(uint32_t threadID,
     TaxaNode *prevTaxa{nullptr};
     std::set<uint64_t> activeTaxa;
     ReaderType mappings(fileReader.getReader(), logger);
-    while (mappings.nextAlignmentGroup(alignmentGrp, iomutex, getReadName)) {
+    while (mappings.nextAlignmentGroup(alignmentGrp, iomutex, threadID, getReadName)) {
         for (auto &readInfo: alignmentGrp) {
             stats.totalReadCnt++;
             if (stats.totalReadCnt % 1000000 == 0) {
-                std::cerr << "\rThread " << threadID << " processed " << stats.totalReadCnt << " reads";
+//            {
+//                std::lock_guard<std::mutex> l(iomutex);
+                std::cerr << "\nThread " << threadID << " processed " << stats.totalReadCnt << " reads";
+//            }
             }
             activeTaxa.clear();
             double readMappingsScoreSum = 0;
@@ -212,13 +218,13 @@ void Cedar<ReaderType, FileReaderType>::processAlignmentBatch(uint32_t threadID,
                                                            static_cast<double>(fileReader.refLength(mapping.getId())));
                         readMappingsScoreSum += readPerStrainProbInst.back().second;
 
-                        uint32_t bin_number = mapping.getPos(ReadEnd::LEFT) / segmentSize > 0 ?
+                        uint32_t bin_number = mapping.getPos(ReadEnd::LEFT) / segmentSize > 1 ?
                                               mapping.getPos(ReadEnd::LEFT) / segmentSize - 1 : 0;
                         auto &cbins = strain_coverage_bins[mapping.getId()];
                         if (bin_number < cbins.size()) {
                             cbins[bin_number]++;
                         } else {
-                            std::cerr << "SHOULDN'T HAPPEN! out of bound: " << bin_number << " " << cbins.size() << " ";
+                            std::cerr << "SHOULDN'T HAPPEN! out of bound: " << mapping.getId() << " " << refNam << " " << fileReader.refLength(mapping.getId()) << " " << bin_number << " " << cbins.size() << " ";
                             std::cerr << "lpos: " << mapping.getPos(ReadEnd::LEFT) << "\n";
                         }
                         prevTaxa = &mapping;
@@ -563,7 +569,7 @@ bool Cedar<ReaderType, FileReaderType>::applySetCover(std::vector<double> &strai
                                       std::vector<bool> &strainPotentiallyRemovable,
                                       double minCnt,
                                       bool canHelp,
-                                      bool verbose) {
+                                      bool verbose){
     uint64_t previouslyValid{0};
     auto &eqvec = eqb.eqVec();
     // rule to find potentially removable strains
@@ -593,7 +599,7 @@ bool Cedar<ReaderType, FileReaderType>::applySetCover(std::vector<double> &strai
     }
 
 
-    std::unordered_map<uint32_t, std::unordered_set<uint64_t>> ref2eqset;
+    std::/*unordered_*/map<uint32_t, std::/*unordered_*/set<uint64_t>> ref2eqset;
     for (auto &eqc : eqvec) {
         auto &tg = eqc.first;
         auto &v = eqc.second;
@@ -656,12 +662,21 @@ bool Cedar<ReaderType, FileReaderType>::applySetCover(std::vector<double> &strai
 
         uint32_t i = 0;
         std::vector<uint64_t> setCoverId2ref(ref2eqset.size());
+        std::vector<uint32_t> setWeight;
         for (auto &kv: ref2eqset) {
             setCoverId2ref[i] = kv.first;
             auto setSize = kv.second.size();
             ret_struct.set_sizes[i] = setSize;
-            if (ret_struct.max_weight < setSize) {
-                ret_struct.max_weight = setSize;
+            auto mw = static_cast<uint32_t>(this->strain_coverage[i] * 10000);
+            auto perElement = static_cast<uint32_t>(mw/setSize);
+            if (perElement < 1) {
+                perElement = 1;
+            }
+            mw = perElement * setSize;
+            setWeight.push_back(mw);
+//            std::cerr << "pE: " << perElement << " " << mw << "\n";
+            if (ret_struct.max_weight < mw/*setSize*/) {
+                ret_struct.max_weight = mw;//setSize;
             }
             ret_struct.sets[i] = new unsigned int[setSize];
             uint32_t element_counter = 0;
@@ -671,7 +686,7 @@ bool Cedar<ReaderType, FileReaderType>::applySetCover(std::vector<double> &strai
                 ret_struct.all_element_count++;
             }
             ret_struct.weights[i] = new unsigned short[setSize];
-            std::fill_n(ret_struct.weights[i], setSize, 1);
+            std::fill_n(ret_struct.weights[i], setSize, perElement);
             i++;
         }
 // end of set cover input preparation
@@ -687,8 +702,11 @@ bool Cedar<ReaderType, FileReaderType>::applySetCover(std::vector<double> &strai
                            ret_struct.all_element_count,
                            ret_struct.element_size_lookup
         );
+        if (verbose)
+            std::cerr << "Done with executing setCover\n";
         for (uint64_t j = 0; j < ret_struct.set_count; j++) {
-            setcover.add_set(j + 1, ret_struct.set_sizes[j], (const unsigned int *) ret_struct.sets[j],
+            setcover.add_set(j + 1, setWeight[j]/*ret_struct.set_sizes[j]*/,
+                    (const unsigned int *) ret_struct.sets[j],
                              (const unsigned short *) ret_struct.weights[j],
                              ret_struct.set_sizes[j]);
             delete[] ret_struct.sets[j];
@@ -696,6 +714,8 @@ bool Cedar<ReaderType, FileReaderType>::applySetCover(std::vector<double> &strai
 //            free(ret_struct.sets[j]);
 //            free(ret_struct.weights[j]);
         }
+        if (verbose)
+            std::cerr << "Done with executing setCover\n";
         std::list<set *> ret = setcover.execute_set_cover();
 // put the list of minimum # of references that can cover all eqs (output of setCover algo.) in remainingRefs
         std::unordered_set<uint32_t> remainingRefs;
@@ -739,7 +759,10 @@ bool Cedar<ReaderType, FileReaderType>::basicEM(size_t maxIter, double eps, doub
         maxSeqID = (static_cast<int64_t>(kv.first) > maxSeqID) ? static_cast<int64_t>(kv.first) : maxSeqID;
     }
 
-    std::vector<tbb::atomic < double>> newStrainCnt(maxSeqID + 1, 0.0);
+    std::vector<std::atomic < double>> newStrainCnt(maxSeqID + 1);
+    for (auto i = 0; i < maxSeqID+1; i++) {
+        util::update(newStrainCnt[i], 0.0);
+    }
     std::vector<double> strainCnt(maxSeqID + 1);
     std::vector<bool> strainValid(maxSeqID + 1, true);
     std::vector<bool> strainPotentiallyRemovable(maxSeqID + 1, false);
@@ -748,6 +771,12 @@ bool Cedar<ReaderType, FileReaderType>::basicEM(size_t maxIter, double eps, doub
     for (auto &kv : strain) {
         strainCnt[kv.first] = kv.second;
         validTaxIdCnt += kv.second;
+        if (fileReader.refName(kv.first) == "ENST00000357898.3|ENSG00000171621.13|OTTHUMG00000001279.4|OTTHUMT00000303969.1|SPSB1-202|SPSB1|1439|protein_coding|" or
+            fileReader.refName(kv.first) == "ENST00000328089.10|ENSG00000171621.13|OTTHUMG00000001279.4|OTTHUMT00000003727.2|SPSB1-201|SPSB1|3120|protein_coding|") {
+            std::stringstream ss;
+            ss << kv.first << " " << fileReader.refName(kv.first) << " " << strainCnt[kv.first] << "\n";
+            std::cerr << ss.str();
+        }
     }
     logger->info("maxSeqID : {}", maxSeqID);
     logger->info("found : {} equivalence classes", eqvec.size());
@@ -764,20 +793,33 @@ bool Cedar<ReaderType, FileReaderType>::basicEM(size_t maxIter, double eps, doub
     bool converged = false;
     uint64_t thresholdingIterStep = 10;
     bool canHelp = true;
-    tbb::task_scheduler_init tbbScheduler(numThreads);
+    //tbb::task_scheduler_init asyncScheduler(numThreads);
+    async::threadpool_scheduler asyncScheduler(numThreads);
+    uint64_t blockSize = 1000;
+    std::vector<std::pair<decltype(eqvec.begin()), decltype(eqvec.begin())>>
+        range(std::ceil(static_cast<double >(eqvec.size())/ static_cast<double>(blockSize)));
+    uint64_t idx{0};
+    for (uint64_t i = 0; i < eqvec.size(); i+=blockSize) {
+        decltype(eqvec.begin()) rangeBegin(eqvec.begin()+i);
+        auto rangeEnd = rangeBegin+blockSize > eqvec.end()? eqvec.end():rangeBegin+blockSize;
+        range[idx] = std::make_pair(rangeBegin, rangeEnd);
+        idx++;
+    }
     while (cntr++ < maxIter && !converged) {
         if (cntr % thresholdingIterStep == 0 && canHelp) {
             canHelp = applySetCover(strainCnt, strainValid, strainPotentiallyRemovable, minCnt, canHelp, verbose);
         }
         // M step
         // Find the best (most likely) count assignment
-        tbb::parallel_for(
-                tbb::blocked_range<size_t>(0, eqvec.size()),
+        async::parallel_for(asyncScheduler,
+                //tbb::blocked_range<size_t>(0, eqvec.size()),
+//                            async::make_range(range, range+eqvec.size()),
+                async::make_range(range.begin(), range.end()),
                 [&eqvec, &strainValid, &strainCnt, &newStrainCnt, this]
-                        (const tbb::blocked_range <size_t> &range) -> void {
-                    for (auto eqID = range.begin(); eqID != range.end(); ++eqID) {
-                        auto &eqc = eqvec[eqID];
-
+                        (decltype(*range.begin())& rangePair/*const async::range<size_t> &range*/) -> void {
+                    for (auto eqIt = rangePair.first; eqIt != rangePair.second; ++eqIt) {
+                        auto &eqc = (*eqIt);//eqvec[eqID];
+//                        std::cerr << eqID << "\n";
                         auto &tg = eqc.first;
                         auto &v = eqc.second;
                         auto csize = v.weights.size();
@@ -795,8 +837,10 @@ bool Cedar<ReaderType, FileReaderType>::basicEM(size_t maxIter, double eps, doub
                         }
                         for (size_t readMappingCntr = 0; readMappingCntr < csize; ++readMappingCntr) {
                             auto &tgt = tg.tgts[readMappingCntr];
-                            if (strainValid[tgt])
+                            if (strainValid[tgt]) {
+//                                std::cerr << v.count * (tmpReadProb[readMappingCntr] / denom) << "\n";
                                 util::incLoop(newStrainCnt[tgt], v.count * (tmpReadProb[readMappingCntr] / denom));
+                            }
                             /*else {
                                 newStrainCnt[tgt] = 0;
                             }*/
@@ -812,6 +856,15 @@ bool Cedar<ReaderType, FileReaderType>::basicEM(size_t maxIter, double eps, doub
         // It's a small loop with critical variables so better not to be parallelized
         // It was a few seconds faster without parallelizing
         for (uint64_t i = 0; i < newStrainCnt.size(); ++i) {
+            if (cntr < 20)
+                if (fileReader.refName(i) == "ENST00000495701.1|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000099595.1|CEP104-211|CEP104|485|retained_intron|" or
+                    fileReader.refName(i) == "ENST00000460038.5|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000009813.1|CEP104-206|CEP104|696|processed_transcript|" or
+                    fileReader.refName(i) == "ENST00000494653.5|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000009749.1|CEP104-209|CEP104|2174|retained_intron|" or
+                    fileReader.refName(i) == "ENST00000378230.7|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000009747.3|CEP104-202|CEP104|6424|protein_coding|") {
+                std::stringstream ss;
+                ss << i << " " << strainCnt[i] << "\n";
+                std::cerr << ss.str();
+            }
             readCntValidator += newStrainCnt[i];
             auto adiff = std::abs(newStrainCnt[i] - strainCnt[i]);
             if (adiff > eps) {
@@ -864,10 +917,21 @@ bool Cedar<ReaderType, FileReaderType>::basicEM(size_t maxIter, double eps, doub
     //spp::sparse_hash_map<uint64_t, double> outputMap;
     outputMap.reserve(strain.size());
     double finalReadCnt{0}, numOfValids{0};
+    std::stringstream ss;
+    ss << "\n\ndone with EM\n\n";
+    std::cerr << ss.str();
     for (auto &kv : strain) {
         finalReadCnt += strainCnt[kv.first];
         numOfValids += strainValid[kv.first];
         util::incLoop(outputMap[seqToTaxMap[kv.first]], strainValid[kv.first] ? strainCnt[kv.first] : 0);
+        if (fileReader.refName(kv.first) == "ENST00000495701.1|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000099595.1|CEP104-211|CEP104|485|retained_intron|" or
+            fileReader.refName(kv.first) == "ENST00000460038.5|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000009813.1|CEP104-206|CEP104|696|processed_transcript|" or
+                fileReader.refName(kv.first) == "ENST00000494653.5|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000009749.1|CEP104-209|CEP104|2174|retained_intron|" or
+                fileReader.refName(kv.first) == "ENST00000378230.7|ENSG00000116198.12|OTTHUMG00000003507.5|OTTHUMT00000009747.3|CEP104-202|CEP104|6424|protein_coding|") {
+            std::stringstream ss;
+            ss << kv.first << " " << fileReader.refName(kv.first) << " " << strainCnt[kv.first] << " " << seqToTaxMap[kv.first] << " " << outputMap[seqToTaxMap[kv.first]]<< "\n";
+            std::cerr << ss.str();
+        }
     }
     logger->info("Final Reference-level read cnt: {}, # of valid refs: {}",
                  static_cast<uint64_t >(finalReadCnt),
@@ -933,7 +997,7 @@ void Cedar<ReaderType, FileReaderType>::serializeFlat(std::string &output_filena
     logger->info("Write results in the file: {}", output_filename);
     std::ofstream ofile(output_filename);
     ofile << "taxaId\ttaxaRank\tcount\tcoverage\n";
-    std::cerr << "NUMREFS: " << fileReader.numRefs() << "\n";
+//    std::cerr << "NUMREFS: " << fileReader.numRefs() << "\n";
     for (uint32_t i = 0; i < fileReader.numRefs(); ++i) {
         //for (auto& kv : strain) {
         auto it = strain.find(i);
@@ -944,6 +1008,7 @@ void Cedar<ReaderType, FileReaderType>::serializeFlat(std::string &output_filena
         ofile << fileReader.refName(i) << "\t"
               << "flat"
               << "\t" << abund << "\t" << strain_coverage[i] << "\n";
+//        std::cerr << fileReader.refName(i) << " " << strain_coverage[i] << "\n";
     }
     ofile.close();
 }

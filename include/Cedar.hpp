@@ -9,7 +9,7 @@
 #include <thread>
 #include <mutex>
 #include "Taxa.h"
-#include "tbb/tbb.h"
+//#include "tbb/tbb.h"
 
 constexpr uint32_t ALIGNMENTS_PER_BATCH{20};
 namespace util {
@@ -39,24 +39,28 @@ namespace util {
  * val + inc.  Update occurs in a loop in case other
  * threads update in the meantime.
  */
-    inline void incLoop(tbb::atomic<double> &val, double inc) {
+    inline void incLoop(std::atomic<double> &val, double inc) {
         double oldMass = val.load();
-        double returnedMass = oldMass;
+        //double returnedMass = oldMass;
         double newMass{oldMass + inc};
+        bool successful = false;
         do {
-            oldMass = returnedMass;
+            //oldMass = val.load();
             newMass = oldMass + inc;
-            returnedMass = val.compare_and_swap(newMass, oldMass);
-        } while (returnedMass != oldMass);
+            //returnedMass = val.compare_and_swap(newMass, oldMass);
+            successful = val.compare_exchange_weak(oldMass, newMass);
+        } while (!successful);//while (returnedMass != oldMass);
+//        std::cerr << inc << "\n";
     }
 
-    inline void update(tbb::atomic<double> &val, double newval) {      // Update x and return old value of x.
+    inline void update(std::atomic<double> &val, double newval) {      // Update x and return old value of x.
         double oldval = val;
+        if (oldval == newval) return;
         do {
             // Read globalX
             oldval = val;
             // Store new value if another thread has not changed globalX.
-        } while (val.compare_and_swap(newval, oldval) != oldval);
+        } while (val.compare_exchange_strong/*compare_and_swap*/(newval, oldval) != oldval);
     }
 
 }

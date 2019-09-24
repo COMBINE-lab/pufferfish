@@ -152,7 +152,6 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
   while (kit1 != kit_end) {
     auto phits = pfi_->getRefPos(kit1->first, qc);
-
     skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
     if (!phits.empty()) {
       // kit1 gets updated inside expandHitEfficient function

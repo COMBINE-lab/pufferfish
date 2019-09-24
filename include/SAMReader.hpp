@@ -77,6 +77,7 @@ public:
 
     bool nextAlignmentGroup(std::vector<ReadInfo> &alignmentGrp,
                             std::mutex &iomutex,
+                            uint32_t threadID,
                             bool needReadName = false) {
         std::lock_guard<std::mutex> l(iomutex);
         uint32_t readsLeft{0};

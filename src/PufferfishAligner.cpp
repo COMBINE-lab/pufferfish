@@ -494,9 +494,11 @@ void processReadsPair(paired_parser *parser,
         if (!mopts->noOutput) {
             // Get rid of last newline
             if (mopts->salmonOut) {
-                BinWriter sbw(sizeof(uint64_t));
-                sbw << bstream.getBytes();
-                outQueue->info("{}{}", sbw, bstream);
+                if (bstream.getBytes() != 0) {
+                    BinWriter sbw(sizeof(uint64_t));
+                    sbw << bstream.getBytes();
+                    outQueue->info("{}{}", sbw, bstream);
+                }
             } else if (mopts->krakOut) {
                 outQueue->info("{}", bstream);
             } else {

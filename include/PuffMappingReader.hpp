@@ -21,6 +21,7 @@ public:
     }
 
     bool allocate(uint64_t newSize) {
+//        std::cerr << "new chunk size: " << newSize << "\n";
         chunkSize_ = newSize;
         currByte_ = 0;
         if (newSize > allocatedSize_) {
@@ -92,7 +93,7 @@ public:
             inFile.read(reinterpret_cast<char *>(&refLen), sizeof(refLenType));
             refNames[i] = refName;
             refLengths[i] = refLen;
-            //std::cout << refName << " " << refLen << "\n";
+//            std::cerr << refName << " " << refLen << "\n";
         }
         return true;
     }
@@ -102,6 +103,7 @@ public:
         if (hasNext()) {
             uint64_t chunksize;
             inFile.read(reinterpret_cast<char *>(&chunksize), sizeof(chunksize));
+//            std::cerr << "chunkSize: " << chunksize << "\n";
             if (!hasNext()) return false; // because you need to read last chunk from file first before the flag is set
             chunk.allocate(chunksize); // only allocates new space if chunksize > chunk.size()
             inFile.read(chunk.chunk_.data(), chunksize);
@@ -141,6 +143,7 @@ public:
 
     bool nextAlignmentGroup(std::vector<ReadInfo> &alignmentGrp,
                             std::mutex &iomutex,
+                            uint32_t threadID,
                             bool needReadName = false) {
         uint32_t readsLeft{0};
         for (ReadInfo& rinfo: alignmentGrp) {
@@ -149,6 +152,10 @@ public:
             else
                 break;
         }
+        /*{
+            std::lock_guard<std::mutex> l(iomutex);
+            std::cerr << "Thread " << threadID << " got " << readsLeft << " in this cycle\n";
+        }*/
         if (readsLeft < alignmentGrp.size())
             alignmentGrp.resize(readsLeft);
         return readsLeft > 0;
@@ -161,7 +168,7 @@ public:
         }
         rinf.mappings.clear();
 
-        uint32_t puff_id, mcnt;
+        uint32_t puff_id, mcnt{0};
         rLenType rlen{0}, lcnt{0}, rcnt{0};//, ibeg{0}, ilen{0};
         refLenType refPos;
         std::string readName;
@@ -178,6 +185,14 @@ public:
         // mapping count
         chunk.fill(mcnt);
         chunk.fill(rlen); // left read len
+/*
+        {
+            std::lock_guard<std::mutex> l(iomutex);
+            if (mcnt == 0)
+                std::cerr << "\n\ncnt is zerooooo\n\n";
+        }
+*/
+
         rinf.cnt = mcnt;
         rinf.len = rlen;
         if (pamReader->isPaired) {
@@ -207,8 +222,8 @@ public:
                 chunk.fill(refPos);
                 taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, ReadEnd::LEFT);
                 taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, ReadEnd::LEFT);
-//                    std::cerr << "left score:" << lscore << " ";
-//                    std::cout << "left pos:" << taxaPtr->getPos(ReadEnd::LEFT) << " " << taxaPtr->isFw(ReadEnd::LEFT) << "\n";
+//                std::cerr << "left score:" << lscore << " ";
+//                std::cout << "left pos:" << refPos << " " << taxaPtr->getPos(ReadEnd::LEFT) << " " << taxaPtr->isFw(ReadEnd::LEFT) << "\n";
             }
 
             if (pamReader->isPaired) {
@@ -223,8 +238,8 @@ public:
                     chunk.fill(refPos);
                     taxaPtr->setFw(refPos & PuffMappingReader::HighBitMask, currRe);
                     taxaPtr->setPos(refPos & PuffMappingReader::LowBitsMask, currRe);
-//                        std::cerr << "right score:" << rscore << " ";
-//                        std::cout << "right pos: " << taxaPtr->getPos(currRe) << " " << taxaPtr->isFw(currRe) << "\n";
+//                    std::cerr << "right score:" << rscore << " ";
+//                    std::cout << "right pos: " << taxaPtr->getPos(currRe) << " " << taxaPtr->isFw(currRe) << "\n";
                 }
             }
             //std::cout << "here\n";

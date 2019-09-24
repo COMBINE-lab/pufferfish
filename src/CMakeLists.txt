@@ -18,7 +18,7 @@ check_ipo_supported(RESULT HAS_IPO)
 
 link_directories(
 		${GAT_SOURCE_DIR}/external/install/lib
-		${TBB_LIBRARIES}
+#		${TBB_LIBRARIES}
 )
 
 set (KSW2PP_BASIC_LIB_SRCS
@@ -136,7 +136,8 @@ add_executable(cedar TargetGroup.cpp Cedar.cpp Taxa.cpp)
 target_include_directories(cedar PRIVATE
     ${GAT_SOURCE_DIR}/external/install/include
     ${GAT_SOURCE_DIR}/external/install/include/htslib
-    ${TBB_INCLUDE_DIRS}
+	#${PROJECT_SOURCE_DIR}/include
+#    ${TBB_INCLUDE_DIRS}
 )
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
@@ -170,6 +171,6 @@ target_link_libraries(bcalm_pufferize Threads::Threads z)
 target_link_libraries(edgedensity Threads::Threads z puffer)
 target_link_libraries(edgedensity2 Threads::Threads z puffer)
 target_link_libraries(krakmap Threads::Threads puffer)
-target_link_libraries(cedar ${TBB_LIBRARIES} Threads::Threads seqlib hts puffer bz2 lzma z SetCover)
+target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover)
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z )
 endif()
