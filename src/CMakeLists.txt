@@ -101,7 +101,7 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLA
 if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()
-target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ${TBB_LIBRARIES} ksw2pp ${CMAKE_DL_LIBS} ${LIBRT} ${JEMALLOC_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(pufferfish puffer #[[-static-libgcc]] -static-libstdc++ Threads::Threads z twopaco graphdump ntcard ${TBB_LIBRARIES} ksw2pp ${CMAKE_DL_LIBS} ${LIBRT} ${JEMALLOC_LIBRARIES} ${CMAKE_DL_LIBS})
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")

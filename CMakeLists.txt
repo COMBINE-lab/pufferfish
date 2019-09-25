@@ -54,6 +54,10 @@ else()
     # We're in sane linux world
     set(SHARED_LIB_EXTENSION "so")
     set(LIBSALMON_LINKER_FLAGS "")
+    #[[if (NOT BUILD_PUFF_FOR_SALMON)
+        list(APPEND PF_CPP_FLAGS -static-libstdc++)
+        message("PF_CPP_FLAGS = ${PF_CPP_FLAGS}")
+    endif()]]
 endif()
 
 ##
