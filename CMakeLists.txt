@@ -213,7 +213,10 @@ set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${DEBUG_FLAGS
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/ntcard)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
+
+if (NOT BUILD_PUFF_FOR_SALMON) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
+endif()
 
 include_directories(include)
 link_directories(lib)
