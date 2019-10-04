@@ -167,9 +167,9 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
     hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
   }
   // Eventually output a @PG line
-  // some other version nnumber for now,
+  // some other version number for now,
   // will think about it later
-  std::string version = "0.1.0";
+  std::string version = "1.0.0";
   hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
   std::string headerStr(hd.str());
   // Don't include the last '\n', since the logger will do it for us.
@@ -524,7 +524,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
               << qa.pos + 1 << '\t' // POS (1-based)
               << 255 << '\t' // MAPQ
               << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar) << '\t' // CIGAR
-              << '=' << '\t' // MATE NAME
+              << '*' << '\t' // MATE NAME
               << 0 << '\t' // MATE POS
               << qa.fragLen << '\t' // TLEN
               << *readSeq << '\t' // SEQ
