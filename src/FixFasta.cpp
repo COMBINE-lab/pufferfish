@@ -335,6 +335,12 @@ void fixFasta(single_parser* parser,
     }
   }
 
+  if (numberOfDecoys != decoyNames.size()) {
+    log->warn("The decoy file contained the names of {} decoy sequences, but "
+    "{} were matched by sequences in the reference file provided.",
+    decoyNames.size(), numberOfDecoys);
+  }
+
   {
     ghc::filesystem::path dcPath = outDir / ghc::filesystem::path{"duplicate_clusters.tsv"};
     std::ofstream dupClusterStream(dcPath.string());
