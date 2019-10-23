@@ -376,7 +376,10 @@ namespace pufferfish {
             logger_->info("total contig vec entries {:n}", contigVecSize);
             std::vector<pufferfish::util::Position> cpos;
             cpos.reserve(contigVecSize);
-            size_t w = std::ceil(std::log2(contigVecSize));
+
+	    // We need the +1 here because we store the last entry that is 1 greater than the last offset
+            // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
+            size_t w = std::ceil(std::log2(contigVecSize+1));
             logger_->info("bits per offset entry {:n}", w);
             compact::vector<uint64_t> cpos_offsets(w, contigOffsetSize);
 
