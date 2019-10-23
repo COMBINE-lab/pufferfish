@@ -86,9 +86,9 @@ set(pufferfish_lib_srcs
 if (BUILD_PUFF_FOR_SALMON)
  list(APPEND pufferfish_lib_srcs "${GAT_SOURCE_DIR}/src/LibraryFormat.cpp")
 endif()
+
+
 add_library(puffer STATIC ${pufferfish_lib_srcs})
-
-
 target_compile_options(puffer PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(puffer PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 if (BUILD_PUFF_FOR_SALMON)
