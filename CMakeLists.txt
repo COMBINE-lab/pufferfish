@@ -13,8 +13,8 @@ endif()
 # We require C++14
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-SET(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -static-libgcc -static-libstdc++")
-set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+#SET(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -static-libgcc -static-libstdc++")
+#set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -56,11 +56,11 @@ else()
     # We're in sane linux world
     set(SHARED_LIB_EXTENSION "so")
     set(LIBSALMON_LINKER_FLAGS "")
-    if (NOT BUILD_PUFF_FOR_SALMON)
-        set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
-        list(APPEND PF_CPP_FLAGS -static-libstdc++)
-        message("PF_CPP_FLAGS = ${PF_CPP_FLAGS}")
-    endif()
+#    if (NOT BUILD_PUFF_FOR_SALMON)
+#        set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+#        list(APPEND PF_CPP_FLAGS -static-libstdc++)
+#        message("PF_CPP_FLAGS = ${PF_CPP_FLAGS}")
+#    endif()
 endif()
 
 ##
