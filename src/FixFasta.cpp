@@ -465,7 +465,8 @@ spp::sparse_hash_set<std::string> populateDecoyHashPuff(const std::string& fname
 
 int fixFastaMain(std::vector<std::string>& args,
         std::vector<uint32_t>& refIdExtension,
-        std::vector<std::pair<std::string, uint16_t>>& shortRefs) {
+        std::vector<std::pair<std::string, uint16_t>>& shortRefs,
+        std::shared_ptr<spdlog::logger> log) {
   using namespace clipp;
 
   uint32_t k{31};
@@ -497,16 +498,16 @@ int fixFastaMain(std::vector<std::string>& args,
       return 0;
     }
 
-    auto console = spdlog::stderr_color_mt("ff::console");
+    //auto console = spdlog::stderr_color_mt("ff::console");
 
     spp::sparse_hash_set<std::string> decoyNames;
     if (!decoyFile.empty()) {
       bool decoyFileExists = ghc::filesystem::exists(decoyFile);
       if (!decoyFileExists) {
-        console->error("The decoy file {} does not exist.", decoyFile);
+        log->error("The decoy file {} does not exist.", decoyFile);
         std::exit(1);
       }
-      decoyNames = populateDecoyHashPuff(decoyFile, console);
+      decoyNames = populateDecoyHashPuff(decoyFile, log);
     }
 
     size_t numThreads{1};
@@ -516,7 +517,7 @@ int fixFastaMain(std::vector<std::string>& args,
     transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
     transcriptParserPtr->start();
     std::mutex iomutex;
-    fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, console,
+    fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, log,
              outFile, refIdExtension, shortRefs);
     transcriptParserPtr->stop();
     return 0;
