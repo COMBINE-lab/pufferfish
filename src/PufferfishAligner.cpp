@@ -121,7 +121,8 @@ void processReadsPair(paired_parser *parser,
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    config.flag |= KSW_EZ_SCORE_ONLY;
+    if (!mopts->computeCIGAR)
+      config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
@@ -267,7 +268,7 @@ void processReadsPair(paired_parser *parser,
 //                if (verbose)
 //                   ss << "\n\n found the read:\n" << rpair.first.name << " " << jointHits.size() <<"\n";
                 for (auto &&jointHit : jointHits) {
-                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, false);
+                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
                   scores[idx] = hitScore;
 //                    if (verbose)
 //                        ss << txpNames[jointHit.tid] << " " << jointHit.alignmentScore << " " << scores[idx] << "\n";
@@ -557,7 +558,8 @@ void processReadsSingle(single_parser *parser,
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    config.flag |= KSW_EZ_SCORE_ONLY;
+    if (!mopts->computeCIGAR)
+      config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
@@ -894,7 +896,6 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("Number of skipped alignments because of cache hits : {}", hctrs.skippedAlignments_byCache);
     consoleLog->info("Number of skipped alignments because of perfect chains : {}", hctrs.skippedAlignments_byCov);
 
-    consoleLog->info("Number of cigar strings which are fixed: {}", hctrs.cigar_fixed_count);
     consoleLog->info("=====");
 }
 

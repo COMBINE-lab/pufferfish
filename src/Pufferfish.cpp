@@ -212,7 +212,9 @@ int main(int argc, char* argv[]) {
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)",
                     (option("--consensusFraction") & value("consensus fraction", alignmentOpt.consensusFraction)) % "The fraction of mems, relative to the reference with "
                     "the maximum number of mems, that a reference must contain in order "
-                    "to move forward with computing an optimal chain score (default=0.65)"
+                    "to move forward with computing an optimal chain score (default=0.65)",
+                    (option("--noCIGAR").set(alignmentOpt.computeCIGAR, false)) % "Do not compute the CIGAR strings for the alignments",
+                    (option("--noOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, false)) % "Do not allow sof-clipping the overhanging ends of the reads"
   );
 
   auto cli = (

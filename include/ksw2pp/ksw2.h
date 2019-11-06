@@ -29,9 +29,6 @@ typedef struct {
 	int m_cigar, n_cigar;
 	int reach_end;
 	uint32_t *cigar;
-  int n_cigar1, n_cigar2, n_cigar3;
-  int m_cigar1, m_cigar2, m_cigar3;
-  uint32_t *cigar1, *cigar2, *cigar3;
   int score_only;
 } ksw_extz_t;
 
@@ -56,11 +53,11 @@ void ksw_extz(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t 
 			  int8_t q, int8_t e, int w, int zdrop, int flag, ksw_extz_t *ez);
 
 void ksw_extz2_sse(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-				   int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez);
+				   int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftclip);
 void ksw_extz2_sse41(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez);
+           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftclip);
 void ksw_extz2_sse2(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez);
+           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftclip );
 
 
 void ksw_extd(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
