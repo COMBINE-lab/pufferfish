@@ -277,7 +277,8 @@ void dumpCompactToFile(VecT& v, std::string fname) {
 
 int fixFastaMain(std::vector<std::string>& args,
         std::vector<uint32_t>& refIdExtension,
-                 std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen);
+                 std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
+                 std::shared_ptr<spdlog::logger> logger);
 int buildGraphMain(std::vector<std::string>& args);
 int dumpGraphMain(std::vector<std::string>& args);
 uint64_t getNumDistinctKmers(unsigned kmlen, const std::string& ifile);
@@ -330,8 +331,6 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     outdir.pop_back();
   }
 
-  auto console = spdlog::stderr_color_mt("console");
-
   size_t tlen{0};
   size_t numKmers{0};
   size_t nread{0};
@@ -339,6 +338,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
 
   if (ghc::filesystem::exists(outdir.c_str())) {
       if (!ghc::filesystem::is_directory(outdir.c_str())) {
+          auto console = spdlog::stderr_color_mt("console");
           console->error("{} exists as a file. Cannot create a directory of the same name.", outdir.c_str());
           std::exit(1);
       }
@@ -346,15 +346,23 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       ghc::filesystem::create_directories(outdir.c_str());
   }
 
+  std::string logPath = outdir + "/ref_indexing.log";
+  auto fileSink = std::make_shared<spdlog::sinks::simple_file_sink_st>(logPath);
+  auto consoleSink = std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>();
+  auto consoleLog = spdlog::create("puff::index::stderrLog", {consoleSink});
+  auto fileLog = spdlog::create("puff::index::fileLog", {fileSink});
+  std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
+  auto jointLog = spdlog::create("puff::index::jointLog", std::begin(sinks), std::end(sinks));
+
   /*if (puffer::fs::MakePath(outdir.c_str()) != 0) {
       std::cerr << "\nyup that's it\n";
-    console->error(std::strerror(errno));
+    jointLog->error(std::strerror(errno));
     std::exit(1);
   }*/
 
   // running fixFasta
   {
-    console->info("Running fixFasta");
+    jointLog->info("Running fixFasta");
     std::vector<std::string> args;
 //    args.push_back("fixFasta");
     if (!indexOpts.decoy_file.empty()) {
@@ -375,9 +383,9 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     args.push_back("--output");
     args.push_back(outdir+"/ref_k"+std::to_string(k)+"_fixed.fa");
 
-    int ffres = fixFastaMain(args, refIdExtensions, shortRefsNameLen);
+    int ffres = fixFastaMain(args, refIdExtensions, shortRefsNameLen, jointLog);
     if (ffres != 0) {
-        console->error("The fixFasta phase failed with exit code {}", ffres);
+        jointLog->error("The fixFasta phase failed with exit code {}", ffres);
         std::exit(ffres);
     }
     // replacing rfile with the new fixed fasta file
@@ -386,14 +394,14 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
 
   // If the filter size isn't set by the user, estimate it with ntCard
   if (indexOpts.filt_size == -1){
-    console->info("Filter size not provided; estimating from number of distinct k-mers");
+    jointLog->info("Filter size not provided; estimating from number of distinct k-mers");
     auto nk = getNumDistinctKmers(k, rfile);
     double p = 0.001;
     double k = 5.0;
     double logp_k = std::log(p) / k;
     double r = (-k) / std::log(1.0 - std::exp(logp_k));
     indexOpts.filt_size = static_cast<int32_t>(std::ceil(std::log2(std::ceil(nk * r))));
-    console->info("ntHll estimated {} distinct k-mers, setting filter size to 2^{}", nk, indexOpts.filt_size);
+    jointLog->info("ntHll estimated {} distinct k-mers, setting filter size to 2^{}", nk, indexOpts.filt_size);
     /*
     lgp_k = l($p) / $k
     r = (-$k) / l(1 - e(lgp_k))
@@ -425,8 +433,8 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     // if the user passed an existing file as the target path. 
     if (ghc::filesystem::exists(twopaco_tmp_path.c_str())) {
         if (!ghc::filesystem::is_directory(twopaco_tmp_path.c_str())) {
-            console->error("{} exists as a file. Cannot create a directory of the same name.", twopaco_tmp_path.c_str());
-            console->flush();
+            jointLog->error("{} exists as a file. Cannot create a directory of the same name.", twopaco_tmp_path.c_str());
+            jointLog->flush();
             std::exit(1);
         }
     } else {
@@ -463,7 +471,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     }
   }
 
-  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, console);
+  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, jointLog);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir, shortRefsNameLen, refIdExtensions);
@@ -475,8 +483,8 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       numKmers += r1.length - k + 1;
       ++nread;
     }
-    console->info("# segments = {:n}", nread);
-    console->info("total length = {:n}", tlen);
+    jointLog->info("# segments = {:n}", nread);
+    jointLog->info("total length = {:n}", tlen);
   }
 
   // parse the reference list and store the strings in a 2bit-encoded vector
@@ -489,7 +497,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     uint64_t prev = 0;
     for (uint64_t i = 0; i < refIds.size(); i++) {
       if (refIdMap.find(refIds[i]) != refIdMap.end()) {
-        console->error("Two references with the same name but different sequences: {}. "
+        jointLog->error("Two references with the same name but different sequences: {}. "
                        "We require that all input records have a unique name "
                        "up to the first whitespace character.", refIds[i]);
         std::exit(1);
@@ -506,7 +514,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     refseq.clear_mem();
 
     // go over all the reference files
-    console->info("Reading the reference files ...");
+    jointLog->info("Reading the reference files ...");
     std::vector<std::string> ref_files = {rfile};
     fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(ref_files, 1, 1);
     parser.start();
@@ -540,12 +548,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   // At this point we should definitely not need path.bin anymore, so get rid of it
   ghc::filesystem::path tmpPath = ghc::filesystem::path{outdir} / ghc::filesystem::path{"path.bin"};
   if (!ghc::filesystem::remove(tmpPath)) {
-    console->warn("Could not seem to remove temporary file {}.", tmpPath.string());
+    jointLog->warn("Could not seem to remove temporary file {}.", tmpPath.string());
   }
 
   // now we know the size we need --- create our bitvectors and pack!
   size_t w = std::log2(tlen) + 1;
-  console->info("positional integer width = {:n}", w);
+  jointLog->info("positional integer width = {:n}", w);
 
   auto& seqVec = pf.getContigSeqVec();
   auto& rankVec = pf.getRankVec();
@@ -560,12 +568,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   size_t nkeys{numKmers};
   size_t numContigs{pf.getContigNameMap().size()};
 
-  console->info("seqSize = {:n}", seqVec.size());
-  console->info("rankSize = {:n}", rankVec.size());
+  jointLog->info("seqSize = {:n}", seqVec.size());
+  jointLog->info("rankSize = {:n}", rankVec.size());
 
-  console->info("edgeVecSize = {:n}", edgeVec.size());
+  jointLog->info("edgeVecSize = {:n}", edgeVec.size());
 
-  console->info("num keys = {:n}", nkeys);
+  jointLog->info("num keys = {:n}", nkeys);
   ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
   ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
 
@@ -575,7 +583,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   for (; ks < ke; ++ks) {
     nkeyIt++;
   }
-  console->info("num keys (iterator)= {:n}", nkeyIt);
+  jointLog->info("num keys (iterator)= {:n}", nkeyIt);
 #endif // PUFFER_DEBUG
  
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
@@ -584,7 +592,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   auto keyIt = boomphf::range(kb, ke);
   boophf_t* bphf =
       new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
-  console->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
+  jointLog->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
 
 /*  std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);
   seqVec.serialize(seqFile);
@@ -624,7 +632,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       }
 
       auto chunkSize = static_cast<uint64_t>(std::ceil(chunkSizeFrac));
-      console->info("chunk size = {:n}", chunkSize);
+      jointLog->info("chunk size = {:n}", chunkSize);
 
       std::vector<ContigVecChunk> chunks;
       chunks.reserve(nthread);
@@ -642,10 +650,10 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
         endIt.advanceToValid();
         uint64_t e = endIt.pos();
         chunks.push_back({s,e});
-        console->info("chunk {} = [{:n}, {:n})", i, s, e);
+        jointLog->info("chunk {} = [{:n}, {:n})", i, s, e);
       }
 
-      auto fillPos = [&seqVec, &rankVec, k, &bphf, &console, &posVec](ContigVecChunk chunk) -> void {
+      auto fillPos = [&seqVec, &rankVec, k, &bphf, &jointLog, &posVec](ContigVecChunk chunk) -> void {
 
         ContigKmerIterator kb1(&seqVec, &rankVec, k, chunk.s);
         ContigKmerIterator ke1(&seqVec, &rankVec, k, chunk.e);
@@ -653,7 +661,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
           auto idx = bphf->lookup(*kb1); // fkm.word(0));
           if (idx >= posVec.size()) {
             std::cerr<<*kb1<<"\n";
-            console->info("seq size = {:n}, idx = {:n}, pos size = {:n}",
+            jointLog->info("seq size = {:n}, idx = {:n}, pos size = {:n}",
                           seqVec.size(), idx, posVec.size());
             std::cerr<<*kb1<<"\n";
           }
@@ -669,7 +677,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
           if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
             my_mer r;
             r.word__(0) = *kb1;
-            console->error("I thought I saw {}, but I saw {} --- pos {}", sk.to_str(), r.toStr(), kb1.pos());
+            jointLog->error("I thought I saw {}, but I saw {} --- pos {}", sk.to_str(), r.toStr(), kb1.pos());
           }
 #endif
         }
@@ -683,11 +691,11 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       for (auto& w : workers) {
         w.join();
       }
-      console->info("finished populating pos vector");
+      jointLog->info("finished populating pos vector");
 
     }
 
-    console->info("writing index components");
+    jointLog->info("writing index components");
     /** Write the index **/
 
 
@@ -720,7 +728,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     std::ofstream hstream(outdir + "/mphf.bin");
     bphf->save(hstream);
     hstream.close();
-    console->info("finished writing dense pufferfish index");
+    jointLog->info("finished writing dense pufferfish index");
 
   } else if (indexOpts.isSparse) { // sparse index; it's GO time!
     int extensionSize = indexOpts.extensionSize;
@@ -747,14 +755,14 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
         sampledKmers += sampledInds.size() ;
         contigLengths.push_back(r1.length) ;
       }
-      console->info("# sampled kmers = {:n}", sampledKmers) ;
-      console->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
+      jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
+      jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
     }
 
     //fill up the vectors
     uint32_t extSymbolWidth = 2;
     uint32_t extWidth = std::log2(extensionSize);
-    console->info("extWidth = {}", extWidth);
+    jointLog->info("extWidth = {}", extWidth);
 
     compact::vector<uint64_t> auxInfo(extSymbolWidth*extensionSize, (numKmers-sampledKmers));
     auxInfo.clear_mem();
@@ -775,7 +783,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     size_t i = 0 ;
     std::unordered_set<uint64_t> indices;
   {
-    console->info("\nFilling presence Vector");
+    jointLog->info("\nFilling presence Vector");
 
     ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
     ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -819,18 +827,18 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
           //didSample = false;
         }
         if (nextSampIter != sampledInds.end()) {
-          console->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          console->info("last sample is {}" , sampledInds.back());
-          console->info("contig length is {}" , contigLengths[contigId-1]);
+          jointLog->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          jointLog->info("last sample is {}" , sampledInds.back());
+          jointLog->info("contig length is {}" , contigLengths[contigId-1]);
         }
     }
 
-    console->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
+    jointLog->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
                   i, sampledKmers, loopCounter, contigLengths.size());
   }
 
   rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
-  console->info("num ones in presenceVec = {:n}, i = {:n}, indices.size() = {:n}", realPresenceRank.rank(presenceVec.size()-1), i, indices.size());
+  jointLog->info("num ones in presenceVec = {:n}, i = {:n}, indices.size() = {:n}", realPresenceRank.rank(presenceVec.size()-1), i, indices.size());
 
   //bidirectional sampling
   {
@@ -870,7 +878,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
 
           if (distToNext == std::numeric_limits<uint64_t>::max() and
               distToPrev == std::numeric_limits<uint64_t>::max()) {
-            console->error("Could not find valid sample position, should not happen!");
+            jointLog->error("Could not find valid sample position, should not happen!");
             std::exit(1);
           }
 
@@ -906,16 +914,16 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
             auto rank = (idx == 0) ? 0 : realPresenceRank.rank(idx);
 
             int64_t target_idx = (idx - rank);
-            if ( target_idx > canonicalNess.size()) { console->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
+            if ( target_idx > canonicalNess.size()) { jointLog->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
             canonicalNess[idx - rank] = kb1.isCanonical();
 
-            if ( target_idx > extSize.size()) { console->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
+            if ( target_idx > extSize.size()) { jointLog->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
             extSize[idx - rank] = extensionDist;
 
-            if ( target_idx > auxInfo.size()) { console->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
+            if ( target_idx > auxInfo.size()) { jointLog->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
             auxInfo[idx - rank] = ext;
 
-            if ( target_idx > direction.size()) { console->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
+            if ( target_idx > direction.size()) { jointLog->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
             direction[idx - rank] = (sampDir == NextSampleDirection::FORWARD) ? 1 : 0;
           }
         }
@@ -980,8 +988,8 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
         sampledKmers += sampledInds.size() ;
         contigLengths.push_back(r1.length) ;
       }
-      console->info("# sampled kmers = {:n}", sampledKmers) ;
-      console->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
+      jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
+      jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
     }
 
     compact::vector<uint64_t> samplePosVec(w, sampledKmers);
@@ -992,7 +1000,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     // new presence Vec
     {
       {
-      console->info("\nFilling presence vector");
+      jointLog->info("\nFilling presence vector");
       size_t i = 0 ;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
       ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -1025,15 +1033,15 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
           }
         }
         if (nextSampIter != sampledInds.end()) {
-          console->info("I didn't sample {:n}, samples for contig {:n}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          console->info("last sample is {:n}", sampledInds.back());
-          console->info("contig length is {:n}", contigLengths[contigId-1]);
+          jointLog->info("I didn't sample {:n}, samples for contig {:n}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          jointLog->info("last sample is {:n}", sampledInds.back());
+          jointLog->info("contig length is {:n}", contigLengths[contigId-1]);
         }
       }
       }
 
       {
-        console->info("\nFilling sampled position vector");
+        jointLog->info("\nFilling sampled position vector");
       size_t i = 0 ;
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
       ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
@@ -1067,12 +1075,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
           }
         }
         if (nextSampIter != sampledInds.end()) {
-          console->info("I didn't sample {:n}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          console->info("last sample is {:n}", sampledInds.back());
-          console->info("contig length is {:n}", contigLengths[contigId-1]);
+          jointLog->info("I didn't sample {:n}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
+          jointLog->info("last sample is {:n}", sampledInds.back());
+          jointLog->info("contig length is {:n}", contigLengths[contigId-1]);
         }
       }
-      console->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
+      jointLog->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
                     i, sampledKmers, loopCounter, contigLengths.size());
 
     }
