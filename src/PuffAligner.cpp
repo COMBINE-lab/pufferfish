@@ -129,7 +129,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   cigarGen.clear();
 
   std::string cigar = "";
-  memset(&ez, 0, sizeof(ksw_extz_t));
 
   // where this reference starts, and its length.
   int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
