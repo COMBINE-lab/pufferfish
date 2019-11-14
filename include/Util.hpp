@@ -1076,7 +1076,7 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> skippedAlignments_byCache{0};
             std::atomic<uint64_t> skippedAlignments_byCov{0};
             std::atomic<uint64_t> totalAlignmentAttempts{0};
-            std::atomic<uint64_t> cigar_fixed_count{0};
+            std::atomic<uint64_t> aligner_calls_count{0};
         };
 
         struct ContigBlock {

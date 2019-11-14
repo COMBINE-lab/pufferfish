@@ -32,7 +32,7 @@ int32_t addCigar(pufferfish::util::CIGARGenerator &cigarGen, const ksw_extz_t *e
   return gap_size;
 }
 
-std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
+/*std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
     if (memlen == 0) return "";
     std::string tseq; tseq.reserve(memlen);
     uint64_t bucket_offset = (refAccPos + tpos) * 2;
@@ -55,7 +55,7 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
         bucket_offset += len;
     }
     return tseq;
-}
+}*/
 
 bool fillRefSeqBuffer(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen, std::string& refBuffer_) {
   refBuffer_.clear();
@@ -140,6 +140,19 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto readLen = read.length();
   auto tpos = frontMem.tpos;
 
+  if (perfectChain) {
+    arOut.score = alignmentScore = readLen * mopts.matchScore;
+    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    hctr.skippedAlignments_byCov += 1;
+    SPDLOG_DEBUG(logger_,"[[");
+    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
+    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
+    arOut.cigar = cigar;
+    arOut.openGapLen = openGapLen;
+    return true;
+  }
+
   // do full alignment if we are in that mode, or if the
   // current read was recovered via orphan recovery.
   // @mohsen & @fataltes : we need a better signal than memlen == 1
@@ -164,7 +177,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   uint64_t hashKey{0};
   bool didHash{false};
   uint32_t refStart, readStart{0};
-  uint32_t buff{20};
+  //We want the maximum length of the buffer that if we include those number of indels we can still achieve a good quality alignment
+  //For the read length of 100, the following formula will create a buffer of size 21
+  uint32_t buff = (readLen*mopts.matchScore*(1-mopts.minScoreFraction)-mopts.gapOpenPenalty)/mopts.gapExtendPenalty;
 
   int32_t signedRefStartPos = currHitStart_ref - currHitStart_read;
   int32_t signedRefEndPos = signedRefStartPos + read.length();
@@ -235,21 +250,14 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (!isFw and read_rc.empty()) { read_rc = pufferfish::util::reverseComplement(read); }
   nonstd::string_view readView = (isFw) ? read : read_rc;
 
-  if (perfectChain) {
-    arOut.score = alignmentScore = readLen * mopts.matchScore;
-    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
-    hctr.skippedAlignments_byCov += 1;
-    SPDLOG_DEBUG(logger_,"[[");
-    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
-    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
-    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
-  } else if (doFullAlignment) {
+if (doFullAlignment) {
     // if we allow softclipping of overhanging bases, then we can cut off the part of the read
     // before the start of the reference
     decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
     if (computeCIGAR)
       cigarGen.begin_softClipped_len = readOffset;
     nonstd::string_view readSeq = readView.substr(readOffset);
+    hctr.aligner_calls_count += 1;
     ksw_reset_extz(&ez);
     aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
             allowOverhangSoftclip, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -299,6 +307,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         SPDLOG_DEBUG(logger_,"PRE:\nreadStartPosOnRef : {}\nrefWindowStart : {}", readStartPosOnRef, refWindowStart);
         SPDLOG_DEBUG(logger_,"refWindowLength : {}\nread : [{}]\nref : [{}]", refWindowLength, readWindow, refSeqBuffer_);
         ksw_reset_extz(&ez);
+        hctr.aligner_calls_count += 1;
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                 allowOverhangSoftclip, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
@@ -361,7 +370,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         if (prevMemEnd_ref - refStart + 1 + gapRef >= tseq.size()) {
           SPDLOG_DEBUG(logger_,"\t\t tseq was not long enough; need to fetch more!");
         }
-
+        hctr.aligner_calls_count += 1;
         ksw_reset_extz(&ez);
         score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                         ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
@@ -414,6 +423,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       if (refLen > 0) {
         ksw_reset_extz(&ez);
+        hctr.aligner_calls_count += 1;
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
                 allowOverhangSoftclip, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
