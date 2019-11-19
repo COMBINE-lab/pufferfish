@@ -154,7 +154,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   cigarGen.clear();
 
   std::string cigar = "";
-  memset(&ez, 0, sizeof(ksw_extz_t));
+  ksw_reset_extz(&ez);
 
   // where this reference starts, and its length.
   int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
@@ -241,7 +241,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // so copy it into tseq.
   if (!doFullAlignment) { tseq = refSeqBuffer_; }
 
-  if (!alnCache.empty() and isMultimapping_) {
+  // first, check if we can skip this by perfect chaining
+  // if not, check if we can skip it via the alignment cache
+  if (perfectChain) {
+    arOut.score = alignmentScore = readLen * mopts.matchScore;
+    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    hctr.skippedAlignments_byCov += 1;
+    /*SPDLOG_DEBUG(logger_,"[[");
+    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
+    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");*/
+  } else if (!alnCache.empty() and isMultimapping_) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     didHash = true;
@@ -265,22 +275,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // avoid computing the rc of a read if we've already done it.
   if (!isFw and read_rc.empty()) { read_rc = pufferfish::util::reverseComplement(read); }
   nonstd::string_view readView = (isFw) ? read : read_rc;
-  /*
-    std::string read = original_read;
-    if (!isfw) {
-    read = pufferfish::util::reversecomplement(read);
-    }
-  */
 
-  if (perfectChain) {
-    arOut.score /*= alignment*/ = alignmentScore = readLen * mopts.matchScore;
-    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
-    hctr.skippedAlignments_byCov += 1;
-    SPDLOG_DEBUG(logger_,"[[");
-    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
-    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
-    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
-  } else if (doFullAlignment) {
+  if (!perfectChain) {
+    if (doFullAlignment) {
     // if we allow softclipping of overhanging bases, then we can cut off the part of the read
     // before the start of the reference
     decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
@@ -769,10 +766,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
     */
   }
+  } // not a perfect chain
   bool cigar_fixed{false};
   if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
   if (cigar_fixed) { hctr.cigar_fixed_count++; }
-  if (isMultimapping_) { // don't bother to fill up a cache unless this is a multi-mapping read
+  if (isMultimapping_ and !perfectChain) { // don't bother to fill up a cache unless this is a multi-mapping read
     if (!didHash) {
       // We want the alignment cache to be on the hash of the full underlying reference sequence.
       // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment
