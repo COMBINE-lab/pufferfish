@@ -32,6 +32,17 @@ int32_t addCigar(pufferfish::util::CIGARGenerator &cigarGen, const ksw_extz_t *e
   return gap_size;
 }
 
+int32_t PuffAligner::align_ungapped(const char* const query, const char* const target, int len) {
+  int score = 0;
+  bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+  auto& cigarGen = cigarGen_;
+  for (uint32_t i = 0; i < len; i++) {
+    if (computeCIGAR) cigarGen.add_item(1, 'M');
+    score += query[i] == target[i] ? mopts.matchScore : mopts.missMatchPenalty;
+  }
+  return score;
+}
+
 /*std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
     if (memlen == 0) return "";
     std::string tseq; tseq.reserve(memlen);
@@ -250,6 +261,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (!isFw and read_rc.empty()) { read_rc = pufferfish::util::reverseComplement(read); }
   nonstd::string_view readView = (isFw) ? read : read_rc;
 
+  int32_t minLengthGapRequired = ( 2 * (mopts.gapOpenPenalty + mopts.gapExtendPenalty) + mopts.matchScore ) / (mopts.matchScore - mopts.missMatchPenalty);
   int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length());
   auto alignable = [&minAcceptedScore, &readLen] (uint32_t alignedLen, uint32_t matchScore, int32_t alignmentScore) -> bool {
     return minAcceptedScore <= alignmentScore + matchScore*(readLen-alignedLen);
@@ -378,12 +390,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         if (prevMemEnd_ref - refStart + 1 + gapRef >= tseq.size()) {
           SPDLOG_DEBUG(logger_,"\t\t tseq was not long enough; need to fetch more!");
         }
-        hctr.aligner_calls_count += 1;
-        ksw_reset_extz(&ez);
-        score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
-                        ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-        if (computeCIGAR) { addCigar(cigarGen, &ez, false); }
-      } else if ( it > mems.begin() and ((currMemStart_read <= prevMemEnd_read) or (currMemStart_ref <= prevMemEnd_ref)) ){
+        if (readWindow.length() <= minLengthGapRequired and gapRead == gapRef ) {
+          score += align_ungapped(readWindow.data(), refSeq1, gapRead);
+        } else {
+          hctr.aligner_calls_count += 1;
+          hctr.between_aligner_calls_count += 1;
+          ksw_reset_extz(&ez);
+          score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
+                    ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
+          if (computeCIGAR) { addCigar(cigarGen, &ez, false); }
+        }
+      } else if ( it > mems.begin() and ((currMemStart_read <= prevMemEnd_read) or (currMemStart_ref <= prevMemEnd_ref)) ) {
         SPDLOG_DEBUG(logger_,"]]\n");
         std::cerr << "[ERROR in PuffAligner, between-MEM alignment] : Improperly compacted MEM chain.  Should not happen!\n";
         std::cerr << "gapRef : " << gapRef << ", gapRead : " << gapRead << ", memlen : " << memlen << "\n";
