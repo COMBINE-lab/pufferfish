@@ -324,13 +324,13 @@ void processReadsPair(paired_parser *parser,
                           // if we didn't have any alignment for this transcript yet, then
                           // this is the current best
                           // cast is a hack :(
-                          bestScorePerTranscript[jointHit.tid].first = jointHit.alignmentScore+jointHit.mateAlignmentScore;/*static_cast<int32_t>(jointHit.coverage());*/
+                          bestScorePerTranscript[jointHit.tid].first = hitScore;
                           bestScorePerTranscript[jointHit.tid].second = idx;
-                        } else if (jointHit.coverage() > it->second.first) {
+                        } else if (hitScore > it->second.first) {
                           // otherwise, if we had an alignment for this transcript and it's
                           // better than the current best, then set the best score to this
                           // alignment's score, and invalidate the previous alignment
-                          it->second.first = jointHit.alignmentScore+jointHit.mateAlignmentScore;/*static_cast<int32_t>(jointHit.coverage());*/
+                          it->second.first = hitScore;
                           scores[it->second.second] = invalidScore;
                           it->second.second = idx;
                         } else {
@@ -663,10 +663,10 @@ void processReadsSingle(single_parser *parser,
                         // removing dupplicate hits from a read to the same transcript
                         auto it = bestScorePerTranscript.find(jointHit.tid);
                         if (it == bestScorePerTranscript.end()) {
-                            bestScorePerTranscript[jointHit.tid].first = jointHit.alignmentScore;
+                            bestScorePerTranscript[jointHit.tid].first = hitScore;
                             bestScorePerTranscript[jointHit.tid].second = idx;
-                        } else if (jointHit.coverage() > it->second.first) {
-                            it->second.first = jointHit.alignmentScore;
+                        } else if ( hitScore > it->second.first) {
+                            it->second.first = hitScore;
                             scores[it->second.second] = invalidScore;
                             it->second.second = idx;
                         } else {
