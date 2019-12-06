@@ -276,8 +276,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     nonstd::string_view readSeq = readView.substr(readOffset);
     hctr.aligner_calls_count += 1;
     ksw_reset_extz(&ez);
+    auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
     aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
-            allowOverhangSoftclip, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+            allowOverhangSoftclip, cutoff, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
     // if we allow softclipping of overhaning bases, then we only care about the best
     // score to the end of the query or the end of the reference.  Otherwise, we care about
     // the best score all the way until the end of the query.
@@ -319,14 +320,21 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart, refWindowLength, refSeqBuffer_);
 
       if (refSeqBuffer_.length() > 0) {
+        hctr.begin_aligner_calls_count += 1;
+        hctr.aligner_calls_count += 1;
         auto readWindow = readView.substr(0, firstMemStart_read).to_string();
         std::reverse(readWindow.begin(), readWindow.end());
         SPDLOG_DEBUG(logger_,"PRE:\nreadStartPosOnRef : {}\nrefWindowStart : {}", readStartPosOnRef, refWindowStart);
         SPDLOG_DEBUG(logger_,"refWindowLength : {}\nread : [{}]\nref : [{}]", refWindowLength, readWindow, refSeqBuffer_);
+
+
+        auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
         ksw_reset_extz(&ez);
-        hctr.aligner_calls_count += 1;
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
-                allowOverhangSoftclip, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+              allowOverhangSoftclip, cutoff, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+
+        if (ez.stopped) hctr.stopped_count+=1;
+        if(ez.mqe != KSW_NEG_INF and ez.stopped>0) ez.stopped = 0;
         alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
         if (ez.mte > ez.mqe and computeCIGAR and allowOverhangSoftclip) {
             cigarGen.begin_softClipped_len = readWindow.length() - ez.max_q - 1;
@@ -435,7 +443,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     // If we got to the end, and there is a read gap left, then align that as well
     SPDLOG_DEBUG(logger_,"prevMemEnd_read : {}, readLen : {}", prevMemEnd_read, readLen);
     bool gapAtEnd = (prevMemEnd_read + 1) <= (static_cast<int32_t>(readLen) - 1);
-    if (gapAtEnd) {
+    if (gapAtEnd and !ez.stopped) {
+      //if (isLeft) end_gap_left = true; else end_gap_right = true;
+
       int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
       int32_t refTailStart = prevMemEnd_ref + 1;
       int32_t dataDepBuff = std::min(refExtLength, 5*gapRead);
@@ -451,10 +461,16 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       SPDLOG_DEBUG(logger_,"gapRead : {}, refLen : {}, refBuffer_.size() : {}, refTotalLength : {}", gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
 
       if (refLen > 0) {
-        ksw_reset_extz(&ez);
         hctr.aligner_calls_count += 1;
+        hctr.end_aligner_calls_count += 1;
+        auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * (readWindow.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
+        ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
-                allowOverhangSoftclip, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+              allowOverhangSoftclip, cutoff, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+
+        if (ez.stopped) hctr.stopped_count+=1;
+        if(ez.mqe != KSW_NEG_INF) ez.stopped = 0;
+
         int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
         int32_t insertCost = (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * readWindow.length());
         alignmentScore += std::max(alnCost, insertCost);

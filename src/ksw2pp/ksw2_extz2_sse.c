@@ -1,6 +1,7 @@
 #include <string.h>
 #include <assert.h>
 #include "ksw2pp/ksw2.h"
+#include <stdio.h>
 
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -15,12 +16,12 @@
 
 #ifdef KSW_CPU_DISPATCH
 #ifdef __SSE4_1__
-void ksw_extz2_sse41(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftClip)
+void ksw_extz2_sse41(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftClip, int cutoff)
 #else
-void ksw_extz2_sse2(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftClip)
+void ksw_extz2_sse2(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftClip, int cutoff)
 #endif
 #else
-void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez,  uint32_t allowOverhangSoftClip)
+void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez,  uint32_t allowOverhangSoftClip, int cutoff)
 #endif // ~KSW_CPU_DISPATCH
 {
 #define __dp_code_block1 \
@@ -46,7 +47,7 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 	a = _mm_sub_epi8(a, z); \
 	b = _mm_sub_epi8(b, z);
 
-	int r, t, qe = q + e, n_col_, *off = 0, *off_end = 0, tlen_, qlen_, last_st, last_en, wl, wr, max_sc, min_sc;
+	int r, t, qe = q + e, n_col_, *off = 0, *off_end = 0, tlen_, qlen_, last_st, last_en, wl, wr, max_sc, min_sc, match_score = mat[0];
 	int with_cigar = !(flag&KSW_EZ_SCORE_ONLY), approx_max = !!(flag&KSW_EZ_APPROX_MAX);
 	int32_t *H = 0, H0 = 0, last_H0_t = 0;
 	uint8_t *qr, *sf, *mem, *mem2 = 0;
@@ -97,6 +98,7 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 
 	for (t = 0; t < qlen; ++t) qr[t] = query[qlen - 1 - t];
 	memcpy(sf, target, tlen);
+	int max_achievable_score = KSW_NEG_INF, max_achievable_score_prev = KSW_NEG_INF;
 
 	for (r = 0, last_st = last_en = -1; r < qlen + tlen - 1; ++r) {
 		int st = 0, en = tlen - 1, st0, en0, st_, en_;
@@ -226,15 +228,18 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 			int32_t max_H, max_t;
 			// compute H[], max_H and max_t
 			if (r > 0) {
-				int32_t HH[4], tt[4], en1 = st0 + (en0 - st0) / 4 * 4, i;
-				__m128i max_H_, max_t_, qe_;
+				int32_t HH[4], tt[4], mm[4], en1 = st0 + (en0 - st0) / 4 * 4, i;
+				__m128i max_H_, max_t_, qe_, tj, max_achievable_score_, H_achievable_score_;
 				max_H = H[en0] = en0 > 0? H[en0-1] + u8[en0] - qe : H[en0] + v8[en0] - qe; // special casing the last element
 				max_t = en0;
 				max_H_ = _mm_set1_epi32(max_H);
 				max_t_ = _mm_set1_epi32(max_t);
 				qe_    = _mm_set1_epi32(q + e);
+				
+				max_achievable_score = max_H+(max_t-r)*match_score;
+				max_achievable_score_ = _mm_set1_epi32(max_achievable_score);
 				for (t = st0; t < en1; t += 4) { // this implements: H[t]+=v8[t]-qe; if(H[t]>max_H) max_H=H[t],max_t=t;
-					__m128i H1, tmp, t_;
+					__m128i H1, tmp, t_, tmp_achievalbe_score;
 					H1 = _mm_loadu_si128((__m128i*)&H[t]);
 					t_ = _mm_setr_epi32(v8[t], v8[t+1], v8[t+2], v8[t+3]);
 					H1 = _mm_add_epi32(H1, t_);
@@ -242,22 +247,34 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 					_mm_storeu_si128((__m128i*)&H[t], H1);
 					t_ = _mm_set1_epi32(t);
 					tmp = _mm_cmpgt_epi32(H1, max_H_);
+
+					tj = _mm_setr_epi32(match_score*(t-r),match_score*(t+1-r),match_score*(t+2-r),match_score*(t+3-r));
+					H_achievable_score_ = _mm_add_epi32(H1, tj);
+					tmp_achievalbe_score = _mm_cmpgt_epi32(H_achievable_score_, max_achievable_score_);
 #ifdef __SSE4_1__
 					max_H_ = _mm_blendv_epi8(max_H_, H1, tmp);
 					max_t_ = _mm_blendv_epi8(max_t_, t_, tmp);
+					max_achievable_score_ = _mm_blendv_epi8(max_achievable_score_, H_achievable_score_, tmp_achievalbe_score);
 #else
 					max_H_ = _mm_or_si128(_mm_and_si128(tmp, H1), _mm_andnot_si128(tmp, max_H_));
 					max_t_ = _mm_or_si128(_mm_and_si128(tmp, t_), _mm_andnot_si128(tmp, max_t_));
+					max_achievable_score_ = _mm_or_si128(_mm_and_si128(tmp_achievalbe_score, H_achievable_score_), 
+												 _mm_andnot_si128(tmp_achievalbe_score, max_achievable_score_));
 #endif
 				}
 				_mm_storeu_si128((__m128i*)HH, max_H_);
 				_mm_storeu_si128((__m128i*)tt, max_t_);
-				for (i = 0; i < 4; ++i)
+				_mm_storeu_si128((__m128i*)mm, max_achievable_score_);
+				for (i = 0; i < 4; ++i){
 					if (max_H < HH[i]) max_H = HH[i], max_t = tt[i] + i;
+					if (max_achievable_score < mm[i]) max_achievable_score = mm[i];
+				}
 				for (; t < en0; ++t) { // for the rest of values that haven't been computed with SSE
 					H[t] += (int32_t)v8[t] - qe;
 					if (H[t] > max_H)
 						max_H = H[t], max_t = t;
+					if (H[t] + match_score*(t-r) > max_achievable_score)
+						max_achievable_score = H[t] + match_score*(t-r);
 				}
 			} else H[0] = v8[0] - qe - qe, max_H = H[0], max_t = 0; // special casing r==0
 			// update ez
@@ -268,6 +285,10 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 			if (ksw_apply_zdrop(ez, 1, max_H, r, max_t, zdrop, e)) break;
 			if (r == qlen + tlen - 2 && en0 == tlen - 1)
 				ez->score = H[tlen - 1];
+			// check if the score is achievable
+			int max = max_achievable_score > max_achievable_score_prev ? max_achievable_score : max_achievable_score_prev;
+			if (r>1 && max < cutoff ) {ez->stopped = 1; break;}
+			max_achievable_score_prev = max_achievable_score;
 		} else { // find approximate max; Z-drop might be inaccurate, too.
 			if (r > 0) {
 				if (last_H0_t >= st0 && last_H0_t <= en0 && last_H0_t + 1 >= st0 && last_H0_t + 1 <= en0) {

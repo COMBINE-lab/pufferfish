@@ -207,7 +207,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             const int queryLength,
                             const char* const targetOriginal,
                             const int targetLength, ksw_extz_t* ez,
-                            bool allowOverhangSoftClip,
+                            bool allowOverhangSoftClip, int cutoff,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
   // auto ez = &result_;
   auto qlen = queryLength;
@@ -222,11 +222,11 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                 target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
-                config_.end_bonus, config_.flag, ez, allowOverhangSoftClip);
+                config_.end_bonus, config_.flag, ez, allowOverhangSoftClip, cutoff);
   } else if (haveSSE2) {
     ksw_extz2_sse2(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                   target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
-                  config_.end_bonus, config_.flag, ez, allowOverhangSoftClip);
+                  config_.end_bonus, config_.flag, ez, allowOverhangSoftClip, cutoff);
   } else {
     std::abort();
   }
@@ -240,7 +240,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             bool allowOverhangSoftClip,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
   return this->operator()(queryOriginal, queryLength, targetOriginal,
-                          targetLength, &result_, allowOverhangSoftClip,
+                          targetLength, &result_, allowOverhangSoftClip, 0,
                           EnumToType<KSW2AlignmentType::EXTENSION>());
 }
 
@@ -252,7 +252,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   switch (config_.atype) {
   case KSW2AlignmentType::EXTENSION:
     ret = this->operator()(queryOriginal, queryLength, targetOriginal,
-                           targetLength, &result_, 0,
+                           targetLength, &result_, 0, 0,
                            EnumToType<KSW2AlignmentType::EXTENSION>());
     break;
   case KSW2AlignmentType::GLOBAL:
@@ -332,8 +332,8 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
   int ret{0};
   switch (config_.atype) {
   case KSW2AlignmentType::EXTENSION:
-    ret = this->operator()(query_, queryLength, target_, targetLength, &result_,
-                           EnumToType<KSW2AlignmentType::EXTENSION>());
+    //ret = this->operator()(query_, queryLength, target_, targetLength, &result_,
+    //                       EnumToType<KSW2AlignmentType::EXTENSION>());
     break;
   case KSW2AlignmentType::GLOBAL:
     ret = this->operator()(query_, queryLength, target_, targetLength, &result_,
@@ -345,7 +345,7 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
 
 int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const uint8_t* const target_,
-                            const int targetLength, ksw_extz_t* ez, bool allowOverhangSoftClip,
+                            const int targetLength, ksw_extz_t* ez, bool allowOverhangSoftClip, int cutoff,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
   auto qlen = queryLength;
   auto tlen = targetLength;
@@ -356,11 +356,11 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
   if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_, tlen, target_,
                 config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
-                ez, allowOverhangSoftClip);
+                ez, allowOverhangSoftClip, 0);
   } else if (haveSSE2) {
     ksw_extz2_sse2(kalloc_allocator_.get(), qlen, query_, tlen, target_,
                   config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
-                  ez, allowOverhangSoftClip);
+                  ez, allowOverhangSoftClip, 0);
   } else {
     std::abort();
   }
@@ -372,7 +372,7 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const int targetLength, bool allowOverhangSoftClip,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
   return this->operator()(query_, queryLength, target_, targetLength, &result_,
-                          allowOverhangSoftClip, EnumToType<KSW2AlignmentType::EXTENSION>());
+                          allowOverhangSoftClip, 0, EnumToType<KSW2AlignmentType::EXTENSION>());
 }
 
 } // namespace ksw2pp
