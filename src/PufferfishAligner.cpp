@@ -145,6 +145,10 @@ void processReadsPair(paired_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
+    aconf.missMatchPenalty = mopts->missMatchScore;
+    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    aconf.bestStrata = mopts->bestStrata;
+    aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -267,11 +271,14 @@ void processReadsPair(paired_parser *parser,
 //                std::stringstream ss;
 //                if (verbose)
 //                   ss << "\n\n found the read:\n" << rpair.first.name << " " << jointHits.size() <<"\n";
+                puffaligner.getScoreStatus().reset();
                 for (auto &&jointHit : jointHits) {
-                  auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
-                  scores[idx] = hitScore;
-//                    if (verbose)
-//                        ss << txpNames[jointHit.tid] << " " << jointHit.alignmentScore << " " << scores[idx] << "\n";
+                    auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
+                    if (mopts->bestStrata and hitScore != invalidScore)
+                        puffaligner.getScoreStatus().updateBest(hitScore - mopts->matchScore * std::max(rpair.first.seq.length(), rpair.second.seq.length()));
+                    if ( (mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore) and hitScore != invalidScore)
+                        puffaligner.getScoreStatus().updateDecoy(hitScore - mopts->matchScore * std::max(rpair.first.seq.length(), rpair.second.seq.length()));
+                    scores[idx] = hitScore;
                     const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
                     if (filterMicrobiom and hitScore != invalidScore
                     and hitRefType != BestHitReferenceType::FILTERED) {
@@ -574,6 +581,10 @@ void processReadsSingle(single_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
+    aconf.missMatchPenalty = mopts->missMatchScore;
+    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    aconf.bestStrata = mopts->bestStrata;
+    aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -627,8 +638,11 @@ void processReadsSingle(single_parser *parser,
                 if (!mopts->genomicReads) { bestScorePerTranscript.clear(); }
                 bestHitRefType = BestHitReferenceType::UNKNOWN;
                 bool isMultimapping = (jointHits.size() > 1);
+                puffaligner.getScoreStatus().reset();
                 for (auto &jointHit : jointHits) {
-                  int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
+                    int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
+                    if (mopts->bestStrata) puffaligner.getScoreStatus().updateBest(hitScore);
+                    if (mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore) puffaligner.getScoreStatus().updateDecoy(hitScore);
                     scores[idx] = hitScore;
 
                     const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];

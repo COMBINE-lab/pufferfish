@@ -105,12 +105,16 @@ bool fillRefSeqBufferReverse(compact::vector<uint64_t, 2> &refseq, uint64_t refA
  *  on the parameters of how this PuffAligner object was constructed.
  **/
 bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
-                            bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, AlignmentResult& arOut) {
+                            bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, AlignmentResult& arOut, bool isLeft) {
   int32_t alignmentScore{std::numeric_limits<decltype(arOut.score)>::min()};
   if (mems.empty()) {
     arOut.score = alignmentScore;
     return false;
   }
+
+  /*auto logger_ = spdlog::get("console");
+  spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+  logger_->set_pattern("%v");*/
 
   int32_t refExtLength = static_cast<int32_t>(mopts.refExtendLength);
   bool firstMem = true;
@@ -140,19 +144,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto readLen = read.length();
   auto tpos = frontMem.tpos;
 
-  if (perfectChain) {
-    arOut.score = alignmentScore = readLen * mopts.matchScore;
-    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
-    hctr.skippedAlignments_byCov += 1;
-    SPDLOG_DEBUG(logger_,"[[");
-    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
-    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
-    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
-    arOut.cigar = cigar;
-    arOut.openGapLen = openGapLen;
-    return true;
-  }
-
   // do full alignment if we are in that mode, or if the
   // current read was recovered via orphan recovery.
   // @mohsen & @fataltes : we need a better signal than memlen == 1
@@ -178,7 +169,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool didHash{false};
   uint32_t refStart, readStart{0};
   //We want the maximum length of the buffer that if we include those number of indels we can still achieve a good quality alignment
-  //For the read length of 100, the following formula will create a buffer of size 21
+  //For the read length of readLen, the following formula will create a buffer of size 21
   uint32_t buff = (readLen*mopts.matchScore*(1-mopts.minScoreFraction)-mopts.gapOpenPenalty)/mopts.gapExtendPenalty;
 
   int32_t signedRefStartPos = currHitStart_ref - currHitStart_read;
@@ -195,6 +186,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
+  ksw_reset_extz(&ez);
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
@@ -218,6 +210,18 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
   }
 
+  if (perfectChain) {
+    arOut.score = alignmentScore = readLen * mopts.matchScore;
+    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    hctr.skippedAlignments_byCov += 1;
+    SPDLOG_DEBUG(logger_,"[[");
+    //SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
+    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
+    arOut.cigar = cigar;
+    arOut.openGapLen = openGapLen;
+    return true;
+  }
 
   fillRefSeqBuffer(allRefSeq, refAccPos, refStart, keyLen, refSeqBuffer_);
   int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
@@ -241,16 +245,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
   }
 
-  //auto logger_ = spdlog::get("console");
-  //spdlog::set_level(spdlog::level::debug); // Set global log level to debug
-  //logger_->set_pattern("%v");
-
   // @mohsen & @fataltes --- we should figure out how to
   // avoid computing the rc of a read if we've already done it.
   if (!isFw and read_rc.empty()) { read_rc = pufferfish::util::reverseComplement(read); }
   nonstd::string_view readView = (isFw) ? read : read_rc;
 
-if (doFullAlignment) {
+  int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length());
+  auto alignable = [&minAcceptedScore, &readLen] (uint32_t alignedLen, uint32_t matchScore, int32_t alignmentScore) -> bool {
+    return minAcceptedScore <= alignmentScore + matchScore*(readLen-alignedLen);
+  };
+
+  if (doFullAlignment) {
     // if we allow softclipping of overhanging bases, then we can cut off the part of the read
     // before the start of the reference
     decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
@@ -330,12 +335,15 @@ if (doFullAlignment) {
       }
     }
 
-    int32_t prevMemEnd_read = isFw ? rpos : readLen - (rpos+memlen);
+    int32_t prevMemEnd_read = firstMemStart_read - 1; //isFw ? rpos : readLen - (rpos+memlen);
     int32_t prevMemEnd_ref = tpos;
-
+    if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
+      hctr.not_alignable_skips+=1;
+      ez.stopped = 1;
+    }
     SPDLOG_DEBUG(logger_,"\t Aligning through MEM chain : ");
     // for the second through the last mem
-    for(auto it = mems.begin(); it != mems.end(); ++it) {
+    for(auto it = mems.begin(); it != mems.end() and !ez.stopped; ++it) {
       auto& mem = *it;
       rpos = mem.rpos;
       memlen = mem.extendedlen;
@@ -388,21 +396,25 @@ if (doFullAlignment) {
       SPDLOG_DEBUG(logger_,"\t The mem matched with the score: {}, CIGAR: {}M", mopts.matchScore * memlen, memlen);
       SPDLOG_DEBUG(logger_,"\t MEM (rpos : {}, memlen : {}, tpos : {})", rpos, memlen, tpos);
       SPDLOG_DEBUG(logger_,"\t gapRef : {}, gapRead : {}", gapRef, gapRead);
-      auto printView = readView.substr(currMemStart_read, memlen);
-      auto refView = nonstd::string_view(tseq.c_str() + tpos - refStart, memlen);
+      //auto printView = readView.substr(currMemStart_read, memlen);
+      //auto refView = nonstd::string_view(tseq.c_str() + tpos - refStart, memlen);
 
       SPDLOG_DEBUG(logger_,"\t read [{}], pos : {}, len : {}, ori : {}", printView, currMemStart_read, memlen, (isFw ? "FW" : "RC"));
       SPDLOG_DEBUG(logger_,"\t ref  [{}], pos : {}, len : {}", refView, currMemStart_ref, memlen);
-      if (printView.length() != refView.length()) {
+      /*if (printView.length() != refView.length()) {
         SPDLOG_DEBUG(logger_,"\t readView length != refView length; should not happen!");
         std::exit(1);
-      }
+      }*/
 
       prevMemEnd_read = currMemStart_read + memlen - 1;
       prevMemEnd_ref = tpos + memlen - 1;
       alignmentScore += score;
-    }
 
+      if (!alignable(prevMemEnd_read+1, mopts.matchScore, alignmentScore)) {
+        hctr.not_alignable_skips+=1;
+        ez.stopped = 1;
+      }
+    }
     // If we got to the end, and there is a read gap left, then align that as well
     SPDLOG_DEBUG(logger_,"prevMemEnd_read : {}, readLen : {}", prevMemEnd_read, readLen);
     bool gapAtEnd = (prevMemEnd_read + 1) <= (static_cast<int32_t>(readLen) - 1);
@@ -514,12 +526,12 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         ar_orphan.score = invalidScore;
         alignRead(read_orphan, rc_orphan, jointHit.orphanClust()->mems,
                   jointHit.orphanClust()->perfectChain,
-                  jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan);
+                  jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, true);
         jointHit.alignmentScore =
           ar_orphan.score > threshold(read_orphan.length())  ? ar_orphan.score : invalidScore;
         jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_orphan.cigar : "";
         jointHit.orphanClust()->openGapLen = ar_orphan.openGapLen;
-//        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
+        //jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         if (jointHit.alignmentScore < 0 and verbose) {
           std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
         }
@@ -529,10 +541,11 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         ar_left.score = ar_right.score = invalidScore;
         if (verbose) { std::cerr << "left\n"; }
         alignRead(read_left, read_left_rc_, jointHit.leftClust->mems, jointHit.leftClust->perfectChain,
-                                            jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left);
+                                            jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left, true);
+
         if (verbose) { std::cerr << "right\n"; }
         alignRead(read_right, read_right_rc_, jointHit.rightClust->mems, jointHit.rightClust->perfectChain,
-                                             jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right);
+                                             jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right, false);
 
         jointHit.alignmentScore = ar_left.score > threshold(read_left.length()) ? ar_left.score : invalidScore;
         jointHit.mateAlignmentScore = ar_right.score > threshold(read_right.length()) ? ar_right.score : invalidScore;
@@ -540,9 +553,9 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         jointHit.alignmentScore = (score_left == invalidScore or score_right == invalidScore)?
                                   invalidScore : score_left + score_right;
 */
-//        jointHit.leftClust->coverage = score_left;
+//      jointHit.leftClust->coverage = score_left;
         jointHit.leftClust->openGapLen = ar_left.openGapLen;
-//        jointHit.rightClust->coverage = score_right;
+//      jointHit.rightClust->coverage = score_right;
         jointHit.rightClust->openGapLen = ar_right.openGapLen;
         if (computeCIGAR) {
           jointHit.leftClust->cigar = ar_left.cigar;
@@ -577,12 +590,12 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     hctr.totalAlignmentAttempts += 1;
     ar_left.score = invalidScore;
     const auto& oc = jointHit.orphanClust();
-    alignRead(read, read_left_rc_, oc->mems, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left);
+    alignRead(read, read_left_rc_, oc->mems, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, true);
     jointHit.alignmentScore =
       ar_left.score > threshold(read.length())  ? ar_left.score : invalidScore;
     jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_left.cigar : "";
     jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
-    //        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
+    //jointHit.orphanClust()->coverage = jointHit.alignmentScore;
     if (jointHit.alignmentScore < 0 and verbose) {
       std::cerr << read.length() << " " << threshold(read.length()) << " " << ar_left.score << "\n";
     }

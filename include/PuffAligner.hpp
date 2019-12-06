@@ -22,6 +22,33 @@ struct PuffAlignmentOptions {
   PuffAlignmentMode mode;
 };
 
+struct ScoreStatus {
+  ScoreStatus(int32_t matchScore_, double minScoreFraction_, bool bestStrata_, bool decoyPresent_) {
+    matchScore = matchScore_;
+    minScoreFraction = minScoreFraction_;
+    bestStrata = bestStrata_;
+    decoyPresent = decoyPresent_;
+    maxObservedScore = KSW_NEG_INF;
+    maxObservedDecoyScore = KSW_NEG_INF;
+  }
+
+  int32_t minAcceptedScore(int32_t readlen) { return minScoreFraction * matchScore * readlen; }
+
+  int32_t getCutoff(int32_t retadlen) { return std::max(std::max(maxObservedScore, maxObservedDecoyScore), minAcceptedScore(retadlen)); }
+
+  int32_t updateBest(int32_t score) { maxObservedScore = std::max(maxObservedScore, score); }
+  int32_t updateDecoy(int32_t score) { maxObservedDecoyScore = std::max(maxObservedDecoyScore, score); }
+
+  void reset() { maxObservedScore = KSW_NEG_INF; maxObservedDecoyScore = KSW_NEG_INF; }
+
+  bool bestStrata;
+  bool decoyPresent;
+  int32_t maxObservedScore;
+  int32_t maxObservedDecoyScore;
+  int32_t matchScore;
+  double minScoreFraction;
+};
+
 using HitCounters = pufferfish::util::HitCounters;
 using AlignmentResult = pufferfish::util::AlignmentResult;
 using AlnCacheMap = phmap::flat_hash_map<uint64_t, AlignmentResult, PassthroughHash>;
@@ -30,8 +57,8 @@ class PuffAligner {
 public:
   PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, 
               pufferfish::util::AlignmentConfig& m, ksw2pp::KSW2Aligner& a) : 
-    allRefSeq(ar), refAccumLengths(ral), k(k_), 
-    mopts(m), aligner(a) {
+    allRefSeq(ar), refAccumLengths(ral), k(k_),
+    mopts(m), aligner(a), scoreStatus_(m.matchScore,m.minScoreFraction,m.bestStrata, m.decoyPresent) {
 		memset(&ez, 0, sizeof(ksw_extz_t));
 
 		alnCacheLeft.reserve(32);
@@ -57,13 +84,15 @@ public:
   int32_t calculateAlignments(std::string& rl, std::string& rr, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose);
   int32_t calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose);
 
-  bool alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut);
+  bool alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw,
+                 size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool isLeft);
 
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
 
   void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
   void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();  read_left_rc_.clear(); read_right_rc_.clear(); /*memset(&ez, 0, sizeof(ksw_extz_t));*/ }
 
+  ScoreStatus getScoreStatus() { return scoreStatus_; }
   std::vector<pufferfish::util::UniMemInfo> orphanRecoveryMemCollection;
 private:
   compact::vector<uint64_t, 2>& allRefSeq;
@@ -85,6 +114,7 @@ private:
   bool isMultimapping_;
   AlnCacheMap alnCacheLeft;
   AlnCacheMap alnCacheRight;
+  ScoreStatus scoreStatus_;
 };
 
 
