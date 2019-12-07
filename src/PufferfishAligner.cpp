@@ -909,6 +909,10 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("Total number of alignment attempts : {}", hctrs.totalAlignmentAttempts);
     consoleLog->info("Number of skipped alignments because of cache hits : {}", hctrs.skippedAlignments_byCache);
     consoleLog->info("Number of skipped alignments because of perfect chains : {}", hctrs.skippedAlignments_byCov);
+    consoleLog->info("Number of betweeen aligner engine calls : {}", hctrs.between_aligner_calls_count);
+    consoleLog->info("Number of begin aligner engine calls : {}", hctrs.begin_aligner_calls_count);
+    consoleLog->info("Number of end aligner engine calls : {}", hctrs.end_aligner_calls_count);
+    consoleLog->info("Number of alignments calculations skipped by non-alignable: {}", hctrs.not_alignable_skips);
     consoleLog->info("Number of total aligner engine calls : {}", hctrs.aligner_calls_count);
 
     consoleLog->info("=====");
