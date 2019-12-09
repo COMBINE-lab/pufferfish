@@ -82,6 +82,7 @@ public:
   int32_t matchScore{2};
   int32_t missMatchScore{-4};
   uint32_t refExtendLength{20};
+  uint32_t alignmentBandwidth{15};
   double minScoreFraction{0.65};
   bool fullAlignment{false};
   bool heuristicChaining{true};

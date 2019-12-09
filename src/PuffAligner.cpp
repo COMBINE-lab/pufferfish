@@ -266,6 +266,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto alignable = [&minAcceptedScore, &readLen] (uint32_t alignedLen, uint32_t matchScore, int32_t alignmentScore) -> bool {
     return minAcceptedScore <= alignmentScore + matchScore*(readLen-alignedLen);
   };
+  auto maxAllowedGaps = [&minAcceptedScore, &readLen] (uint32_t alignedLen, pufferfish::util::AlignmentConfig mopts, int32_t alignmentScore) -> int {
+    int maxAllowedGaps = ( alignmentScore + (int)mopts.matchScore * (int)(readLen - alignedLen) - minAcceptedScore - (int)mopts.gapOpenPenalty ) / (int)mopts.gapExtendPenalty;
+    return std::max(maxAllowedGaps, 0);
+  };
 
   if (doFullAlignment) {
     // if we allow softclipping of overhanging bases, then we can cut off the part of the read
@@ -307,12 +311,14 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     int32_t firstMemStart_read = (isFw) ? rpos : readLen - (rpos + memlen);
     if (firstMemStart_read > 0) {
       // align the part before the first mem
+      if (isLeft) begin_gap_left = true; else begin_gap_right = true;
 
       // the gap is of length firstMemStart_read, so grab that much (plus buffer) before the
       // first start position on the reference.
       int32_t firstMemStart_ref = tpos;
       int32_t readStartPosOnRef = tpos - firstMemStart_read;
-      int32_t dataDepBuff = std::min(refExtLength, 5*firstMemStart_read);
+      int32_t maxAllowedGaps_ = maxAllowedGaps(0, mopts, 0);
+      int32_t dataDepBuff = std::min(refExtLength, maxAllowedGaps_);
 
       //int32_t refWindowStart = (readStartPosOnRef - refExtLength) > 0 ? (readStartPosOnRef - refExtLength) : 0;
       int32_t refWindowStart = (readStartPosOnRef - dataDepBuff) > 0 ? (readStartPosOnRef - dataDepBuff) : 0;
@@ -327,12 +333,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         SPDLOG_DEBUG(logger_,"PRE:\nreadStartPosOnRef : {}\nrefWindowStart : {}", readStartPosOnRef, refWindowStart);
         SPDLOG_DEBUG(logger_,"refWindowLength : {}\nread : [{}]\nref : [{}]", refWindowLength, readWindow, refSeqBuffer_);
 
-
+        aligner.config().bandwidth = std::min(maxAllowedGaps_, mopts.alignmentBandwidth);
         auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
               allowOverhangSoftclip, cutoff, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-
         if (ez.stopped) hctr.stopped_count+=1;
         if(ez.mqe != KSW_NEG_INF and ez.stopped>0) ez.stopped = 0;
         alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
@@ -404,6 +409,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           hctr.aligner_calls_count += 1;
           hctr.between_aligner_calls_count += 1;
           ksw_reset_extz(&ez);
+          aligner.config().bandwidth = std::min(maxAllowedGaps(prevMemEnd_read + 1, mopts, alignmentScore),std::max(gapRead, gapRef));
           score += aligner(readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
                     ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
           if (computeCIGAR) { addCigar(cigarGen, &ez, false); }
@@ -447,8 +453,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       //if (isLeft) end_gap_left = true; else end_gap_right = true;
 
       int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
+      int32_t maxAllowedGaps_ = maxAllowedGaps(prevMemEnd_read + 1, mopts, alignmentScore);
       int32_t refTailStart = prevMemEnd_ref + 1;
-      int32_t dataDepBuff = std::min(refExtLength, 5*gapRead);
+      int32_t dataDepBuff = std::min(refExtLength, maxAllowedGaps_);
       int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
       if (refTailEnd >= refTotalLength) {refTailEnd = refTotalLength - 1;}
       int32_t refLen = (refTailEnd > refTailStart) ? refTailEnd - refTailStart + 1 : 0;
@@ -463,11 +470,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if (refLen > 0) {
         hctr.aligner_calls_count += 1;
         hctr.end_aligner_calls_count += 1;
+
+        aligner.config().bandwidth = std::min(maxAllowedGaps_, mopts.alignmentBandwidth);
         auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * (readWindow.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
               allowOverhangSoftclip, cutoff, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-
         if (ez.stopped) hctr.stopped_count+=1;
         if(ez.mqe != KSW_NEG_INF) ez.stopped = 0;
 

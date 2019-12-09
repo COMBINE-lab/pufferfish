@@ -797,6 +797,7 @@ Compile-time selection between list-like and map-like printing.
 
       struct AlignmentConfig {
         int32_t refExtendLength{20};
+        int32_t alignmentBandwidth{15};
         bool fullAlignment{false};
         int16_t matchScore;
         int16_t gapExtendPenalty;

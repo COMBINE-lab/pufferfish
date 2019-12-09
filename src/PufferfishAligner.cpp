@@ -118,7 +118,7 @@ void processReadsPair(paired_parser *parser,
     config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
-    config.bandwidth = 15;
+    config.bandwidth = mopts->alignmentBandwidth;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
     if (!mopts->computeCIGAR)
@@ -139,6 +139,7 @@ void processReadsPair(paired_parser *parser,
 
     pufferfish::util::AlignmentConfig aconf;
     aconf.refExtendLength = mopts->refExtendLength;
+    aconf.alignmentBandwidth = mopts->alignmentBandwidth;
     aconf.fullAlignment = mopts->fullAlignment;
     aconf.matchScore = mopts->matchScore;
     aconf.gapExtendPenalty = mopts->gapExtendPenalty;
@@ -562,7 +563,7 @@ void processReadsSingle(single_parser *parser,
     config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
-    config.bandwidth = 15;
+    config.bandwidth = mopts->alignmentBandwidth;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
     if (!mopts->computeCIGAR)
@@ -575,6 +576,7 @@ void processReadsSingle(single_parser *parser,
 
     pufferfish::util::AlignmentConfig aconf;
     aconf.refExtendLength = mopts->refExtendLength;
+    aconf.alignmentBandwidth = mopts->alignmentBandwidth;
     aconf.fullAlignment = mopts->fullAlignment;
     aconf.matchScore = mopts->matchScore;
     aconf.gapExtendPenalty = mopts->gapExtendPenalty;
