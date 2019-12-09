@@ -122,12 +122,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     arOut.score = alignmentScore;
     return false;
   }
-
   /*auto logger_ = spdlog::get("console");
   spdlog::set_level(spdlog::level::debug); // Set global log level to debug
   logger_->set_pattern("%v");*/
 
-  int32_t refExtLength = static_cast<int32_t>(mopts.refExtendLength);
+  auto readLen = read.length();
+  uint32_t buff = (readLen*mopts.matchScore*(1-mopts.minScoreFraction)-mopts.gapOpenPenalty)/mopts.gapExtendPenalty;
+  int32_t refExtLength = buff; //static_cast<int32_t>(mopts.refExtendLength);
   bool firstMem = true;
   int32_t lastHitEnd_read = -1;
   int32_t currHitStart_read = 0;
@@ -152,7 +153,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto& frontMem = mems.front();
   auto rpos = frontMem.rpos;
   auto memlen = frontMem.extendedlen;
-  auto readLen = read.length();
   auto tpos = frontMem.tpos;
 
   // do full alignment if we are in that mode, or if the
@@ -181,7 +181,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   uint32_t refStart, readStart{0};
   //We want the maximum length of the buffer that if we include those number of indels we can still achieve a good quality alignment
   //For the read length of readLen, the following formula will create a buffer of size 21
-  uint32_t buff = (readLen*mopts.matchScore*(1-mopts.minScoreFraction)-mopts.gapOpenPenalty)/mopts.gapExtendPenalty;
 
   int32_t signedRefStartPos = currHitStart_ref - currHitStart_read;
   int32_t signedRefEndPos = signedRefStartPos + read.length();
@@ -268,7 +267,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   };
   auto maxAllowedGaps = [&minAcceptedScore, &readLen] (uint32_t alignedLen, pufferfish::util::AlignmentConfig mopts, int32_t alignmentScore) -> int {
     int maxAllowedGaps = ( alignmentScore + (int)mopts.matchScore * (int)(readLen - alignedLen) - minAcceptedScore - (int)mopts.gapOpenPenalty ) / (int)mopts.gapExtendPenalty;
-    return std::max(maxAllowedGaps, 0);
+    return std::max(maxAllowedGaps + 1, 0);
   };
 
   if (doFullAlignment) {
@@ -361,7 +360,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
 
     int32_t prevMemEnd_read = firstMemStart_read - 1; //isFw ? rpos : readLen - (rpos+memlen);
-    int32_t prevMemEnd_ref = tpos;
+    int32_t prevMemEnd_ref = tpos - 1;
     if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
       hctr.not_alignable_skips+=1;
       ez.stopped = 1;
