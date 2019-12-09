@@ -781,17 +781,15 @@ void processReadsSingle(single_parser *parser,
             }
 
             // write them on cmd
-            if (hctr.numReads > hctr.lastPrint + 1000000) {
+            if (hctr.numReads > hctr.lastPrint + 100000) {
                 hctr.lastPrint.store(hctr.numReads.load());
                 if (!mopts->quiet and iomutex->try_lock()) {
                     if (hctr.numReads > 0) {
                         std::cerr << "\r\r";
                     }
                     std::cerr << "saw " << hctr.numReads << " reads : "
-                              << "pe / read = "
-                              << hctr.peHits / static_cast<float>(hctr.numReads)
-                              << " : se / read = "
-                              << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
+                              << "pe / read = " << hctr.peHits / static_cast<float>(hctr.numReads)
+                              << " : se / read = " << hctr.seHits / static_cast<float>(hctr.numReads) << ' ';
                     iomutex->unlock();
                 }
             }
