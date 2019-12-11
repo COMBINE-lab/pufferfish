@@ -99,7 +99,7 @@ public:
   bool recoverOrphans{false};
   bool mimicBt2Default{false};
   bool mimicBt2Strict{false};
-  bool allowOverhangSoftclip{false};
+  bool allowOverhangSoftclip{true};
   bool computeCIGAR{true};
 };
 }

@@ -310,7 +310,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     int32_t firstMemStart_read = (isFw) ? rpos : readLen - (rpos + memlen);
     if (firstMemStart_read > 0) {
       // align the part before the first mem
-      if (isLeft) begin_gap_left = true; else begin_gap_right = true;
 
       // the gap is of length firstMemStart_read, so grab that much (plus buffer) before the
       // first start position on the reference.
