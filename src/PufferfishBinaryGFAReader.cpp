@@ -137,8 +137,7 @@ namespace pufferfish {
 
         // start and end kmer-hash over the contigs
         // might get deprecated later
-        std::cerr << filename_ + "/path.bin\n";
-        std::ifstream file(filename_ + "/path.bin", std::ios::binary);
+        std::ifstream file(filename_ + "/" + pufferfish::util::PATH, std::ios::binary);
         uint64_t refIdSize{0};
         if (file.good()) {
             file.read(reinterpret_cast<char *>(&refIdSize), sizeof(refIdSize));
@@ -146,18 +145,15 @@ namespace pufferfish {
         uint64_t contigCntPerPath;
         while (file.good()) {
             file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
-            std::cerr << refIdLen << "\n";
             if (!file.good()) break;
             char* temp = new char[refIdLen+1];
             file.read(temp, refIdLen);
             temp[refIdLen] = '\0';
             refId = temp;
-            std::cerr << refId << "\n";
             delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
 //            std::cerr << "pathlen: " << contigCntPerPath << "\n";
 //            std::cerr << refId << " " << contigCntPerPath << "\n";
-            std::cerr << path.size() << " " << ref_cnt << " " << contigCntPerPath << "\n";
             path[ref_cnt].resize(contigCntPerPath);
             for (uint64_t i = 0; i < contigCntPerPath; i++) {
                 int64_t contigIdAndOri;
@@ -306,11 +302,11 @@ namespace pufferfish {
     void BinaryGFAReader::serializeContigTable(const std::string &odir,
                                                const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
                                                const std::vector<uint32_t>& refIdExtensions) {
-        std::string ofile = odir + "/ctable.bin";
-        std::string creffile = odir + "/ureftable.bin";
-        std::string cposfile = odir + "/upostable.bin";
-        std::string eqfile = odir + "/eqtable.bin";
-        std::string rlfile = odir + "/reflengths.bin";
+        std::string ofile = odir + "/" + pufferfish::util::CTABLE;
+        std::string creffile = odir + "/" + pufferfish::util::UREFTABLE;
+        std::string cposfile = odir + "/" + pufferfish::util::UPOSTABLE;
+        std::string eqfile = odir + "/" + pufferfish::util::EQTABLE;
+        std::string rlfile = odir + "/" + pufferfish::util::REFLENGTH;
         std::ofstream ct(ofile);
         std::ofstream et(eqfile);
         std::ofstream rl(rlfile);
