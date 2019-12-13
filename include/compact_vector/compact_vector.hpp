@@ -352,9 +352,10 @@ namespace compact {
             }
 
             void resize(size_t m) {
+                m_allocator.deallocate(m_mem, elements_to_words(m_capacity, bits()));
                 m_size = m;
                 m_capacity = m;
-                m_mem = m_allocator.allocate(elements_to_words(m, BITS));
+                m_mem = m_allocator.allocate(elements_to_words(m_capacity, bits()));
             }
 
             vector &operator=(vector &vec) {
