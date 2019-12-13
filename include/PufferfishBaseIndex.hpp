@@ -28,7 +28,7 @@ protected:
       auto spos = underlying().contigOffsets_[contigRank];
       auto epos = underlying().contigOffsets_[contigRank+1];
       pufferfish::util::PositionIterator startIt(&underlying().urefTable_, &underlying().uposTable_, spos);
-    pufferfish::util::PositionIterator endIt(&underlying().urefTable_, &underlying().uposTable_, epos);
+      pufferfish::util::PositionIterator endIt(&underlying().urefTable_, &underlying().uposTable_, epos);
 //      return core::range<std::vector<pufferfish::util::Position>::iterator>(startIt, endIt);
       return core::range<pufferfish::util::PositionIterator>(startIt, endIt);
     }
