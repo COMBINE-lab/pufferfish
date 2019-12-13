@@ -19,7 +19,7 @@
 #include <junctionapi/junctionapi.h>
 
 #include "pufferize.h"
-#include "graphdumpBinaryWriter.h"
+#include "graphdumpBinaryWriter.hpp"
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition &a, const TwoPaCo::JunctionPosition &b) {
     return a.GetId() < b.GetId();
