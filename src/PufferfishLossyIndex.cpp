@@ -152,7 +152,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir, pufferfi
  */
 auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache& qc)
     -> pufferfish::util::ProjectedHits {
-  using IterT = std::vector<pufferfish::util::Position>::iterator;
+  using IterT = pufferfish::util::PositionIterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
 
@@ -241,7 +241,7 @@ auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::Query
 }
 
 auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits {
-  using IterT = std::vector<pufferfish::util::Position>::iterator;
+  using IterT = pufferfish::util::PositionIterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
 

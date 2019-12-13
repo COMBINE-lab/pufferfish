@@ -14,6 +14,8 @@
 #include "Util.hpp"
 #include "PufferfishTypes.hpp"
 
+
+
 template <typename T>
 class PufferfishBaseIndex {
     private:
@@ -22,12 +24,13 @@ class PufferfishBaseIndex {
     T const& underlying() const;
 
 protected:
-  inline core::range<std::vector<pufferfish::util::Position>::iterator> contigRange(uint64_t contigRank) {
+  inline core::range<pufferfish::util::PositionIterator> contigRange(uint64_t contigRank) {
       auto spos = underlying().contigOffsets_[contigRank];
       auto epos = underlying().contigOffsets_[contigRank+1];
-      std::vector<pufferfish::util::Position>::iterator startIt = underlying().contigTable_.begin() + spos;
-      std::vector<pufferfish::util::Position>::iterator endIt = startIt + (epos - spos);
-      return core::range<std::vector<pufferfish::util::Position>::iterator>(startIt, endIt);
+      pufferfish::util::PositionIterator startIt(&underlying().urefTable_, &underlying().uposTable_, spos);
+    pufferfish::util::PositionIterator endIt(&underlying().urefTable_, &underlying().uposTable_, epos);
+//      return core::range<std::vector<pufferfish::util::Position>::iterator>(startIt, endIt);
+      return core::range<pufferfish::util::PositionIterator>(startIt, endIt);
     }
 
   using pos_vector_t = compact::vector<uint64_t>;
@@ -53,7 +56,7 @@ protected:
   uint64_t numContigs() const;
 
   // Get the list of reference sequences & positions corresponding to a contig
-  const core::range<std::vector<pufferfish::util::Position>::iterator> refList(uint64_t contigRank);
+  const core::range<pufferfish::util::PositionIterator> refList(uint64_t contigRank);
 
   // Get the name of a given reference sequence
   inline const std::string& refName(uint64_t refRank) {

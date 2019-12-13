@@ -42,7 +42,18 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir, pufferfish::util::
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
     contigTableArchive(refExt_);
-    contigTableArchive(contigTable_);
+
+    std::string pfile = indexDir + "/" + pufferfish::util::UREFTABLE;
+    auto bits_per_element = compact::get_bits_per_element(pfile);
+    urefTable_.set_m_bits(bits_per_element);
+    urefTable_.deserialize(pfile, false);
+
+    pfile = indexDir + "/" + pufferfish::util::UPOSTABLE;
+    bits_per_element = compact::get_bits_per_element(pfile);
+    uposTable_.set_m_bits(bits_per_element);
+    uposTable_.deserialize(pfile, false);
+
+//    contigTableArchive(contigTable_);
     contigTableStream.close();
   }
   {
@@ -159,7 +170,7 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir, pufferfish::util::
  */
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache& qc)
     -> pufferfish::util::ProjectedHits {
-  using IterT = std::vector<pufferfish::util::Position>::iterator;
+  using IterT = pufferfish::util::PositionIterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {
@@ -244,7 +255,7 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache
 }
 
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits {
-  using IterT = std::vector<pufferfish::util::Position>::iterator;
+  using IterT = pufferfish::util::PositionIterator;
   auto km = mer.getCanonicalWord();
   size_t res = hash_raw_->lookup(km);
   if (res < numKmers_) {

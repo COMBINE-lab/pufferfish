@@ -300,7 +300,8 @@ uint64_t PufferfishBaseIndex<T>::numContigs() const {
  * Return the position list (ref_id, pos) corresponding to a contig.
  */
 template <typename T>
-const core::range<std::vector<pufferfish::util::Position>::iterator>
+//const core::range<std::vector<pufferfish::util::Position>::iterator>
+const core::range<pufferfish::util::PositionIterator>
 PufferfishBaseIndex<T>::refList(uint64_t contigRank) {
   return contigRange(contigRank);
 }

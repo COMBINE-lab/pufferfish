@@ -1123,6 +1123,105 @@ Compile-time selection between list-like and map-like printing.
 // Structure to hold a list of "projected" (i.e. reference) hits
 // for a k-mer
 
+        class PositionIterator : public std::iterator<std::forward_iterator_tag, Position> {
+        public:
+            using self_type = PositionIterator;
+            using value_type = pufferfish::util::Position;
+            using reference = value_type&;
+            using pointer = value_type*;
+//            using iterator_category = std::forward_iterator_tag;
+            using difference_type = uint64_t;
+
+//            PositionIterator() = delete;
+            PositionIterator() {
+                curr_ = 0;
+                pos_ = pufferfish::util::Position(-1,-1,false);
+            }
+
+            PositionIterator(compact::vector<uint64_t>* urefTab, compact::vector<uint64_t>* uposTab, uint64_t startAt)
+                    : urefTab_(urefTab), uposTab_(uposTab), curr_(startAt) {
+                mask = 1ULL << (uposTab->bits() - 1);
+                if (curr_ == uposTab_->size())
+                    pos_ = pufferfish::util::Position(-1,-1,false);
+                uint32_t posOri = (*uposTab_)[curr_];
+                pos_ = pufferfish::util::Position((*urefTab_)[curr_], posOri & (mask-1) , posOri & mask);
+            }
+
+            PositionIterator&
+            operator=(PositionIterator& other) { //}= default;
+                // storage,
+                // uint8_t k, uint64_t startAt) :
+                urefTab_ = other.urefTab_;
+                uposTab_ = other.uposTab_;
+                curr_ = other.curr_;
+                pos_ = other.pos_;
+                return *this;
+            }
+
+            PositionIterator operator++() {
+                PositionIterator i = *this;
+                advance_();
+                return i;
+            }
+
+            PositionIterator operator++(int) {
+                advance_();
+                return *this;
+            }
+
+            reference operator*() {
+                return pos_;
+            }
+
+            difference_type pos() { return curr_; }
+
+            pointer operator->() {
+                return &pos_;
+            }
+            bool operator==(const self_type& rhs) { return curr_ == rhs.curr_; }
+
+            bool operator!=(const self_type& rhs) { return curr_ != rhs.curr_; }
+
+            bool operator<(const self_type& rhs) { return curr_ < rhs.curr_; }
+
+            bool operator<=(const self_type& rhs) { return curr_ <= rhs.curr_; }
+
+            PositionIterator begin() {
+                this->advanceToPosition(0);
+                return (*this);
+            }
+
+            PositionIterator end() {
+                this->advanceToPosition(urefTab_->size());
+                return (*this);
+            }
+
+        private:
+
+            void advance_() {
+                curr_++;
+                if (curr_ == uposTab_->size())
+                    pos_ = pufferfish::util::Position(-1,-1,false);
+                uint32_t posOri = (*uposTab_)[curr_];
+                pos_ = pufferfish::util::Position((*urefTab_)[curr_], posOri & (mask-1) , posOri & mask);
+            }
+
+            void advanceToPosition(uint64_t idx) {
+                curr_ = idx;
+                if (curr_ == uposTab_->size())
+                    pos_ = pufferfish::util::Position(-1,-1,false);
+                uint32_t posOri = (*uposTab_)[curr_];
+                pos_ = pufferfish::util::Position((*urefTab_)[curr_], posOri & (mask-1) , posOri & mask);
+            }
+
+            compact::vector<uint64_t>* urefTab_{nullptr};
+            compact::vector<uint64_t>* uposTab_{nullptr};
+            uint64_t curr_{0};
+            pufferfish::util::Position pos_;
+            uint32_t mask;
+        };
+
+
 
         struct ProjectedHits {
             uint32_t contigIdx_;
@@ -1136,7 +1235,8 @@ Compile-time selection between list-like and map-like printing.
             bool contigOrientation_;
             uint32_t contigLen_;
             uint32_t k_;
-            core::range<std::vector<pufferfish::util::Position>::iterator> refRange;
+            core::range<pufferfish::util::PositionIterator> refRange;
+//            core::range<std::vector<pufferfish::util::Position>::iterator> refRange;
 
             inline bool empty() { return refRange.empty(); }
 
