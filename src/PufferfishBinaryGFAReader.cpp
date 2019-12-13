@@ -401,8 +401,10 @@ namespace pufferfish {
             posWidth{static_cast<uint32_t >(std::ceil(std::log2(maxRefLength+1))+1)};
             unitigRef_.set_m_bits(refWidth);
             unitigRef_.resize(totalUtabElements);
+            unitigRef_.clear_mem();
             unitigPos_.set_m_bits(posWidth);
             unitigPos_.resize(totalUtabElements);
+            unitigPos_.clear_mem();
             logger_->info("maxLength: {}", maxRefLength);
             logger_->info("unitigRefWidth = {} and unitigPosWidth = {}", refWidth, posWidth);
             logger_->info("Total unitig table elements : {}", totalUtabElements);
