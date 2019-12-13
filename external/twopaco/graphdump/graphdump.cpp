@@ -19,7 +19,7 @@
 #include <junctionapi/junctionapi.h>
 
 #include "pufferize.h"
-#include "binaryWriter.h"
+#include "graphdumpBinaryWriter.h"
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition &a, const TwoPaCo::JunctionPosition &b) {
     return a.GetId() < b.GetId();
@@ -151,9 +151,10 @@ char Sign(int64_t arg) {
     return arg >= 0 ? '+' : '-';
 }
 
-void ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std::string> &chrSegmentId,
+uint64_t ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std::string> &chrSegmentId,
                         std::vector<uint64_t> &chrSegmentLength, std::map<std::string, std::string> &fileName,
                         bool noPrefix) {
+    uint64_t maxChrNameLength = 0;
     size_t chrCount = 0;
     chrSegmentId.clear();
     chrSegmentLength.clear();
@@ -168,6 +169,8 @@ void ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std
             }
 
             chrSegmentId.push_back(ssId.str());
+            maxChrNameLength = maxChrNameLength < ssId.str().size() ? ssId.str().size() : maxChrNameLength;
+
             fileName[ssId.str()] = chrFileName;
 
 
@@ -176,6 +179,7 @@ void ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std
             chrSegmentLength.push_back(size);
         }
     }
+    return maxChrNameLength;
 }
 
 class Gfa1Generator {
@@ -186,6 +190,10 @@ public:
     }
 
     void flushSegments(std::string &prefix) {
+        //empty body-- forced by template
+    }
+
+    void setAllowedMaxStringLength(uint64_t val) {
         //empty body-- forced by template
     }
 
@@ -243,7 +251,7 @@ public:
 };
 
 class Gfa1BinaryGenerator {
-    BinaryWriter bw;
+    GraphdumpBinaryWriter bw;
     //std::ofstream out;
 public:
     //Gfa1BinaryGenerator(): bw(std::cout) {}
@@ -258,7 +266,12 @@ public:
         bw.flushSegments(prefix);
     }
 
+    void setAllowedMaxStringLength(uint64_t val) {
+        bw.setAllowedMaxStringLength(val);
+    }
+
     void Header(std::ostream &out)  {
+        bw.writeAllowedMaxStringLength();
         /*std::string header="H\tVN:Z:1.0";
         bw << header;*/
     }
@@ -307,6 +320,10 @@ public:
     }
 
     void flushSegments(std::string & dummy) {
+        //empty body-- forced by template
+    }
+
+    void setAllowedMaxStringLength(uint64_t val) {
         //empty body-- forced by template
     }
 
@@ -391,9 +408,9 @@ void GenerateGfaOutput(const std::string &inputFileName, const std::vector<std::
     std::map<std::string, std::string> chrFileName;
 
     //std::cout << "H\tVN:Z:1.0" << std::endl;
-    g.Header(std::cout);
 
     ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+    g.Header(std::cout);
     g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
 
     std::vector<int64_t> currentPath;
@@ -599,9 +616,11 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     std::vector<std::string> chrSegmentId;
     std::map<std::string, std::string> chrFileName;
 
-    g->Header(std::cout);
 
-    ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+    auto maxAllowedSeqNameLength = ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+
+    g->setAllowedMaxStringLength(maxAllowedSeqNameLength);
+    g->Header(std::cout);
 
     std::vector<int64_t> currentPath;
     const int64_t NO_SEGMENT = 0;

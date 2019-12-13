@@ -82,7 +82,7 @@ namespace pufferfish {
     }
 
     BinaryGFAReader::BinaryGFAReader(const char *binDir, size_t input_k, bool buildEdgeVec,
-                                     std::shared_ptr<spdlog::logger> logger) {
+                                     std::shared_ptr<spdlog::logger> logger) : unitigPos_(0), unitigRef_(0) {
         logger_ = logger;
         filename_ = std::string(binDir);
         logger_->info("Setting the index/BinaryGfa directory {}", binDir);
@@ -118,7 +118,7 @@ namespace pufferfish {
     void BinaryGFAReader::parseFile() {
         std::string refId;
         uint64_t contigCntr{0}, prevPos{0}, nextPos{1}, ref_cnt{0};
-        uint16_t refIdLen;
+        uint64_t refIdLen;
 
         k = k + 1;
         CanonicalKmer::k(k);
@@ -137,19 +137,27 @@ namespace pufferfish {
 
         // start and end kmer-hash over the contigs
         // might get deprecated later
+        std::cerr << filename_ + "/path.bin\n";
         std::ifstream file(filename_ + "/path.bin", std::ios::binary);
+        uint64_t refIdSize{0};
+        if (file.good()) {
+            file.read(reinterpret_cast<char *>(&refIdSize), sizeof(refIdSize));
+        }
         uint64_t contigCntPerPath;
         while (file.good()) {
-            file.read(reinterpret_cast<char *>(&refIdLen), sizeof(refIdLen));
+            file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
+            std::cerr << refIdLen << "\n";
             if (!file.good()) break;
             char* temp = new char[refIdLen+1];
             file.read(temp, refIdLen);
             temp[refIdLen] = '\0';
             refId = temp;
+            std::cerr << refId << "\n";
             delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
 //            std::cerr << "pathlen: " << contigCntPerPath << "\n";
 //            std::cerr << refId << " " << contigCntPerPath << "\n";
+            std::cerr << path.size() << " " << ref_cnt << " " << contigCntPerPath << "\n";
             path[ref_cnt].resize(contigCntPerPath);
             for (uint64_t i = 0; i < contigCntPerPath; i++) {
                 int64_t contigIdAndOri;
@@ -279,8 +287,10 @@ namespace pufferfish {
                 accumPos += currContigLength - k;
                 (contig2pos[contigs[i].first])
                         .push_back(pufferfish::util::Position(tr, pos, contigs[i].second));
+                totalUtabElements++;
             }
         }
+        maxRefLength = pos > maxRefLength ? pos : maxRefLength;
         logger_->info("\nTotal # of segments we have position for : {:n}", total_output_lines);
     }
 
@@ -288,6 +298,8 @@ namespace pufferfish {
         refMap.clear();
         refLengths.clear();
         contig2pos.clear();
+        unitigRef_.clear();
+        unitigPos_.clear();
     }
 
 // Note : We assume that odir is the name of a valid (i.e., existing) directory.
@@ -295,6 +307,8 @@ namespace pufferfish {
                                                const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
                                                const std::vector<uint32_t>& refIdExtensions) {
         std::string ofile = odir + "/ctable.bin";
+        std::string creffile = odir + "/ureftable.bin";
+        std::string cposfile = odir + "/upostable.bin";
         std::string eqfile = odir + "/eqtable.bin";
         std::string rlfile = odir + "/reflengths.bin";
         std::ofstream ct(ofile);
@@ -384,10 +398,25 @@ namespace pufferfish {
             compact::vector<uint64_t> cpos_offsets(w, contigOffsetSize);
 
             cpos_offsets[0] = 0;
+
+            uint64_t uidx{0};
+            uint32_t refWidth{static_cast<uint32_t >(std::ceil(std::log2(refLengths.size())))},
+            posWidth{static_cast<uint32_t >(std::ceil(std::log2(maxRefLength))+1)};
+            unitigRef_.set_m_bits(refWidth);
+            unitigRef_.resize(totalUtabElements);
+            unitigPos_.set_m_bits(posWidth);
+            unitigPos_.resize(totalUtabElements);
+            logger_->info("unitigRefWidth = {} and unitigPosWidth = {}", refWidth, posWidth);
+            logger_->info("Total unitig table elements : {}", totalUtabElements);
             for (uint64_t idx = 0; idx < contigid2seq.size(); idx++) {
                 auto &b = contig2pos[idx];
                 cpos_offsets[idx+1] = cpos_offsets[idx] + b.size();
-                cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
+                for (auto & pos : b) {
+                    unitigRef_[uidx] = pos.transcript_id();
+                    unitigPos_[uidx] = pos.pos() | (pos.orientation() << (posWidth-1));
+                    uidx++;
+                }
+//                cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
                 std::vector<uint32_t> tlist;
                 for (auto &p : contig2pos[idx]) {
                     tlist.push_back(p.transcript_id());
@@ -418,7 +447,11 @@ namespace pufferfish {
                           return eqMap[l1] < eqMap[l2];
                       });
             eqAr(eqLabels);
-            ar(cpos);
+//            ar(cpos);
+            std::ofstream creffileout(creffile, std::ios::binary);
+            std::ofstream cposfileout(cposfile, std::ios::binary);
+            unitigRef_.serialize(creffileout);
+            unitigPos_.serialize(cposfileout);
 
             {
               std::string fname = odir + "/" + pufferfish::util::CONTIG_OFFSETS;
