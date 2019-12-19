@@ -280,7 +280,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
           uint64_t word = refseq.get_int(bucket_offset, len);
           for (uint32_t i = 0; i < len; i += 2) {
             uint8_t next_bits = ((word >> i) & 0x03);
-            seq[c++] += "ACGT"[next_bits];
+            seq[c++] = "ACGT"[next_bits];
           }
           bucket_offset += len;
         }
