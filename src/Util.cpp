@@ -1,4 +1,5 @@
 #include "Util.hpp"
+#include <cstring> 
 
 #define ALLOW_VERBOSE 0
 
@@ -270,6 +271,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
       char * getRefSeqOwned(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, uint32_t refLen) {
         if (refLen == 0) return nullptr;
         char* seq = new char[refLen];
+        std::memset(seq, 0, refLen);
         uint64_t c = 0;
         uint64_t bucket_offset = (refAccPos) * 2;
         auto len_on_vector = refLen * 2;
