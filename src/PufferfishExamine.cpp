@@ -25,7 +25,6 @@ bool dump_index_fasta(Index& pi, std::string& out) {
   std::ofstream ofile(out);
   uint32_t k = pi.k();
   size_t nr = refNames.size();
-  size_t curr{0};
   int64_t numShort{0};
   for (size_t i = 0; i < nr; ++i) {
     const auto& s = refNames[i];
@@ -35,18 +34,18 @@ bool dump_index_fasta(Index& pi, std::string& out) {
     ofile << ">" << s << "\n";
     // if this is a reference shorter than the k-mer length, then
     // we don't store it's sequence (since nothing can ever map to it).
-    std::string seq;
+    // The below way of doing it is verbose, but it matches with the way in which
+    // we grab reference sequences for bias correction in salmon, and so we want to 
+    // make sure this particular approach gives the right results
     if (!isShort) {
       auto tid = i - numShort;
       int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
       int64_t refTotalLength = refAccumLengths[tid] - refAccPos;
-      seq = pi.getRefSeqStr(refAccPos, static_cast<int64_t>(refTotalLength));
+      ofile << pi.getRefSeqStr(refAccPos, static_cast<int64_t>(refTotalLength)) << '\n';
     } else {
-      seq = std::string(l, 'N');
+      ofile << std::string(l, 'N') << '\n';
     }
-    ofile << seq << "\n";
     numShort += isShort ? 1 : 0;
-    curr += (l <= k) ? 0 : l;
   }
   ofile.close();
 
@@ -62,7 +61,6 @@ bool dump_kmer_freq(Index& pi, std::string& out) {
   phmap::flat_hash_map<uint64_t, uint64_t> freqMap;
 
   uint32_t k = pi.k();
-  size_t curr{0};
   for (size_t i = 0; i < numContigs; ++i) {
     auto refRange = pi.refList(i);
     auto contigLen = pi.getContigLen(i);
