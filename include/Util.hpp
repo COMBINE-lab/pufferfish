@@ -68,6 +68,7 @@ namespace pufferfish {
         constexpr const char EXTENSION[] = "extension.bin";
         constexpr const char EXTENSIONSIZE[] = "extensionSize.bin";
         constexpr const char DIRECTION[] = "direction.bin";
+		constexpr const char INFO[] = "info.json";
 
         static constexpr int8_t rc_table[128] = {
                 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, // 15
