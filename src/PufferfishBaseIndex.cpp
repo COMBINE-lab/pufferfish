@@ -73,36 +73,24 @@ bool PufferfishBaseIndex<T>::isValidPos(uint64_t pos) {
 
 template <typename T>
 std::string PufferfishBaseIndex<T>::getRefSeqStr(size_t start, int64_t length) {
+  if (length == 0) { return ""; }
   auto& rseq_ = underlying().refseq_;
-  std::string outstr;
-  outstr.reserve(length);
-  int64_t validLength = 0;
-  uint64_t word = 0;
-  uint8_t base = 0;
-  while (length > 0) {
-    validLength = std::min(length, static_cast<int64_t>(32));
-    length -= validLength;
-    word = rseq_.get_int(2*start, 2*validLength);
-    start += validLength;
-    for(int64_t i = 0; i < 2*validLength ;i+=2){
-      base = (word >> i) & 0x03;
-      switch(base){
-      case 0:
-        outstr += 'A';
-        break ;
-      case 1:
-        outstr += 'C';
-        break ;
-      case 2:
-        outstr += 'G';
-        break ;
-      case 3:
-        outstr += 'T';
-        break ;
-      }
+  std::string seq(length, 'N');
+  uint64_t c = 0;
+  uint64_t bucket_offset = (start)*2;
+  auto len_on_vector = length * 2;
+  int32_t toFetch = len_on_vector;
+  while (toFetch > 0) {
+    uint32_t len = (toFetch >= 64) ? 64 : toFetch;
+    toFetch -= len;
+    uint64_t word = rseq_.get_int(bucket_offset, len);
+    for (uint32_t i = 0; i < len; i += 2) {
+      uint8_t next_bits = ((word >> i) & 0x03);
+      seq[c++] = "ACGT"[next_bits];
     }
+    bucket_offset += len;
   }
-  return outstr;
+  return seq;
 }
 
 template <typename T>

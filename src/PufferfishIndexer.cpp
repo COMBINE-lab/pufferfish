@@ -321,7 +321,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   std::string outdir = indexOpts.outdir;
   std::string gfa_file = indexOpts.outdir;
   bool buildEdgeVec = indexOpts.buildEdgeVec;
-
+  bool keepFixedFasta = indexOpts.keep_fixed_fasta;
   std::vector<uint32_t> refIdExtensions;
   std::vector<std::pair<std::string, uint16_t>> shortRefsNameLen;
 
@@ -1119,7 +1119,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   }
 
   // cleanup the fixed.fa file
-  ghc::filesystem::remove(rfile);
+  if (!keepFixedFasta) { ghc::filesystem::remove(rfile); }
   ghc::filesystem::remove(outdir + "/ref_sigs.json");
   return 0;
 }

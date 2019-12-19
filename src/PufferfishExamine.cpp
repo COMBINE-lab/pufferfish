@@ -16,24 +16,36 @@ template <typename Index>
 bool dump_index_fasta(Index& pi, std::string& out) {
   const auto& refNames = pi.getFullRefNames();
   const auto& refLengths = pi.getFullRefLengths();
+  auto& refAccumLengths = pi.refAccumLengths_;
   if (!pi.hasReferenceSequence()) {
     std::cerr << "cannot dump fasta from an index that does not contain reference sequence\n";
     return false;
   }
 
   std::ofstream ofile(out);
-
   uint32_t k = pi.k();
   size_t nr = refNames.size();
   size_t curr{0};
+  int64_t numShort{0};
   for (size_t i = 0; i < nr; ++i) {
     const auto& s = refNames[i];
     const auto& l = refLengths[i];
+    bool isShort = refLengths[i] <= k;
+
     ofile << ">" << s << "\n";
     // if this is a reference shorter than the k-mer length, then
     // we don't store it's sequence (since nothing can ever map to it).
-    std::string seq = (l <= k) ? std::string(l, 'N') : pi.getRefSeqStr(curr, static_cast<int64_t>(l));
+    std::string seq;
+    if (!isShort) {
+      auto tid = i - numShort;
+      int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
+      int64_t refTotalLength = refAccumLengths[tid] - refAccPos;
+      seq = pi.getRefSeqStr(refAccPos, static_cast<int64_t>(refTotalLength));
+    } else {
+      seq = std::string(l, 'N');
+    }
     ofile << seq << "\n";
+    numShort += isShort ? 1 : 0;
     curr += (l <= k) ? 0 : l;
   }
   ofile.close();
