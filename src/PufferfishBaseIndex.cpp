@@ -94,54 +94,39 @@ std::string PufferfishBaseIndex<T>::getRefSeqStr(size_t start, int64_t length) {
 }
 
 template <typename T>
-std::string PufferfishBaseIndex<T>::getSeqStr(size_t globalPos, int64_t length, bool isFw) {
+std::string PufferfishBaseIndex<T>::getSeqStr(size_t start, int64_t length, bool isFw) {
+  if (length <= 0) { return ""; }
   auto& seq_ = underlying().seq_;
-  std::string outstr = "";
-	int64_t validLength = 0;
-	uint64_t word = 0;
-	uint8_t base = 0;
-  while (length > 0) {
-    validLength = std::min(length, static_cast<int64_t>(32));
-    length -= validLength;
-    word = seq_.get_int(2*globalPos, 2*validLength);
-    globalPos += validLength;
-    if (isFw)
-      for(uint64_t i = 0; i < 2*validLength ;i+=2){
-        base = (word >> i) & 0x03;
-        switch(base){
-        case 0:
-          outstr += 'A';
-          break ;
-        case 1:
-          outstr += 'C';
-          break ;
-        case 2:
-          outstr += 'G';
-          break ;
-        case 3:
-          outstr += 'T';
-          break ;
-        }
+  std::string outstr(length, 'N');
+  // length - 1 must be >= 0 because we return above if length <= 0.
+  uint64_t c = isFw ? 0 : static_cast<uint64_t>(length - 1);
+
+  uint64_t bucket_offset = (start)*2;
+  auto len_on_vector = length * 2;
+  int32_t toFetch = len_on_vector;
+  while (toFetch > 0) {
+    uint32_t len = (toFetch >= 64) ? 64 : toFetch;
+    toFetch -= len;
+    uint64_t word = seq_.get_int(bucket_offset, len);
+    if (isFw) {
+      for (uint32_t i = 0; i < len; i += 2) {
+        uint8_t next_bits = ((word >> i) & 0x03);
+        outstr[c++] = "ACGT"[next_bits];
       }
-    else
-      for(uint64_t i = 0; i < 2*validLength ;i+=2){
-        base = (word >> i) & 0x03;
-        switch(base){
-        case 0:
-          outstr = 'T' + outstr;
-          break ;
-        case 1:
-          outstr = 'G' + outstr;
-          break ;
-        case 2:
-          outstr = 'C' + outstr;
-          break ;
-        case 3:
-          outstr = 'A' + outstr;
-          break ;
-        }
+    } else {
+      for (uint32_t i = 0; i < len; i += 2) {
+        uint8_t next_bits = ((word >> i) & 0x03);
+        outstr[c++] = "TGCA"[next_bits];
       }
-	}
+    }
+    bucket_offset += len;
+  }
+  // we can simply fill this in in reverse, but I don't feel like 
+  // checking the arithmetic (bounds) now, and, for the time being,
+  // this function should never actually be called.
+  if (!isFw) {
+    std::reverse(outstr.begin(), outstr.end());
+  }
   return outstr;
 }
 
