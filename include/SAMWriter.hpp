@@ -133,7 +133,7 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengths();
+  auto& txpLens = pfi.getFullRefLengthsComplete();
 
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
