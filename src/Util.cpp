@@ -32,17 +32,17 @@ void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::ve
 
 
 pufferfish::util::MergeResult joinReadsAndFilter(
-                                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
-                                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& rightMemClusters,
-                                                 //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
-                                                 //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
+                        pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
+                        pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& rightMemClusters,
+                        //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                        //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &rightMemClusters,
                         std::vector<pufferfish::util::JointMems> &jointMemsList,
                         uint32_t maxFragmentLength,
                         uint32_t perfectCoverage,
                         double coverageRatio,
-                                                 uint64_t firstDecoyIndex,
-                                                 const pufferfish::util::MappingConstraintPolicy& mpol,
-                                                 pufferfish::util::HitCounters& hctr) {
+                        uint64_t firstDecoyIndex,
+                        const pufferfish::util::MappingConstraintPolicy& mpol,
+                        pufferfish::util::HitCounters& hctr) {
 
   // NOTE : We will fill in `jointMemsList` with iterators to MemClusters from the left and right read.
   // multiple JointMems can share the same iterator (i.e., multiple JointMems can point to the same MemCluster).
@@ -67,7 +67,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     if (!noOrphans) {
         for (auto &kv : leftMemClusters) {
 #if ALLOW_VERBOSE
-          std::cerr << "\ntid:" << kv.first << "\n"; 
+        std::cerr << "\ntid:" << kv.first << "\n"; 
 #endif // ALLOW_VERBOSE
             auto &lClusts = *(kv.second);
             for (auto clust = lClusts.begin(); clust != lClusts.end(); clust++) {
@@ -108,8 +108,8 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     bool hadDovetail{false};
     //phmap::parallel_hash_set<uint32_t> refsWithJointMems;
     while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
-      bool concordantSearch = (round == 0);
-      for (auto &leftClustItr : leftMemClusters) {
+        bool concordantSearch = (round == 0);
+        for (auto &leftClustItr : leftMemClusters) {
             // reference id
             size_t tid = leftClustItr.first;
             // left mem clusters
@@ -117,13 +117,13 @@ pufferfish::util::MergeResult joinReadsAndFilter(
             // right mem clusters for the same reference id
             auto &rClusts = rightMemClusters[tid];
 	
-	    // if we are allowing orphans, then don't 
-	    // report orphans to any reference that had joint mem hits
-	    // regardless of whether they are concordant or discordant.
+	          // if we are allowing orphans, then don't 
+	          // report orphans to any reference that had joint mem hits
+	          // regardless of whether they are concordant or discordant.
             /*
-	    if (!noOrphans and !rClusts.empty()) { 
-		refsWithJointMems.insert(tid);
-	    }
+	          if (!noOrphans and !rClusts.empty()) { 
+		          refsWithJointMems.insert(tid);
+	        }
             */
 
             // Compare the left clusters to the right clusters to filter by positional constraints
@@ -132,22 +132,22 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                 for (auto rclust = rClusts.begin(); rclust != rClusts.end(); rclust++) {
                     // if both the left and right clusters are oriented in the same direction, skip this pair
                     // NOTE: This should be optional as some libraries could allow this.
-	            bool satisfiesOri = lclust->isFw != rclust->isFw;
+	                  bool satisfiesOri = lclust->isFw != rclust->isFw;
                     if (concordantSearch and !satisfiesOri) { // if priority 0, ends should be concordant
                         continue;
                     }
 		    
-		    bool isDovetail{false};
-		    if (satisfiesOri) {
-          isDovetail = lclust->isFw ? (lclust->approxReadStartPos() > rclust->approxReadStartPos()) :
-			             (rclust->approxReadStartPos() > lclust->approxReadStartPos());
-          if (isDovetail and (static_cast<uint64_t>(tid) < firstDecoyIndex)) { hadDovetail = true; }
-		    }
-		    // if noDovetail is set, then dovetail mappings are considered discordant
+		                bool isDovetail{false};
+		                if (satisfiesOri) {
+                      isDovetail = lclust->isFw ? (lclust->approxReadStartPos() > rclust->approxReadStartPos()) :
+			                                            (rclust->approxReadStartPos() > lclust->approxReadStartPos());
+                      if (isDovetail and (static_cast<uint64_t>(tid) < firstDecoyIndex)) { hadDovetail = true; }
+		                }
+		                // if noDovetail is set, then dovetail mappings are considered discordant
                     // otherwise we consider then concordant.
-		    if (isDovetail and noDovetail and concordantSearch) {
-			continue;
-		    }
+		                if (isDovetail and noDovetail and concordantSearch) {
+			                continue;
+		                }
 
                     // FILTER 1
                     // filter read pairs based on the fragment length which is approximated by the distance between the left most start and right most hit end
@@ -169,7 +169,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                         if ( (totalCoverage >= coverageRatio * maxCoverage) or
                               (totalCoverage == perfectCoverage) ) {
                             ++sameTxpCount;
-			    numConcordant += concordantSearch ? 1 : 0;
+			                      numConcordant += concordantSearch ? 1 : 0;
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                             uint32_t currCoverage = jointMemsList.back().coverage();
                             if (maxCoverage < currCoverage) {
