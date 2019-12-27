@@ -93,6 +93,7 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)
   auto& txpNames = pfi.getFullRefNames();
+  // TODO: Determine which ref lengths we should use here
   auto& txpLens = pfi.getFullRefLengths();
   auto numRef = txpNames.size();
   bw << static_cast<uint64_t>(numRef); // refCount (size_t)
@@ -112,7 +113,7 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengths();
+  auto& txpLens = pfi.getFullRefLengthsComplete();
 
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
@@ -153,7 +154,7 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengths();
+  auto& txpLens = pfi.getFullRefLengthsComplete();
 
   auto numRef = txpNames.size();
 
