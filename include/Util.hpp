@@ -809,6 +809,7 @@ Compile-time selection between list-like and map-like printing.
         bool allowOverhangSoftclip{false};
         bool bestStrata{false};
         bool decoyPresent{false};
+        bool noOrphan{false};
       };
 
         struct QuasiAlignment {
