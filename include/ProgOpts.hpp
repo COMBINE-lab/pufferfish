@@ -86,6 +86,7 @@ public:
   double minScoreFraction{0.65};
   bool fullAlignment{false};
   bool heuristicChaining{true};
+  uint32_t numChainRounds{2};
   bool genomicReads{false};
   std::string genesNamesFile{""};
   std::string rrnaFile{""};

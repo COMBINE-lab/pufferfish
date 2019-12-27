@@ -203,6 +203,7 @@ void processReadsPair(paired_parser *parser,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_LEFT,
                                    mopts->heuristicChaining,
+                                   mopts->numChainRounds,
                                    true, // isLeft
                                    verbose);
             memCollector.findChains(rpair.second.seq,
@@ -210,6 +211,7 @@ void processReadsPair(paired_parser *parser,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_RIGHT,
                                    mopts->heuristicChaining,
+                                   mopts->numChainRounds,
                                    false, // isLeft
                                    verbose);
 
@@ -616,6 +618,7 @@ void processReadsSingle(single_parser *parser,
                                    mopts->maxSpliceGap,
                                    MateStatus::SINGLE_END,
                                    mopts->heuristicChaining,
+                                   mopts->numChainRounds,
                                    true, // isLeft
                                    verbose);
             (void) lh;

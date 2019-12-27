@@ -196,6 +196,7 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain,
+                  uint32_t numChainRounds,
                   bool isLeft,
                   bool verbose) {
   (void) maxSpliceGap;
@@ -209,7 +210,7 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
   if (rawHits.size() > 0) {
     auto& other_end_refs = isLeft ? right_refs : left_refs;
     trMemMap.clear();
-    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, trMemMap, firstDecoyIndex, verbose);
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, numChainRounds, trMemMap, firstDecoyIndex, verbose);
     /*
     if (verbose) {
       std::cerr << "lets see what we have\n";

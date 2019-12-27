@@ -40,6 +40,7 @@ public:
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain=false,
+                  uint32_t numChainRound=2,
                   bool isLeft=false,
                   bool verbose=false);
   void clear();

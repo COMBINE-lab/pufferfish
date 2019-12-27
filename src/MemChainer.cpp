@@ -111,7 +111,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                 uint32_t maxSpliceGap, std::vector<pufferfish::util::UniMemInfo> &memCollection,
                                 uint32_t readLen,
                                 phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
-                                bool hChain,
+                                bool hChain, uint32_t numChainRounds,
                                 RefMemMap& trMemMap,
                                 uint64_t firstDecoyIndex,
                                 //pufferfish::common_types::RefMemMapT& trMemMap,
@@ -267,7 +267,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       f.push_back(baseScore);
 
       // possible predecessors in the chain
-      int32_t numRounds{2};
+      int32_t numRounds{numChainRounds};
       (void) numRounds;
       for (int32_t j = i - 1; j >= 0; --j) {
         auto &hj = memList[j];

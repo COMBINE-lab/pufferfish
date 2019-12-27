@@ -40,7 +40,7 @@ public:
                     //phmap::flat_hash_map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
                       uint32_t maxSpliceGap, std::vector<pufferfish::util::UniMemInfo> &memCollection, uint32_t readLen,
                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
-                    bool hChain,
+                    bool hChain, uint32_t numChainRounds,
                     RefMemMap& trMemMap,
                     uint64_t firstDecoyIndex,
                     //pufferfish::common_types::RefMemMapT& trMemMap,
