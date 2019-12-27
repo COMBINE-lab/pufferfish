@@ -172,11 +172,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     };
 
     auto beta = [maxSpliceGap](int32_t qdiff, int32_t rdiff, double avgseed) -> double {
-        if (qdiff < 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap)) {
-          return std::numeric_limits<double>::infinity();
-        }
         double l = qdiff - rdiff;
         int32_t al = std::abs(l);
+        //if (qdiff < 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap)) {
+        if (qdiff < 0 or ((uint32_t) al > maxSpliceGap)) {
+          return std::numeric_limits<double>::infinity();
+        }
         // To penalize cases with organized gaps for reads such as
         // CTCCTCATCCTCCTCATCCTCCTCCTCCTCCTCCTCCTCCGCTGCCGCCGCCGACCGACTGAACCGCACCCGCCGCGCCGCACCGCCTCCAAGTCCCGGC
         // polyester simulated on human transcriptome. 0.01 -> 0.05
