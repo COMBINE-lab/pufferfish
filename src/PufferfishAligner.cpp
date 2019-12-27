@@ -150,6 +150,7 @@ void processReadsPair(paired_parser *parser,
     aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.bestStrata = mopts->bestStrata;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
+    aconf.noOrphan = mopts->noOrphan;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -589,6 +590,7 @@ void processReadsSingle(single_parser *parser,
     aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.bestStrata = mopts->bestStrata;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
+    aconf.noOrphan = mopts->noOrphan;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
