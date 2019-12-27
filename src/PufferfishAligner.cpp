@@ -252,7 +252,9 @@ void processReadsPair(paired_parser *parser,
               (void)recoveredAny;
             }
 
-            hctr.peHits += jointHits.size();
+            hctr.totHits += jointHits.size();
+            hctr.peHits += !jointHits.empty() && !jointHits.back().isOrphan() ? jointHits.size() : 0;
+            hctr.seHits += !jointHits.empty() && jointHits.back().isOrphan() ? jointHits.size() : 0;            
 
 #if ALLOW_VERBOSE
             if (verbose)
@@ -422,13 +424,16 @@ void processReadsPair(paired_parser *parser,
                 jointHits.erase(jointHits.begin() + mopts->maxNumHits, jointHits.end());
             }
 
-            hctr.totHits += !jointHits.empty() && !jointHits.back().isOrphan() ? 1 : 0;;
+            hctr.peAlignments += !jointHits.empty() && !jointHits.back().isOrphan() ? jointHits.size() : 0;
+            hctr.seAlignments += !jointHits.empty() && jointHits.back().isOrphan() ? jointHits.size() : 0;            
             hctr.numMapped += !jointHits.empty() ? 1 : 0;
             if (mopts->noOrphan) {
                 hctr.numOfOrphans += jointHits.empty() && (lh || rh);
             } else {
                 hctr.numOfOrphans += !jointHits.empty() && (jointHits.back().isOrphan()) ? 1 : 0;
             }
+            if (!mopts->noDiscordant)
+                hctr.numOfDiscordants += !jointHits.empty() && jointHits.back().isDiscordant() ? 1 : 0;
 
             if (jointHits.size() > hctr.maxMultimapping) {
                 hctr.maxMultimapping = jointHits.size();
@@ -469,7 +474,7 @@ void processReadsPair(paired_parser *parser,
                 qaln.numHits = static_cast<uint32_t >(jointHits.size());
                 // NOTE : score should not be filled in from a double
                 qaln.score = mopts->justMap ? static_cast<int32_t >(jointHit.leftClust->coverage):jointHit.alignmentScore;
-                qaln.mateScore = mopts->justMap ? static_cast<int32_t >(jointHit.rightClust->coverage):jointHit.mateAlignmentScore;;
+                qaln.mateScore = mopts->justMap ? static_cast<int32_t >(jointHit.rightClust->coverage):jointHit.mateAlignmentScore;
               }
             }
 
@@ -632,6 +637,9 @@ void processReadsSingle(single_parser *parser,
             std::vector<QuasiAlignment> jointAlignments;
             std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>> validHits;
 
+            hctr.totHits += jointHits.size();
+            hctr.seHits += jointHits.size();
+            
             if (!mopts->justMap) {
                 puffaligner.clear();
 
@@ -740,8 +748,7 @@ void processReadsSingle(single_parser *parser,
             }
 
             hctr.numMappedAtLeastAKmer += jointHits.size() > 0 ? 1 : 0;
-            hctr.totHits += jointHits.size();
-            hctr.seHits += jointHits.size();
+            hctr.seAlignments += jointHits.size();
             hctr.numMapped += !jointHits.empty() ? 1 : 0;
             if (jointHits.size() > hctr.maxMultimapping) {
                 hctr.maxMultimapping = jointHits.size();
@@ -900,15 +907,16 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("Observed {} reads", hctrs.numReads);
     consoleLog->info("Rate of Fragments with at least one found k-mer: {:03.2f}%",
                      (100.0 * static_cast<float>(hctrs.numMappedAtLeastAKmer)) / hctrs.numReads);
-    consoleLog->info("Discordant Rate: {:03.2f}%",
-                     (100.0 * static_cast<float>(hctrs.numOfOrphans)) / hctrs.numReads);
+    consoleLog->info("Discordant (and orphan) Rate: {:03.2f}%",
+                     (100.0 * static_cast<float>(hctrs.numOfOrphans+hctrs.numOfDiscordants)) / hctrs.numReads);
     consoleLog->info("Total reads Mapped: {}", (hctrs.numMapped));
     consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
     consoleLog->info("Average # hits per read : {}", hctrs.totAlignment / static_cast<float>(hctrs.numReads));
     consoleLog->info("Total # of alignments : {}", hctrs.totAlignment);
     consoleLog->info("Total # of orphans : {}", hctrs.numOfOrphans);
-    consoleLog->info("Total # of pe hits : {}", hctrs.peHits);
-    consoleLog->info("Total # of total Hits : {}", hctrs.totHits);
+    consoleLog->info("Total # of discordants : {}", hctrs.numOfDiscordants);
+    consoleLog->info("Total # of paired end alignments : {}", hctrs.peAlignments);
+    consoleLog->info("Total # of Hits : {}", hctrs.totHits);
     //consoleLog->info("Total # of valid hits : {}", hctrs.validHits);
     consoleLog->info("Max multimapping group : {}", hctrs.maxMultimapping);
     consoleLog->info("Total number of alignment attempts : {}", hctrs.totalAlignmentAttempts);

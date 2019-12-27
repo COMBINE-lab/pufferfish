@@ -651,7 +651,7 @@ Compile-time selection between list-like and map-like printing.
             }
 
             bool isOrphan() { return !isLeftAvailable() || !isRightAvailable(); }
-
+            bool isDiscordant() { return leftClust->isFw == rightClust->isFw; }
           // NOTE: needed for vector compatibility, should not be used.
           JointMems() {
             std::cerr << "JointMems default constructor called; should not happen!";
@@ -1066,8 +1066,11 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> numMapped{0};
             std::atomic<uint64_t> numMappedAtLeastAKmer{0};
             std::atomic<uint64_t> numOfOrphans{0};
+            std::atomic<uint64_t> numOfDiscordants{0};
             std::atomic<uint64_t> peHits{0};
             std::atomic<uint64_t> seHits{0};
+            std::atomic<uint64_t> peAlignments{0};
+            std::atomic<uint64_t> seAlignments{0};
             std::atomic<uint64_t> trueHits{0};
             std::atomic<uint64_t> totHits{0};
             std::atomic<uint64_t> numReads{0};
