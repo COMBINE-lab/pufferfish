@@ -603,6 +603,13 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
           jointHit.leftClust->cigar = "";
           jointHit.rightClust->cigar = "";
         }
+        if ( !mopts.noOrphan and (( jointHit.alignmentScore == invalidScore and jointHit.mateAlignmentScore != invalidScore ) or
+          ( jointHit.alignmentScore != invalidScore and jointHit.mateAlignmentScore == invalidScore )) ) {
+          jointHit.mateStatus = jointHit.alignmentScore == invalidScore ? pufferfish::util::MateStatus::PAIRED_END_RIGHT : 
+                                                                          pufferfish::util::MateStatus::PAIRED_END_LEFT;
+          jointHit.alignmentScore = jointHit.alignmentScore == invalidScore ? jointHit.mateAlignmentScore : jointHit.alignmentScore;
+          return jointHit.alignmentScore;
+        }
         return (jointHit.alignmentScore == invalidScore or jointHit.mateAlignmentScore == invalidScore) ?
         invalidScore:jointHit.alignmentScore+jointHit.mateAlignmentScore;
     }
