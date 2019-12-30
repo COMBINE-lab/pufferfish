@@ -31,6 +31,12 @@ endif()
 set(KSW_FLAGS "-DHAVE_KALLOC")
 set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
 if (BUILD_PUFF_FOR_SALMON)
+    # TODO(@fataltes): get pufferfish to not need these, then remvoe these
+    list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
+    list(APPEND PF_CPP_FLAGS "-Wno-unused-variable") 
+    list(APPEND PF_CPP_FLAGS "-Wno-reorder") 
+    list(APPEND PF_CPP_FLAGS "-Wno-sign-compare") 
+    #list(APPEND PF_CPP_FLAGS "-Wno-sequence-point")
    list(APPEND PF_CPP_FLAGS "-DPUFFERFISH_SALMON_SUPPORT")
 endif()
 
