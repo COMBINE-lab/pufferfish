@@ -377,8 +377,15 @@ Compile-time selection between list-like and map-like printing.
         std::string cigar_types;
         uint32_t begin_softClipped_len = 0;
         uint32_t end_softClipped_len = 0;
+        uint32_t cigar_length = 0;
 
-        void clear() { cigar_counts.clear(); cigar_types.clear(); begin_softClipped_len = 0; end_softClipped_len = 0; }
+        void clear() { 
+          cigar_counts.clear();
+          cigar_types.clear();
+          begin_softClipped_len = 0;
+          end_softClipped_len = 0;
+          cigar_length = 0;
+        }
         void add_item(uint32_t count, char type) {
           if (count > 0) {
             cigar_counts.push_back(count);
@@ -389,13 +396,16 @@ Compile-time selection between list-like and map-like printing.
           if (cigar_types[cigar_types.size()-1] == 'M')
             cigar_counts[cigar_counts.size()-1] -= count;
         }
+        uint32_t lastMatchLen() {
+          return cigar_types[cigar_types.size()-1] == 'M' ? cigar_counts[cigar_counts.size()-1] : -1;
+        }
         std::string get_cigar() {
           std::string cigar = "";
           if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
             return "!";
           }
 
-          uint32_t cigar_length = 0;
+          cigar_length = 0;
           uint32_t count = 0;
           char type = 0;
 
