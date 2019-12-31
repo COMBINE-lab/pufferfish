@@ -914,16 +914,16 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
             auto rank = (idx == 0) ? 0 : realPresenceRank.rank(idx);
 
             int64_t target_idx = (idx - rank);
-            if ( target_idx > canonicalNess.size()) { jointLog->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
+            if ( target_idx > static_cast<int64_t>(canonicalNess.size())) { jointLog->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
             canonicalNess[idx - rank] = kb1.isCanonical();
 
-            if ( target_idx > extSize.size()) { jointLog->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
+            if ( target_idx > static_cast<int64_t>(extSize.size())) { jointLog->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
             extSize[idx - rank] = extensionDist;
 
-            if ( target_idx > auxInfo.size()) { jointLog->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
+            if ( target_idx > static_cast<int64_t>(auxInfo.size())) { jointLog->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
             auxInfo[idx - rank] = ext;
 
-            if ( target_idx > direction.size()) { jointLog->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
+            if ( target_idx > static_cast<int64_t>(direction.size())) { jointLog->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
             direction[idx - rank] = (sampDir == NextSampleDirection::FORWARD) ? 1 : 0;
           }
         }

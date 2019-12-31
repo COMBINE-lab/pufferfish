@@ -56,7 +56,7 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
                                      //pufferfish::common_types::RefMemMapT &trMemMap,
                                      RefMemMap& trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
-                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs) {
+                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & /*other_end_refs*/) {
   using namespace pufferfish::common_types;
   if (hits.empty()) {
     return 0;
@@ -115,7 +115,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                 RefMemMap& trMemMap,
                                 uint64_t firstDecoyIndex,
                                 //pufferfish::common_types::RefMemMapT& trMemMap,
-                                bool verbose) {
+                                bool /*verbose*/) {
   using namespace pufferfish::common_types;
   using pufferfish::util::HitFilterPolicy;
   //(void)verbose;
@@ -206,7 +206,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     //int32_t prev_rposi_start = -1;
 
     int32_t totLen{0};
-    int32_t lastStartPos{0};
+    //int32_t lastStartPos{0};
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
       int32_t qposi_start = hi.isFw ? hi.rpos : signedReadLen - (hi.rpos + hi.extendedlen);

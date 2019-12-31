@@ -130,7 +130,7 @@ bool fillRefSeqBufferReverse(compact::vector<uint64_t, 2> &refseq, uint64_t refA
  *  on the parameters of how this PuffAligner object was constructed.
  **/
 bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo> &mems, bool perfectChain,
-                            bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, AlignmentResult& arOut, bool verbose) {
+                            bool isFw, size_t tid, AlnCacheMap &alnCache, HitCounters &hctr, AlignmentResult& arOut, bool /*verbose*/) {
 
   int32_t alignmentScore{std::numeric_limits<decltype(arOut.score)>::min()};
   if (mems.empty()) {
@@ -139,12 +139,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   }
 
   int32_t refExtLength = static_cast<int32_t>(mopts.refExtendLength);
-  bool firstMem = true;
-  int32_t lastHitEnd_read = -1;
+  // bool firstMem = true;
+  // int32_t lastHitEnd_read = -1;
   int32_t currHitStart_read = 0;
-  int64_t lastHitEnd_ref = -1;
+  // int64_t lastHitEnd_ref = -1;
   int64_t currHitStart_ref = 0;
-  int32_t alignment{0};
+  // int32_t alignment{0};
   uint32_t openGapLen{0};
 
   // will we be computing CIGAR strings for this alignment
@@ -210,7 +210,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
     //keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
-    keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+    keyLen = (static_cast<int64_t>(refStart + readLen + buff) < refTotalLength) ? readLen + buff : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
     // If the first hit starts further in the reference than in the
     // read, then we align from the beginning of the read and (ref_start - read_start) on
@@ -231,12 +231,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       readStart = 0;
       refStart = currHitStart_ref - currHitStart_read;
     }
-    keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+    keyLen = (static_cast<int64_t>(refStart + readLen + buff) < refTotalLength) ? readLen + buff : refTotalLength - refStart;
   }
 
 
   fillRefSeqBuffer(allRefSeq, refAccPos, refStart, keyLen, refSeqBuffer_);
-  int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
+  // int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
   // If we're not using fullAlignment, we'll need the full reference sequence later
   // so copy it into tseq.
   if (!doFullAlignment) { tseq = refSeqBuffer_; }
@@ -316,9 +316,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       // the gap is of length firstMemStart_read, so grab that much (plus buffer) before the
       // first start position on the reference.
-      int32_t firstMemStart_ref = tpos;
+      // int32_t firstMemStart_ref = tpos;
       int32_t readStartPosOnRef = tpos - firstMemStart_read;
-      int32_t dataDepBuff = std::min(refExtLength, 5*firstMemStart_read);
+      // int32_t dataDepBuff = std::min(refExtLength, 5*firstMemStart_read);
 
       int32_t refWindowStart = (readStartPosOnRef - refExtLength) > 0 ? (readStartPosOnRef - refExtLength) : 0;
       int32_t refWindowLength = tpos - refWindowStart;

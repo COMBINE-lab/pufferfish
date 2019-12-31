@@ -163,14 +163,14 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 
                     // FILTERING fragments with size smaller than maxFragmentLength
                     // FILTER just in case of priority 0 (round 0)
-                    if ((fragmentLen < maxFragmentLength) or (round > 0)) {
+                    if ((static_cast<uint32_t>(fragmentLen) < maxFragmentLength) or (round > 0)) {
                         // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
                         // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
                         auto totalCoverage = lclust->coverage + rclust->coverage;
                         if ( (totalCoverage >= coverageRatio * maxCoverage) or
                               (totalCoverage == perfectCoverage) ) {
                             ++sameTxpCount;
-			    numConcordant += concordantSearch ? 1 : 0;
+			                      numConcordant += concordantSearch ? 1 : 0;
                             jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
                             uint32_t currCoverage = jointMemsList.back().coverage();
                             if (maxCoverage < currCoverage) {

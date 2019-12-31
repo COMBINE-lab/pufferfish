@@ -19,7 +19,10 @@
 //#include "LinearMultiArray.h"
 #include "SetCover.h"
 
-#define LIBASYNC_STATIC true
+#ifndef LIBASYNC_STATIC
+    #define LIBASYNC_STATIC true
+#endif
+
 #include "async++.h"
 
 struct set_data {
