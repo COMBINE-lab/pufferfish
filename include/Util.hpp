@@ -71,6 +71,7 @@ namespace pufferfish {
         constexpr const char UREFTABLE[] = "ureftable.bin";
         constexpr const char UPOSTABLE[] = "upostable.bin";
         constexpr const char PATH[] = "path.bin";
+        constexpr const char INFO[] = "info.json";
 
         static constexpr int8_t rc_table[128] = {
                 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, // 15
