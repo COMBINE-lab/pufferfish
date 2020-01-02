@@ -46,6 +46,7 @@ private:
   // spp::sparse_hash_map<uint64_t, std::string> refMap;
   std::vector<std::string> refMap;
   std::vector<uint32_t> refLengths;
+  uint64_t maxRefLength{0};
 
   compact::vector<uint64_t, 2> seqVec_;
   compact::vector<uint64_t, 1> rankVec_;

@@ -118,7 +118,7 @@ namespace pufferfish {
     void BinaryGFAReader::parseFile() {
         std::string refId;
         uint64_t contigCntr{0}, prevPos{0}, nextPos{1}, ref_cnt{0};
-        uint16_t refIdLen;
+        uint64_t refIdLen;
 
         k = k + 1;
         CanonicalKmer::k(k);
@@ -138,9 +138,13 @@ namespace pufferfish {
         // start and end kmer-hash over the contigs
         // might get deprecated later
         std::ifstream file(filename_ + "/path.bin", std::ios::binary);
+        uint64_t refIdSize{0};
+        if (file.good()) {
+            file.read(reinterpret_cast<char *>(&refIdSize), sizeof(refIdSize));
+        }
         uint64_t contigCntPerPath;
         while (file.good()) {
-            file.read(reinterpret_cast<char *>(&refIdLen), sizeof(refIdLen));
+            file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
             if (!file.good()) break;
             char* temp = new char[refIdLen+1];
             file.read(temp, refIdLen);
