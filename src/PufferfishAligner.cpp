@@ -260,10 +260,10 @@ void processReadsPair(paired_parser *parser,
             if (verbose)
                 std::cerr<<"Number of hits: "<<jointHits.size()<<"\n";
 #endif // ALLOW_VERBOSE
-
+            int32_t bestScore = invalidScore;
             if (!mopts->justMap) {
               puffaligner.clear();
-              int32_t bestScore = invalidScore;
+              bestScore = invalidScore;
               std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
               size_t idx{0};
 
@@ -452,9 +452,11 @@ void processReadsPair(paired_parser *parser,
                 auto &qaln = jointAlignments.back();
                 // NOTE : score should not be filled in from a double
                 qaln.score = mopts->justMap ? static_cast<int32_t >(jointHit.orphanClust()->coverage):jointHit.alignmentScore;//()->coverage;
+                qaln.bestScore = bestScore;
                 // NOTE : wth is numHits?
                 qaln.numHits = static_cast<uint32_t >(jointHits.size());//orphanClust()->coverage;
                 qaln.mateStatus = jointHit.mateStatus;
+                qaln.NM = jointHit.orphanClust()->NM;
               } else {
                 jointAlignments.emplace_back(jointHit.tid,           // reference id
                                              jointHit.leftClust->getTrFirstHitPos(),     // reference pos
@@ -475,6 +477,9 @@ void processReadsPair(paired_parser *parser,
                 // NOTE : score should not be filled in from a double
                 qaln.score = mopts->justMap ? static_cast<int32_t >(jointHit.leftClust->coverage):jointHit.alignmentScore;
                 qaln.mateScore = mopts->justMap ? static_cast<int32_t >(jointHit.rightClust->coverage):jointHit.mateAlignmentScore;
+                qaln.bestScore = bestScore;
+                qaln.NM = jointHit.leftClust->NM;
+                qaln.mateNM = jointHit.rightClust->NM;
               }
             }
 
@@ -639,11 +644,12 @@ void processReadsSingle(single_parser *parser,
 
             hctr.totHits += jointHits.size();
             hctr.seHits += jointHits.size();
-            
+
+            int32_t bestScore = invalidScore;            
             if (!mopts->justMap) {
                 puffaligner.clear();
 
-                int32_t bestScore = invalidScore;
+                bestScore = invalidScore;
                 std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
                 size_t idx{0};
 
@@ -771,6 +777,7 @@ void processReadsSingle(single_parser *parser,
                 qaln.numHits = static_cast<uint32_t >(jointHits.size());//orphanClust()->coverage;
                 qaln.score = jointHit.alignmentScore;
                 qaln.mateScore = 0;
+                qaln.bestScore = bestScore;
                 if (mopts->justMap) jointHit.orphanClust()->coverage = jointHit.alignmentScore;
                 validHits.emplace_back(jointHit.tid, jointHit.orphanClust());
             }

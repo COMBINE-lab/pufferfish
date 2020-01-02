@@ -378,6 +378,9 @@ Compile-time selection between list-like and map-like printing.
         uint32_t begin_softClipped_len = 0;
         uint32_t end_softClipped_len = 0;
         uint32_t cigar_length = 0;
+        uint32_t gap_penalty = 0;
+        uint32_t gap_length = 0;
+        uint32_t go,ge,m,mm;
 
         void clear() { 
           cigar_counts.clear();
@@ -385,6 +388,8 @@ Compile-time selection between list-like and map-like printing.
           begin_softClipped_len = 0;
           end_softClipped_len = 0;
           cigar_length = 0;
+          gap_penalty = 0;
+          gap_length = 0;
         }
         void add_item(uint32_t count, char type) {
           if (count > 0) {
@@ -397,8 +402,20 @@ Compile-time selection between list-like and map-like printing.
             cigar_counts[cigar_counts.size()-1] -= count;
         }
         uint32_t lastMatchLen() {
-          return cigar_types[cigar_types.size()-1] == 'M' ? cigar_counts[cigar_counts.size()-1] : -1;
+          return cigar_types[cigar_types.size()-1] == 'M' ? 
+                  cigar_counts[cigar_counts.size()-1] : -1;
         }
+        uint32_t MMcount(uint32_t score) {
+          auto aligned_length = cigar_length - (begin_softClipped_len + end_softClipped_len);
+          float MMcount_ = (aligned_length * m - score - gap_penalty) / (m + mm);
+          uint32_t MMcount_1 = MMcount_;
+          if (MMcount_ != MMcount_1) {
+            std::cerr << (uint32_t)MMcount_ << " " << score << " " << gap_penalty << " "
+                      << aligned_length << " " << get_cigar() << "\n";
+            exit(1);
+          }
+          return (uint32_t)MMcount_;
+        }        
         std::string get_cigar() {
           std::string cigar = "";
           if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
@@ -406,6 +423,8 @@ Compile-time selection between list-like and map-like printing.
           }
 
           cigar_length = 0;
+          gap_penalty = 0;
+          gap_length = 0;
           uint32_t count = 0;
           char type = 0;
 
@@ -422,11 +441,19 @@ Compile-time selection between list-like and map-like printing.
               count += cigar_counts[i];
               if (i == 0) type = cigar_types[i];
             } else {
+              if (type == 'I' or type == 'D') {
+                gap_penalty += go + count*ge;
+                gap_length += count;
+              }
               cigar += std::to_string(count);
               cigar += type;
               count = cigar_counts[i];
               type = cigar_types[i];
             }
+          }
+          if (type == 'I' or type == 'D'){
+            gap_penalty += go + count*ge;
+            gap_length += count;
           }
           cigar += std::to_string(count);
           cigar += type;
@@ -544,6 +571,7 @@ Compile-time selection between list-like and map-like printing.
             bool perfectChain = false;
             uint32_t readLen{0};
             uint32_t openGapLen{0};
+            uint32_t NM{0};
 
             //bool isValid = true;
             MemCluster(bool isFwIn, uint32_t readLenIn) : isFw(isFwIn), readLen(readLenIn) {}
@@ -837,7 +865,10 @@ Compile-time selection between list-like and map-like printing.
                     format(LibraryFormat::formatFromID(0)),
 #endif // PUFFERFISH_SALMON_SUPPORT
                     score(std::numeric_limits<int32_t>::min()),
-                    mateScore(std::numeric_limits<int32_t>::min())
+                    mateScore(std::numeric_limits<int32_t>::min()),
+                    bestScore(std::numeric_limits<int32_t>::min()),
+                    NM(std::numeric_limits<int32_t>::min()),
+                    mateNM(std::numeric_limits<int32_t>::min())
           {}
 
             QuasiAlignment(uint32_t tidIn, int32_t posIn,
@@ -853,7 +884,10 @@ Compile-time selection between list-like and map-like printing.
                     format(LibraryFormat::formatFromID(0)),
 #endif // PUFFERFISH_SALMON_SUPPORT
                     score(std::numeric_limits<int32_t>::min()),
-              mateScore(std::numeric_limits<int32_t>::min())
+                    mateScore(std::numeric_limits<int32_t>::min()),
+                    bestScore(std::numeric_limits<int32_t>::min()),
+                    NM(std::numeric_limits<int32_t>::min()),
+                    mateNM(std::numeric_limits<int32_t>::min())
           {}
 
             QuasiAlignment(QuasiAlignment &&other) = default;
@@ -953,12 +987,15 @@ Compile-time selection between list-like and map-like printing.
             // Is this a paired *alignment* or not
             bool isPaired;
 
+            uint32_t NM;
+            uint32_t mateNM;
 
             std::string cigar;
             std::string mateCigar;
 
             int32_t score;
             int32_t mateScore;
+            int32_t bestScore;
 
             MateStatus mateStatus;
             bool active = true;
@@ -1204,6 +1241,7 @@ Compile-time selection between list-like and map-like printing.
             AlignmentResult() : score(0), cigar(""), openGapLen(0) {}
 
             int32_t score;
+            uint32_t NM;
             std::string cigar;
             uint32_t openGapLen;
         };

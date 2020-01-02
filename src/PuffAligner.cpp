@@ -145,6 +145,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   cigarGen.clear();
 
   std::string cigar = "";
+  if (computeCIGAR) cigarGen.clear();
 
   // where this reference starts, and its length.
   int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
@@ -192,6 +193,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (mopts.mimicBT2Strict and (invalidStart or invalidEnd)) {
     arOut.score = std::numeric_limits<decltype(arOut.score)>::min();
     arOut.cigar = "";
+    arOut.NM = 0;
     arOut.openGapLen = 0;
     return false;
   }
@@ -229,6 +231,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
     SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
     arOut.cigar = cigar;
+    arOut.NM = 0;
     arOut.openGapLen = openGapLen;
     return true;
   }
@@ -249,7 +252,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     if (hit != alnCache.end() ) {
       hctr.skippedAlignments_byCache += 1;
       arOut.score = hit->second.score;
-      if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
+      if (computeCIGAR) { arOut.cigar = hit->second.cigar; arOut.NM = hit->second.NM;}
       arOut.openGapLen = hit->second.openGapLen;
       return true;
     }
@@ -519,7 +522,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       std::cerr<< read << " " << cigar << " " << alignmentScore << "\n";
       return false;
     }
-    cigarGen.clear();
     SPDLOG_DEBUG(logger_,"score: {}\tcigar : {}\n", alignmentScore, cigar);
   }
   if (isMultimapping_) { // don't bother to fill up a cache unless this is a multi-mapping read
@@ -534,12 +536,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
     AlignmentResult aln;
     aln.score = alignmentScore;
-    if (computeCIGAR) { aln.cigar = cigar; }
+    if (computeCIGAR) { aln.cigar = cigar; aln.NM = cigarGen.gap_length + cigarGen.MMcount(alignmentScore); }
     aln.openGapLen = openGapLen;
     alnCache[hashKey] = aln;
   }
   arOut.score = alignmentScore;
   arOut.cigar = cigar;
+  arOut.NM = cigarGen.gap_length + cigarGen.MMcount(alignmentScore);
   arOut.openGapLen = openGapLen;
   return true;
 }
@@ -581,6 +584,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
           ar_orphan.score > threshold(read_orphan.length())  ? ar_orphan.score : invalidScore;
         jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_orphan.cigar : "";
         jointHit.orphanClust()->openGapLen = ar_orphan.openGapLen;
+        jointHit.orphanClust()->NM = ar_orphan.NM;
         //jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         if (jointHit.alignmentScore < 0 and verbose) {
           std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
@@ -610,9 +614,13 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         if (computeCIGAR) {
           jointHit.leftClust->cigar = ar_left.cigar;
           jointHit.rightClust->cigar = ar_right.cigar;
+          jointHit.leftClust->NM = ar_left.NM;
+          jointHit.rightClust->NM = ar_right.NM;
         } else {
           jointHit.leftClust->cigar = "";
           jointHit.rightClust->cigar = "";
+          jointHit.leftClust->NM = 0;
+          jointHit.rightClust->NM = 0;
         }
         if ( !mopts.noOrphan and (( jointHit.alignmentScore == invalidScore and jointHit.mateAlignmentScore != invalidScore ) or
           ( jointHit.alignmentScore != invalidScore and jointHit.mateAlignmentScore == invalidScore )) ) {

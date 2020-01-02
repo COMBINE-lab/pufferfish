@@ -414,6 +414,8 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "*\t"                // QUAL
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "NM:i:0\t"   
+                << "BS:i:0\t"
                 << "AS:i:0\n";
 
         sstream << mateNameView << '\t' // QNAME
@@ -429,6 +431,8 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "*\t"                // QUAL
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "NM:i:0\t"   
+                << "BS:i:0\t"
                 << "AS:i:0\n";
         return 0;
       }
@@ -460,6 +464,8 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                 << "*\t"            // QSTR
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "NM:i:0\t"
+                << "BS:i:0\t"
                 << "AS:i:0\n";
         return 0;
       }
@@ -531,7 +537,10 @@ inline uint32_t writeAlignmentsToStreamSingle(
               << "*\t" // QSTR
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "NM:i:" << qa.NM << '\t'
+              << "BS:i:" << qa.bestScore << '\t'  // Best score found for this read
               << "AS:i:" << qa.score << '\n';
+
     ++alnCtr;
   }
   return 0;
@@ -647,8 +656,6 @@ inline uint32_t writeAlignmentsToStream(
               << qa.pos + 1 << '\t'                          // POS (1-based)
               << 1 << '\t'                                   // MAPQ
               << (qa.cigar.empty() ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
-              //<< "100M" << '\t'
-              //<< qa.cigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.matePos + 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
@@ -656,6 +663,8 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "NM:i:" << qa.NM << '\t'
+              << "BS:i:" << qa.bestScore << '\t'             // Best score found for this read pair
               << "AS:i:" << qa.score << '\n';
 
       sstream << mateNameView << '\t'                    // QNAME
@@ -665,8 +674,6 @@ inline uint32_t writeAlignmentsToStream(
               << qa.matePos + 1 << '\t'                      // POS (1-based)
               << 1 << '\t'                                   // MAPQ
               << (qa.mateCigar.empty() ? cigarStr2.c_str() : qa.mateCigar) << '\t'                   // CIGAR
-              //<< "100M" << '\t'
-              //<< qa.mateCigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.pos + 1 << '\t'                          // PNEXT
               << ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
@@ -674,6 +681,8 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "NM:i:" << qa.mateNM << '\t'
+              << "BS:i:" << qa.bestScore << '\t'             // Best score found for this read pair
               << "AS:i:" << qa.mateScore << '\n';
     } else if(writeOrphans) {
 		//added orphan support
@@ -731,7 +740,6 @@ inline uint32_t writeAlignmentsToStream(
 
         haveRev = &haveRev2 ;
         readTemp = &read2Temp ;
-
       }
 
 
@@ -761,6 +769,8 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "NM:i:" << qa.NM << '\t'
+              << "BS:i:" << qa.bestScore << '\t'            // Best score found for this read pair
               << "AS:i:" << qa.score << '\n';
 
 
@@ -777,7 +787,9 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
-              << "AS:i:" << qa.mateScore << '\n';
+              << "NM:i:0" << '\t'
+              << "BS:i:0" << '\t'
+              << "AS:i:0" << '\n';
 
     }
     ++alnCtr;

@@ -61,6 +61,11 @@ public:
     mopts(m), aligner(a), scoreStatus_(m.matchScore,m.minScoreFraction,m.bestStrata, m.decoyPresent) {
 		memset(&ez, 0, sizeof(ksw_extz_t));
 
+    cigarGen_.m = std::abs(mopts.matchScore);
+    cigarGen_.mm = std::abs(mopts.missMatchPenalty);
+    cigarGen_.go = std::abs(mopts.gapOpenPenalty);
+    cigarGen_.ge = std::abs(mopts.gapExtendPenalty);
+
 		alnCacheLeft.reserve(32);
 		alnCacheRight.reserve(32);
   }
