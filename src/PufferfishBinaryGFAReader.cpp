@@ -144,6 +144,7 @@ namespace pufferfish {
         }
         uint64_t contigCntPerPath;
         while (file.good()) {
+            refIdLen = 0;
             file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
             if (!file.good()) break;
             char* temp = new char[refIdLen+1];
