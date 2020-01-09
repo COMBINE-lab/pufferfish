@@ -1091,7 +1091,11 @@ Compile-time selection between list-like and map-like printing.
         };
 
         struct ContigBlock {
-            ContigBlock() {}
+            ContigBlock() : 
+              contigIdx_(std::numeric_limits<uint64_t>::max()),
+              globalPos_(std::numeric_limits<uint64_t>::max()),
+              contigLen_(std::numeric_limits<uint32_t>::max()),
+              isDummy_(false) {}
 
             ContigBlock(uint64_t idIn, uint64_t cposIn, uint32_t len, std::string seqIn, bool isDummyIn = false) :
                     contigIdx_(idIn), globalPos_(cposIn), contigLen_(len), seq(seqIn), isDummy_(isDummyIn) {}
