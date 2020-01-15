@@ -333,7 +333,15 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
-        openGapLen = computeCIGAR ? addCigar(cigarGen, ez, true) : (ez.mqe_t + 1);
+        // NOTE: If we are not writing down the CIGAR, we assume *for the purpose of computing positions*
+        // that the prefix of the read we are aligning here is optimally aligned in a gapless fashion.
+        // This, obviously, may not be the case.  However, if the aligned prefix does contain indels, and
+        // we don't write down the appropriate CIGAR string to designate this fact, then downstream tools 
+        // will not be able to properly adjust (so that e.g. the MEMs in the chain are properly positioned).
+        // This approximation means that the position we report may not be the one corresponding to the optimal
+        // alignment score that we actually calculate.  However, if we are not writing out the actual CIGAR
+        // string, this is the best we can do. (addresses https://github.com/COMBINE-lab/salmon/issues/475).
+        openGapLen = computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read;
         SPDLOG_DEBUG(logger_,"score : {}", std::max(ez.mqe, ez.mte));
       } else {
         // do any special soft clipping penalty here if we want
