@@ -29,7 +29,7 @@
 
 using single_parser = fastx_parser::FastxParser<fastx_parser::ReadSeq>;
 
-void fixFasta(single_parser* parser,
+bool fixFasta(single_parser* parser,
               // std::string& outputDir,
               spp::sparse_hash_set<std::string>& decoyNames,
               bool keepDuplicates, uint32_t k,
@@ -336,9 +336,11 @@ void fixFasta(single_parser* parser,
   }
 
   if (numberOfDecoys != decoyNames.size()) {
-    log->warn("The decoy file contained the names of {} decoy sequences, but "
-    "{} were matched by sequences in the reference file provided.",
-    decoyNames.size(), numberOfDecoys);
+    log->critical("The decoy file contained the names of {} decoy sequences, but "
+    "{} were matched by sequences in the reference file provided. To prevent unintentional "
+    "errors downstream, please ensure that the decoy file exactly matches with the "
+    "fasta file that is being indexed.", decoyNames.size(), numberOfDecoys);
+    return false;
   }
 
   {
@@ -431,11 +433,6 @@ void fixFasta(single_parser* parser,
     ar( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
   }
 
-  std::cerr << "seqHash 256 : " << seqHash256 << "\n";
-  std::cerr << "seqHash 512 : " << seqHash512 << "\n";
-  std::cerr << "nameHash 256 : " << nameHash256 << "\n";
-  std::cerr << "nameHash 512 : " << nameHash512 << "\n";
-
   /*  header.setSeqHash256(seqHash256);
   header.setNameHash256(nameHash256);
   header.setSeqHash512(seqHash512);
@@ -443,20 +440,37 @@ void fixFasta(single_parser* parser,
   header.setDecoySeqHash256(decoySeqHash256);
   header.setDecoyNameHash256(decoyNameHash256);
   */
+ return true;
 }
 
+/**
+ * parses the decoy file and constructs a sparse_hash_set that contains the names of the decoys.
+ *
+ * Note: If there are any errors, this will return an empty hash set.  In the future, using 
+ * std::optional or some other mechanism to indicate failure would be better.
+ **/
 spp::sparse_hash_set<std::string> populateDecoyHashPuff(const std::string& fname, std::shared_ptr<spdlog::logger> log) {
   spp::sparse_hash_set<std::string> dset;
   std::ifstream dfile(fname);
 
+  bool had_duplicate = false;
   std::string dname;
   while (dfile >> dname) {
     auto it = dset.insert(dname);
     if (!it.second) {
-      log->warn("The decoy name {} was encountered more than once --- please be sure all decoy names and sequences are unique.", dname);
+      log->critical("The decoy name {} was encountered more than once --- please ensure all decoy names and sequences are unique.", dname);
+      had_duplicate = true;
+      break;
     }
   }
 
+  if (dset.empty()) {
+    log->critical("The decoy file was empty.  If you have no decoys, then you should not pass the `--decoys` option while indexing.");
+  }
+  if (had_duplicate) {
+    dset.clear();
+  }
+  
   dfile.close();
   return dset;
 }
@@ -508,6 +522,9 @@ int fixFastaMain(std::vector<std::string>& args,
         std::exit(1);
       }
       decoyNames = populateDecoyHashPuff(decoyFile, log);
+      if (decoyNames.empty()) {
+        return 1;
+      }
     }
 
     size_t numThreads{1};
@@ -517,10 +534,10 @@ int fixFastaMain(std::vector<std::string>& args,
     transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
     transcriptParserPtr->start();
     std::mutex iomutex;
-    fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, log,
-             outFile, refIdExtension, shortRefs);
+    bool fix_ok = fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, log,
+                           outFile, refIdExtension, shortRefs);
     transcriptParserPtr->stop();
-    return 0;
+    return fix_ok ? 0 : 1;
   } else {
     std::cout << usage_lines(cli, "fixFasta") << '\n';
     return 1;
