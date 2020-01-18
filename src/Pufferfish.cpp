@@ -216,6 +216,7 @@ int main(int argc, char* argv[]) {
                     "to move forward with computing an optimal chain score (default=0.65)",
                     (option("--noCIGAR").set(alignmentOpt.computeCIGAR, false)) % "Do not compute the CIGAR strings for the alignments",
                     (option("--noOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, false)) % "Do not allow sof-clipping the overhanging ends of the reads"
+                    (option("--singleReadName") & value("singleReadName", alignmentOpt.singleReadName)) % "Only align the read with this name",
   );
 
   auto cli = (

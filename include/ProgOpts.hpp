@@ -102,6 +102,8 @@ public:
   bool mimicBt2Strict{false};
   bool allowOverhangSoftclip{true};
   bool computeCIGAR{true};
+
+  std::string singleReadName{"NULL"};
 };
 }
 

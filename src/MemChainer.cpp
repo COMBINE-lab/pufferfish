@@ -56,7 +56,8 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
                                      //pufferfish::common_types::RefMemMapT &trMemMap,
                                      RefMemMap& trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
-                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs) {
+                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs,
+                                     bool verbose) {
   using namespace pufferfish::common_types;
   if (hits.empty()) {
     return 0;
@@ -100,6 +101,8 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
         mappings++;
       //}
       }
+    } else if (verbose) {
+      std::cerr<<hit.first << " maxAllowedRefsPerHit: " << maxAllowedRefsPerHit_ << "\n";
     }
   }
   return maxNonDecoyHits;
@@ -121,7 +124,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
-  size_t maxHits = fillMemCollection(hits, trMemMap, memCollection, firstDecoyIndex, other_end_refs);
+  size_t maxHits = fillMemCollection(hits, trMemMap, memCollection, firstDecoyIndex, other_end_refs, verbose);
   if (maxHits == 0) {
     return false;
   }
@@ -245,7 +248,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                  }), memList.end());
     avgseed = totLen / static_cast<double>(memList.size());
 
-    /*
     if (verbose) {
       std::cerr << "\ntid" << tid << " , isFw:" << isFw << "\n";
       for (auto &m : memList) {
@@ -253,7 +255,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                   << "\n";
       }
     }
-    */
 
     p.reserve(memList.size());
     f.reserve(memList.size());
@@ -362,8 +363,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
             justAddedCluster.perfectChain = true;
           /*
           if (verbose)
-            std::cerr<<"Added position: " << memClusters[tid][0].coverage << " " << memClusters[tid][0].mems[0].tpos << "\n";
-          */
+            std::cerr<<"Added position: " << tid << " " << memClusters[tid].back().coverage << " "
+                     << memClusters[tid].back().mems[0].tpos << "\n";
         }
         //minPosIt += lastPtr;
       } else {

@@ -33,7 +33,8 @@ public:
                          //pufferfish::common_types::RefMemMapT& trMemMap,
                          RefMemMap& trMemMap,
                            std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
-                           phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs);
+                           phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
+                           bool verbose = false);
 
   bool findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
                     pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
