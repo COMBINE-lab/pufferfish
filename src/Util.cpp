@@ -123,7 +123,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
             /*
 	          if (!noOrphans and !rClusts.empty()) { 
 		          refsWithJointMems.insert(tid);
-	        }
+	          }
             */
 
             // Compare the left clusters to the right clusters to filter by positional constraints
@@ -136,7 +136,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                     if (concordantSearch and !satisfiesOri) { // if priority 0, ends should be concordant
                         continue;
                     }
-		    
+
 		                bool isDovetail{false};
 		                if (satisfiesOri) {
                       isDovetail = lclust->isFw ? (lclust->approxReadStartPos() > rclust->approxReadStartPos()) :
@@ -200,7 +200,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     // then don't consider orphans.
     bool noPairedMappings = (sameTxpCount == 0);
     bool leftOrphan = false; bool rightOrphan = false;
-    if (!noOrphans and noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
+    if (noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {
