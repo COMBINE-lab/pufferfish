@@ -23,11 +23,18 @@ std::string cigar2str(const ksw_extz_t *ez) {
 
 int32_t addCigar(pufferfish::util::CIGARGenerator &cigarGen, const ksw_extz_t *ez, bool start_gap) {
   uint32_t gap_size = 0;
-  for (int i = 0; i < ez->n_cigar; ++i) {
-    char cigar_type = "MID"[ez->cigar[i] & 0xf];
-    cigarGen.add_item(ez->cigar[i] >> 4, cigar_type);
-    if (start_gap and (cigar_type == 'M' or cigar_type == 'D'))
-      gap_size += ez->cigar[i] >> 4;
+  if (!start_gap){
+    for (int i = 0; i < ez->n_cigar; ++i) {
+      char cigar_type = "MID"[ez->cigar[i] & 0xf];
+      cigarGen.add_item(ez->cigar[i] >> 4, cigar_type);
+    }
+  } else {
+    for (int i = ez->n_cigar - 1; i >= 0; --i) {
+      char cigar_type = "MID"[ez->cigar[i] & 0xf];
+      cigarGen.add_item(ez->cigar[i] >> 4, cigar_type);
+      if (start_gap and (cigar_type == 'M' or cigar_type == 'D'))
+        gap_size += ez->cigar[i] >> 4;
+    }
   }
   return gap_size;
 }
