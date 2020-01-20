@@ -594,7 +594,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         jointHit.orphanClust()->NM = ar_orphan.NM;
         //jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         if (jointHit.alignmentScore < 0 and verbose) {
-          std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
+          std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_orphan.score << "\n";
         }
         return jointHit.alignmentScore;
     } else {
@@ -667,6 +667,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
       ar_left.score > threshold(read.length())  ? ar_left.score : invalidScore;
     jointHit.orphanClust()->cigar = (computeCIGAR) ? ar_left.cigar : "";
     jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
+    jointHit.orphanClust()->NM = ar_left.NM;
     //jointHit.orphanClust()->coverage = jointHit.alignmentScore;
     if (jointHit.alignmentScore < 0 and verbose) {
       std::cerr << read.length() << " " << threshold(read.length()) << " " << ar_left.score << "\n";

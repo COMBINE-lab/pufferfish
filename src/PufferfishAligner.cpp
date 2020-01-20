@@ -779,6 +779,7 @@ void processReadsSingle(single_parser *parser,
                 qaln.score = jointHit.alignmentScore;
                 qaln.mateScore = 0;
                 qaln.bestScore = bestScore;
+                qaln.NM = jointHit.orphanClust()->NM;
                 if (mopts->justMap) jointHit.orphanClust()->coverage = jointHit.alignmentScore;
                 validHits.emplace_back(jointHit.tid, jointHit.orphanClust());
             }

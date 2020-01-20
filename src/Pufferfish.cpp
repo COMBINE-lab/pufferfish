@@ -190,19 +190,19 @@ int main(int argc, char* argv[]) {
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
                     (option("--noOrphanRecovery").set(alignmentOpt.recoverOrphans, false)) % "Don't recover mappings for the other end of orphans using alignment",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
-		            (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
+                    (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
                     (
                       (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "Write output in the format required for krakMap"
                       |
                       (option("-p", "--pam").set(alignmentOpt.salmonOut, true)) % "Write output in the format required for salmon"
                     ),
-					(option("--verbose").set(alignmentOpt.verbose, true)) % "Print out auxilary information to trace program's flow",
+                    (option("--verbose").set(alignmentOpt.verbose, true)) % "Print out auxilary information to trace program's flow",
                     (option("--fullAlignment").set(alignmentOpt.fullAlignment, true)) % "Perform full alignment instead of gapped alignment",
                     (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Whether or not perform only 2 rounds of chaining",
                     (option("--numChainRounds") & value("number of chaining rounds", alignmentOpt.numChainRounds)) % "Number of chaining rounds to be performed",
                     (option("--bestStrata").set(alignmentOpt.bestStrata, true)) % "Keep only the alignments with the best score for each read",
-					(option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Align genomic dna-seq reads instead of RNA-seq reads",
-					(option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true).set(alignmentOpt.bestStrata, true)) % "Report at most one alignment per read",
+                    (option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Align genomic dna-seq reads instead of RNA-seq reads",
+                    (option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true).set(alignmentOpt.bestStrata, true)) % "Report at most one alignment per read",
                     (option("--filterGenomics").set(alignmentOpt.filterGenomics, true) & value("genes names file", alignmentOpt.genesNamesFile)) % 
                          "Path to the file containing gene IDs. Filters alignments to the IDs listed in the file. Used to filter genomic reads while aligning to both genome and transcriptome."
                          "A read will be reported with only the valid gene ID alignments and will be discarded if the best alignment is to an invalid ID"
@@ -215,8 +215,10 @@ int main(int argc, char* argv[]) {
                     "the maximum number of mems, that a reference must contain in order "
                     "to move forward with computing an optimal chain score (default=0.65)",
                     (option("--noCIGAR").set(alignmentOpt.computeCIGAR, false)) % "Do not compute the CIGAR strings for the alignments",
-                    (option("--noOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, false)) % "Do not allow sof-clipping the overhanging ends of the reads"
+                    (option("--maxAllowedRefsPerHit") & value("max allowed refs per hit", alignmentOpt.maxAllowedRefsPerHit)) % "maximum number of allowed refs per hit",
+                    (option("--maxNumHits") & value("max number of hits reported", alignmentOpt.maxNumHits)) % "maximum number of hits reported",
                     (option("--singleReadName") & value("singleReadName", alignmentOpt.singleReadName)) % "Only align the read with this name",
+                    (option("--noOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, false)) % "Do not allow sof-clipping the overhanging ends of the reads"
   );
 
   auto cli = (
