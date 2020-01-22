@@ -413,6 +413,18 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     }
 
   }
+  if (filterAfter) {
+    auto cfrac = consensusFraction_;
+    for (auto& mc : memClusters) {
+      auto* clusters_for_txp = mc.second;
+      clusters_for_txp->erase(
+          std::remove_if(clusters_for_txp->begin(), clusters_for_txp->end(),
+                      [maxChainScore, cfrac](const pufferfish::util::MemCluster& c) {
+                        return c.coverage < maxChainScore * cfrac;
+                      }),
+          clusters_for_txp->end());
+    }
+  }
   /*
   if (verbose)
     std::cerr << "\n[END OF FIND_OPT_CHAIN]\n";
