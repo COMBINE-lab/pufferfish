@@ -413,6 +413,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     }
 
   }
+
+  // since the maxChainScore was changing while we were computing the chains
+  // do one final pass over the chains we collected to remove any that
+  // should not be considered according to the final threshold.
   if (filterAfter) {
     auto cfrac = consensusFraction_;
     for (auto& mc : memClusters) {
@@ -425,9 +429,6 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
           clusters_for_txp->end());
     }
   }
-  /*
-  if (verbose)
-    std::cerr << "\n[END OF FIND_OPT_CHAIN]\n";
-  */
+
   return true;
 }
