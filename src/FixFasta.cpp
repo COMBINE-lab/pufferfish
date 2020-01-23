@@ -89,6 +89,24 @@ bool fixFasta(single_parser* parser,
     uint32_t txLen;
   };
 
+  auto update_name_hash = [&nameHasher256, &nameHasher512, &decoyNameHasher256](bool is_decoy, const std::string& processed_name) -> void {
+    if (is_decoy) {
+      decoyNameHasher256.absorb(processed_name);
+    } else {
+      nameHasher256.absorb(processed_name);
+      nameHasher512.absorb(processed_name);
+    }
+  };
+
+  auto update_seq_hash = [&seqHasher256, &seqHasher512, &decoySeqHasher256](bool is_decoy, const std::string& seq) -> void {
+    if (is_decoy) {
+      decoySeqHasher256.absorb(seq.begin(), seq.end());
+    } else {
+      seqHasher256.absorb(seq.begin(), seq.end());
+      seqHasher512.absorb(seq.begin(), seq.end());
+    }
+  };
+
   // http://biology.stackexchange.com/questions/21329/whats-the-longest-transcript-known
   // longest human transcript is Titin (108861), so this gives us a *lot* of
   // leeway before
@@ -162,12 +180,7 @@ bool fixFasta(single_parser* parser,
         }
 
         // If this was a decoy, add it to the decoy hash
-        if (isDecoy) {
-          decoySeqHasher256.absorb(readStr.begin(), readStr.end());
-        } else { // otherwise the ref hash
-          seqHasher256.absorb(readStr.begin(), readStr.end());
-          seqHasher512.absorb(readStr.begin(), readStr.end());
-        }
+        update_seq_hash(isDecoy, readStr);
 
         // First, replace non ATCG nucleotides
         for (size_t b = 0; b < readLen; ++b) {
@@ -226,6 +239,8 @@ bool fixFasta(single_parser* parser,
           auto processedName =
               recHeader.substr(0, recHeader.find_first_of(sepStr));
 
+          update_name_hash(isDecoy, processedName);
+
           // Add this transcript, indexed by it's sequence's hash value
           // to the potential duplicate list.
           bool didCollide{false};
@@ -259,24 +274,18 @@ bool fixFasta(single_parser* parser,
           if (transcriptNameSet.find(processedName) != transcriptNameSet.end()) {
             log->error("In FixFasta, two references with the same name but different sequences: {}. "
                        "We require that all input records have a unique name "
-                       "up to the first whitespace character.", processedName);
+                       "up to the first whitespace (or user-provided separator) character.", processedName);
             std::exit(1);
           }
           // If there was no collision, then add the transcript
           transcriptNameSet.insert(processedName);
           transcriptNames.emplace_back(processedName);
-          if (isDecoy) {
-            decoyNameHasher256.absorb(processedName.begin(), processedName.end());
-          } else {
-            nameHasher256.absorb(processedName.begin(), processedName.end());
-            nameHasher512.absorb(processedName.begin(), processedName.end());
-          }
 
           if(!tooShort) {
-              shortFlag[processedName] = false ;
+              shortFlag[processedName] = false;
           } else {
               numShortBeforeFirstDecoy += sawDecoy ? 0 : 1;
-              shortFlag[processedName] = true ;
+              shortFlag[processedName] = true;
           }
           // nameHasher.process(processedName.begin(), processedName.end());
 
@@ -423,6 +432,7 @@ bool fixFasta(single_parser* parser,
     std::ofstream os(sigPath.string());
     cereal::JSONOutputArchive ar(os);
     auto adjustedFirstDecoyIndex = firstDecoyIndex - numShortBeforeFirstDecoy;
+    ar( cereal::make_nvp("keep_duplicates", keepDuplicates));
     ar( cereal::make_nvp("num_decoys", numberOfDecoys));
     ar( cereal::make_nvp("first_decoy_index", adjustedFirstDecoyIndex));
     ar( cereal::make_nvp("SeqHash", seqHash256) );
