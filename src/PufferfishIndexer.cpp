@@ -292,6 +292,7 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
   std::string decoyNameHash256;
   uint64_t numberOfDecoys{0};
   uint64_t firstDecoyIndex{std::numeric_limits<uint64_t>::max()};
+  bool keep_duplicates{false};
 
   sigArch( cereal::make_nvp("SeqHash", seqHash256) );
   sigArch( cereal::make_nvp("NameHash", nameHash256) );
@@ -301,6 +302,7 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
   sigArch( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
   sigArch( cereal::make_nvp("num_decoys", numberOfDecoys));
   sigArch( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
+  sigArch( cereal::make_nvp("keep_duplicates", keep_duplicates));
 
   indexDesc( cereal::make_nvp("SeqHash", seqHash256) );
   indexDesc( cereal::make_nvp("NameHash", nameHash256) );
@@ -310,6 +312,7 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
   indexDesc( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
   indexDesc( cereal::make_nvp("num_decoys", numberOfDecoys));
   indexDesc( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
+  indexDesc( cereal::make_nvp("keep_duplicates", keep_duplicates));
   return true;
 }
 
