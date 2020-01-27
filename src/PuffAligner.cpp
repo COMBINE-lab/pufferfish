@@ -373,6 +373,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
       hctr.not_alignable_skips+=1;
       ez.stopped = 1;
+      SPDLOG_DEBUG(logger_,"ez stopped");
     }
     SPDLOG_DEBUG(logger_,"\t Aligning through MEM chain : ");
     // for the second through the last mem
@@ -458,6 +459,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if (!alignable(prevMemEnd_read+1, mopts.matchScore, alignmentScore)) {
         hctr.not_alignable_skips+=1;
         ez.stopped = 1;
+        SPDLOG_DEBUG(logger_,"ez stopped");
       }
     }
     // If we got to the end, and there is a read gap left, then align that as well
@@ -490,8 +492,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
               allowOverhangSoftclip, cutoff, ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-        if (ez.stopped) hctr.stopped_count+=1;
-        if(ez.mqe != KSW_NEG_INF) ez.stopped = 0;
+        if (ez.stopped) { SPDLOG_DEBUG(logger_,"ez stopped"); hctr.stopped_count+=1; }
+        if(ez.mqe != KSW_NEG_INF or ez.mqe > 0) ez.stopped = 0;
 
         int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
         int32_t insertCost = (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * readWindow.length());
@@ -522,7 +524,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"score : {}\n]]\n", alignmentScore);
   }
 
-  if (computeCIGAR) {
+  if (computeCIGAR and !ez.stopped) {
     cigar = cigarGen.get_cigar();
     if (cigarGen.cigar_length != read.length() && alignmentScore > minAcceptedScore) {
       std::cerr << "[ERROR in PuffAligner::alignRead :] cigar is invalid; this should not happen!\n";
@@ -531,6 +533,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
     SPDLOG_DEBUG(logger_,"score: {}\tcigar : {}\n", alignmentScore, cigar);
   }
+  auto NM_ = computeCIGAR and !ez.stopped ? cigarGen.gap_length + cigarGen.MMcount(alignmentScore) : 0;
+  if (NM_  > read.length())
+    std::cerr<<read << " " << NM_ << " " << alignmentScore << "\n";
   if (isMultimapping_) { // don't bother to fill up a cache unless this is a multi-mapping read
     if (!didHash) {
       // We want the alignment cache to be on the hash of the full underlying reference sequence.
@@ -543,13 +548,14 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
     AlignmentResult aln;
     aln.score = alignmentScore;
-    if (computeCIGAR) { aln.cigar = cigar; aln.NM = cigarGen.gap_length + cigarGen.MMcount(alignmentScore); }
+    aln.cigar = cigar;
+    aln.NM = NM_;
     aln.openGapLen = openGapLen;
     alnCache[hashKey] = aln;
   }
   arOut.score = alignmentScore;
   arOut.cigar = cigar;
-  arOut.NM = cigarGen.gap_length + cigarGen.MMcount(alignmentScore);
+  arOut.NM = NM_;
   arOut.openGapLen = openGapLen;
   return true;
 }

@@ -405,12 +405,18 @@ Compile-time selection between list-like and map-like printing.
           return cigar_types[cigar_types.size()-1] == 'M' ? 
                   cigar_counts[cigar_counts.size()-1] : -1;
         }
-        uint32_t MMcount(uint32_t score) {
+        uint32_t MMcount(int32_t score) {
+          if (score < 0)
+            return 0;
           auto aligned_length = cigar_length - (begin_softClipped_len + end_softClipped_len);
           float MMcount_ = (aligned_length * m - score - gap_penalty) / (m + mm);
           uint32_t MMcount_1 = MMcount_;
-          if (MMcount_ != MMcount_1) {
-            std::cerr << (uint32_t)MMcount_ << " " << score << " " << gap_penalty << " "
+          // TODO : fix later for the scores which are greater than what we expect
+          //TATGTCACCTGGCCAATTCACTAGCTCACTTTCTCTCTGTCTCTGTCTCTGTCTCTGTCTCTCTGTCTTTCTCTTTCATTGTTTTCTACCTGGCCCTGTTCTATCCCA in ERR013103
+          if (aligned_length * m < score + gap_penalty)
+            return 0;
+          if (MMcount_ != MMcount_1 or MMcount_>aligned_length or MMcount_<0) {
+            std::cerr << MMcount_1 << " " <<MMcount_ << " " << score << " " << gap_penalty << " "
                       << aligned_length << " " << get_cigar() << "\n";
             exit(1);
           }
