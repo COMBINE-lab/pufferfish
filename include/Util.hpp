@@ -834,6 +834,7 @@ Compile-time selection between list-like and map-like printing.
     */
 
       struct AlignmentConfig {
+        uint32_t maxFragmentLength{1000};
         int32_t refExtendLength{20};
         int32_t alignmentBandwidth{15};
         bool fullAlignment{false};

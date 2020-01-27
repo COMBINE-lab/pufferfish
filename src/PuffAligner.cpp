@@ -748,13 +748,13 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     rptr = otherReadRC;
     rlen = otherLen;
     startPos = std::max(signedZero, static_cast<int32_t>(anchorPos));
-    windowLength = std::min(500, static_cast<int32_t>(refLength - startPos));
+    windowLength = std::min(static_cast<int32_t>(mopts.maxFragmentLength), static_cast<int32_t>(refLength - startPos));
   } else {
     rptr = otherRead;
     rlen = otherLen;
     int32_t endPos = std::min(static_cast<int32_t>(refLength), static_cast<int32_t>(anchorPos) + anchorLen);
-    startPos = std::max(signedZero,  endPos - 500);
-    windowLength = std::min(500, endPos);
+    startPos = std::max(signedZero,  endPos - static_cast<int32_t>(mopts.maxFragmentLength));
+    windowLength = std::min(static_cast<int32_t>(mopts.maxFragmentLength), endPos);
   }
 
   if (verbose) { std::cerr<< anchorPos<< "\n"; }

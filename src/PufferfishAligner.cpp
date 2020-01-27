@@ -139,6 +139,7 @@ void processReadsPair(paired_parser *parser,
 
     pufferfish::util::AlignmentConfig aconf;
     aconf.refExtendLength = mopts->refExtendLength;
+    aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.alignmentBandwidth = mopts->alignmentBandwidth;
     aconf.fullAlignment = mopts->fullAlignment;
     aconf.matchScore = mopts->matchScore;
@@ -600,6 +601,7 @@ void processReadsSingle(single_parser *parser,
 
     pufferfish::util::AlignmentConfig aconf;
     aconf.refExtendLength = mopts->refExtendLength;
+    aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.alignmentBandwidth = mopts->alignmentBandwidth;
     aconf.fullAlignment = mopts->fullAlignment;
     aconf.matchScore = mopts->matchScore;
