@@ -73,6 +73,7 @@ public:
   bool salmonOut{false};
   bool noDiscordant{false};
   bool noOrphan{false};
+  bool noDovetail{false};
   bool compressedOutput{false};
   bool verbose{false};
   bool validateMappings{true};
