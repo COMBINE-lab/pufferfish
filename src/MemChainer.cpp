@@ -57,10 +57,24 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
                                      RefMemMap& trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
                                      phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs,
-                                     bool verbose) {
-  using namespace pufferfish::common_types;
+                                     bool allowHighMultiMappers, bool verbose) {
+  using namespace pufferfish::common_types;con
   if (hits.empty()) {
     return 0;
+  }
+
+  auto maxAllowedRefsPerHit = maxAllowedRefsPerHit_;
+  if (allowHighMultiMappers) {
+    uint32_t minRefsSize = std::numeric_limits<uint32_t>::max();
+    for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
+      auto &projHits = hit.second;
+      auto &refs = projHits.refRange;
+      if (refs.size() < minRefsSize) {
+        minRefsSize = refs.size();
+      }
+    }
+    maxAllowedRefsPerHit = maxAllowedRefsPerHit_ < minRefsSize ? minRefsSize + 1 : maxAllowedRefsPerHit_;
+    maxAllowedRefsPerHit = maxAllowedRefsPerHit < maxAllowedRefsPerHit_ * 10 ? maxAllowedRefsPerHit : maxAllowedRefsPerHit_;
   }
 
   size_t maxNonDecoyHits{0};
@@ -68,7 +82,7 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
     auto &refs = hit.second.refRange;
     auto rs = refs.size();
-    totSize +=  (static_cast<uint64_t>(rs) < maxAllowedRefsPerHit_) ? rs : 0;
+    totSize +=  (static_cast<uint64_t>(rs) < maxAllowedRefsPerHit) ? rs : 0;
   }
 
   // here we guarantee that even if later we fill up
@@ -83,7 +97,7 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
     // NOTE: here we rely on internal members of the ProjectedHit (i.e., member variables ending in "_").
     // Maybe we want to change the interface (make these members public or provide accessors)?
     auto &refs = projHits.refRange;
-    if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit_) {
+    if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit) {
       uint32_t mappings{0};
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                  readPos, projHits.k_, projHits.contigPos_,
@@ -117,14 +131,14 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
                                 bool hChain, uint32_t numChainRounds,
                                 RefMemMap& trMemMap,
                                 uint64_t firstDecoyIndex,
-                                //pufferfish::common_types::RefMemMapT& trMemMap,
+                                bool allowHighMultiMappers,
                                 bool verbose) {
   using namespace pufferfish::common_types;
   using pufferfish::util::HitFilterPolicy;
   //(void)verbose;
 
   // Map from (reference id, orientation) pair to a cluster of MEMs.
-  size_t maxHits = fillMemCollection(hits, trMemMap, memCollection, firstDecoyIndex, other_end_refs, verbose);
+  size_t maxHits = fillMemCollection(hits, trMemMap, memCollection, firstDecoyIndex, other_end_refs, allowHighMultiMappers, verbose);
   if (maxHits == 0) {
     return false;
   }

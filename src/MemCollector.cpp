@@ -190,14 +190,15 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 }
 
 template <typename PufferfishIndexT>
-bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
-                                                pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
-                                                //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
+bool MemCollector<PufferfishIndexT>::findChains(
+                  std::string &read,
+                  pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
                   uint32_t maxSpliceGap,
                   pufferfish::util::MateStatus mateStatus,
                   bool hChain,
                   uint32_t numChainRounds,
                   bool isLeft,
+                  bool allowHighMultiMappers,
                   bool verbose) {
   (void) maxSpliceGap;
   uint64_t firstDecoyIndex = pfi_->firstDecoyIndex();
@@ -210,7 +211,8 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
   if (rawHits.size() > 0) {
     auto& other_end_refs = isLeft ? right_refs : left_refs;
     trMemMap.clear();
-    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, numChainRounds, trMemMap, firstDecoyIndex, verbose);
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs,
+                    hChain, numChainRounds, trMemMap, firstDecoyIndex, allowHighMultiMappers, verbose);
     /*
     if (verbose) {
       std::cerr << "lets see what we have\n";

@@ -216,6 +216,7 @@ int main(int argc, char* argv[]) {
                     "to move forward with computing an optimal chain score (default=0.65)",
                     (option("--noCIGAR").set(alignmentOpt.computeCIGAR, false)) % "Do not compute the CIGAR strings for the alignments",
                     (option("--maxAllowedRefsPerHit") & value("max allowed refs per hit", alignmentOpt.maxAllowedRefsPerHit)) % "maximum number of allowed refs per hit",
+                    (option("--allowHighMultiMappers").set( alignmentOpt.allowHighMultiMappers, true)) % "Larger limit on number of locations a read could map to",
                     (option("--maxNumHits") & value("max number of hits reported", alignmentOpt.maxNumHits)) % "maximum number of hits reported",
                     (option("--singleReadName") & value("singleReadName", alignmentOpt.singleReadName)) % "Only align the read with this name",
                     (option("--noOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, false)) % "Do not allow sof-clipping the overhanging ends of the reads"

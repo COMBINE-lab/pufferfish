@@ -191,6 +191,14 @@ void processReadsPair(paired_parser *parser,
             //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
 
             //verbose = rpair.first.name == "mason_sample5_primary_1M_random.fasta.000050010/1";
+
+            if (mopts->singleReadName != "NULL"){
+                if (rpair.first.name == mopts->singleReadName or rpair.second.name == mopts->singleReadName)
+                    verbose = true;
+                else
+                    continue;
+            }
+
             bool lh = memCollector(rpair.first.seq,
                                    qc,
                                    true, // isLeft
@@ -206,6 +214,7 @@ void processReadsPair(paired_parser *parser,
                                    mopts->heuristicChaining,
                                    mopts->numChainRounds,
                                    true, // isLeft
+                                   mopts->allowHighMultiMappers,
                                    verbose);
             memCollector.findChains(rpair.second.seq,
                                    rightHits,
@@ -214,6 +223,7 @@ void processReadsPair(paired_parser *parser,
                                    mopts->heuristicChaining,
                                    mopts->numChainRounds,
                                    false, // isLeft
+                                   mopts->allowHighMultiMappers,
                                    verbose);
 
             hctr.numMappedAtLeastAKmer += (leftHits.size() > 0 || rightHits.size() > 0) ? 1 : 0;

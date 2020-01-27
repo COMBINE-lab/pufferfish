@@ -42,6 +42,7 @@ public:
                   bool hChain=false,
                   uint32_t numChainRound=2,
                   bool isLeft=false,
+                  bool allowHighMultiMappers=false,
                   bool verbose=false);
   void clear();
 
