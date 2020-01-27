@@ -58,7 +58,7 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
                                      phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs,
                                      bool allowHighMultiMappers, bool verbose) {
-  using namespace pufferfish::common_types;con
+  using namespace pufferfish::common_types;
   if (hits.empty()) {
     return 0;
   }
@@ -324,14 +324,16 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         // TGAACGCTCTATGATGTCAGCCTACGAGCGCTCTATGATGTTAGCCTACGAGCGCTCTATGATGTCCCCTATGGCTGAGCGCTCTATGATGTCAGCTTAT
         // from Polyester simalted sample aligning to the human transcriptome
       }
-      if (f[i] > bestScore) {
+      if (f[i] > bestScore * 1.1) {
         bestScore = f[i];
         bestChainEnd = i;
         bestChainEndList.clear();
         bestChainEndList.push_back(bestChainEnd);
-      } else if (f[i] == bestScore) {
+      } else if (f[i] >= bestScore * 0.9) {
         bestChainEndList.push_back(i);
+        bestScore = f[i] > bestScore ? f[i] : bestScore;
       }
+
     }
 
     // early exit if this doesn't seem a promising chain
@@ -347,6 +349,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         bool shouldBeAdded = true;
         memIndicesInReverse.clear();
         auto lastPtr = p[bestChainEnd];
+        auto bestChainEnd_ = bestChainEnd;
         while (lastPtr < bestChainEnd) {
           if (seen[bestChainEnd] > 0) {
             shouldBeAdded = false;
@@ -370,12 +373,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
           auto& justAddedCluster = memClusters[tid].back();
           for (auto it = memIndicesInReverse.rbegin(); it != memIndicesInReverse.rend(); it++) {
             justAddedCluster.addMem(memList[*it].memInfo, memList[*it].tpos,
-                                       memList[*it].extendedlen, memList[*it].rpos, isFw);
+                                    memList[*it].extendedlen, memList[*it].rpos, isFw);
           }
-          justAddedCluster.coverage = bestScore;
+          justAddedCluster.coverage = f[bestChainEnd_];
           if (justAddedCluster.coverage == signedReadLen)
             justAddedCluster.perfectChain = true;
-          /*
+
           if (verbose)
             std::cerr<<"Added position: " << tid << " " << memClusters[tid].back().coverage << " "
                      << memClusters[tid].back().mems[0].tpos << "\n";
