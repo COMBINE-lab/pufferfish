@@ -341,7 +341,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         SPDLOG_DEBUG(logger_,"PRE:\nreadStartPosOnRef : {}\nrefWindowStart : {}", readStartPosOnRef, refWindowStart);
         SPDLOG_DEBUG(logger_,"refWindowLength : {}\nread : [{}]\nref : [{}]", refWindowLength, readWindow, refSeqBuffer_);
 
-        aligner.config().bandwidth = std::min(maxAllowedGaps_, mopts.alignmentBandwidth);
+        aligner.config().bandwidth = std::max(maxAllowedGaps_, mopts.alignmentBandwidth);
         auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
@@ -487,7 +487,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         hctr.aligner_calls_count += 1;
         hctr.end_aligner_calls_count += 1;
 
-        aligner.config().bandwidth = std::min(maxAllowedGaps_, mopts.alignmentBandwidth);
+        aligner.config().bandwidth = std::max(maxAllowedGaps_, mopts.alignmentBandwidth);
         auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * (readWindow.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
