@@ -93,7 +93,7 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengths();
+  auto& txpLens = pfi.getFullRefLengthsComplete();
   auto numRef = txpNames.size();
   bw << static_cast<uint64_t>(numRef); // refCount (size_t)
   std::cerr << "is paired: " << !mopts->singleEnd << "\n";
@@ -112,7 +112,7 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengths();
+  auto& txpLens = pfi.getFullRefLengthsComplete();
 
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
@@ -133,7 +133,7 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengths();
+  auto& txpLens = pfi.getFullRefLengthsComplete();
 
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
@@ -153,7 +153,7 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengths();
+  auto& txpLens = pfi.getFullRefLengthsComplete();
 
   auto numRef = txpNames.size();
 
@@ -499,7 +499,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
   size_t i{0};
 
   auto* fullRefNames = tidsAlreadyDecoded ? &formatter.index->getFullRefNames() : nullptr;
-  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengths() : nullptr;
+  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengthsComplete() : nullptr;
   for (auto& qa : jointHits) {
     ++i;
     auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
@@ -597,7 +597,7 @@ inline uint32_t writeAlignmentsToStream(
   size_t i{0};
 
   auto* fullRefNames = tidsAlreadyDecoded ? &formatter.index->getFullRefNames() : nullptr;
-  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengths() : nullptr;
+  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengthsComplete() : nullptr;
 
   for (auto& qa : jointHits) {
     ++i;
