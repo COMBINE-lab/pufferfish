@@ -36,8 +36,8 @@ struct ScoreStatus {
 
   int32_t getCutoff(int32_t retadlen) { return std::max(std::max(maxObservedScore, maxObservedDecoyScore), minAcceptedScore(retadlen)); }
 
-  int32_t updateBest(int32_t score) { maxObservedScore = std::max(maxObservedScore, score); }
-  int32_t updateDecoy(int32_t score) { maxObservedDecoyScore = std::max(maxObservedDecoyScore, score); }
+  void updateBest(int32_t score) { maxObservedScore = std::max(maxObservedScore, score); }
+  void updateDecoy(int32_t score) { maxObservedDecoyScore = std::max(maxObservedDecoyScore, score); }
 
   void reset() { maxObservedScore = KSW_NEG_INF; maxObservedDecoyScore = KSW_NEG_INF; }
 
