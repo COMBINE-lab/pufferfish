@@ -290,9 +290,9 @@ namespace pufferfish {
     }
 
     void BinaryGFAReader::clearContigTable() {
-        refMap.clear();
-        refLengths.clear();
-        contig2pos.clear();
+        refMap.clear(); refMap.shrink_to_fit();
+        refLengths.clear(); refLengths.shrink_to_fit();
+        contig2pos.clear(); 
     }
 
 // Note : We assume that odir is the name of a valid (i.e., existing) directory.
