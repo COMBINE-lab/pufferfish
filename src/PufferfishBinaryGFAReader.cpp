@@ -126,10 +126,13 @@ namespace pufferfish {
         // fill out contigId2Seq
         std::unique_ptr<rank9sel> rankSelDict{nullptr};
         rankSelDict.reset(new rank9sel(&rankVec_, rankVec_.size()));
+        auto contig2seqSize = rankSelDict->rank(rankVec_.size()-1) + 1;
+        std::cerr << contig2seqSize << "\n";
+        contigid2seq.resize(contig2seqSize);
         logger_->info("Done wrapping the rank vector with a rank9sel structure.");
         while (nextPos < rankVec_.size() and nextPos != 0) {
             nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr)) + 1;// select(0) is meaningful
-            contigid2seq[contigCntr] = {contigCntr, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
+            contigid2seq[contigCntr] = prevPos;// {contigCntr, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
             prevPos = nextPos;
             contigCntr++;
         }
@@ -176,7 +179,8 @@ namespace pufferfish {
             uint32_t refLength{0};
             bool firstContig{true};
             for (auto &ctig : path[ref_cnt]) {
-                int32_t l = contigid2seq[ctig.first].length - (firstContig ? 0 : (k - 1));
+                auto len = getContigLength(ctig.first);
+                uint64_t l = len - (firstContig ? 0 : (k - 1));
                 refLength += l;
                 firstContig = false;
             }
@@ -197,11 +201,11 @@ namespace pufferfish {
                 for (size_t i = 0; i < contigs.size() - 1; i++) {
                     auto cid = contigs[i].first;
                     bool ore = contigs[i].second;
-                    size_t forder = contigid2seq[cid].fileOrder;
+                    size_t forder = cid;//contigid2seq[cid].fileOrder;
                     auto nextcid = contigs[i + 1].first;
                     bool nextore = contigs[i + 1].second;
 
-                    bool nextForder = contigid2seq[nextcid].fileOrder;
+                    bool nextForder = nextcid;//contigid2seq[nextcid].fileOrder;
                     // a+,b+ end kmer of a , start kmer of b
                     // a+,b- end kmer of a , rc(end kmer of b)
                     // a-,b+ rc(start kmer of a) , start kmer of b
@@ -218,21 +222,21 @@ namespace pufferfish {
                     // If a is in the forward orientation, the last k-mer comes from the end, otherwise it is the reverse complement of the first k-mer
                     if (ore) {
                         lastKmerInContig.fromNum(
-                                seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k));
+                                seqVec_.get_int(2 * (contigid2seq[cid] + getContigLength(cid)-k), 2 * k));// (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k));
                         contigDirection = Direction::APPEND;
                     } else {
-                        lastKmerInContig.fromNum(seqVec_.get_int(2 * contigid2seq[cid].offset, 2 * k));
+                        lastKmerInContig.fromNum(seqVec_.get_int(2 * contigid2seq[cid], 2 * k));
                         lastKmerInContig.swap();
                         contigDirection = Direction::PREPEND;
                     }
 
                     // If a is in the forward orientation, the first k-mer comes from the beginning, otherwise it is the reverse complement of the last k-mer
                     if (nextore) {
-                        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2 * k));
+                        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * contigid2seq[nextcid], 2 * k));
                         nextContigDirection = Direction::PREPEND;
                     } else {
                         firstKmerInNextContig.fromNum(
-                                seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k),
+                                seqVec_.get_int(2 * (contigid2seq[nextcid] + getContigLength(nextcid) - k),
                                                 2 * k));
                         firstKmerInNextContig.swap();
                         nextContigDirection = Direction::APPEND;
@@ -253,7 +257,8 @@ namespace pufferfish {
         logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
     }
 
-    spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo> &
+//    spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo> &
+    std::vector<uint64_t> &
     BinaryGFAReader::getContigNameMap() {
         return contigid2seq;
     }
@@ -276,11 +281,14 @@ namespace pufferfish {
                     contig2pos[contigs[i].first] = {};
                     total_output_lines += 1;
                 }
-                if (contigid2seq.find(contigs[i].first) == contigid2seq.end()) {
-                    logger_->info("{}", contigs[i].first);
+                if (i >= contigid2seq.size()) {
+                    logger_->info("{}", i);
                 }
+                /*if (contigid2seq.find(contigs[i].first) == contigid2seq.end()) {
+                    logger_->info("{}", contigs[i].first);
+                }*/
                 pos = accumPos;
-                currContigLength = contigid2seq[contigs[i].first].length;
+                currContigLength = getContigLength(i);//contigid2seq[contigs[i].first].length;
                 accumPos += currContigLength - k;
                 (contig2pos[contigs[i].first])
                         .push_back(pufferfish::util::Position(tr, pos, contigs[i].second));
@@ -373,11 +381,14 @@ namespace pufferfish {
             // Compute sizes to reserve
             size_t contigVecSize{0};
             size_t contigOffsetSize{1};
-            for (auto &kv : contigid2seq) {
+            /*for (auto &kv : contigid2seq) {
                 contigOffsetSize++;
                 contigVecSize += contig2pos[kv.first].size();
+            }*/
+            for (uint64_t i = 0; i < contigid2seq.size(); i++) {
+                contigOffsetSize++;
+                contigVecSize += contig2pos[i].size();
             }
-
             logger_->info("total contig vec entries {:n}", contigVecSize);
             std::vector<pufferfish::util::Position> cpos;
             cpos.reserve(contigVecSize);

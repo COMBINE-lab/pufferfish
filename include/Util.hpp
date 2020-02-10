@@ -1061,6 +1061,10 @@ Compile-time selection between list-like and map-like printing.
             size_t fileOrder;
             size_t offset;
             uint32_t length;
+
+            PackedContigInfo(size_t fileOrder, size_t offset, uint32_t length) : fileOrder(fileOrder),
+                                                                                 offset(offset),
+                                                                                 length(length) {}
         };
 
         struct RefPos {
