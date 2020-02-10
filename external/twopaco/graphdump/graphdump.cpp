@@ -640,11 +640,11 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         if (Abs(curr.GetId()) > maxJunction)
             maxJunction = (uint64_t)Abs(curr.GetId());
     }
-//    std::cerr << "Max Junction ID: " << maxJunction << "\n";
+    std::cerr << "Max Junction ID: " << maxJunction << "\n";
 
-    std::vector<bool> seen((maxJunction << 3 + 9)/*MAX_SEGMENT_NUMBER*/, 0);
+    std::vector<bool> seen(( (maxJunction << 3) + 9)/*MAX_SEGMENT_NUMBER*/, 0);
     std::vector<KmerInfo> kmerInfo(maxJunction+1/*MAX_JUNCTION_ID*/);
-
+    std::cerr << "seen.size():" << seen.size() << " kmerInfo.size():" << kmerInfo.size() << "\n";
     // First round going over the junctions file
 //    std::cerr << "\n\nRound one:\n";
     reader.RestoreReader();
