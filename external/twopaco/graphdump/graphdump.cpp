@@ -699,7 +699,10 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         for (auto &kmerIn : kmerInfo) {
             kmerIn.decideType(k, approximateContigLen, cntr1, cntr2, cntr3, cntr4);
         }
-        std::cerr << "approximateContigTotalLength: " << approximateContigLen << "\ncounters:\n" << cntr1 << " " << cntr2 << " " << cntr3 << " " << cntr4 << "\n";
+        std::cerr << "approximateContigTotalLength: " << approximateContigLen
+        << "\ncounters for complex kmers:\n"
+        << "(prec>1 & succ>1)=" << cntr1 << " | (succ>1 & isStart)=" << cntr2
+        << " | (prec>1 & isEnd)=" << cntr3 << " | (isStart & isEnd)=" << cntr4 << "\n";
     }
     // Having all the required information for each junction,
     // Start the second round of going over the junctions file
