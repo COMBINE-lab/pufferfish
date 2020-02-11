@@ -280,6 +280,9 @@ namespace pufferfish {
                 totalPosCnt++;
             }
         }
+        for (uint64_t i = 0; i < cposOffsetvec.size() - 1; i++) {
+            cposOffsetvec[i+1] = cposOffsetvec[i]+cposOffsetvec[i+1];
+        }
         logger_->info("Total # of contig vec entries: {:n}", totalPosCnt);
         auto w = static_cast<uint32_t >(std::ceil(std::log2(totalPosCnt+1)));
         logger_->info("bits per offset entry {:n}", w);
@@ -292,6 +295,7 @@ namespace pufferfish {
             for (const auto &contig : contigs) {
                 pos = accumPos;
                 contig2pos[cposOffsetvec[contig.first]].update(tr, pos, contig.second);
+//                std::cerr << cposOffsetvec[contig.first] << ":" << tr << " " << contig2pos[cposOffsetvec[contig.first]].transcript_id() << "\n";
                 cposOffsetvec[contig.first]++;
                 currContigLength = getContigLength(contig.first);
                 accumPos += currContigLength - k;
@@ -300,6 +304,7 @@ namespace pufferfish {
         // We need the +1 here because we store the last entry that is 1 greater than the last offset
         // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
         cpos_offsets = new compact::vector<uint64_t>(w, contigid2seq.size());
+        cpos_offsets->clear_mem();
         (*cpos_offsets)[0] = 0;
         for (uint64_t i = 0; i < cpos_offsets->size()-1; i++) {
             (*cpos_offsets)[i+1] = cposOffsetvec[i];
