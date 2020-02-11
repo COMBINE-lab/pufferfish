@@ -69,9 +69,11 @@ private:
 
   bool buildEdgeVec_{false};
   std::shared_ptr<spdlog::logger> logger_{nullptr};
+  compact::vector<uint64_t>* cpos_offsets;
 
 public:
-  spp::sparse_hash_map<uint64_t, std::vector<pufferfish::util::Position>> contig2pos;
+//  spp::sparse_hash_map<uint64_t, std::vector<pufferfish::util::Position>>
+  std::vector<pufferfish::util::Position> contig2pos;
 
   BinaryGFAReader(const char* gfaFileName, size_t input_k,
             bool buildEdgeVEc, std::shared_ptr<spdlog::logger> logger);

@@ -1025,6 +1025,12 @@ Compile-time selection between list-like and map-like printing.
                 ar(transcript_id_, pos_);
             }
 
+            void update(uint32_t tid, uint32_t tpos, bool torien) {
+                transcript_id_ = tid;
+                pos_ = tpos;
+                setOrientation(torien);
+            }
+
         private:
             // uint32_t orientMask_
         };
