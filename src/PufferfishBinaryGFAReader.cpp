@@ -281,19 +281,19 @@ namespace pufferfish {
             }
         }
         logger_->info("Total # of contig vec entries: {:n}", totalPosCnt);
-        auto w = static_cast<uint64_t >(std::ceil(std::log2(totalPosCnt+1)));
+        auto w = static_cast<uint32_t >(std::ceil(std::log2(totalPosCnt+1)));
         logger_->info("bits per offset entry {:n}", w);
 
         contig2pos.resize(totalPosCnt);
         for (auto const &ent : path) {
-            const uint64_t &tr = ent.first;
+            const uint64_t tr = ent.first;
             const std::vector<std::pair<uint64_t, bool>> &contigs = ent.second;
             accumPos = 0;
-            for (size_t i = 0; i < contigs.size(); i++) {
+            for (const auto &contig : contigs) {
                 pos = accumPos;
-                contig2pos[cposOffsetvec[contigs[i].first]].update(tr, pos, contigs[i].second);
-                cposOffsetvec[contigs[i].first]++;
-                currContigLength = getContigLength(i);
+                contig2pos[cposOffsetvec[contig.first]].update(tr, pos, contig.second);
+                cposOffsetvec[contig.first]++;
+                currContigLength = getContigLength(contig.first);
                 accumPos += currContigLength - k;
             }
         }
