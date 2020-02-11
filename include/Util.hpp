@@ -1107,7 +1107,7 @@ Compile-time selection between list-like and map-like printing.
           struct PackedContigInfoVecIterator {
             const PackedContigInfoVec* pci_{nullptr};
             uint64_t it{std::numeric_limits<uint64_t>::max()};
-            std::pair<uint64_t, PackedContigInfo> p_;
+	    std::pair<uint64_t, PackedContigInfo> p_{std::numeric_limits<uint64_t>::max(), {size_t(0), size_t(0), uint32_t(0)}};
 
             PackedContigInfoVecIterator& operator++() {
               ++it;
