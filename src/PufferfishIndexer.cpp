@@ -751,14 +751,14 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     //fill up optimal positions
     {
       auto& cnmap = pf.getContigNameMap() ;
-      size_t ncontig = cnmap.size();
+      //size_t ncontig = cnmap.size();
       std::vector<size_t> sampledInds ;
-      for(auto& kv : cnmap) {
+      for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
         const auto& r1 = cnmap[i];
         sampledInds.clear();
-        computeSampledPositions(len, k, sampleSize, sampledInds) ;
+        computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(len) ;
+        contigLengths.push_back(r1.length) ;
       }
       jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
       jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
@@ -986,12 +986,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     {
       auto& cnmap = pf.getContigNameMap() ;
       std::vector<size_t> sampledInds ;
-      for(uint64_t idx = 0; idx < cnmap.size(); idx++){
-        auto len = pf.getContigLength(idx);
+      for(auto& kv : cnmap){
+        auto& r1 = kv.second ;
         sampledInds.clear();
-        computeSampledPositionsLossy(len, k, sampleSize, sampledInds) ;
+        computeSampledPositionsLossy(r1.length, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(len) ;
+        contigLengths.push_back(r1.length) ;
       }
       jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
       jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
