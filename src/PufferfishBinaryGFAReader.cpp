@@ -81,13 +81,15 @@ namespace pufferfish {
         return ret;
     }
 
-    BinaryGFAReader::BinaryGFAReader(const char *binDir, size_t input_k, bool buildEdgeVec,
+    BinaryGFAReader::BinaryGFAReader(const char *binDir, size_t input_k,
+                                     bool buildEqClses, bool buildEdgeVec,
                                      std::shared_ptr<spdlog::logger> logger) {
         logger_ = logger;
         filename_ = std::string(binDir);
         logger_->info("Setting the index/BinaryGfa directory {}", binDir);
         k = input_k;
         buildEdgeVec_ = buildEdgeVec;
+        buildEqClses_ = buildEqClses;
         {
             CLI::AutoTimer timer{"Loading contigs", CLI::Timer::Big};
             std::string bfile = filename_ + "/seq.bin";
@@ -126,6 +128,8 @@ namespace pufferfish {
         // fill out contigId2Seq
         std::unique_ptr<rank9sel> rankSelDict{nullptr};
         rankSelDict.reset(new rank9sel(&rankVec_, rankVec_.size()));
+        auto contig2seqSize = rankSelDict->rank(rankVec_.size()-1) + 1;
+        std::cerr << contig2seqSize << "\n";
         logger_->info("Done wrapping the rank vector with a rank9sel structure.");
         contigid2seq = pufferfish::util::PackedContigInfoVec(
                                         rankVec_.size(), 
@@ -133,7 +137,6 @@ namespace pufferfish {
         while (nextPos < rankVec_.size() and nextPos != 0) {
             nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr)) + 1;// select(0) is meaningful
             contigid2seq.add(prevPos);
-            //contigid2seq[contigCntr] = {contigCntr, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
             prevPos = nextPos;
             contigCntr++;
         }
@@ -182,7 +185,8 @@ namespace pufferfish {
             uint32_t refLength{0};
             bool firstContig{true};
             for (auto &ctig : path[ref_cnt]) {
-                int32_t l = contigid2seq[ctig.first].length - (firstContig ? 0 : (k - 1));
+                auto len = getContigLength(ctig.first);
+                uint64_t l = len - (firstContig ? 0 : (k - 1));
                 refLength += l;
                 firstContig = false;
             }
@@ -203,11 +207,11 @@ namespace pufferfish {
                 for (size_t i = 0; i < contigs.size() - 1; i++) {
                     auto cid = contigs[i].first;
                     bool ore = contigs[i].second;
-                    size_t forder = contigid2seq[cid].fileOrder;
+                    size_t forder = cid;//contigid2seq[cid].fileOrder;
                     auto nextcid = contigs[i + 1].first;
                     bool nextore = contigs[i + 1].second;
 
-                    bool nextForder = contigid2seq[nextcid].fileOrder;
+                    bool nextForder = nextcid;//contigid2seq[nextcid].fileOrder;
                     // a+,b+ end kmer of a , start kmer of b
                     // a+,b- end kmer of a , rc(end kmer of b)
                     // a-,b+ rc(start kmer of a) , start kmer of b
@@ -223,8 +227,9 @@ namespace pufferfish {
                     Direction nextContigDirection;
                     // If a is in the forward orientation, the last k-mer comes from the end, otherwise it is the reverse complement of the first k-mer
                     if (ore) {
+                        auto cinfo = contigid2seq[cid];
                         lastKmerInContig.fromNum(
-                                seqVec_.get_int(2 * (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k));
+                                seqVec_.get_int(2 * (cinfo.offset + cinfo.length - k), 2 * k));
                         contigDirection = Direction::APPEND;
                     } else {
                         lastKmerInContig.fromNum(seqVec_.get_int(2 * contigid2seq[cid].offset, 2 * k));
@@ -237,8 +242,9 @@ namespace pufferfish {
                         firstKmerInNextContig.fromNum(seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2 * k));
                         nextContigDirection = Direction::PREPEND;
                     } else {
+                        auto cinfo = contigid2seq[nextcid];
                         firstKmerInNextContig.fromNum(
-                                seqVec_.get_int(2 * (contigid2seq[nextcid].offset + contigid2seq[nextcid].length - k),
+                                seqVec_.get_int(2 * (cinfo.offset + cinfo.length - k),
                                                 2 * k));
                         firstKmerInNextContig.swap();
                         nextContigDirection = Direction::APPEND;
@@ -259,7 +265,7 @@ namespace pufferfish {
         logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
     }
 
-    //spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo> &
+
     pufferfish::util::PackedContigInfoVec&
     BinaryGFAReader::getContigNameMap() {
         return contigid2seq;
@@ -273,33 +279,53 @@ namespace pufferfish {
         uint64_t pos = 0;
         uint64_t accumPos;
         uint64_t currContigLength = 0;
-        uint64_t total_output_lines = 0;
+        std::vector<uint64_t> cposOffsetvec(contigid2seq.size() + 1, 0);
+        uint64_t totalPosCnt = 0;
         for (auto const &ent : path) {
-            const uint64_t &tr = ent.first;
             const std::vector<std::pair<uint64_t, bool>> &contigs = ent.second;
-            accumPos = 0;
-            for (size_t i = 0; i < contigs.size(); i++) {
-                if (contig2pos.find(contigs[i].first) == contig2pos.end()) {
-                    contig2pos[contigs[i].first] = {};
-                    total_output_lines += 1;
-                }
-                if (contigid2seq.find(contigs[i].first) == contigid2seq.end()) {
-                    logger_->info("{}", contigs[i].first);
-                }
-                pos = accumPos;
-                currContigLength = contigid2seq[contigs[i].first].length;
-                accumPos += currContigLength - k;
-                (contig2pos[contigs[i].first])
-                        .push_back(pufferfish::util::Position(tr, pos, contigs[i].second));
+            for (const auto &contig : contigs) {
+                cposOffsetvec[contig.first + 1]++;
+                totalPosCnt++;
             }
         }
-        logger_->info("\nTotal # of segments we have position for : {:n}", total_output_lines);
+        for (uint64_t i = 0; i < cposOffsetvec.size() - 1; i++) {
+            cposOffsetvec[i+1] = cposOffsetvec[i]+cposOffsetvec[i+1];
+        }
+        logger_->info("Total # of contig vec entries: {:n}", totalPosCnt);
+        auto w = static_cast<uint32_t >(std::ceil(std::log2(totalPosCnt+1)));
+        logger_->info("bits per offset entry {:n}", w);
+
+        contig2pos.resize(totalPosCnt);
+        for (auto const &ent : path) {
+            const uint64_t tr = ent.first;
+            const std::vector<std::pair<uint64_t, bool>> &contigs = ent.second;
+            accumPos = 0;
+            for (const auto &contig : contigs) {
+                pos = accumPos;
+                contig2pos[cposOffsetvec[contig.first]].update(tr, pos, contig.second);
+//                std::cerr << cposOffsetvec[contig.first] << ":" << tr << " " << contig2pos[cposOffsetvec[contig.first]].transcript_id() << "\n";
+                cposOffsetvec[contig.first]++;
+                currContigLength = getContigLength(contig.first);
+                accumPos += currContigLength - k;
+            }
+        }
+        // We need the +1 here because we store the last entry that is 1 greater than the last offset
+        // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
+        cpos_offsets = new compact::vector<uint64_t>(w, contigid2seq.size());
+        cpos_offsets->clear_mem();
+        (*cpos_offsets)[0] = 0;
+        for (uint64_t i = 0; i < cpos_offsets->size()-1; i++) {
+            (*cpos_offsets)[i+1] = cposOffsetvec[i];
+        }
+        cposOffsetvec.clear();
+        cposOffsetvec.shrink_to_fit();
+        logger_->info("Done constructing the contig vector. {}", cpos_offsets->size());
     }
 
     void BinaryGFAReader::clearContigTable() {
         refMap.clear(); refMap.shrink_to_fit();
         refLengths.clear(); refLengths.shrink_to_fit();
-        contig2pos.clear(); 
+        contig2pos.clear(); contig2pos.shrink_to_fit();
     }
 
 // Note : We assume that odir is the name of a valid (i.e., existing) directory.
@@ -307,13 +333,10 @@ namespace pufferfish {
                                                const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
                                                const std::vector<uint32_t>& refIdExtensions) {
         std::string ofile = odir + "/ctable.bin";
-        std::string eqfile = odir + "/eqtable.bin";
         std::string rlfile = odir + "/reflengths.bin";
         std::ofstream ct(ofile);
-        std::ofstream et(eqfile);
         std::ofstream rl(rlfile);
         cereal::BinaryOutputArchive ar(ct);
-        cereal::BinaryOutputArchive eqAr(et);
         cereal::BinaryOutputArchive rlAr(rl);
         decltype(refLengths) tmpRefLen;
         tmpRefLen.reserve(refLengths.size() + shortRefsNameLen.size());
@@ -377,65 +400,49 @@ namespace pufferfish {
             std::vector<uint32_t> eqIDs;
             //std::vector<std::vector<pufferfish::util::Position>> cpos;
 
-            // Compute sizes to reserve
-            size_t contigVecSize{0};
-            size_t contigOffsetSize{1};
-            for (auto &kv : contigid2seq) {
-                contigOffsetSize++;
-                contigVecSize += contig2pos[kv.first].size();
-            }
-
-            logger_->info("total contig vec entries {:n}", contigVecSize);
-            std::vector<pufferfish::util::Position> cpos;
-            cpos.reserve(contigVecSize);
-
-	    // We need the +1 here because we store the last entry that is 1 greater than the last offset
-            // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
-            size_t w = std::ceil(std::log2(contigVecSize+1));
-            logger_->info("bits per offset entry {:n}", w);
-            compact::vector<uint64_t> cpos_offsets(w, contigOffsetSize);
-
-            cpos_offsets[0] = 0;
-            for (uint64_t idx = 0; idx < contigid2seq.size(); idx++) {
-                auto &b = contig2pos[idx];
-                cpos_offsets[idx+1] = cpos_offsets[idx] + b.size();
-                cpos.insert(cpos.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
-                std::vector<uint32_t> tlist;
-                for (auto &p : contig2pos[idx]) {
-                    tlist.push_back(p.transcript_id());
+            // Build and store equivalence classes
+            if (buildEqClses_) {
+                std::string eqfile = odir + "/eqtable.bin";
+                std::ofstream et(eqfile);
+                cereal::BinaryOutputArchive eqAr(et);
+                uint64_t offset = 0;
+                for (uint64_t idx = 0; idx < cpos_offsets->size(); idx++) {
+                    std::vector<uint32_t> tlist;
+                    while (offset < (*cpos_offsets)[idx]) {
+                        tlist.push_back(contig2pos[offset].transcript_id());
+                        offset++;
+                    }
+                    std::sort(tlist.begin(), tlist.end());
+                    tlist.erase(std::unique(tlist.begin(), tlist.end()), tlist.end());
+                    auto eqID = static_cast<uint32_t >(eqMap.size());
+                    if (eqMap.contains(tlist)) {
+                        eqID = eqMap[tlist];
+                    } else {
+                        eqMap[tlist] = eqID;
+                    }
+                    eqIDs.push_back(eqID);
                 }
-                std::sort(tlist.begin(), tlist.end());
-                tlist.erase(std::unique(tlist.begin(), tlist.end()), tlist.end());
-                size_t eqID = eqMap.size();
-                if (eqMap.contains(tlist)) {
-                    eqID = eqMap[tlist];
-                } else {
-                    eqMap[tlist] = eqID;
+                logger_->info("there were {:n}  equivalence classes", eqMap.size());
+                eqAr(eqIDs);
+                eqIDs.clear();
+                eqIDs.shrink_to_fit();
+                std::vector<std::vector<uint32_t>> eqLabels;
+                eqLabels.reserve(eqMap.size());
+                for (auto &kv : eqMap) {
+                    eqLabels.push_back(kv.first);
                 }
-                eqIDs.push_back(eqID);
-                // ar(contig2pos[kv.first]);
+                std::sort(eqLabels.begin(), eqLabels.end(),
+                          [&](const std::vector<uint32_t> &l1,
+                              const std::vector<uint32_t> &l2) -> bool {
+                              return eqMap[l1] < eqMap[l2];
+                          });
+                eqAr(eqLabels);
             }
-            logger_->info("there were {:n}  equivalence classes", eqMap.size());
-            eqAr(eqIDs);
-            eqIDs.clear();
-            eqIDs.shrink_to_fit();
-            std::vector<std::vector<uint32_t>> eqLabels;
-            eqLabels.reserve(eqMap.size());
-            for (auto &kv : eqMap) {
-                eqLabels.push_back(kv.first);
-            }
-            std::sort(eqLabels.begin(), eqLabels.end(),
-                      [&](const std::vector<uint32_t> &l1,
-                          const std::vector<uint32_t> &l2) -> bool {
-                          return eqMap[l1] < eqMap[l2];
-                      });
-            eqAr(eqLabels);
-            ar(cpos);
-
+            ar(contig2pos);
             {
               std::string fname = odir + "/" + pufferfish::util::CONTIG_OFFSETS;
               std::ofstream bfile(fname, std::ios::binary);
-              cpos_offsets.serialize(bfile);
+              cpos_offsets->serialize(bfile);
               bfile.close();
             }
         }

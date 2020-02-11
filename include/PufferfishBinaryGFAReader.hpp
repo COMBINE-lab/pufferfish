@@ -35,8 +35,9 @@ private:
     std::string id;
   };
 
-  pufferfish::util::PackedContigInfoVec contigid2seq;
 
+  pufferfish::util::PackedContigInfoVec contigid2seq;
+  
   // path maps each transcript_id to a pair of <contig_id, orientation>
   // orientation : +/true main, -/false reverse
   spp::sparse_hash_map<uint64_t, std::vector<std::pair<uint64_t, bool>>> path;
@@ -66,19 +67,24 @@ private:
   std::vector<stx::string_view> split(stx::string_view str, char delims);
 
   bool buildEdgeVec_{false};
+  bool buildEqClses_{false};
   std::shared_ptr<spdlog::logger> logger_{nullptr};
+  compact::vector<uint64_t>* cpos_offsets;
 
 public:
-  spp::sparse_hash_map<uint64_t, std::vector<pufferfish::util::Position>> contig2pos;
+//  spp::sparse_hash_map<uint64_t, std::vector<pufferfish::util::Position>>
+  std::vector<pufferfish::util::Position> contig2pos;
 
   BinaryGFAReader(const char* gfaFileName, size_t input_k,
-            bool buildEdgeVEc, std::shared_ptr<spdlog::logger> logger);
+            bool buildEqClses, bool buildEdgeVEc,
+            std::shared_ptr<spdlog::logger> logger);
 
   /*void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
                  stx::string_view str);
   */ 
   void encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
                  stx::string_view str);
+
   //spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo>& getContigNameMap();
   pufferfish::util::PackedContigInfoVec& getContigNameMap();
 
@@ -94,7 +100,11 @@ public:
   void serializeContigTable(const std::string& odir,
           const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
           const std::vector<uint32_t>& refIdExtensions);
-  void deserializeContigTable();
+    uint64_t getContigLength(uint64_t i) {
+        return (i < contigid2seq.size()-1?contigid2seq[i+1]:rankVec_.size()) - contigid2seq[i];
+    }
+
+    void deserializeContigTable();
   // void writeFile(std::string fileName);
 };
 

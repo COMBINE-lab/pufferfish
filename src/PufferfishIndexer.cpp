@@ -324,6 +324,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   std::string outdir = indexOpts.outdir;
   std::string gfa_file = indexOpts.outdir;
   bool buildEdgeVec = indexOpts.buildEdgeVec;
+  bool buildEqCls = indexOpts.buildEqCls;
   bool keepFixedFasta = indexOpts.keep_fixed_fasta;
   std::vector<uint32_t> refIdExtensions;
   std::vector<std::pair<std::string, uint16_t>> shortRefsNameLen;
@@ -474,7 +475,8 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     }
   }
 
-  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, jointLog);
+  jointLog->info("Starting the Pufferfish indexing by reading the GFA binary file.");
+  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEqCls, buildEdgeVec, jointLog);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir, shortRefsNameLen, refIdExtensions);
@@ -751,12 +753,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       auto& cnmap = pf.getContigNameMap() ;
       size_t ncontig = cnmap.size();
       std::vector<size_t> sampledInds ;
-      for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
+      for(auto& kv : cnmap) {
         const auto& r1 = cnmap[i];
         sampledInds.clear();
-        computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
+        computeSampledPositions(len, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(r1.length) ;
+        contigLengths.push_back(len) ;
       }
       jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
       jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
@@ -984,12 +986,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     {
       auto& cnmap = pf.getContigNameMap() ;
       std::vector<size_t> sampledInds ;
-      for(auto& kv : cnmap){
-        auto& r1 = kv.second ;
+      for(uint64_t idx = 0; idx < cnmap.size(); idx++){
+        auto len = pf.getContigLength(idx);
         sampledInds.clear();
-        computeSampledPositionsLossy(r1.length, k, sampleSize, sampledInds) ;
+        computeSampledPositionsLossy(len, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(r1.length) ;
+        contigLengths.push_back(len) ;
       }
       jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
       jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;

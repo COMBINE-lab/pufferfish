@@ -170,7 +170,7 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
     auto console = spdlog::stderr_color_mt("console");
     // NOTE: Should the false argument below be a command line option?
     // that is, should we consider building the edge vector here?
-    pufferfish::BinaryGFAReader pf(validateOpts.gfaFileName.c_str(), k-1, false, console);
+    pufferfish::BinaryGFAReader pf(validateOpts.gfaFileName.c_str(), k-1, false, false, console);
     pf.parseFile() ;
 
     auto& seq = pi.getSeq() ;
@@ -179,8 +179,8 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
     auto& contigid2seq = pf.getContigNameMap() ;
 
     //auto& paths = pf.getPaths() ;
-    for(auto& ctg : contigid2seq){
-      auto& ctgInfo = ctg.second ;
+    for(uint64_t idx = 0; idx < contigid2seq.size(); idx++){
+      auto ctgInfo = pufferfish::util::PackedContigInfo(idx, contigid2seq[idx], pf.getContigLength(idx));//ctg.second ;
 
       uint64_t kbi, kei ;
       kbi = seq.get_int(2*ctgInfo.offset, 2*k) ;
