@@ -100,9 +100,6 @@ public:
   void serializeContigTable(const std::string& odir,
           const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
           const std::vector<uint32_t>& refIdExtensions);
-    uint64_t getContigLength(uint64_t i) {
-        return (i < contigid2seq.size()-1?contigid2seq[i+1]:rankVec_.size()) - contigid2seq[i];
-    }
 
     void deserializeContigTable();
   // void writeFile(std::string fileName);
