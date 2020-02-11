@@ -106,6 +106,7 @@ int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& valida
   uint64_t totalKmersSearched{0};
   uint64_t validCnt = pi.getIndexedRefCount();
   for (uint64_t i = 0; i < validCnt; i++) {
+  
     auto refLen = pi.refLength(i);
     uint32_t posWithinRef{0};
 
