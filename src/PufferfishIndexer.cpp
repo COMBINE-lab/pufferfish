@@ -751,7 +751,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     //fill up optimal positions
     {
       auto& cnmap = pf.getContigNameMap() ;
-      //size_t ncontig = cnmap.size();
+      size_t ncontig = cnmap.size();
       std::vector<size_t> sampledInds ;
       for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
         const auto& r1 = cnmap[i];
