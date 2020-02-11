@@ -81,13 +81,15 @@ namespace pufferfish {
         return ret;
     }
 
-    BinaryGFAReader::BinaryGFAReader(const char *binDir, size_t input_k, bool buildEdgeVec,
+    BinaryGFAReader::BinaryGFAReader(const char *binDir, size_t input_k,
+                                     bool buildEqClses, bool buildEdgeVec,
                                      std::shared_ptr<spdlog::logger> logger) {
         logger_ = logger;
         filename_ = std::string(binDir);
         logger_->info("Setting the index/BinaryGfa directory {}", binDir);
         k = input_k;
         buildEdgeVec_ = buildEdgeVec;
+        buildEqClses_ = buildEqClses;
         {
             CLI::AutoTimer timer{"Loading contigs", CLI::Timer::Big};
             std::string bfile = filename_ + "/seq.bin";
@@ -325,13 +327,10 @@ namespace pufferfish {
                                                const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
                                                const std::vector<uint32_t>& refIdExtensions) {
         std::string ofile = odir + "/ctable.bin";
-        std::string eqfile = odir + "/eqtable.bin";
         std::string rlfile = odir + "/reflengths.bin";
         std::ofstream ct(ofile);
-        std::ofstream et(eqfile);
         std::ofstream rl(rlfile);
         cereal::BinaryOutputArchive ar(ct);
-        cereal::BinaryOutputArchive eqAr(et);
         cereal::BinaryOutputArchive rlAr(rl);
         decltype(refLengths) tmpRefLen;
         tmpRefLen.reserve(refLengths.size() + shortRefsNameLen.size());
@@ -395,40 +394,44 @@ namespace pufferfish {
             std::vector<uint32_t> eqIDs;
             //std::vector<std::vector<pufferfish::util::Position>> cpos;
 
-            // Compute sizes to reserve
-            uint64_t offset = 0;
-            for (uint64_t idx = 0; idx < cpos_offsets->size(); idx++) {
-                std::vector<uint32_t> tlist;
-                while (offset < (*cpos_offsets)[idx]) {
-                    tlist.push_back(contig2pos[offset].transcript_id());
-                    offset++;
+            // Build and store equivalence classes
+            if (buildEqClses_) {
+                std::string eqfile = odir + "/eqtable.bin";
+                std::ofstream et(eqfile);
+                cereal::BinaryOutputArchive eqAr(et);
+                uint64_t offset = 0;
+                for (uint64_t idx = 0; idx < cpos_offsets->size(); idx++) {
+                    std::vector<uint32_t> tlist;
+                    while (offset < (*cpos_offsets)[idx]) {
+                        tlist.push_back(contig2pos[offset].transcript_id());
+                        offset++;
+                    }
+                    std::sort(tlist.begin(), tlist.end());
+                    tlist.erase(std::unique(tlist.begin(), tlist.end()), tlist.end());
+                    auto eqID = static_cast<uint32_t >(eqMap.size());
+                    if (eqMap.contains(tlist)) {
+                        eqID = eqMap[tlist];
+                    } else {
+                        eqMap[tlist] = eqID;
+                    }
+                    eqIDs.push_back(eqID);
                 }
-                std::sort(tlist.begin(), tlist.end());
-                tlist.erase(std::unique(tlist.begin(), tlist.end()), tlist.end());
-                auto eqID = static_cast<uint32_t >(eqMap.size());
-                if (eqMap.contains(tlist)) {
-                    eqID = eqMap[tlist];
-                } else {
-                    eqMap[tlist] = eqID;
+                logger_->info("there were {:n}  equivalence classes", eqMap.size());
+                eqAr(eqIDs);
+                eqIDs.clear();
+                eqIDs.shrink_to_fit();
+                std::vector<std::vector<uint32_t>> eqLabels;
+                eqLabels.reserve(eqMap.size());
+                for (auto &kv : eqMap) {
+                    eqLabels.push_back(kv.first);
                 }
-                eqIDs.push_back(eqID);
+                std::sort(eqLabels.begin(), eqLabels.end(),
+                          [&](const std::vector<uint32_t> &l1,
+                              const std::vector<uint32_t> &l2) -> bool {
+                              return eqMap[l1] < eqMap[l2];
+                          });
+                eqAr(eqLabels);
             }
-            logger_->info("there were {:n}  equivalence classes", eqMap.size());
-            eqAr(eqIDs);
-            eqIDs.clear();
-            eqIDs.shrink_to_fit();
-            std::vector<std::vector<uint32_t>> eqLabels;
-            eqLabels.reserve(eqMap.size());
-            for (auto &kv : eqMap) {
-                eqLabels.push_back(kv.first);
-            }
-            std::sort(eqLabels.begin(), eqLabels.end(),
-                      [&](const std::vector<uint32_t> &l1,
-                          const std::vector<uint32_t> &l2) -> bool {
-                          return eqMap[l1] < eqMap[l2];
-                      });
-            eqAr(eqLabels);
-
             ar(contig2pos);
             {
               std::string fname = odir + "/" + pufferfish::util::CONTIG_OFFSETS;

@@ -68,6 +68,7 @@ private:
   std::vector<stx::string_view> split(stx::string_view str, char delims);
 
   bool buildEdgeVec_{false};
+  bool buildEqClses_{false};
   std::shared_ptr<spdlog::logger> logger_{nullptr};
   compact::vector<uint64_t>* cpos_offsets;
 
@@ -76,7 +77,8 @@ public:
   std::vector<pufferfish::util::Position> contig2pos;
 
   BinaryGFAReader(const char* gfaFileName, size_t input_k,
-            bool buildEdgeVEc, std::shared_ptr<spdlog::logger> logger);
+            bool buildEqClses, bool buildEdgeVEc,
+            std::shared_ptr<spdlog::logger> logger);
 
   /*void encodeSeq(sdsl::int_vector<2>& seqVec, size_t offset,
                  stx::string_view str);

@@ -24,6 +24,7 @@ public:
   uint32_t lossy_rate{5};
   int32_t filt_size{-1};
   bool buildEdgeVec{false};
+  bool buildEqCls{false};
   std::string twopaco_tmp_dir{""};
 };
 

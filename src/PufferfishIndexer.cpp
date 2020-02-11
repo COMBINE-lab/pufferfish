@@ -324,6 +324,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   std::string outdir = indexOpts.outdir;
   std::string gfa_file = indexOpts.outdir;
   bool buildEdgeVec = indexOpts.buildEdgeVec;
+  bool buildEqCls = indexOpts.buildEqCls;
   bool keepFixedFasta = indexOpts.keep_fixed_fasta;
   std::vector<uint32_t> refIdExtensions;
   std::vector<std::pair<std::string, uint16_t>> shortRefsNameLen;
@@ -475,7 +476,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   }
 
   jointLog->info("Starting the Pufferfish indexing by reading the GFA binary file.");
-  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, jointLog);
+  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEqCls, buildEdgeVec, jointLog);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir, shortRefsNameLen, refIdExtensions);
