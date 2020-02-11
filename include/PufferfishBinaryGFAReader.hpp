@@ -35,10 +35,9 @@ private:
     std::string id;
   };
 
-//  spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo>
-  std::vector<uint64_t>
-      contigid2seq; // map of contig_id to # of letters in contig (contig
-                    // length)
+
+  pufferfish::util::PackedContigInfoVec contigid2seq;
+  
   // path maps each transcript_id to a pair of <contig_id, orientation>
   // orientation : +/true main, -/false reverse
   spp::sparse_hash_map<uint64_t, std::vector<std::pair<uint64_t, bool>>> path;
@@ -85,8 +84,9 @@ public:
   */ 
   void encodeSeq(compact::vector<uint64_t, 2>& seqVec, size_t offset,
                  stx::string_view str);
-//  spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo>&
-  std::vector<uint64_t> & getContigNameMap();
+
+  //spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo>& getContigNameMap();
+  pufferfish::util::PackedContigInfoVec& getContigNameMap();
 
   std::vector<std::string>& getRefIDs();
   std::vector<uint32_t>& getRefLengths();
@@ -100,9 +100,6 @@ public:
   void serializeContigTable(const std::string& odir,
           const std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
           const std::vector<uint32_t>& refIdExtensions);
-    uint64_t getContigLength(uint64_t i) {
-        return (i < contigid2seq.size()-1?contigid2seq[i+1]:rankVec_.size()) - contigid2seq[i];
-    }
 
     void deserializeContigTable();
   // void writeFile(std::string fileName);

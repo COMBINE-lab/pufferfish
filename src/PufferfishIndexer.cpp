@@ -482,13 +482,10 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   pf.serializeContigTable(outdir, shortRefsNameLen, refIdExtensions);
   {
     auto& cnmap = pf.getContigNameMap();
-    for (uint64_t idx = 0; idx < cnmap.size(); idx++) {
-//      auto& r1 = kv.second;
-//      tlen += r1.length;
-//      numKmers += r1.length - k + 1;
-      auto len = pf.getContigLength(idx);
-      tlen += len;
-      numKmers += len - k + 1;
+    for (auto& kv : cnmap) {
+      const auto& r1 = kv.second;
+      tlen += r1.length;
+      numKmers += r1.length - k + 1;
       ++nread;
     }
     jointLog->info("# segments = {:n}", nread);
@@ -757,11 +754,11 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       size_t ncontig = cnmap.size();
       std::vector<size_t> sampledInds ;
       for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
-        auto len = pf.getContigLength(i);//cnmap[i];
+        const auto& r1 = cnmap[i];
         sampledInds.clear();
-        computeSampledPositions(len, k, sampleSize, sampledInds) ;
+        computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(len) ;
+        contigLengths.push_back(r1.length) ;
       }
       jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
       jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
@@ -989,12 +986,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     {
       auto& cnmap = pf.getContigNameMap() ;
       std::vector<size_t> sampledInds ;
-      for(uint64_t idx = 0; idx < cnmap.size(); idx++){
-        auto len = pf.getContigLength(idx);
+      for(auto& kv : cnmap){
+        auto& r1 = kv.second ;
         sampledInds.clear();
-        computeSampledPositionsLossy(len, k, sampleSize, sampledInds) ;
+        computeSampledPositionsLossy(r1.length, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(len) ;
+        contigLengths.push_back(r1.length) ;
       }
       jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
       jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;

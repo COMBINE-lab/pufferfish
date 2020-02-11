@@ -130,15 +130,16 @@ namespace pufferfish {
         rankSelDict.reset(new rank9sel(&rankVec_, rankVec_.size()));
         auto contig2seqSize = rankSelDict->rank(rankVec_.size()-1) + 1;
         std::cerr << contig2seqSize << "\n";
-        contigid2seq.resize(contig2seqSize);
         logger_->info("Done wrapping the rank vector with a rank9sel structure.");
+        contigid2seq = pufferfish::util::PackedContigInfoVec(
+                                        rankVec_.size(),contig2seqSize);
         while (nextPos < rankVec_.size() and nextPos != 0) {
             nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr)) + 1;// select(0) is meaningful
-            contigid2seq[contigCntr] = prevPos;// {contigCntr, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
+            contigid2seq.add(prevPos);
             prevPos = nextPos;
             contigCntr++;
         }
-        logger_->info("contig count for validation: {}", contigCntr);
+        logger_->info("contig count for validation: {:n}", contigCntr);
 
         // start and end kmer-hash over the contigs
         // might get deprecated later
@@ -152,11 +153,13 @@ namespace pufferfish {
             refIdLen = 0;
             file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
             if (!file.good()) break;
-            char* temp = new char[refIdLen+1];
-            file.read(temp, refIdLen);
-            temp[refIdLen] = '\0';
-            refId = temp;
-            delete [] temp;
+            refId.assign(refIdLen+1, '\0');
+            //char* temp = new char[refIdLen+1];
+            //file.read(temp, refIdLen);
+            file.read(&(refId[0]), refIdLen);
+            //temp[refIdLen] = '\0';
+            //refId = temp;
+            //delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
 //            std::cerr << "pathlen: " << contigCntPerPath << "\n";
 //            std::cerr << refId << " " << contigCntPerPath << "\n";
@@ -181,8 +184,7 @@ namespace pufferfish {
             uint32_t refLength{0};
             bool firstContig{true};
             for (auto &ctig : path[ref_cnt]) {
-                auto len = getContigLength(ctig.first);
-                uint64_t l = len - (firstContig ? 0 : (k - 1));
+                uint64_t l = contigid2seq[ctig.first].length - (firstContig ? 0 : (k - 1));
                 refLength += l;
                 firstContig = false;
             }
@@ -223,22 +225,24 @@ namespace pufferfish {
                     Direction nextContigDirection;
                     // If a is in the forward orientation, the last k-mer comes from the end, otherwise it is the reverse complement of the first k-mer
                     if (ore) {
+                        auto cinfo = contigid2seq[cid];
                         lastKmerInContig.fromNum(
-                                seqVec_.get_int(2 * (contigid2seq[cid] + getContigLength(cid)-k), 2 * k));// (contigid2seq[cid].offset + contigid2seq[cid].length - k), 2 * k));
+                                seqVec_.get_int(2 * (cinfo.offset + cinfo.length - k), 2 * k));
                         contigDirection = Direction::APPEND;
                     } else {
-                        lastKmerInContig.fromNum(seqVec_.get_int(2 * contigid2seq[cid], 2 * k));
+                        lastKmerInContig.fromNum(seqVec_.get_int(2 * contigid2seq[cid].offset, 2 * k));
                         lastKmerInContig.swap();
                         contigDirection = Direction::PREPEND;
                     }
 
                     // If a is in the forward orientation, the first k-mer comes from the beginning, otherwise it is the reverse complement of the last k-mer
                     if (nextore) {
-                        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * contigid2seq[nextcid], 2 * k));
+                        firstKmerInNextContig.fromNum(seqVec_.get_int(2 * contigid2seq[nextcid].offset, 2 * k));
                         nextContigDirection = Direction::PREPEND;
                     } else {
+                        auto cinfo = contigid2seq[nextcid];
                         firstKmerInNextContig.fromNum(
-                                seqVec_.get_int(2 * (contigid2seq[nextcid] + getContigLength(nextcid) - k),
+                                seqVec_.get_int(2 * (cinfo.offset + cinfo.length - k),
                                                 2 * k));
                         firstKmerInNextContig.swap();
                         nextContigDirection = Direction::APPEND;
@@ -259,8 +263,8 @@ namespace pufferfish {
         logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
     }
 
-//    spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo> &
-    std::vector<uint64_t> &
+
+    pufferfish::util::PackedContigInfoVec&
     BinaryGFAReader::getContigNameMap() {
         return contigid2seq;
     }
@@ -299,7 +303,8 @@ namespace pufferfish {
                 contig2pos[cposOffsetvec[contig.first]].update(tr, pos, contig.second);
 //                std::cerr << cposOffsetvec[contig.first] << ":" << tr << " " << contig2pos[cposOffsetvec[contig.first]].transcript_id() << "\n";
                 cposOffsetvec[contig.first]++;
-                currContigLength = getContigLength(contig.first);
+                currContigLength = contigid2seq[contig.first].length;
+                //currContigLength = getContigLength(contig.first);
                 accumPos += currContigLength - k;
             }
         }
