@@ -184,8 +184,7 @@ namespace pufferfish {
             uint32_t refLength{0};
             bool firstContig{true};
             for (auto &ctig : path[ref_cnt]) {
-                auto len = getContigLength(ctig.first);
-                uint64_t l = len - (firstContig ? 0 : (k - 1));
+                uint64_t l = contigid2seq[ctig.first].length - (firstContig ? 0 : (k - 1));
                 refLength += l;
                 firstContig = false;
             }
@@ -304,7 +303,8 @@ namespace pufferfish {
                 contig2pos[cposOffsetvec[contig.first]].update(tr, pos, contig.second);
 //                std::cerr << cposOffsetvec[contig.first] << ":" << tr << " " << contig2pos[cposOffsetvec[contig.first]].transcript_id() << "\n";
                 cposOffsetvec[contig.first]++;
-                currContigLength = getContigLength(contig.first);
+                currContigLength = contigid2seq[contig.first].length;
+                //currContigLength = getContigLength(contig.first);
                 accumPos += currContigLength - k;
             }
         }
