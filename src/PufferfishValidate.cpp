@@ -180,8 +180,8 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
     auto& contigid2seq = pf.getContigNameMap() ;
 
     //auto& paths = pf.getPaths() ;
-    for(uint64_t idx = 0; idx < contigid2seq.size(); idx++){
-      auto ctgInfo = pufferfish::util::PackedContigInfo(idx, contigid2seq[idx], pf.getContigLength(idx));//ctg.second ;
+    for(auto& ctg : contigid2seq){
+      auto& ctgInfo = ctg.second ;
 
       uint64_t kbi, kei ;
       kbi = seq.get_int(2*ctgInfo.offset, 2*k) ;
