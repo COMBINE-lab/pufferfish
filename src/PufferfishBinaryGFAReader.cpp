@@ -132,8 +132,7 @@ namespace pufferfish {
         std::cerr << contig2seqSize << "\n";
         logger_->info("Done wrapping the rank vector with a rank9sel structure.");
         contigid2seq = pufferfish::util::PackedContigInfoVec(
-                                        rankVec_.size(), 
-                                        static_cast<uint64_t>(rankSelDict->rank(rankVec_.size()-1)));
+                                        rankVec_.size(),contig2seqSize);
         while (nextPos < rankVec_.size() and nextPos != 0) {
             nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr)) + 1;// select(0) is meaningful
             contigid2seq.add(prevPos);
