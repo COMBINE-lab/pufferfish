@@ -481,7 +481,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   {
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {
-      auto& r1 = kv.second;
+      const auto& r1 = kv.second;
       tlen += r1.length;
       numKmers += r1.length - k + 1;
       ++nread;
@@ -752,7 +752,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       size_t ncontig = cnmap.size();
       std::vector<size_t> sampledInds ;
       for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
-        auto& r1 = cnmap[i];
+        const auto& r1 = cnmap[i];
         sampledInds.clear();
         computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;

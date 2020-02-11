@@ -1063,6 +1063,84 @@ Compile-time selection between list-like and map-like printing.
             uint32_t length;
         };
 
+        struct PackedContigInfoVec {
+          uint64_t useq_len_{0};
+          std::unique_ptr<std::vector<uint64_t>> data_{nullptr};
+
+          PackedContigInfoVec() {}
+
+          PackedContigInfoVec(uint64_t useq_len,
+                              size_t ncontig) {
+            useq_len_ = useq_len;
+            data_.reset(new std::vector<uint64_t>);
+            data_->reserve(ncontig);
+          }
+
+          void add(uint64_t o) { data_->push_back(o); }
+
+          PackedContigInfo operator[](uint64_t i) const {
+            uint32_t len = (i < data_->size() - 1)
+                               ? ((*data_)[i + 1] - (*data_)[i])
+                               : (useq_len_ - (*data_)[i]);
+            return PackedContigInfo{i, (*data_)[i], len};
+          }
+
+          void clear() {
+            useq_len_ = 0;
+            data_->clear();
+            data_->shrink_to_fit();
+            data_.reset(nullptr);
+          }
+
+          size_t size() { return data_->size(); }
+
+          struct PackedContigInfoVecIterator {
+            const PackedContigInfoVec* pci_{nullptr};
+            uint64_t it{std::numeric_limits<uint64_t>::max()};
+            std::pair<uint64_t, PackedContigInfo> p_;
+
+            PackedContigInfoVecIterator& operator++() {
+              ++it;
+              return *this;
+            }
+
+            bool operator==(const PackedContigInfoVecIterator& o) const {
+              return it == o.it;
+            }
+
+            bool operator!=(const PackedContigInfoVecIterator& other) const {
+              return !(*this == other);
+            }
+
+            std::pair<uint64_t, PackedContigInfo>& operator*() {
+              p_.second = (*pci_)[it];
+              p_.first = it;
+              return p_;
+            }
+          };
+
+          const PackedContigInfoVecIterator find(uint64_t idx) const {
+            PackedContigInfoVecIterator i;
+            i.pci_ = this;
+            i.it = (idx >= data_->size()) ? data_->size() : idx;
+            return i;
+          }
+
+          const PackedContigInfoVecIterator begin() const {
+            PackedContigInfoVecIterator i;
+            i.pci_ = this;
+            i.it = 0;
+            return i;
+          }
+
+          const PackedContigInfoVecIterator end() const {
+            PackedContigInfoVecIterator i;
+            i.pci_ = this;
+            i.it = data_->size();
+            return i;
+          }
+        };
+
         struct RefPos {
             uint32_t pos;
             bool isFW;

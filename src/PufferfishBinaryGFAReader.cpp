@@ -127,13 +127,17 @@ namespace pufferfish {
         std::unique_ptr<rank9sel> rankSelDict{nullptr};
         rankSelDict.reset(new rank9sel(&rankVec_, rankVec_.size()));
         logger_->info("Done wrapping the rank vector with a rank9sel structure.");
+        contigid2seq = pufferfish::util::PackedContigInfoVec(
+                                        rankVec_.size(), 
+                                        static_cast<uint64_t>(rankSelDict->rank(rankVec_.size()-1)));
         while (nextPos < rankVec_.size() and nextPos != 0) {
             nextPos = static_cast<uint64_t>(rankSelDict->select(contigCntr)) + 1;// select(0) is meaningful
-            contigid2seq[contigCntr] = {contigCntr, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
+            contigid2seq.add(prevPos);
+            //contigid2seq[contigCntr] = {contigCntr, prevPos, static_cast<uint32_t>(nextPos-prevPos)};
             prevPos = nextPos;
             contigCntr++;
         }
-        logger_->info("contig count for validation: {}", contigCntr);
+        logger_->info("contig count for validation: {:n}", contigCntr);
 
         // start and end kmer-hash over the contigs
         // might get deprecated later
@@ -147,11 +151,13 @@ namespace pufferfish {
             refIdLen = 0;
             file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
             if (!file.good()) break;
-            char* temp = new char[refIdLen+1];
-            file.read(temp, refIdLen);
-            temp[refIdLen] = '\0';
-            refId = temp;
-            delete [] temp;
+            refId.assign(refIdLen+1, '\0');
+            //char* temp = new char[refIdLen+1];
+            //file.read(temp, refIdLen);
+            file.read(&(refId[0]), refIdLen);
+            //temp[refIdLen] = '\0';
+            //refId = temp;
+            //delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
 //            std::cerr << "pathlen: " << contigCntPerPath << "\n";
 //            std::cerr << refId << " " << contigCntPerPath << "\n";
@@ -253,7 +259,8 @@ namespace pufferfish {
         logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
     }
 
-    spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo> &
+    //spp::sparse_hash_map<uint64_t, pufferfish::util::PackedContigInfo> &
+    pufferfish::util::PackedContigInfoVec&
     BinaryGFAReader::getContigNameMap() {
         return contigid2seq;
     }
