@@ -305,7 +305,7 @@ namespace pufferfish {
         }
         // We need the +1 here because we store the last entry that is 1 greater than the last offset
         // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
-        cpos_offsets = new compact::vector<uint64_t>(w, contigid2seq.size()+1);
+        cpos_offsets.reset(new compact::vector<uint64_t>(w, contigid2seq.size()+1));
         cpos_offsets->clear_mem();
         (*cpos_offsets)[0] = 0;
         for (uint64_t i = 0; i < cpos_offsets->size()-1; i++) {
@@ -320,6 +320,7 @@ namespace pufferfish {
         refMap.clear(); refMap.shrink_to_fit();
         refLengths.clear(); refLengths.shrink_to_fit();
         contig2pos.clear(); contig2pos.shrink_to_fit();
+        cpos_offsets.reset(nullptr);
     }
 
 // Note : We assume that odir is the name of a valid (i.e., existing) directory.

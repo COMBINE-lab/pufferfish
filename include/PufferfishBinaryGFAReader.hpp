@@ -69,7 +69,7 @@ private:
   bool buildEdgeVec_{false};
   bool buildEqClses_{false};
   std::shared_ptr<spdlog::logger> logger_{nullptr};
-  compact::vector<uint64_t>* cpos_offsets;
+  std::unique_ptr<compact::vector<uint64_t>> cpos_offsets{nullptr};
 
 public:
 //  spp::sparse_hash_map<uint64_t, std::vector<pufferfish::util::Position>>

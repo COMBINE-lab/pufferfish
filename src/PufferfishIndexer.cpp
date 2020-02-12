@@ -8,6 +8,7 @@
 #include <bitset>
 #include <cerrno>
 #include <cstring>
+#include <memory>
 #include <cereal/archives/binary.hpp>
 #include "ghc/filesystem.hpp"
 
@@ -595,8 +596,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
   auto keyIt = boomphf::range(kb, ke);
-  boophf_t* bphf =
-      new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
+  std::unique_ptr<boophf_t> bphf = std::make_unique<boophf_t>(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
   jointLog->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
 
 /*  std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);

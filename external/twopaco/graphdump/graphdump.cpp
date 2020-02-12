@@ -919,10 +919,9 @@ int dumpGraphMain(std::vector<std::string>& args){//}int argc, char *argv[]) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
             }
 
-            auto * g = new Gfa1Generator();
+            std::unique_ptr<Gfa1Generator> g = std::make_unique<Gfa1Generator>();
             GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
-                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g);
-            delete g;
+                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g.get());
         } else if (outputFileFormat.getValue() == format[7]) { // binPufferized
             if (!seqFileName.isSet()) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
@@ -930,13 +929,12 @@ int dumpGraphMain(std::vector<std::string>& args){//}int argc, char *argv[]) {
             if (!seqAndRankOutputDir.isSet()) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "SeqRankDirPrefix");
             }
-            auto * g = new Gfa1BinaryGenerator();
+            std::unique_ptr<Gfa1BinaryGenerator> g = std::make_unique<Gfa1BinaryGenerator>();
             std::ofstream pfile(seqAndRankOutputDir.getValue()+"/path.bin", std::ofstream::binary);
             g->setOStream(&pfile);
            GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
-                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g);
+                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g.get());
            pfile.close();
-           delete g;
         }
     }
     catch (TCLAP::ArgException &e) {

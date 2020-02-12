@@ -93,7 +93,7 @@ namespace compact {
             }
 
             explicit vector(Allocator allocator = Allocator())
-                    : vector(0, 0, allocator) {}
+                    : vector(0, 0, allocator) { }
 
             ~vector() {
                 if (!ro_mmap.is_mapped()) {
@@ -181,8 +181,9 @@ namespace compact {
             uint64_t *get_words() const { return m_mem; }
 
             void push_back(IDX x) {
-                if (m_size == m_capacity)
+                if (m_size == m_capacity) {
                     enlarge();
+                }
                 *end() = x;
                 ++m_size;
             }
@@ -347,8 +348,9 @@ namespace compact {
             }
 
             void reserve(size_t m) {
+                m_allocator.deallocate(m_mem, elements_to_words(m_capacity, bits()));
                 m_capacity = m;
-                m_mem = m_allocator.allocate(elements_to_words(m, BITS));
+                m_mem = m_allocator.allocate(elements_to_words(m, bits()));
             }
 
             void resize(size_t m) {
@@ -370,10 +372,10 @@ namespace compact {
         protected:
             void enlarge() {
                 const size_t new_capacity = std::max(m_capacity * 2, (size_t) 1);
-                W *new_mem = m_allocator.allocate(new_capacity);
+                W *new_mem = m_allocator.allocate(elements_to_words(new_capacity, bits()));
                 if (new_mem == nullptr) throw std::bad_alloc();
                 std::copy(m_mem, m_mem + elements_to_words(m_capacity, bits()), new_mem);
-                m_allocator.deallocate(m_mem, m_capacity);
+                m_allocator.deallocate(m_mem, elements_to_words(m_capacity, bits()));
                 m_mem = new_mem;
                 m_capacity = new_capacity;
             }

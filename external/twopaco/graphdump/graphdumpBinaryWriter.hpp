@@ -116,7 +116,7 @@ public:
     }
 
     void addSeq(const std::string &inval) {
-//        std::cerr << seqVec_.capacity() << " " << seqVec_.size() << " ";
+        //std::cerr << seqVec_.capacity() << " " << seqVec_.size() << " ";
 
         for (size_t i = 0; i < inval.size(); ++i) {
             uint16_t c = 0;

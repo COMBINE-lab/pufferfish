@@ -81,7 +81,7 @@ struct gs {
 
     return res;
   }
-  static inline IDX get(const W* p, unsigned b, unsigned o) { return get(p, o); }
+  static inline IDX get(const W* p, unsigned b, unsigned o) { (void)(b); return get(p, o); }
 
   template<bool TS>
   static void set(IDX x, W* p, unsigned o) {
@@ -97,7 +97,7 @@ struct gs {
     }
   }
   template<bool TS>
-  static inline IDX set(IDX x, W* p, unsigned b, unsigned o) { return set(x, p, o); }
+  static inline IDX set(IDX x, W* p, unsigned b, unsigned o) { (void)(b); return set(x, p, o); }
 
   // Do a CAS at position p, offset o and number of bits b. Expect value
   // exp and set value x. It takes care of the tricky case when the
@@ -130,6 +130,7 @@ struct gs {
     return res;
   }
   static inline bool cas(const IDX x, const IDX exp, W* p, unsigned b, unsigned o) {
+    (void)(b);
     return cas(x, exp, p, o);
   }
 
@@ -648,7 +649,7 @@ class lhs_setter
 
 public:
   lhs_setter(W* p, int o) : super(p, o) { }
-  lhs_setter(W* p, unsigned bits, int o) : super(p, o) { }
+  lhs_setter(W* p, unsigned bits, int o) : super(p, o) { (void)(bits); }
   lhs_setter& operator=(const IDX x) {
     gs<IDX, BITS, W, UB>::template set<TS>(x, super::ptr, super::offset);
     return *this;
@@ -830,7 +831,7 @@ public:
   const_iterator(const W* p, unsigned o)
     : m_ptr(p), m_offset(o) { }
   const_iterator(const W* p, unsigned b, unsigned o)
-    : m_ptr(p), m_offset(o) { }
+    : m_ptr(p), m_offset(o) { (void)(b); }
   const_iterator(const const_iterator& rhs)
     : m_ptr(rhs.m_ptr), m_offset(rhs.m_offset) { }
   template<bool TS>
