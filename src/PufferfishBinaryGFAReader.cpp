@@ -153,7 +153,7 @@ namespace pufferfish {
             refIdLen = 0;
             file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
             if (!file.good()) break;
-            refId.assign(refIdLen+1, '\0');
+            refId.assign(refIdLen, '\0');
             //char* temp = new char[refIdLen+1];
             //file.read(temp, refIdLen);
             file.read(&(refId[0]), refIdLen);
