@@ -154,12 +154,7 @@ namespace pufferfish {
             file.read(reinterpret_cast<char *>(&refIdLen), refIdSize);
             if (!file.good()) break;
             refId.assign(refIdLen, '\0');
-            //char* temp = new char[refIdLen+1];
-            //file.read(temp, refIdLen);
             file.read(&(refId[0]), refIdLen);
-            //temp[refIdLen] = '\0';
-            //refId = temp;
-            //delete [] temp;
             file.read(reinterpret_cast<char *>(&contigCntPerPath), sizeof(contigCntPerPath));
 //            std::cerr << "pathlen: " << contigCntPerPath << "\n";
 //            std::cerr << refId << " " << contigCntPerPath << "\n";
@@ -310,7 +305,7 @@ namespace pufferfish {
         }
         // We need the +1 here because we store the last entry that is 1 greater than the last offset
         // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
-        cpos_offsets = new compact::vector<uint64_t>(w, contigid2seq.size());
+        cpos_offsets = new compact::vector<uint64_t>(w, contigid2seq.size()+1);
         cpos_offsets->clear_mem();
         (*cpos_offsets)[0] = 0;
         for (uint64_t i = 0; i < cpos_offsets->size()-1; i++) {
