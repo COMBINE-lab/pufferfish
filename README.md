@@ -99,8 +99,7 @@ There are also optional parameters including `-k` (setting the kmer size -- defa
 To align a set of paired-end reads to the reference one can use
 the following command:
 ```
-pufferfish align -i <pufferfish_index> -1 <readfile1>
--2 <readfile2> -o <outputfile> 
+pufferfish align -i <pufferfish_index> -1 <readfile1> -2 <readfile2> -o <outputfile> 
 ```
 The input read files can be compressed or uncompressed `fastq` files
 
