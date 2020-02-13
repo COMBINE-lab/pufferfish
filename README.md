@@ -76,8 +76,12 @@ Because we use this as a library instead of an executable, and to avoid an exter
 We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) 
 and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. 
 So it is required to install these libraries on the system.
+However, we also have the selected libraries from seqlib that we use
+bundled with pufferfish repo, 
+so the installation should work 
+without any difficulties.
 
-### Core Operations
+#### Core Operations
 
 **Building a pufferfish index**
 
@@ -92,7 +96,25 @@ There are also optional parameters including `-k` (setting the kmer size -- defa
 
 **Aligning via Puffaligner**
 
-We can generate different types of output including sam. 
+To align a set of paired-end reads to the reference one can use
+the following command:
+```
+pufferfish align -i <pufferfish_index> -1 <readfile1>
+-2 <readfile2> -o <outputfile> 
+```
+The input read files can be compressed or uncompressed `fastq` files
 
-If you have samtools installed on your system you can run the first command in the puff_align.bash file to generate a bam file for mapping a set of reads to the pufferfish index. The rest of the commands do quantification on the bam file using Salmon and then validation of the results on reference set and taxonomic tree using two python scripts in scripts section.
+We can generate different types of output including sam.
+For used in Salmon there is an efficient binary format 
+which we call pam that can be generated using the option `-p`.
+There are a variety of optional choices for changing the
+default thresholds for allowing more alignments, 
+higher or lower scored alignments, only the best, or only one
+best alignment, orphans, discordants etc. 
 
+---
+***Pufferfish* is now the main and only index used in Salmon
+(https://github.com/COMBINE-lab/salmon.git)
+and Puffaligner is the alignment method called in case
+of read quantification rather than alignment quantification
+in Salmon.**
