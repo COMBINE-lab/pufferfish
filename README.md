@@ -68,20 +68,12 @@ To build the pufferfish/puffaligner do the following,
 
 **Programs used within pufferfish**
 
-Building a pufferfish index requires first having a compacted de Bruijn graph, for which we use a modified version of [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo).  
-However, some modification of the TwoPaCo output is required for pufferfish to properly index the graph (e.g. a k-mer must appear at most once in the graph and palindromic contigs output by TwoPaCo must be removed).  
-Thus we rely on a modified version of TwoPaCo which we bundle with pufferfish in the `external` directory.
+Building a pufferfish index requires first having a compacted de Bruijn graph, for which we use a modified version of [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo). However, some modification of the TwoPaCo output is required for pufferfish to properly index the graph (e.g. a k-mer must appear at most once in the graph and palindromic contigs output by TwoPaCo must be removed). Thus we rely on a modified version of TwoPaCo which we bundle with pufferfish in the `external` directory.
 
-To choose an appropriate filter size to pass to TwoPaCo to build the compacted dBG, we make use the the hyper-log-log implementation of [ntCard](https://github.com/bcgsc/ntCard).  
-Because we use this as a library instead of an executable, and to avoid an external dependency to simply call one function, we bundle a modified version of that code with pufferfish and also include it in the `external` directory.
+To choose an appropriate filter size to pass to TwoPaCo to build the compacted dBG, we make use the the hyper-log-log implementation of [ntCard](https://github.com/bcgsc/ntCard). Because we use this as a library instead of an executable, and to avoid an external dependency to simply call one function, we bundle a modified version of that code with pufferfish and also include it in the `external` directory.
 
-We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) 
-and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. 
-So it is required to install these libraries on the system.
-However, we also have the selected libraries from seqlib that we use
-bundled with pufferfish repo, 
-so the installation should work 
-without any difficulties.
+We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. So it is required to install these libraries on the system.
+However, we also have the selected libraries from seqlib that we use bundled with pufferfish repo, so the installation should work without any difficulties.
 
 #### Core Operations
 
@@ -100,22 +92,19 @@ There are also optional parameters including `-k` (setting the kmer size -- defa
 
 To align a set of paired-end reads to the reference one can use
 the following command:
+
 ```
 pufferfish align -i <pufferfish_index> -1 <readfile1> -2 <readfile2> -o <outputfile> 
 ```
+
 The input read files can be compressed or uncompressed `fastq` files
 
-We can generate different types of output including sam.
-For used in Salmon there is an efficient binary format 
-which we call pam that can be generated using the option `-p`.
-There are a variety of optional choices for changing the
-default thresholds for allowing more alignments, 
-higher or lower scored alignments, only the best, or only one
-best alignment, orphans, discordants etc. 
+Puffaligner can generate different types of output including [SAM format](https://samtools.github.io/hts-specs/SAMv1.pdf).
+There is also an efficient binary format, which we call pam that can be generated using the option `-p`.
+
+There are a variety of optional choices for changing the default thresholds for allowing more alignments, higher or lower scored alignments, only the best, or only one best alignment, orphans, discordants etc. 
 
 ---
-***Pufferfish* is now the main and only index used in Salmon
-(https://github.com/COMBINE-lab/salmon.git)
-and Puffaligner is the alignment method called in case
-of read quantification rather than alignment quantification
-in Salmon.**
+
+***Pufferfish* is now the main (and only) index used in [Salmon](https://github.com/COMBINE-lab/salmon.git) when
+it is tun in mapping-based mode (i.e. with selective-alignment).**
