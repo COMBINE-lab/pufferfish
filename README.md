@@ -1,8 +1,38 @@
-# Index
+# Content
+ * [What is puffaligner?](#puffaligner)
  * [What is pufferfish?](#whatis)
- * [Using pufferfish?](#using)
+ * [How to install?](#building)
+ * [How to use?](#using)
+
+## Puffaligner <a name="puffaligner"></a>
+Puffaligner is a fast, memory-efficient and highly accurate aligner 
+on top of the Pufferfish index 
+that is based on a seed and extend approach.
+
+It supports aligning to transcriptome as well as genome.
+One can also use this to align reads to a collection of genomes (or/and transcriptomes).
+
+Another feature of the aligner is introducing a list of decoys
+along with the main sequences to the index.
+ A read is discarded if it
+aligns better to a decoy sequence rather than a sequence in the main list.
+One of the usecases of such feature is in improving the
+transcript alignment accuracy in case of retained introns.
+
+
+The main steps in the aligner are:
+1. find the first unmapped kmer from the read in the pufferfish index
+2. extend the mapping to MEM (Maximal Extended Match) between read and index
+3. repeat 1 and 2 for the next MEM until reaching the end of the read
+4. find the best chain of the MEMs (adopted from minimap2 chaining)
+5. align the gaps between the MEMs and at the edges of the read
+6. find the best pair of the reads in case of paired-end
+7. recover orphans.
+
+There are a series of heuristics and best-practices used
+to improve both the performance and accuracy of the results.
  
-# What is pufferfish? <a name="whatis"></a>
+## What is Pufferfish? <a name="whatis"></a>
 
 **short answer** : Pufferfish is a new time and memory-efficient data structure for indexing a compacted, colored de Bruijn graph (ccdBG).  You can read more about pufferfish in the [paper](https://academic.oup.com/bioinformatics/article/34/13/i169/5045749), which appeared at ISMB 2018.
 
@@ -12,7 +42,7 @@ Though the de Bruijn Graph (dBG) has enjoyed tremendous popularity as an assembl
 While existing hash-based indices based on the cdBG (and ccdBG) are very efficient for search, they typically occupy a large amount of space in memory (both during construction and even when built). As a result, to make use of such data structures on large reference sequences (e.g., the human genome) or collections of reference sequences (e.g., in a metagenomic context), one typically requires a very large memory machine — if the structures can be built at all. Pufferfish implements a new and much more compact data structure for indexing the ccdBG. While maintaining very efficient queries, this allows Pufferfish to index reference sequences while reducing the memory requirements considerably (by an order-of-magnitude or more). This greatly reduces the memory burden for indexing reference sequences and makes it possible to build hash-based indexes of sequences of size that were not previously feasible.
 
 **about pufferfish development:**
-Currently, Pufferfish is the software implementing this efficient ccdBG index, and allowing point (i.e., k-mer) queries.  Pufferfish is under active development, but we want to be as open (and as useful to as many people) as possible early on. However, we are also in the process of building higher-level tools (e.g., read mappers and aligners) around this index, so stay tuned!
+Currently, Pufferfish is the software implementing this efficient ccdBG index, and allowing point (i.e., k-mer) queries.  Pufferfish is under active development, but we want to be as open (and as useful to as many people) as possible early on. 
 
 
 **branches:**
@@ -20,8 +50,8 @@ The **master** branch of pufferfish is _not_ necessarily stable, but it should, 
 
 For more details about pufferfish, please check out our [paper](https://academic.oup.com/bioinformatics/article/34/13/i169/5045749), as well as the blog post [here](http://robpatro.com/blog/?p=494).
 
-# Building Pufferfish <a name="building"></a>
-To build the pufferfish do the following,
+## How to Install <a name="building"></a>
+To build the pufferfish/puffaligner do the following,
 
 ```
 >git clone git@github.com:COMBINE-lab/pufferfish.git
@@ -32,7 +62,7 @@ To build the pufferfish do the following,
 > make
 ```
 
-# Using Pufferfish <a name="using"></a>
+## How to Use <a name="using"></a>
 
 **Programs used within pufferfish:**
 
@@ -42,20 +72,22 @@ To choose an appropriate filter size to pass to TwoPaCo to build the compacted d
 
 We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. So it is required to install these libraries on the system as well and also update the CMakeLists.txt file in `src` directory and change the line for setting variable `SEQLIBDIR` statistically.
 
-## Core Operations
+### Core Operations
 
 **Building a pufferfish index**
 
 To build a pufferfish inded, you can use the `index` command.  It is used like so:
 
 ```
-pufferfish index -k <ksize> -r <fasta_file_to_index> -o <pufferfish index directory>
+pufferfish index -r <fasta_file_to_index> -o <pufferfish index directory>
 ```
 
-There are also optional parameters including `-s` (the ability to build a sparser and smaller index), `-p` (control the number of threads used during construction), and `-f` (to provide an explicit filter size for TwoPaCo dBG construction).
+There are also optional parameters including `-k` (setting the kmer size -- default:31)
+, `-s` (the ability to build a sparser and smaller index), `-p` (control the number of threads used during construction), and `-f` (to provide an explicit filter size for TwoPaCo dBG construction).
 
-# Mapping using Pufferfish
-We can generate different types of output including sam. If you have samtools installed on your system you can run the first command in the puff_align.bash file to generate a bam file for mapping a set of reads to the pufferfish index. The rest of the commands do quantification on the bam file using Salmon and then validation of the results on reference set and taxonomic tree using two python scripts in scripts section.
+**Aligning via Puffaligner**
 
-For the address of the reads, index, truth files, etc. you need to have a config file like `microbiome_config.json`.
+We can generate different types of output including sam. 
+
+If you have samtools installed on your system you can run the first command in the puff_align.bash file to generate a bam file for mapping a set of reads to the pufferfish index. The rest of the commands do quantification on the bam file using Salmon and then validation of the results on reference set and taxonomic tree using two python scripts in scripts section.
 
