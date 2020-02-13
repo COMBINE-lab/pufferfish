@@ -56,8 +56,8 @@ For more details about pufferfish, please check out our [paper](https://academic
 To build the pufferfish/puffaligner do the following,
 
 ```
->git clone git@github.com:COMBINE-lab/pufferfish.git
->cd pufferfish
+> git clone git@github.com:COMBINE-lab/pufferfish.git
+> cd pufferfish
 > mkdir build
 > cd build
 > cmake ../
