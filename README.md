@@ -4,7 +4,7 @@
  * [How to install?](#building)
  * [How to use?](#using)
 
-## Puffaligner <a name="puffaligner"></a>
+## What is Puffaligner <a name="puffaligner"></a>
 
 Puffaligner is a fast, sensitive and accurate aligner built on top of the Pufferfish index.
 It tries to occupy a less-well-explored position in the space of read aligners, typically 
