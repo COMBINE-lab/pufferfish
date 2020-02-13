@@ -6,7 +6,7 @@
 
 ## What is Puffaligner <a name="puffaligner"></a>
 
-Puffaligner is a fast, sensitive and accurate aligner built on top of the Pufferfish index.
+Puffaligner is a fast, sensitive and accurate aligner built on top of the [Pufferfish index](#whatis).
 It tries to occupy a less-well-explored position in the space of read aligners, typically 
 using more memory than BWT-based approaches (unless there are _highly_ repetitive references), but
 considerably less than very fast but memory-hungry aligners like STAR.  Puffaligner is based on 
