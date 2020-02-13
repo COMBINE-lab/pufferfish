@@ -5,32 +5,34 @@
  * [How to use?](#using)
 
 ## Puffaligner <a name="puffaligner"></a>
-Puffaligner is a fast, memory-efficient and highly accurate aligner 
-on top of the Pufferfish index 
-that is based on a seed and extend approach.
 
-It supports aligning to transcriptome as well as genome.
-One can also use this to align reads to a collection of genomes (or/and transcriptomes).
+Puffaligner is a fast, sensitive and accurate aligner built on top of the Pufferfish index.
+It tries to occupy a less-well-explored position in the space of read aligners, typically 
+using more memory than BWT-based approaches (unless there are _highly_ repetitive references), but
+considerably less than very fast but memory-hungry aligners like STAR.  Puffaligner is based on 
+hashing relatively long seeds and then extending them to MEMs, and so it is very fast (typically 
+much faster than approaches based on arbitrary pattern matching in the BWT).  It takes a 
+seed -> chain -> align approach similar to [BWA-MEM](https://github.com/lh3/bwa) and [minimap2](https://github.com/lh3/minimap2).
 
-Another feature of the aligner is introducing a list of decoys
-along with the main sequences to the index.
- A read is discarded if it
-aligns better to a decoy sequence rather than a sequence in the main list.
-One of the usecases of such feature is in improving the
-transcript alignment accuracy in case of retained introns.
+It supports aligning to transcriptome as well as genome, but currently supports only contiguous 
+alignments (i.e. spliced-alignment is not yet implemented).  However, the design means that 
+one can use Puffalign to align reads to a collection of genomes (or/and transcriptomes), as well
+as to a joint index that contains both the genome and the spliced transcripts.
+
+Another feature of the aligner is introducing a list of decoys along with the main sequences to the index. A read is discarded if it aligns better to a decoy sequence rather than a sequence in the main list. One of the usecases of such feature is in improving the transcript alignment accuracy in case of retained introns, processed pseudogenes, etc..
 
 
 The main steps in the aligner are:
 1. find the first unmapped kmer from the read in the pufferfish index
-2. extend the mapping to MEM (Maximal Extended Match) between read and index
-3. repeat 1 and 2 for the next MEM until reaching the end of the read
-4. find the best chain of the MEMs (adopted from minimap2 chaining)
-5. align the gaps between the MEMs and at the edges of the read
-6. find the best pair of the reads in case of paired-end
-7. recover orphans.
+2. extend the mapping to a [uni-MEM](https://github.com/HongzheGuo/deBGA) (Maximal Extended Match on a unitig) between read and index
+3. repeat 1 and 2 for the next uni-MEM until reaching the end of the read
+4. project uni-MEMs to reference-based MEMs and compact them.
+5. find the best chain of the MEMs (adopted from [minimap2](https://github.com/lh3/minimap2) chaining)
+6. align the gaps between the MEMs and at the edges of the read
+7. find the best pair of the reads in case of paired-end
+8. recover orphans
 
-There are a series of heuristics and best-practices used
-to improve both the performance and accuracy of the results.
+There are a series of heuristics and best-practices used to improve both the performance and accuracy of the results.
  
 ## What is Pufferfish? <a name="whatis"></a>
 
