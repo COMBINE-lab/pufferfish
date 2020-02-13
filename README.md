@@ -64,19 +64,24 @@ To build the pufferfish/puffaligner do the following,
 
 ## How to Use <a name="using"></a>
 
-**Programs used within pufferfish:**
+**Programs used within pufferfish**
 
-Building a pufferfish index requires first having a compacted de Bruijn graph, for which we use a modified version of [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo).  However, some modification of the TwoPaCo output is required for pufferfish to properly index the graph (e.g. a k-mer must appear at most once in the graph and palindromic contigs output by TwoPaCo must be removed).  Thus we rely on a modified version of TwoPaCo which we bundle with pufferfish in the `external` directory.
+Building a pufferfish index requires first having a compacted de Bruijn graph, for which we use a modified version of [TwoPaCo](https://github.com/medvedevgroup/TwoPaCo).  
+However, some modification of the TwoPaCo output is required for pufferfish to properly index the graph (e.g. a k-mer must appear at most once in the graph and palindromic contigs output by TwoPaCo must be removed).  
+Thus we rely on a modified version of TwoPaCo which we bundle with pufferfish in the `external` directory.
 
-To choose an appropriate filter size to pass to TwoPaCo to build the compacted dBG, we make use the the hyper-log-log implementation of [ntCard](https://github.com/bcgsc/ntCard).  Because we use this as a library instead of an executable, and to avoid an external dependency to simply call one function, we bundle a modified version of that code with pufferfish and also include it in the `external` directory.
+To choose an appropriate filter size to pass to TwoPaCo to build the compacted dBG, we make use the the hyper-log-log implementation of [ntCard](https://github.com/bcgsc/ntCard).  
+Because we use this as a library instead of an executable, and to avoid an external dependency to simply call one function, we bundle a modified version of that code with pufferfish and also include it in the `external` directory.
 
-We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. So it is required to install these libraries on the system as well and also update the CMakeLists.txt file in `src` directory and change the line for setting variable `SEQLIBDIR` statistically.
+We are also dependent on [SeqLib](https://github.com/walaj/SeqLib) 
+and hence all the libraries that it is dependent on such as `bz2`, `lzma`, and `z` for mapping part. 
+So it is required to install these libraries on the system.
 
 ### Core Operations
 
 **Building a pufferfish index**
 
-To build a pufferfish inded, you can use the `index` command.  It is used like so:
+To build a pufferfish index, you can use the `index` command.  It is used like so:
 
 ```
 pufferfish index -r <fasta_file_to_index> -o <pufferfish index directory>
