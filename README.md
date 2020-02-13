@@ -34,7 +34,7 @@ The main steps in the aligner are:
 
 There are a series of heuristics and best-practices used to improve both the performance and accuracy of the results.
  
-## What is Pufferfish? <a name="whatis"></a>
+## What is Pufferfish <a name="whatis"></a>
 
 **short answer** : Pufferfish is a new time and memory-efficient data structure for indexing a compacted, colored de Bruijn graph (ccdBG).  You can read more about pufferfish in the [paper](https://academic.oup.com/bioinformatics/article/34/13/i169/5045749), which appeared at ISMB 2018.
 
