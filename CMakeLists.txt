@@ -188,7 +188,7 @@ if(TBB_RECONFIGURE)
     set(CMAKE_PREFIX_PATH ${GAT_SOURCE_DIR}/external/install)
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
-    find_package(TBB)
+    find_package(TBB 2018.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
 
