@@ -17,6 +17,7 @@
 
 #include "test.h"
 #include "assemblyedgeconstructor.h"
+#include "tbb/scalable_allocator.h"
 
 size_t Atoi(const char * str)
 {
@@ -159,5 +160,7 @@ int buildGraphMain(std::vector<std::string>& args)  //}int argc, char * argv[])
 		return 1;
 	}
 	
+    scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
+	scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);
 	return 0;
 }

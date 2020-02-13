@@ -6,10 +6,13 @@
 #include <vector>
 #include <sstream>
 #include <bitset>
+#include <chrono> 
 #include <cerrno>
 #include <cstring>
 #include <memory>
+#include <thread>
 #include <cereal/archives/binary.hpp>
+//#include <unistd.h>
 #include "ghc/filesystem.hpp"
 
 #include "ProgOpts.hpp"
@@ -317,6 +320,28 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
   return true;
 }
 
+/*
+void process_mem_usage(double& vm_usage, double& resident_set)
+{
+    vm_usage     = 0.0;
+    resident_set = 0.0;
+
+    // the two fields we want
+    unsigned long vsize;
+    long rss;
+    {
+        std::string ignore;
+        std::ifstream ifs("/proc/self/stat", std::ios_base::in);
+        ifs >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+                >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+                >> ignore >> ignore >> vsize >> rss;
+    }
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+    vm_usage = vsize / 1024.0;
+    resident_set = rss * page_size_kb;
+}
+*/
 
 int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
@@ -389,6 +414,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     args.push_back(outdir+"/ref_k"+std::to_string(k)+"_fixed.fa");
 
     int ffres = fixFastaMain(args, refIdExtensions, shortRefsNameLen, jointLog);
+
     if (ffres != 0) {
         jointLog->error("The fixFasta phase failed with exit code {}", ffres);
         std::exit(ffres);
@@ -396,6 +422,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     // replacing rfile with the new fixed fasta file
     rfile = outdir+"/ref_k"+std::to_string(k)+"_fixed.fa";
   }
+
+  //std::this_thread::sleep_for (std::chrono::seconds(10));
+  //double vm, rss;
+  //process_mem_usage(vm, rss);
+  //std::cerr << "\n\n after fix fasta \n";
+  //std::cerr << "VM: " << vm << "; RSS: " << rss << "\n\n";
 
   // If the filter size isn't set by the user, estimate it with ntCard
   if (indexOpts.filt_size == -1){
@@ -454,6 +486,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     ghc::filesystem::remove_all(twopaco_tmp_path);
   }
 
+  //std::this_thread::sleep_for (std::chrono::seconds(10));
+  //double vm, rss;
+  //process_mem_usage(vm, rss);
+  //std::cerr << "\n\n after build graph \n";
+  //std::cerr << "VM: " << vm << "; RSS: " << rss << "\n\n";
+
   {
     std::vector<std::string> args;
     args.push_back("graphdump");
@@ -475,6 +513,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       ghc::filesystem::remove(tmpDBG);
     }
   }
+
+  //std::this_thread::sleep_for (std::chrono::seconds(10));
+  //process_mem_usage(vm, rss);
+  //std::cerr << "\n\n after graph dump \n";
+  //std::cerr << "VM: " << vm << "; RSS: " << rss << "\n\n";
+
 
   jointLog->info("Starting the Pufferfish indexing by reading the GFA binary file.");
   pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEqCls, buildEdgeVec, jointLog);
