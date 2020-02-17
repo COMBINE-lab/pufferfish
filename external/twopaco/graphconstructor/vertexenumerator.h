@@ -19,7 +19,7 @@
 #include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_unordered_set.h>
 
-#include <junctionapi/junctionapi.h>
+#include "junctionapi/junctionapi.h"
 
 #include "vertexrollinghash.h"
 #include "streamfastaparser.h"
@@ -34,7 +34,7 @@ namespace TwoPaCo
 		virtual size_t GetVerticesCount() const = 0;
 		virtual int64_t GetId(const std::string & vertex) const = 0;
 		virtual const VertexRollingHashSeed & GetHashSeed() const = 0;
-		virtual std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const = 0;
+		//virtual std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const = 0;
 
 		virtual ~VertexEnumerator()
 		{
@@ -48,6 +48,7 @@ namespace TwoPaCo
 		size_t hashFunctions,
 		size_t rounds,
 		size_t threads,
+		size_t abundance,
 		const std::string & tmpFileName,
 		const std::string & outFileName,
 		std::ostream & logStream);
@@ -57,6 +58,7 @@ namespace TwoPaCo
 	{
 	private:
 		std::string filterDumpFile_;
+		std::vector<size_t> bufferOffset_;
 		VertexRollingHashSeed hashFunctionSeed_;
 		static const size_t BUF_SIZE = 1 << 24;
 		BifurcationStorage<CAPACITY> bifStorage_;		
@@ -115,7 +117,7 @@ namespace TwoPaCo
 		{
 			return hashFunctionSeed_;
 		}
-
+		/*
 		std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const
 		{
 			uint64_t realSize = uint64_t(1) << hashFunctionSeed_.BitsNumber();
@@ -123,19 +125,21 @@ namespace TwoPaCo
 			ret->ReadFromFile(filterDumpFile_, false);
 			return ret;
 		}
-
+		*/
 		VertexEnumeratorImpl(const std::vector<std::string> & fileName,
 			size_t vertexLength,
 			size_t filterSize,
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
+			size_t abundance,
 			const std::string & tmpDirName,
 			const std::string & outFileNamePrefix,
 			std::ostream & logStream) :
 			vertexSize_(vertexLength),
 			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
-			filterDumpFile_(tmpDirName + "/filter.bin")
+			filterDumpFile_(tmpDirName + "/filter.bin"),
+			parsingException_("")
 		{
 			uint64_t realSize = uint64_t(1) << filterSize;
 			logStream << "Threads = " << threads << std::endl;
@@ -172,6 +176,10 @@ namespace TwoPaCo
 			const uint64_t BIN_SIZE = max(uint64_t(1), realSize / BINS_COUNT);
 			std::atomic<uint32_t> * binCounter = 0;
 
+			bool offsetFill = false;
+			size_t totalOffsets = 0;
+			std::vector<size_t> offset;
+
 			if (rounds > 1)
 			{
 				logStream << "Splitting the input kmers set..." << std::endl;
@@ -190,10 +198,15 @@ namespace TwoPaCo
 					workerThread[i].reset(new tbb::tbb_thread(worker));
 				}
 
-				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
+				DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile, offset, offsetFill);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
 					workerThread[i]->join();
+				}
+
+				if (error != 0)
+				{
+					throw *error;
 				}
 			}
 
@@ -216,7 +229,9 @@ namespace TwoPaCo
 				throw StreamFastaParser::Exception("Can't create a temp file");
 			}
 
-			time_t mark;			
+			time_t mark;
+			offsetFill = true;
+			std::vector<std::ifstream*> inMaskStorage(rounds);
 			for (size_t round = 0; round < rounds; round++)
 			{
 				std::atomic<uint64_t> marks;
@@ -245,7 +260,6 @@ namespace TwoPaCo
 					high = realSize;
 				}
 
-
 				{
 					ConcurrentBitVector bitVector(realSize);
 					logStream << "Round " << round << ", " << low << ":" << high << std::endl;
@@ -263,14 +277,26 @@ namespace TwoPaCo
 							workerThread[i].reset(new tbb::tbb_thread(worker));
 						}
 
-						DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile);
+						DistributeTasks(fileName, edgeLength, taskQueue, error, errorMutex, logFile, offset, offsetFill);
 						for (size_t i = 0; i < workerThread.size(); i++)
 						{
 							workerThread[i]->join();
 						}
 					}
 
-					bitVector.WriteToFile(filterDumpFile_);
+					if (offsetFill)
+					{
+						offsetFill = false;
+					}
+
+					//bitVector.WriteToFile(filterDumpFile_);
+					tbb::mutex maskStorageMutex;
+					std::ofstream maskStorage(CandidateMaskFileName(tmpDirName, round).c_str(), ios::binary);
+					if (!maskStorage)
+					{
+						throw std::runtime_error("Can't open a temporary file");
+					}
+
 					logStream << time(0) - mark << "\t";
 					mark = time(0);
 					{
@@ -285,13 +311,15 @@ namespace TwoPaCo
 								tmpDirName,
 								marks,
 								round,
+								maskStorage,
+								maskStorageMutex,
 								error,
 								errorMutex);
 
 							workerThread[i].reset(new tbb::tbb_thread(worker));
 						}
 
-						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+						DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, offset, offsetFill);
 						for (size_t i = 0; i < taskQueue.size(); i++)
 						{
 							workerThread[i]->join();
@@ -311,6 +339,13 @@ namespace TwoPaCo
 				logStream << "2\t";
 				OccurenceSet occurenceSet(1 << 20);
 				{
+					tbb::mutex maskStorageMutex;
+					inMaskStorage[round] = new std::ifstream(CandidateMaskFileName(tmpDirName, round).c_str(), ios::binary);
+					if (!(*inMaskStorage[round]))
+					{
+						throw std::runtime_error("Can't open a temporary file");
+					}
+
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 					for (size_t i = 0; i < workerThread.size(); i++)
 					{
@@ -321,13 +356,15 @@ namespace TwoPaCo
 							mutex,
 							tmpDirName,
 							round,
+							*inMaskStorage[round],
+							maskStorageMutex,
 							error,
 							errorMutex);
 
 						workerThread[i].reset(new tbb::tbb_thread(worker));
 					}
 
-					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, offset, offsetFill);
 					for (size_t i = 0; i < taskQueue.size(); i++)
 					{
 						workerThread[i]->join();
@@ -343,7 +380,7 @@ namespace TwoPaCo
 
 				mark = time(0);
 				size_t falsePositives = 0;
-				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
+				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, abundance, falsePositives);
 				logStream << time(0) - mark << std::endl;
 				logStream << "True junctions count = " << truePositives << std::endl;
 				logStream << "False junctions count = " << falsePositives << std::endl;
@@ -384,6 +421,7 @@ namespace TwoPaCo
 			JunctionPositionWriter posWriter(outFileNamePrefix);
 			occurence = currentPiece = 0;
 			{
+				tbb::mutex inMaskStorageMutex;
 				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
 				for (size_t i = 0; i < workerThread.size(); i++)
 				{
@@ -396,18 +434,26 @@ namespace TwoPaCo
 						currentStubVertexId,
 						currentStubVertexMutex,
 						tmpDirName,
-						rounds,
+						inMaskStorage,
+						inMaskStorageMutex,
 						error,
 						errorMutex);
 
 					workerThread[i].reset(new tbb::tbb_thread(worker));
 				}
 
-				DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile);
+				DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, offset, offsetFill);
 				for (size_t i = 0; i < taskQueue.size(); i++)
 				{
 					workerThread[i]->join();
 				}
+			}
+
+			for (size_t i = 0; i < rounds; i++)
+			{
+				inMaskStorage[i]->close();
+				delete inMaskStorage[i];
+				std::remove(CandidateMaskFileName(tmpDirName, i).c_str());
 			}
 
 			if (error != 0)
@@ -429,11 +475,18 @@ namespace TwoPaCo
 		{
 			return hvalue >= low && hvalue <= high;
 		}
-
-		static std::string CandidateMaskFileName(const std::string & directory, size_t sequence, size_t pos, size_t round)
+/*
+		static std::string CandidateMaskFileNamePart(const std::string & directory, size_t sequence, size_t pos, size_t round)
 		{
 			std::stringstream ss;
 			ss << directory << "/" << sequence << "_" << pos << "_" << round << ".tmp";
+			return ss.str();
+		}
+*/
+		static std::string CandidateMaskFileName(const std::string & directory,  size_t round)
+		{
+			std::stringstream ss;
+			ss << directory << "/" << "candidate" << "_" << round << ".tmp";
 			return ss.str();
 		}
 
@@ -542,9 +595,11 @@ namespace TwoPaCo
 				const std::string & tmpDirectory,
 				std::atomic<uint64_t> & marksCount,
 				size_t round,
+				std::ofstream & maskStorage,
+				tbb::mutex & maskStorageMutex,
 				std::unique_ptr<std::runtime_error> & error,				
 				tbb::mutex & errorMutex) : bound(bound), hashFunction(hashFunction), bitVector(bitVector), vertexLength(vertexLength), taskQueue(taskQueue),
-				tmpDirectory(tmpDirectory), marksCount(marksCount), error(error), errorMutex(errorMutex), round(round)
+				tmpDirectory(tmpDirectory), marksCount(marksCount), maskStorage(maskStorage), maskStorageMutex(maskStorageMutex), error(error), errorMutex(errorMutex), round(round)
 			{
 
 			}
@@ -573,7 +628,7 @@ namespace TwoPaCo
 						size_t edgeLength = vertexLength + 1;
 						if (task.str.size() >= vertexLength + 2)
 						{
-							candidateMask.Reset();
+							candidateMask.Reset(task.str.size());
 							VertexRollingHash hash(hashFunction, task.str.begin() + 1, hashFunction.HashFunctionsNumber());
 							size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 							for (size_t pos = 1;; ++pos)
@@ -621,7 +676,9 @@ namespace TwoPaCo
 
 							try
 							{
-								candidateMask.WriteToFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round));
+								maskStorageMutex.lock();
+								candidateMask.WriteToFile(maskStorage, task.offset, task.str.size());
+								maskStorageMutex.unlock();
 							}
 							catch (std::runtime_error & err)
 							{
@@ -641,6 +698,8 @@ namespace TwoPaCo
 			const std::string & tmpDirectory;
 			std::atomic<uint64_t> & marksCount;
 			size_t round;
+			std::ofstream & maskStorage;
+			tbb::mutex & maskStorageMutex;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};
@@ -657,9 +716,11 @@ namespace TwoPaCo
 				tbb::spin_rw_mutex & mutex,
 				const std::string & tmpDirectory,
 				size_t round,
+				std::ifstream & maskStorage,
+				tbb::mutex & maskStorageMutex,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
-				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex)
+				mutex(mutex), tmpDirectory(tmpDirectory), round(round), maskStorage(maskStorage), maskStorageMutex(maskStorageMutex), error(error), errorMutex(errorMutex)
 			{
 
 			}
@@ -689,7 +750,9 @@ namespace TwoPaCo
 							{
 								try
 								{
-									candidateMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round), false);
+									maskStorageMutex.lock();							
+									candidateMask.ReadFromFile(maskStorage, task.offset, task.str.size());
+									maskStorageMutex.unlock();
 								}
 								catch (std::runtime_error & err)
 								{
@@ -716,6 +779,7 @@ namespace TwoPaCo
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
 									typename OccurenceSet::iterator it = ret.first;
+									it->Inc();
 									if (!ret.second && !it->IsBifurcation())
 									{
 										inUnknownCount += DnaChar::IsDefinite(it->Prev()) ? 0 : 1;
@@ -751,6 +815,8 @@ namespace TwoPaCo
 			tbb::spin_rw_mutex & mutex;
 			const std::string & tmpDirectory;
 			size_t round;
+			std::ifstream & maskStorage;
+			tbb::mutex & maskStorageMutex;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
 		};
@@ -792,11 +858,13 @@ namespace TwoPaCo
 				uint64_t & currentStubVertexId,
 				tbb::mutex & currentStubVertexMutex,
 				const std::string & tmpDirectory,
-				size_t totalRounds,
+				std::vector<std::ifstream*> & inMaskStorage,
+				tbb::mutex & inMaskStorageMutex,
 				std::unique_ptr<std::runtime_error> & error,
 				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
 				writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
-				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), totalRounds(totalRounds)
+				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), 
+				inMaskStorage(inMaskStorage), inMaskStorageMutex(inMaskStorageMutex)
 			{
 
 			}							
@@ -829,12 +897,15 @@ namespace TwoPaCo
 							{																
 								try
 								{	
-									candidateMask.Reset();
-									for (size_t i = 0; i < totalRounds; i++)
+									candidateMask.Reset(task.str.size());
+									inMaskStorageMutex.lock();
+									for (size_t i = 0; i < inMaskStorage.size(); i++)
 									{
-										temporaryMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, i), true);
-										candidateMask.MergeOr(temporaryMask);
+										temporaryMask.ReadFromFile(*inMaskStorage[i], task.offset, task.str.size());
+										candidateMask.MergeOr(temporaryMask, task.str.size());
 									}
+
+									inMaskStorageMutex.unlock();
 								}
 								catch (std::runtime_error & err)
 								{
@@ -898,6 +969,7 @@ namespace TwoPaCo
 			}
 
 		private:
+			size_t abundance;
 			size_t vertexLength;
 			TaskQueue & taskQueue;
 			uint64_t & currentStubVertexId;
@@ -907,7 +979,8 @@ namespace TwoPaCo
 			std::atomic<uint64_t> & occurences;
 			const std::string & tmpDirectory;
 			std::unique_ptr<std::runtime_error> & error;
-			size_t totalRounds;
+			tbb::mutex & inMaskStorageMutex;
+			std::vector<std::ifstream*> & inMaskStorage;
 			tbb::mutex & errorMutex;
 			tbb::mutex & currentStubVertexMutex;
 		};		
@@ -945,6 +1018,7 @@ namespace TwoPaCo
 						{
 							continue;
 						}
+
 
 						uint64_t fistMinHash0;
 						uint64_t secondMinHash0;
@@ -1029,21 +1103,29 @@ namespace TwoPaCo
 			std::vector<TaskQueuePtr> & taskQueue,
 			std::unique_ptr<std::runtime_error> & error,
 			tbb::mutex & errorMutex,
-			std::ostream & logFile)
+			std::ostream & logFile,
+			std::vector<size_t> & offset,
+			bool offsetFill)
 		{
 			size_t record = 0;
 			size_t nowQueue = 0;
 			uint32_t pieceCount = 0;
+			bool fail = false;
 #ifdef LOGGING
 			logFile << "Starting a new stage" << std::endl;
 #endif
+			if (offsetFill)
+			{
+				offset.push_back(0);
+			}
+
 			for (size_t file = 0; file < fileName.size(); file++)
 			{
 #ifdef LOGGING
 				logFile << "Reading " << fileName[file] << std::endl;
 #endif
 				const std::string & nowFileName = fileName[file];
-				for (StreamFastaParser parser(nowFileName); parser.ReadRecord(); record++)
+				for (StreamFastaParser parser(nowFileName); !fail && parser.ReadRecord(); record++)
 				{
 					{
 						errorMutex.lock();
@@ -1066,7 +1148,19 @@ namespace TwoPaCo
 					bool over = false;
 					do
 					{
-						over = !parser.GetChar(ch);
+						try
+						{
+							over = !parser.GetChar(ch);
+						}
+						catch (const StreamFastaParser::Exception & e)
+						{
+							errorMutex.lock();
+							error.reset(new std::runtime_error(e.what()));
+							errorMutex.unlock();
+							fail = over = true;
+							break;
+						}
+
 						if (!over)
 						{
 							start++;
@@ -1074,7 +1168,7 @@ namespace TwoPaCo
 						}
 
 						if (buf.size() >= overlapSize && (buf.size() == Task::TASK_SIZE || over))
-						{
+						{						
 							for (bool found = false; !found; nowQueue = nowQueue + 1 < taskQueue.size() ? nowQueue + 1 : 0)
 							{
 								TaskQueuePtr & q = taskQueue[nowQueue];
@@ -1090,7 +1184,15 @@ namespace TwoPaCo
 										buf.push_back('N');
 									}
 
-									q->push(Task(record, prev, pieceCount++, over, std::move(buf)));
+									size_t currentTaskSize = buf.size();
+									uint64_t currentOffset = offset.size() > 0 ? offset[pieceCount] : 0;
+									q->push(Task(record, prev, pieceCount++, currentOffset, over, std::move(buf)));
+
+									if (offsetFill)
+									{
+										offset.push_back(offset.back() + currentTaskSize / 32 + 1);
+									}
+
 #ifdef LOGGING
 									logFile << "Passed chunk " << prev << " to worker " << nowQueue << std::endl;
 #endif
@@ -1109,20 +1211,20 @@ namespace TwoPaCo
 			for (size_t i = 0; i < taskQueue.size(); i++)
 			{
 				TaskQueuePtr & q = taskQueue[nowQueue];
-				while (!taskQueue[i]->try_push(Task(0, Task::GAME_OVER, 0, true, std::string())))
+				while (!taskQueue[i]->try_push(Task(0, Task::GAME_OVER, 0, 0, true, std::string())))
 				{
 					
 				}
 			}
 		}
 
-		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t & falsePositives) const
+		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t abundance, size_t & falsePositives) const
 		{
 			uint64_t truePositives = falsePositives = 0;
 			for (auto it = occurenceSet.begin(); it != occurenceSet.end();++it)
 			{
 				bool bifurcation = it->IsBifurcation();
-				if (bifurcation)
+				if (bifurcation && it->Count() <= abundance)
 				{
 					++truePositives;
 					it->GetBase().WriteToFile(out);
@@ -1141,6 +1243,7 @@ namespace TwoPaCo
 		}
 
 		size_t vertexSize_;
+		StreamFastaParser::Exception parsingException_;
 		DISALLOW_COPY_AND_ASSIGN(VertexEnumeratorImpl<CAPACITY>);
 	};	
 }

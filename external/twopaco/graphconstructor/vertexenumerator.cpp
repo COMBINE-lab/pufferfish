@@ -21,6 +21,7 @@ namespace TwoPaCo
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
+			size_t abundance,
 			const std::string & tmpFileName,
 			const std::string & outFileName,
 			std::ostream & logStream)
@@ -34,6 +35,7 @@ namespace TwoPaCo
 					hashFunctions,
 					rounds,
 					threads,
+					abundance,
 					tmpFileName,
 					outFileName,
 					logStream));
@@ -45,6 +47,7 @@ namespace TwoPaCo
 				hashFunctions,
 				rounds,
 				threads,
+				abundance,
 				tmpFileName,
 				outFileName,
 				logStream);
@@ -57,6 +60,7 @@ namespace TwoPaCo
 			size_t hashFunctions,
 			size_t rounds,
 			size_t threads,
+			size_t abundance,
 			const std::string & tmpFileName,
 			const std::string & outFileName,
 			std::ostream & logStream)
@@ -72,8 +76,9 @@ namespace TwoPaCo
 		size_t hashFunctions,
 		size_t rounds,
 		size_t threads,
+		size_t abundance,
 		const std::string & tmpFileName,
-		const std::string & outFileName,
+		const std::string & outFileName,		
 		std::ostream & logStream)
 	{
 		return CreateEnumeratorImpl<1>(fileName,
@@ -82,6 +87,7 @@ namespace TwoPaCo
 			hashFunctions,
 			rounds,
 			threads,
+			abundance,
 			tmpFileName,
 			outFileName,
 			logStream);

@@ -29,9 +29,10 @@ namespace TwoPaCo
 	struct Task
 	{
 		bool isFinal;
-		uint32_t piece;
+		uint64_t piece;
 		uint64_t start;
 		uint64_t seqId;
+		uint64_t offset;
 		std::string str;
 #ifdef _DEBUG
 		static const size_t TASK_SIZE = 32;
@@ -40,8 +41,8 @@ namespace TwoPaCo
 #endif					
 		static const size_t GAME_OVER = SIZE_MAX;
 		Task() {}
-		Task(uint64_t seqId, uint64_t start, uint32_t piece, bool isFinal, std::string && str) :
-			seqId(seqId), start(start), piece(piece), isFinal(isFinal), str(std::move(str)) {}
+		Task(uint64_t seqId, uint64_t start, uint64_t piece, uint64_t offset, bool isFinal, std::string && str) :
+			seqId(seqId), start(start), piece(piece), offset(offset), isFinal(isFinal), str(std::move(str)) {}
 	};
 
 	typedef tbb::concurrent_bounded_queue<Task> TaskQueue;
