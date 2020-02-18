@@ -39,6 +39,15 @@ class TestOptions {
 public:
 };
 
+enum StatType {
+    ctab
+};
+class StatsOptions {
+public:
+    StatType statType{ctab};
+    std::string indexDir;
+};
+
 class ValidateOptions {
 public:
   std::string indexDir;
