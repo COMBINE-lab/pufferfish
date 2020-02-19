@@ -197,6 +197,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool invalidStart = (signedRefStartPos < 0);
   bool invalidEnd = (signedRefEndPos > refTotalLength);
 
+  // bool allowSoftclip = mopts.allowSoftclip;
+  // allowOverhangSoftclip is a special case of allowing soft-clipping
+  // if we allow softclipping generally, then this option is redundant.
   bool allowOverhangSoftclip = mopts.allowOverhangSoftclip;
 
   if (mopts.mimicBT2Strict and (invalidStart or invalidEnd)) {
@@ -332,6 +335,24 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         ksw_reset_extz(&ez);
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refSeqBuffer_.length(), &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+        /*
+        decltype(alignmentScore) part_score = ez.mqe;
+        if (allowSoftclip) {
+          int32_t ext_len{0};
+          if (ez.mqe > ez.mte) {
+            part_score = ez.mqe;
+            ext_len = firstMemStart_read;
+          } else {
+            part_score = ez.mte;
+            ext_len = readStartPosOnRef;
+          }
+          part_score = (part_score > 0) ? part_score : 0;
+          arOut.softclip_left = (part_score > 0) ? ext_len : firstMemStart_read;
+        } else if (allowOverhangSoftclip) { 
+          part_score = std::max(ez.mqe, ez.mte);
+        }
+        alignmentScore += part_score;
+        */
         alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
         // NOTE: If we are not writing down the CIGAR, we assume *for the purpose of computing positions*
         // that the prefix of the read we are aligning here is optimally aligned in a gapless fashion.
@@ -439,6 +460,25 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if (refLen > 0) {
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(), refLen, &ez,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+        /*
+        decltype(alignmentScore) part_score = ez.mqe;
+        if (allowSoftclip) {
+          int32_t ext_len{0};
+          if (ez.mqe > ez.mte) {
+            part_score = ez.mqe;
+            ext_len = firstMemStart_read;
+          } else {
+            part_score = ez.mte;
+            ext_len = readStartPosOnRef;
+          }
+          part_score = (part_score > 0) ? part_score : 0;
+          arOut.softclip_right = (part_score > 0) ? ext_len : prevMemEnd_read + 1;
+        } else if (allowOverhangSoftclip) { 
+          part_score = std::max(ez.mqe, ez.mte);
+        }
+        alignmentScore += part_score; //allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+        */
+ 
         int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
         int32_t delCost = (-1 * mopts.gapOpenPenalty + -1 * mopts.gapExtendPenalty * readWindow.length());
         alignmentScore += std::max(alnCost, delCost);
