@@ -68,6 +68,7 @@ set(pufferfish_lib_srcs
 		rank9sel.cpp
     rank9b.cpp
     PufferfishValidate.cpp
+	PufferfishStats.cpp
     PufferfishTestLookup.cpp 
     PufferfishExamine.cpp
     FastxParser.cpp 

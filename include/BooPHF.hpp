@@ -890,8 +890,8 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 		
 		// allow perc_elem_loaded  elements to be loaded in ram for faster construction (default 3%), set to 0 to desactivate
 		template <typename Range>
-		mphf( size_t n, Range const& input_range,int num_thread = 1,  double gamma = 2.0 , bool writeEach = true, bool progress =true, float perc_elem_loaded = 0.03) :
-		_gamma(gamma), _hash_domain(size_t(ceil(double(n) * gamma))), _nelem(n), _num_thread(num_thread), _percent_elem_loaded_for_fastMode (perc_elem_loaded), _withprogress(progress)
+		mphf( std::string &outdir, size_t n, Range const& input_range,int num_thread = 1,  double gamma = 2.0 , bool writeEach = true, bool progress =true, float perc_elem_loaded = 0.03) :
+		_outdir(outdir), _gamma(gamma), _hash_domain(size_t(ceil(double(n) * gamma))), _nelem(n), _num_thread(num_thread), _percent_elem_loaded_for_fastMode (perc_elem_loaded), _withprogress(progress)
 		{
 			if(n ==0) return;
 			
@@ -1375,15 +1375,16 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 			_levels[i].bitset =  bitVector(_levels[i].hash_domain); ;
 
 			//printf("---process level %i   wr %i fast %i ---\n",i,_writeEachLevel,_fastmode);
-			
+
+			std::string dir= _outdir+"/temp_p%i_level_%i";
 			char fname_old[1000];
-			sprintf(fname_old,"temp_p%i_level_%i",_pid,i-2);
+			sprintf(fname_old,dir.c_str(),_pid,i-2);
 			
 			char fname_curr[1000];
-			sprintf(fname_curr,"temp_p%i_level_%i",_pid,i);
+			sprintf(fname_curr,dir.c_str(),_pid,i);
 			
 			char fname_prev[1000];
-			sprintf(fname_prev,"temp_p%i_level_%i",_pid,i-1);
+			sprintf(fname_prev,dir.c_str(),_pid,i-1);
 			
 			if(_writeEachLevel)
 			{
@@ -1504,6 +1505,7 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
         MultiHasher_t _hasher;
 		bitVector * _tempBitset;
 
+		std::string _outdir;
 		double _gamma;
 		uint64_t _hash_domain;
 		uint64_t _nelem;

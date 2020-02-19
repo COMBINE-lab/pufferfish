@@ -1,4 +1,4 @@
-# Content
+# Table of Contents
  * [What is puffaligner?](#puffaligner)
  * [What is pufferfish?](#whatis)
  * [How to install?](#building)

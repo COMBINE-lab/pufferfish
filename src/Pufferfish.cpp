@@ -42,13 +42,14 @@ int pufferfishTestLookup(
                          pufferfish::ValidateOptions& lookupOpts); // int argc, char* argv[]);
 int pufferfishAligner(pufferfish::AlignmentOpts& alignmentOpts) ;
 int pufferfishExamine(pufferfish::ExamineOptions& examineOpts);
+int pufferfishStats(pufferfish::StatsOptions& statsOpts);
 
 int main(int argc, char* argv[]) {
   using namespace clipp;
   using std::cout;
   std::setlocale(LC_ALL, "en_US.UTF-8");
 
-  enum class mode {help, index, validate, lookup, align, examine};
+  enum class mode {help, index, validate, lookup, align, examine, stat};
   mode selected = mode::help;
   pufferfish::AlignmentOpts alignmentOpt ;
   pufferfish::IndexOptions indexOpt;
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
   pufferfish::ValidateOptions validateOpt;
   pufferfish::ValidateOptions lookupOpt;
   pufferfish::ExamineOptions examineOpt;
+  pufferfish::StatsOptions statOpt;
 
   auto ensure_file_exists = [](const std::string& s) -> bool {
       bool exists = ghc::filesystem::exists(s);
@@ -172,7 +174,14 @@ int main(int argc, char* argv[]) {
                      (required("-i", "--index") & value("index", lookupOpt.indexDir)) % "directory where the pufferfish index is stored",
                      (required("-r", "--ref") & value("ref", lookupOpt.refFile)) % "fasta file with reference sequences"
                      );
-
+  std::string statType = "ctab";
+  auto statMode = (
+                    command("stat").set(selected, mode::stat),
+                    (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab)",
+                    (required("-i", "--index") & value("index", statOpt.indexDir)) % "directory where the pufferfish index is stored");
+  if (statType == "ctab") {
+      statOpt.statType = pufferfish::StatType::ctab;
+  }
   std::string throwaway;
   auto isValidRatio = [](const char* s) -> void {
     float r{0.0};
@@ -243,7 +252,7 @@ int main(int argc, char* argv[]) {
   );
 
   auto cli = (
-              (indexMode | validateMode | lookupMode | alignMode | examineMode | command("help").set(selected,mode::help) ),
+              (indexMode | validateMode | lookupMode | alignMode | examineMode | statMode | command("help").set(selected,mode::help) ),
               option("-v", "--version").call([]{std::cout << "version " << pufferfish::version << "\n"; std::exit(0);}).doc("show version"));
 
   decltype(parse(argc, argv, cli)) res;
@@ -264,6 +273,7 @@ int main(int argc, char* argv[]) {
     case mode::lookup: pufferfishTestLookup(lookupOpt); break;
     case mode::align: pufferfishAligner(alignmentOpt); break;
     case mode::examine: pufferfishExamine(examineOpt); break;
+    case mode::stat: pufferfishStats(statOpt); break;
     case mode::help: std::cout << make_man_page(cli, pufferfish::progname); break;
     }
   } else {
