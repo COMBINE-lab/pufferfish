@@ -1,8 +1,53 @@
 cmake_minimum_required(VERSION 3.9)
 #cmake_policy(SET CMP0069 NEW)
 
+if(DEFINED ENV{CC})
+  set(CC $ENV{CC})
+else()
+  set(CC gcc)
+endif()
+message("CC: ${CC}")
+
+set(CC_VERSION "")
+if(${CC} MATCHES ^gcc-)
+  string(REGEX REPLACE "gcc-" "" CC_VERSION ${CC})
+endif()
+message("CC version: ${CC_VERSION}")
+
+
 project(pufferfish)
 include(ExternalProject)
+
+# auto-populate version:
+# from https://stackoverflow.com/questions/47066115/cmake-get-version-from-multi-line-text-file
+file(READ "current_version.txt" ver)
+
+string(REGEX MATCH "VERSION_MAJOR ([0-9]*)" _ ${ver})
+set(ver_major ${CMAKE_MATCH_1})
+
+string(REGEX MATCH "VERSION_MINOR ([0-9]*)" _ ${ver})
+set(ver_minor ${CMAKE_MATCH_1})
+
+string(REGEX MATCH "VERSION_PATCH ([0-9]*)" _ ${ver})
+set(ver_patch ${CMAKE_MATCH_1})
+
+set(CPACK_PACKAGE_VERSION_MAJOR ${ver_major})
+set(CPACK_PACKAGE_VERSION_MINOR ${ver_minor})
+set(CPACK_PACKAGE_VERSION_PATCH ${ver_patch})
+
+set(CPACK_PACKAGE_VERSION "${ver_major}.${ver_minor}.${ver_patch}")
+message("version: ${CPACK_PACKAGE_VERSION}")
+
+
+set(PROJECT_VERSION ${CPACK_PACKAGE_VERSION})
+set(CPACK_GENERATOR "TGZ")
+set(CPACK_SOURCE_GENERATOR "TGZ")
+set(CPACK_PACKAGE_VENDOR "University of Maryland")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Pufferfish — a tool for indexing and alignment based on the compacted colored de Bruijn Graph")
+set(CPACK_PACKAGE_NAME
+  "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME
+  "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-Source")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
@@ -240,6 +285,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
 if (NOT BUILD_PUFF_FOR_SALMON) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
 endif()
+
+include(CPack)
 
 include_directories(include)
 link_directories(lib)
