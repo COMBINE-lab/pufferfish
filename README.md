@@ -107,4 +107,4 @@ There are a variety of optional choices for changing the default thresholds for 
 ---
 
 ***Pufferfish* is now the main (and only) index used in [Salmon](https://github.com/COMBINE-lab/salmon.git) when
-it is tun in mapping-based mode (i.e. with selective-alignment).**
+it is run in mapping-based mode (i.e. with selective-alignment).**
