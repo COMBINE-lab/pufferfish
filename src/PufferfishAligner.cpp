@@ -163,7 +163,8 @@ void processReadsPair(paired_parser *parser,
     uint32_t alignmentStreamLimit = mopts->alignmentStreamLimit;
     uint32_t alignmentStreamCount{0};
     while (parser->refill(rg)) {
-        for (auto &rpair : rg) {
+        for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
+            auto rpair = *read_it;
             readLen = static_cast<uint32_t >(rpair.first.seq.length());
             mateLen = static_cast<uint32_t >(rpair.second.seq.length());
             totLen = readLen + mateLen;
@@ -496,7 +497,8 @@ void processReadsPair(paired_parser *parser,
             }
             //puffaligner.clear();
             // try dumping the output
-            if (!mopts->noOutput and alignmentStreamCount < alignmentStreamLimit) {
+            bool last_read = (read_it + 1 == rg.end());
+            if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
                 // Get rid of last newline
                 if (mopts->salmonOut) {
                     if (bstream.getBytes() != 0) {
@@ -587,7 +589,8 @@ void processReadsSingle(single_parser *parser,
 
     auto rg = parser->getReadGroup();
     while (parser->refill(rg)) {
-        for (auto &read : rg) {
+        for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
+            auto read = *read_it;
             readLen = static_cast<uint32_t >(read.seq.length());
             auto totLen = readLen;
             bool verbose = false;
@@ -793,7 +796,8 @@ void processReadsSingle(single_parser *parser,
             }
 
             // try dumping the output
-            if (!mopts->noOutput and alignmentStreamCount < alignmentStreamLimit) {
+            bool last_read = (read_it + 1 == rg.end());
+            if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
                 // Get rid of last newline
                 if (mopts->krakOut || mopts->salmonOut) {
                     if (mopts->salmonOut && bstream.getBytes() > 0) {
