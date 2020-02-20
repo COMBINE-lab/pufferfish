@@ -39,13 +39,13 @@ template <typename PufferfishIndexT>
 class RefSeqConstructor {
 
 public:
-  RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, util::ContigBlock>* contigSeqCache);
+  RefSeqConstructor(PufferfishIndexT* pfi, spp::sparse_hash_map<uint32_t, pufferfish::util::ContigBlock>* contigSeqCache);
   Task fillSeq(size_t tid,
                size_t tpos,
                                                bool isCurContigFw,
-                                               util::ContigBlock& curContig,
+                                               pufferfish::util::ContigBlock& curContig,
                                                uint32_t startp,
-                                               util::ContigBlock& endContig,
+                                               pufferfish::util::ContigBlock& endContig,
                                                uint32_t endp,
                                                bool isEndContigFw,
                uint32_t txpDist,
@@ -54,9 +54,9 @@ public:
   /* Task doBFS(size_t tid,
              size_t tpos,
              bool isCurContigFw,
-             util::ContigBlock& curContig,
+             pufferfish::util::ContigBlock& curContig,
              size_t startp,
-             util::ContigBlock& endContig,
+             pufferfish::util::ContigBlock& endContig,
              bool isEndContigFw,
              uint32_t threshold,
              std::string& seq);
@@ -64,9 +64,9 @@ public:
   Task doDFS(size_t tid,
              size_t tpos,
              bool isCurContigFw,
-             util::ContigBlock& curContig,
+             pufferfish::util::ContigBlock& curContig,
              uint32_t startp,
-             util::ContigBlock& endContig,
+             pufferfish::util::ContigBlock& endContig,
              bool isEndContigFw,
              uint32_t threshold,
              bool walkForward,
@@ -77,14 +77,14 @@ public:
   /*  //search predecessors
   Task fillSeqLeft(size_t tid,
                    size_t tpos,
-                   util::ContigBlock& curContig,
+                   pufferfish::util::ContigBlock& curContig,
                    bool isCurContigFw,
                    uint32_t cstart,
                    std::string& seq);
 
   Task doRevBFS(size_t tid,
                 size_t tpos,
-                util::ContigBlock& curContig,
+                pufferfish::util::ContigBlock& curContig,
                 bool isCurContigFw,
                 uint32_t cstart,
                 uint32_t threshold,
@@ -93,27 +93,27 @@ public:
 private:
   PufferfishIndexT* pfi_ ;
   size_t k ;
-  spp::sparse_hash_map<uint32_t, util::ContigBlock>* contigSeqCache_;
+  spp::sparse_hash_map<uint32_t, pufferfish::util::ContigBlock>* contigSeqCache_;
 
 
 
-  size_t remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd, bool verbose=false);
-  void append(std::string& seq, util::ContigBlock& contig, size_t startp, size_t endp, bool isCurContigFw, bool verbose=false);
-  void appendByLen(std::string& refSeq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose=false);
+  size_t remainingLen(pufferfish::util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd, bool verbose=false);
+  void append(std::string& seq, pufferfish::util::ContigBlock& contig, size_t startp, size_t endp, bool isCurContigFw, bool verbose=false);
+  void appendByLen(std::string& refSeq, pufferfish::util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose=false);
   //TODO 
-  //void prependByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
-  std::string getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose=false);
+  //void prependByLen(std::string& seq, pufferfish::util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix);
+  std::string getRemSeq(pufferfish::util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose=false);
   void cutoff(std::string& seq, size_t len, bool verbose=false);
   std::string rc(std::string str, bool verbose=false);
   char rev(const char& c);
-  std::vector<nextCompatibleStruct> fetchSuccessors(util::ContigBlock& contig,
+  std::vector<nextCompatibleStruct> fetchSuccessors(pufferfish::util::ContigBlock& contig,
                                                  bool isCurContigFw,
                                                  size_t tid,
                                                     size_t tpos,
                                                     uint32_t txpDist,
                                                     bool verbose=false);
 
-  std::vector<nextCompatibleStruct> fetchPredecessors(util::ContigBlock& contig,
+  std::vector<nextCompatibleStruct> fetchPredecessors(pufferfish::util::ContigBlock& contig,
                                                     bool isCurContigFw,
                                                     size_t tid,
                                                         size_t tpos,

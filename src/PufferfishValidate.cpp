@@ -18,7 +18,7 @@
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
-#include "OurGFAReader.hpp"
+#include "PufferfishBinaryGFAReader.hpp"
 
 
 uint8_t reverseBits(uint8_t b) {
@@ -53,7 +53,116 @@ std::vector<extension> getEdges(uint8_t edgeVec){
 */
 
 template <typename IndexT>
-int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
+bool checkKmer(IndexT& pi, CanonicalKmer& kb, pufferfish::util::QueryCache& qc, uint64_t kbi, uint32_t rn, uint32_t posWithinRef) {
+  auto chits = pi.getRefPos(kb, qc);
+  if (chits.empty()) {
+    std::cerr << "k-mer " << kb.to_str() << " completely absent from the index\n\n";
+    return false;
+  }
+
+  if (chits.refRange.size() < 0) {
+    std::cerr << "There was a row in the contig table with an invalid range (size = " << chits.refRange.size() << "). "
+                 "this means there is something wrong with the stored index.  Please report this issue on GitHub.\n";
+    std::exit(1);
+  }
+
+  bool foundKmer{false};
+  for (auto& rpos : chits.refRange) {
+    auto refInfo = chits.decodeHit(rpos);
+    if (rpos.transcript_id() == rn) {
+      if (refInfo.pos == posWithinRef) {
+        if (refInfo.isFW) {
+          foundKmer = (kb.fwWord() == kbi);
+        } else {
+          foundKmer = (kb.rcWord() == kbi);
+        }
+        break;
+      }
+    }
+  }
+
+  if (!foundKmer) {
+    std::cerr << "couldn't find " << kb.to_str() << " where it actually occurs (" << posWithinRef << "), but found it at :\n";
+    for (auto& rpos : chits.refRange) {
+      auto refInfo = chits.decodeHit(rpos);
+      std::cerr << "\ttr : " << rpos.transcript_id() << ", pos : " << refInfo.pos << "\n";
+    }
+    std::cerr << "\n";
+  }
+  return foundKmer;
+}
+
+/**
+ * Check for internal consistency of the index
+ **/
+template <typename IndexT>
+int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
+  (void)(validateOpts);
+  int32_t k = pi.k();
+  CanonicalKmer::k(k);
+
+  auto console = spdlog::stderr_color_mt("console");
+
+  auto& refSeq = pi.refseq_;
+
+  // iterate over all reference sequences
+//  const auto& refLengths = pi.getRefLengths();
+  uint32_t rn{0};
+  uint64_t gpos{0};
+  uint64_t totalKmersSearched{0};
+  uint64_t validCnt = pi.getIndexedRefCount();
+  for (uint64_t i = 0; i < validCnt; i++) {
+  
+    auto refLen = pi.refLength(i);
+    uint32_t posWithinRef{0};
+
+    if (static_cast<int32_t>(refLen) <= k) {
+      console->warn("reference sequence of length l = {} (< k = {}); not validating.", refLen, k);
+      gpos += refLen;
+      continue;
+    }
+
+
+    CanonicalKmer kb;
+    uint64_t kbi = refSeq.get_int(2*gpos, 2*k);
+    kb.fromNum(kbi);
+    pufferfish::util::QueryCache qc;
+
+    auto foundKmer = checkKmer(pi, kb, qc, kbi, rn, posWithinRef);
+    if (!foundKmer) {
+      console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), posWithinRef, rn, gpos);
+      //return -1;
+    }
+    ++totalKmersSearched;
+
+    gpos += k;
+    for (uint32_t p = k; p < refLen; ++p) {
+      ++posWithinRef;
+      kb.shiftFw(static_cast<int>(refSeq[gpos]));
+      kbi = kb.fwWord();
+
+      auto foundKmer = checkKmer(pi, kb, qc, kbi, rn, posWithinRef);
+      if (!foundKmer) {
+        console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), posWithinRef, rn, gpos);
+        //return -1;
+      }
+
+      ++totalKmersSearched;
+      ++gpos;
+      if (gpos % 10000000 == 0) {
+        console->info("processed {} of {} positions.", gpos, refSeq.size() - (k*validCnt) + (validCnt));
+      }
+    }
+
+    ++rn;
+  }
+
+  console->info("successfully looked up {} k-mer occurrences across {} reference sequences.", totalKmersSearched, rn);
+  return 0;
+}
+
+template <typename IndexT>
+int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   //size_t k = pi.k();
   CanonicalKmer::k(pi.k());
   size_t found = 0;
@@ -66,7 +175,10 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
   if(validateOpts.gfaFileName.length() != 0){
     int k = pi.k() ;
     ScopedTimer st ;
-    PosFinder pf(validateOpts.gfaFileName.c_str(), k-1) ;
+    auto console = spdlog::stderr_color_mt("console");
+    // NOTE: Should the false argument below be a command line option?
+    // that is, should we consider building the edge vector here?
+    pufferfish::BinaryGFAReader pf(validateOpts.gfaFileName.c_str(), k-1, false, false, console);
     pf.parseFile() ;
 
     auto& seq = pi.getSeq() ;
@@ -101,14 +213,14 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
       std::bitset<8> b = edgeVec ;
       std::cerr << "Parsing vector " << b << "\n" ;
 
-      std::vector<util::extension> ext = util::getExts(edgeVec) ;
+      std::vector<pufferfish::util::extension> ext = pufferfish::util::getExts(edgeVec) ;
       for(auto& e : ext){
        
         auto kbtmp = kb ;
         auto ketmp = ke ;
         char c = e.c ;
 
-        if(e.dir == util::Direction::FORWARD){
+        if(e.dir == pufferfish::util::Direction::FORWARD){
           ke.shiftFw(c) ;
           CanonicalKmer kt;
           kt.fromNum(ke.getCanonicalWord()) ;
@@ -257,7 +369,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
         ++rn;
         auto& r1 = rp.seq;
         pufferfish::CanonicalKmerIterator kit1(r1);
-        util::QueryCache qc;
+        pufferfish::util::QueryCache qc;
         for (; kit1 != kit_end; ++kit1) {
           auto phits = pi.getRefPos(kit1->first, qc);
           if (phits.empty()) {
@@ -292,7 +404,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
                   << "txp = [" << rp.name << "], "
                   << "kmer = [" << kit1->first.to_str() << "], "
                     << "correct pos = " << kit1->second << ", found "
-                    << util::str(wrongPos) << ", contig orientation = " << cor
+                    << pufferfish::util::str(wrongPos) << ", contig orientation = " << cor
                     << ", contig len = " << clen << "\n";
                    ///<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
                   //<< ", contig rank = " << pi.contigID(kit1->first) << '\n';
@@ -316,7 +428,7 @@ int doPufferfishValidate(IndexT& pi, ValidateOptions& validateOpts) {
 }
 
 
-int pufferfishValidate(ValidateOptions& validateOpts) {
+int pufferfishValidate(pufferfish::ValidateOptions& validateOpts) {
 
   auto indexDir = validateOpts.indexDir;
   std::string indexType;
@@ -328,12 +440,34 @@ int pufferfishValidate(ValidateOptions& validateOpts) {
       infoStream.close();
     }
 
+    /*compact::vector<uint64_t, 2> seq;
+    seq.deserialize(validateOpts.indexDir+"seq.bin", false);
+
+    uint64_t bits=100;
+    for (uint64_t i = 10; i < bits; i++) {
+        std::cerr << seq[i];
+    }
+    std::cerr << "\n";
+    uint64_t i = 10;
+    while (i < bits) {
+      uint64_t end = bits-i>32?32:bits-i;
+        auto w = seq.get_int(i*2, end*2);
+        for (uint64_t j = 0; j < end*2; j+=2) {
+            std::cerr << ((w >> j) & 0x3);
+        }
+        i+=32;
+    }
+    std::cerr << "\n";
+    std::exit(3);
+*/
     if (indexType == "sparse") { 
       PufferfishSparseIndex pi(validateOpts.indexDir);
-      return doPufferfishValidate(pi, validateOpts);
+      return doPufferfishInternalValidate(pi, validateOpts);
+      //return doPufferfishValidate(pi, validateOpts);
     } else if (indexType == "dense") {
       PufferfishIndex pi(validateOpts.indexDir);
-      return doPufferfishValidate(pi, validateOpts);
+      return doPufferfishInternalValidate(pi, validateOpts);
+      //return doPufferfishValidate(pi, validateOpts);
     }
     return 0;
 }

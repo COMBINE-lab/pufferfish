@@ -1,6 +1,5 @@
 #include "FastxParser.hpp"
 #include "jellyfish/mer_dna.hpp"
-#include "sdsl/int_vector.hpp"
 #include "string_view.hpp"
 #include <cmath>
 #include <fstream>
@@ -10,13 +9,10 @@
 #include <type_traits>
 #include <vector>
 //#include "PufferFS.hpp"
-#include "BooPHF.h"
+#include "BooPHF.hpp"
 //#include "OurGFAReader.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
-#include "sdsl/rank_support.hpp"
-#include "sdsl/select_support.hpp"
-#include "sparsepp/spp.h"
 #include "CLI/CLI.hpp"
 
 
@@ -91,13 +87,13 @@ int main(int argc, char* argv[]) {
     if (firstC != 'S' and firstC != 'P')
       continue;
     stx::string_view lnview(ln);
-    std::vector<stx::string_view> splited = util::split(lnview, '\t');
+    std::vector<stx::string_view> splited = pufferfish::util::split(lnview, '\t');
     tag = splited[0].to_string();
     id = splited[1].to_string();
     value = splited[2].to_string();
     // A segment line
     if (tag == "S") {
-      if (util::is_number(id)) {
+      if (pufferfish::util::is_number(id)) {
 		uint64_t contigId = std::stoll(id);
         contigid2seq[contigId] = value;
         // std::cerr << value << "\n" ;
@@ -111,7 +107,7 @@ int main(int argc, char* argv[]) {
     if (tag == "P") {
       auto pvalue = splited[2];
       std::vector<std::pair<uint64_t, bool>> contigVec =
-          util::explode(pvalue, ',');
+          pufferfish::util::explode(pvalue, ',');
       // parse value and add all conitgs to contigVec
       // if(reconstructedTr[id] != "") continue ;
       // reconstructedTr[id] = "";
@@ -125,7 +121,7 @@ int main(int argc, char* argv[]) {
         std::string added;
         if (i != contigVec.size() - 1) {
           if (!ore) {
-            added = util::revcomp(contigid2seq[contig_id]);
+            added = pufferfish::util::revcomp(contigid2seq[contig_id]);
           } else {
             added = contigid2seq[contig_id];
           }
@@ -140,7 +136,7 @@ int main(int argc, char* argv[]) {
           }
         } else {
           if (!ore) {
-            added = util::revcomp(contigid2seq[contig_id]);
+            added = pufferfish::util::revcomp(contigid2seq[contig_id]);
           } else {
             added = contigid2seq[contig_id];
           }
@@ -173,7 +169,7 @@ int main(int argc, char* argv[]) {
               std::string added ;
               if (j != contigVec.size()-1){
                   if(!ore){
-                      added =  util::revcomp(contigid2seq[contig_id]) ;
+                      added =  pufferfish::util::revcomp(contigid2seq[contig_id]) ;
                   }else{
                       added = contigid2seq[contig_id] ;
                   }
@@ -190,7 +186,7 @@ int main(int argc, char* argv[]) {
                       //std::cerr << contig_id << " " << added << "\n" ;
               }else{
                   if(!ore){
-                      added =  util::revcomp(contigid2seq[contig_id]) ;
+                      added =  pufferfish::util::revcomp(contigid2seq[contig_id]) ;
                   }else{
                       added = contigid2seq[contig_id] ;
                   }

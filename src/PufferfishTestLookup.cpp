@@ -22,7 +22,7 @@
 namespace kmers = combinelib::kmers;
 
 template <typename IndexT>
-int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
+int doPufferfishTestLookup(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   CanonicalKmer::k(pi.k());
   int k = pi.k();
   (void)k;
@@ -37,7 +37,7 @@ int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
     size_t rn{0};
-    util::QueryCache qc;
+    pufferfish::util::QueryCache qc;
     pufferfish::CanonicalKmerIterator kit_end;
     auto rg = parser.getReadGroup();
     while (parser.refill(rg)) {
@@ -100,7 +100,7 @@ int doPufferfishTestLookup(IndexT& pi, ValidateOptions& validateOpts) {
   return 0;
 }
 
-int pufferfishTestLookup(ValidateOptions& validateOpts) {
+int pufferfishTestLookup(pufferfish::ValidateOptions& validateOpts) {
   auto indexDir = validateOpts.indexDir;
   std::string indexType;
   {

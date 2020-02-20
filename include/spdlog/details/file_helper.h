@@ -55,7 +55,7 @@ public:
             if (!os::fopen_s(&_fd, fname, mode))
                 return;
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(open_interval));
+            details::os::sleep_for_millis(open_interval);
         }
 
         throw spdlog_ex("Failed opening file " + os::filename_to_str(_filename) + " for writing", errno);
@@ -109,26 +109,34 @@ public:
     }
 
     //
-    // return basename and extension:
+    // return file path and its extension:
     //
     // "mylog.txt" => ("mylog", ".txt")
     // "mylog" => ("mylog", "")
+    // "mylog." => ("mylog.", "")
+    // "/dir1/dir2/mylog.txt" => ("/dir1/dir2/mylog", ".txt")
     //
     // the starting dot in filenames is ignored (hidden files):
     //
-    // "my_folder/.mylog" => ("my_folder/.mylog")
+    // ".mylog" => (".mylog". "")
+    // "my_folder/.mylog" => ("my_folder/.mylog", "")
     // "my_folder/.mylog.txt" => ("my_folder/.mylog", ".txt")
-
-    static std::tuple<filename_t, filename_t> split_by_extenstion(const filename_t& fname)
+    static std::tuple<filename_t, filename_t> split_by_extenstion(const spdlog::filename_t& fname)
     {
-        auto index = fname.rfind('.');
-        bool found_ext = index != filename_t::npos && index !=0 && fname[index - 1] != details::os::folder_sep;
-        if (found_ext)
-            return std::make_tuple(fname.substr(0, index), fname.substr(index));
-        else
-            return std::make_tuple(fname, filename_t());
-    }
+        auto ext_index = fname.rfind('.');
 
+        // no valid extension found - return whole path and empty string as extension
+        if (ext_index == filename_t::npos || ext_index == 0 || ext_index == fname.size() - 1)
+            return std::make_tuple(fname, spdlog::filename_t());
+
+        // treat casese like "/etc/rc.d/somelogfile or "/abc/.hiddenfile"
+        auto folder_index = fname.rfind(details::os::folder_sep);
+        if (folder_index != fname.npos && folder_index >= ext_index - 1)
+            return std::make_tuple(fname, spdlog::filename_t());
+
+        // finally - return a valid base and extension tuple
+        return std::make_tuple(fname.substr(0, ext_index), fname.substr(ext_index));
+    }
 private:
     FILE* _fd;
     filename_t _filename;

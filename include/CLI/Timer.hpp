@@ -108,11 +108,14 @@ class Timer {
 class AutoTimer : public Timer {
   public:
     /// Reimplementing the constructor is required in GCC 4.7
-    AutoTimer(std::string title = "Timer", time_print_t time_print = Simple) : Timer(title, time_print) {}
+    AutoTimer(std::string title = "Timer", 
+    time_print_t time_print = Simple, std::ostream& in=std::cerr) : Timer(title, time_print), ostr(in) {}
     // GCC 4.7 does not support using inheriting constructors.
 
     /// This desctructor prints the string
-    ~AutoTimer() { std::cout << to_string() << std::endl; }
+    ~AutoTimer() { ostr << to_string() << std::endl; }
+  private:
+    std::ostream& ostr;
 };
 
 } // namespace CLI

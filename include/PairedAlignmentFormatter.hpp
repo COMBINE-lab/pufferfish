@@ -44,8 +44,8 @@ struct PairedAlignmentFormatter {
   std::string qual2Temp;
   char buff1[1000];
   char buff2[1000];
-  util::FixedWriter cigarStr1;
-  util::FixedWriter cigarStr2;
+  pufferfish::util::FixedWriter cigarStr1;
+  pufferfish::util::FixedWriter cigarStr2;
 };
 
 #endif //__PAIR_ALIGNMENT_FORMATTER_HPP__

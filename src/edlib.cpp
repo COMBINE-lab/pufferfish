@@ -652,9 +652,9 @@ static inline bool allBlockCellsLarger(const Block block, const int k) {
  */
 static int myersCalcEditDistanceSemiGlobal(
         const Word* const Peq, const int W, const int maxNumBlocks,
-        const unsigned char* const query,  const int queryLength,
+        const unsigned char* const /*query*/,  const int queryLength,
         const unsigned char* const target, const int targetLength,
-        const int alphabetLength, int k, const EdlibAlignMode mode,
+        const int /*alphabetLength*/, int k, const EdlibAlignMode mode,
         int* const bestScore_, int** const positions_, int* const numPositions_) {
     *positions_ = NULL;
     *numPositions_ = 0;
@@ -833,9 +833,9 @@ static int myersCalcEditDistanceSemiGlobal(
  * @return Status.
  */
  static int myersCalcEditDistanceNWCustom(const Word* const Peq, const int W, const int maxNumBlocks,
-                                          const unsigned char* const query, const int queryLength,
+                                          const unsigned char* const /*query*/, const int queryLength,
                                           const unsigned char* const target, const int targetLength,
-                                          const int alphabetLength, int k, int* const bestScore_,
+                                          const int /*alphabetLength*/, int k, int* const bestScore_,
                                           int* const position_, const bool findAlignment,
                                           AlignmentData** const alignData, const int targetStopPosition, vector<Block>& blocks) {
     if (targetStopPosition > -1 && findAlignment) {
@@ -860,7 +860,7 @@ static int myersCalcEditDistanceSemiGlobal(
     int lastBlock = min(maxNumBlocks, ceilDiv(min(k, (k + queryLength - targetLength) / 2) + 1, WORD_SIZE)) - 1;
     decltype(blocks.begin()) bl; // Current block
 
-    if (maxNumBlocks != blocks.size()) {
+    if (maxNumBlocks != static_cast<int>(blocks.size())) {
       blocks.resize(maxNumBlocks);
     }
     //Block* blocks = new Block[maxNumBlocks];
@@ -1064,9 +1064,9 @@ static int myersCalcEditDistanceSemiGlobal(
  * @return Status.
  */
 static int myersCalcEditDistanceNW(const Word* const Peq, const int W, const int maxNumBlocks,
-                                   const unsigned char* const query, const int queryLength,
+                                   const unsigned char* const /*query*/, const int queryLength,
                                    const unsigned char* const target, const int targetLength,
-                                   const int alphabetLength, int k, int* const bestScore_,
+                                   const int /*alphabetLength*/, int k, int* const bestScore_,
                                    int* const position_, const bool findAlignment,
                                    AlignmentData** const alignData, const int targetStopPosition) {
     if (targetStopPosition > -1 && findAlignment) {

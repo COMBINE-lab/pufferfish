@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "kalloc.h"
-#include "ksw2.h"
+#include "ksw2pp/kalloc.h"
+#include "ksw2pp/ksw2.h"
 
 namespace ksw2pp {
 
@@ -43,6 +43,12 @@ class KSW2Aligner {
 public:
   KSW2Aligner(int8_t match = 2, int8_t mismatch = -4);
   KSW2Aligner(std::vector<int8_t> mat);
+
+  KSW2Aligner(const KSW2Aligner& o) = delete;
+  KSW2Aligner(KSW2Aligner&& o) = delete;
+  KSW2Aligner& operator=(KSW2Aligner&& o) = delete;
+  KSW2Aligner& operator=(const KSW2Aligner& o) = delete;
+
 
   /**
    * Variants of the operator that require both an explicit type tag to

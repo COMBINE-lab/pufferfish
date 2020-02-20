@@ -1,0 +1,388 @@
+Common/ntcard-SignalHandler.o: Common/SignalHandler.cpp \
+ /usr/include/stdc-predef.h Common/SignalHandler.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cassert \
+ /usr/include/assert.h /usr/include/features.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cerrno \
+ /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cstdio \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/c++config.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/os_defines.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/cpu_defines.h \
+ /usr/include/stdio.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/lib/gcc/x86_64-unknown-linux-gnu/5.5.0/include/stddef.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h \
+ /usr/include/_G_config.h /usr/include/wchar.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/lib/gcc/x86_64-unknown-linux-gnu/5.5.0/include/stdarg.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cstdlib \
+ /usr/include/stdlib.h /usr/include/x86_64-linux-gnu/bits/waitflags.h \
+ /usr/include/x86_64-linux-gnu/bits/waitstatus.h /usr/include/xlocale.h \
+ /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/time.h \
+ /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/byteswap.h \
+ /usr/include/x86_64-linux-gnu/bits/byteswap-16.h \
+ /usr/include/x86_64-linux-gnu/sys/select.h \
+ /usr/include/x86_64-linux-gnu/bits/select.h \
+ /usr/include/x86_64-linux-gnu/bits/sigset.h \
+ /usr/include/x86_64-linux-gnu/bits/time.h \
+ /usr/include/x86_64-linux-gnu/sys/sysmacros.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h /usr/include/alloca.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/iostream \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ostream \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ios \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/iosfwd \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stringfwd.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/memoryfwd.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/postypes.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cwchar \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/exception \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/atomic_lockfree_defines.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/char_traits.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_algobase.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/functexcept.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/exception_defines.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/cpp_type_traits.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/type_traits.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/numeric_traits.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_pair.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/move.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/concept_check.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_iterator_base_types.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_iterator_base_funcs.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/debug/debug.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_iterator.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ptr_traits.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/predefined_ops.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/localefwd.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/c++locale.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/clocale \
+ /usr/include/locale.h /usr/include/x86_64-linux-gnu/bits/locale.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cctype \
+ /usr/include/ctype.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ios_base.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/atomicity.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/gthr.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/gthr-default.h \
+ /usr/include/pthread.h /usr/include/sched.h \
+ /usr/include/x86_64-linux-gnu/bits/sched.h \
+ /usr/include/x86_64-linux-gnu/bits/timex.h \
+ /usr/include/x86_64-linux-gnu/bits/setjmp.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/atomic_word.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_classes.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/string \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/allocator.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/c++allocator.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/new_allocator.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/new \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ostream_insert.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/cxxabi_forced.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_function.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/backward/binders.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/range_access.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_string.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/alloc_traits.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_string.tcc \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_classes.tcc \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/stdexcept \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/streambuf \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/streambuf.tcc \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_ios.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_facets.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cwctype \
+ /usr/include/wctype.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/ctype_base.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/streambuf_iterator.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/ctype_inline.h \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_facets.tcc \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_ios.tcc \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ostream.tcc \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/istream \
+ /home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/istream.tcc \
+ /usr/include/signal.h /usr/include/x86_64-linux-gnu/bits/signum.h \
+ /usr/include/x86_64-linux-gnu/bits/siginfo.h \
+ /usr/include/x86_64-linux-gnu/bits/sigaction.h \
+ /usr/include/x86_64-linux-gnu/bits/sigcontext.h \
+ /usr/include/x86_64-linux-gnu/bits/sigstack.h \
+ /usr/include/x86_64-linux-gnu/sys/ucontext.h \
+ /usr/include/x86_64-linux-gnu/bits/sigthread.h \
+ /usr/include/x86_64-linux-gnu/sys/wait.h
+
+/usr/include/stdc-predef.h:
+
+Common/SignalHandler.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cassert:
+
+/usr/include/assert.h:
+
+/usr/include/features.h:
+
+/usr/include/x86_64-linux-gnu/sys/cdefs.h:
+
+/usr/include/x86_64-linux-gnu/bits/wordsize.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs-64.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cerrno:
+
+/usr/include/errno.h:
+
+/usr/include/x86_64-linux-gnu/bits/errno.h:
+
+/usr/include/linux/errno.h:
+
+/usr/include/x86_64-linux-gnu/asm/errno.h:
+
+/usr/include/asm-generic/errno.h:
+
+/usr/include/asm-generic/errno-base.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cstdio:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/c++config.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/os_defines.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/cpu_defines.h:
+
+/usr/include/stdio.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/lib/gcc/x86_64-unknown-linux-gnu/5.5.0/include/stddef.h:
+
+/usr/include/x86_64-linux-gnu/bits/types.h:
+
+/usr/include/x86_64-linux-gnu/bits/typesizes.h:
+
+/usr/include/libio.h:
+
+/usr/include/_G_config.h:
+
+/usr/include/wchar.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/lib/gcc/x86_64-unknown-linux-gnu/5.5.0/include/stdarg.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
+
+/usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdio.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cstdlib:
+
+/usr/include/stdlib.h:
+
+/usr/include/x86_64-linux-gnu/bits/waitflags.h:
+
+/usr/include/x86_64-linux-gnu/bits/waitstatus.h:
+
+/usr/include/xlocale.h:
+
+/usr/include/x86_64-linux-gnu/sys/types.h:
+
+/usr/include/time.h:
+
+/usr/include/endian.h:
+
+/usr/include/x86_64-linux-gnu/bits/endian.h:
+
+/usr/include/x86_64-linux-gnu/bits/byteswap.h:
+
+/usr/include/x86_64-linux-gnu/bits/byteswap-16.h:
+
+/usr/include/x86_64-linux-gnu/sys/select.h:
+
+/usr/include/x86_64-linux-gnu/bits/select.h:
+
+/usr/include/x86_64-linux-gnu/bits/sigset.h:
+
+/usr/include/x86_64-linux-gnu/bits/time.h:
+
+/usr/include/x86_64-linux-gnu/sys/sysmacros.h:
+
+/usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
+
+/usr/include/alloca.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/iostream:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ostream:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ios:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/iosfwd:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stringfwd.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/memoryfwd.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/postypes.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cwchar:
+
+/usr/include/x86_64-linux-gnu/bits/wchar.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/exception:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/atomic_lockfree_defines.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/char_traits.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_algobase.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/functexcept.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/exception_defines.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/cpp_type_traits.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/type_traits.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/numeric_traits.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_pair.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/move.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/concept_check.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_iterator_base_types.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_iterator_base_funcs.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/debug/debug.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_iterator.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ptr_traits.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/predefined_ops.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/localefwd.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/c++locale.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/clocale:
+
+/usr/include/locale.h:
+
+/usr/include/x86_64-linux-gnu/bits/locale.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cctype:
+
+/usr/include/ctype.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ios_base.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/atomicity.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/gthr.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/gthr-default.h:
+
+/usr/include/pthread.h:
+
+/usr/include/sched.h:
+
+/usr/include/x86_64-linux-gnu/bits/sched.h:
+
+/usr/include/x86_64-linux-gnu/bits/timex.h:
+
+/usr/include/x86_64-linux-gnu/bits/setjmp.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/atomic_word.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_classes.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/string:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/allocator.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/c++allocator.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/new_allocator.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/new:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ostream_insert.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/cxxabi_forced.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/stl_function.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/backward/binders.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/range_access.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_string.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/ext/alloc_traits.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_string.tcc:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_classes.tcc:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/stdexcept:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/streambuf:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/streambuf.tcc:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_ios.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_facets.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/cwctype:
+
+/usr/include/wctype.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/ctype_base.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/streambuf_iterator.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/x86_64-unknown-linux-gnu/bits/ctype_inline.h:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/locale_facets.tcc:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/basic_ios.tcc:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/ostream.tcc:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/istream:
+
+/home/linuxbrew/.linuxbrew/Cellar/gcc/5.5.0_4/include/c++/5.5.0/bits/istream.tcc:
+
+/usr/include/signal.h:
+
+/usr/include/x86_64-linux-gnu/bits/signum.h:
+
+/usr/include/x86_64-linux-gnu/bits/siginfo.h:
+
+/usr/include/x86_64-linux-gnu/bits/sigaction.h:
+
+/usr/include/x86_64-linux-gnu/bits/sigcontext.h:
+
+/usr/include/x86_64-linux-gnu/bits/sigstack.h:
+
+/usr/include/x86_64-linux-gnu/sys/ucontext.h:
+
+/usr/include/x86_64-linux-gnu/bits/sigthread.h:
+
+/usr/include/x86_64-linux-gnu/sys/wait.h:

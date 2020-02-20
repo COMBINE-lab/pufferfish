@@ -1,6 +1,7 @@
 #include "RefSeqConstructor.hpp"
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
+#include "PufferfishLossyIndex.hpp"
 
 #include <sparsepp/spp.h>
 
@@ -27,15 +28,15 @@ seq : will be appended through out the traversal
 template <typename PufferfishIndexT>
 RefSeqConstructor<PufferfishIndexT>::RefSeqConstructor(PufferfishIndexT* pfi,
                                                        spp::sparse_hash_map<uint32_t,
-                                                       util::ContigBlock>* contigSeqCache)
+                                                       pufferfish::util::ContigBlock>* contigSeqCache)
                                                        : pfi_(pfi), contigSeqCache_(contigSeqCache) { k = pfi_->k(); }
 template <typename PufferfishIndexT>
 Task RefSeqConstructor<PufferfishIndexT>::fillSeq(size_t tid,
                                              size_t tpos,
                                              bool isCurContigFw,
-                                             util::ContigBlock& curContig,
+                                             pufferfish::util::ContigBlock& curContig,
                                              uint32_t startp,
-                                             util::ContigBlock& endContig,
+                                             pufferfish::util::ContigBlock& endContig,
                                              uint32_t endp,
                                              bool isEndContigFw,
                                              uint32_t txpDist,
@@ -78,9 +79,9 @@ template <typename PufferfishIndexT>
 Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
                                                 size_t tpos,
                                                 bool isCurContigFw,
-                                                util::ContigBlock& curContig,
+                                                pufferfish::util::ContigBlock& curContig,
                                                 uint32_t startp,
-                                                util::ContigBlock& endContig,
+                                                pufferfish::util::ContigBlock& endContig,
                                                 bool isEndContigFw,
                                                 uint32_t txpDist,
                                                 bool walkForward,
@@ -139,11 +140,16 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
           std::exit(1);
         }
         for (auto& c : tmp) {
-          util::ContigBlock& cb = (*contigSeqCache_)[c.cid];
-          if (cb.contigLen_-(k-1) <= endContig.contigLen_ &&
-              getRemSeq(cb, cb.contigLen_-(k-1), c.isCurContigFw, suffixIfFw) == getRemSeq(endContig, cb.contigLen_-(k-1), isEndContigFw, prefixIfFw))
-            appendByLen(seq, curContig, startp, txpDist, isCurContigFw, suffixIfFw);
-            return Task::SUCCESS;
+          pufferfish::util::ContigBlock& cb = (*contigSeqCache_)[c.cid];
+          if (cb.contigLen_ - (k - 1) <= endContig.contigLen_ &&
+              getRemSeq(cb, cb.contigLen_ - (k - 1), c.isCurContigFw,
+                        suffixIfFw) == getRemSeq(endContig,
+                                                 cb.contigLen_ - (k - 1),
+                                                 isEndContigFw, prefixIfFw)) {
+            appendByLen(seq, curContig, startp, txpDist, isCurContigFw,
+                        suffixIfFw);
+          }
+          return Task::SUCCESS;
         }
         return Task::FAILURE; // I'm in the middle of no where!! lost!!
       }
@@ -175,7 +181,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
     }
     for (auto& c : children) {
       // act greedily and return with the first successfully constructed sequence.
-      util::ContigBlock& cb = (*contigSeqCache_)[c.cid];
+      pufferfish::util::ContigBlock& cb = (*contigSeqCache_)[c.cid];
       if (doDFS(tid, c.tpos, c.isCurContigFw, cb, c.cpos, endContig, isEndContigFw, txpDist, walkForward, seq, verbose) == Task::SUCCESS) {
         return Task::SUCCESS;
       }
@@ -202,7 +208,7 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
 
 
 template <typename PufferfishIndexT>
-size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd, bool verbose) {
+size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(pufferfish::util::ContigBlock& contig, size_t startp, bool isCurContigFw, bool fromTheEnd, bool verbose) {
   (void) verbose;
       if ( isCurContigFw == fromTheEnd)
       return contig.contigLen_ - startp - 1;
@@ -213,7 +219,7 @@ size_t RefSeqConstructor<PufferfishIndexT>::remainingLen(util::ContigBlock& cont
 
 template <typename PufferfishIndexT>
 void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
-                                                 util::ContigBlock& contig,
+                                                 pufferfish::util::ContigBlock& contig,
                                                  size_t startp, size_t endp,
                                                  bool isCurContigFw,
                                                  bool verbose) {
@@ -232,7 +238,7 @@ void RefSeqConstructor<PufferfishIndexT>::append(std::string& seq,
 
 
 template <typename PufferfishIndexT>
-void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose) {
+void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, pufferfish::util::ContigBlock& contig, size_t startp, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose) {
   if (len == 0)
     return;
   if (isCurContigFw && appendSuffix) { // append suffix
@@ -255,7 +261,7 @@ void RefSeqConstructor<PufferfishIndexT>::appendByLen(std::string& seq, util::Co
 
 
 template <typename PufferfishIndexT>
-std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose) {
+std::string RefSeqConstructor<PufferfishIndexT>::getRemSeq(pufferfish::util::ContigBlock& contig, size_t len, bool isCurContigFw, bool appendSuffix, bool verbose) {
   std::string seq = "";
   if (len == 0)
     return "";
@@ -315,7 +321,7 @@ char RefSeqConstructor<PufferfishIndexT>::rev(const char& c) {
 }
 
 template <typename PufferfishIndexT>
-std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSuccessors(util::ContigBlock& contig,
+std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSuccessors(pufferfish::util::ContigBlock& contig,
                                                                                        bool isCurContigFw,
                                                                                        size_t tid,
                                                                                        size_t tpos,
@@ -327,10 +333,10 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
     CanonicalKmer::k(k) ;
 
     auto& edges = pfi_->getEdge() ;
-    util::Direction dir = isCurContigFw?util::Direction::FORWARD:util::Direction::BACKWORD ;
+    pufferfish::util::Direction dir = isCurContigFw?pufferfish::util::Direction::FORWARD:pufferfish::util::Direction::BACKWORD ;
 
     uint8_t edgeVec = edges[contig.contigIdx_] ;
-    std::vector<util::extension> ext = util::getExts(edgeVec) ;
+    std::vector<pufferfish::util::extension> ext = pufferfish::util::getExts(edgeVec) ;
 
     if(!ext.empty()){
       CanonicalKmer kb ;
@@ -341,8 +347,8 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
 
       for(auto& ed : ext){
         if(ed.dir == dir){
-          (dir == util::Direction::FORWARD)?ke.shiftFw(ed.c):kb.shiftBw(ed.c) ;
-          (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
+          (dir == pufferfish::util::Direction::FORWARD)?ke.shiftFw(ed.c):kb.shiftBw(ed.c) ;
+          (dir == pufferfish::util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
 
           auto nextHit = pfi_->getRefPos(kt) ;
 
@@ -351,7 +357,7 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
             (*contigSeqCache_)[nextHit.contigIdx_] = {nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq} ;
           }
 
-          util::ContigBlock cb = (*contigSeqCache_)[nextHit.contigIdx_] ;
+          pufferfish::util::ContigBlock cb = (*contigSeqCache_)[nextHit.contigIdx_] ;
           nextCompatibleStruct theBest {cb.contigIdx_, tpos, 0, true};
           bool isBestValid = false;
           for(auto& posIt: nextHit.refRange){
@@ -385,7 +391,7 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchSucc
 
 
 template <typename PufferfishIndexT>
-std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPredecessors(util::ContigBlock& contig,
+std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPredecessors(pufferfish::util::ContigBlock& contig,
                                                                                        bool isCurContigFw,
                                                                                        size_t tid,
                                                                                        size_t tpos,
@@ -401,10 +407,10 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
     //auto& edges = pfi_->getRevEdge() ;
     auto& edges = pfi_->getEdge() ;
 
-    util::Direction dir = isCurContigFw?util::Direction::BACKWORD:util::Direction::FORWARD ;
+    pufferfish::util::Direction dir = isCurContigFw?pufferfish::util::Direction::BACKWORD:pufferfish::util::Direction::FORWARD ;
 
     uint8_t edgeVec = edges[contig.contigIdx_] ;
-    std::vector<util::extension> ext = util::getExts(edgeVec) ;
+    std::vector<pufferfish::util::extension> ext = pufferfish::util::getExts(edgeVec) ;
 
     if(!ext.empty()){
       CanonicalKmer kb ;
@@ -415,8 +421,8 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
 
       for(auto& ed : ext){
         if(ed.dir == dir){
-          (dir == util::Direction::FORWARD)?ke.shiftFw(ed.c):kb.shiftBw(ed.c) ;
-          (dir == util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
+          (dir == pufferfish::util::Direction::FORWARD)?ke.shiftFw(ed.c):kb.shiftBw(ed.c) ;
+          (dir == pufferfish::util::Direction::FORWARD)?kt.fromNum(ke.getCanonicalWord()):kt.fromNum(kb.getCanonicalWord()) ;
 
           auto nextHit = pfi_->getRefPos(kt) ;
 
@@ -425,7 +431,7 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
             (*contigSeqCache_)[nextHit.contigIdx_] = {nextHit.contigIdx_, nextHit.globalPos_, nextHit.contigLen_, contigseq} ;
           }
 
-          util::ContigBlock cb = (*contigSeqCache_)[nextHit.contigIdx_] ;
+          pufferfish::util::ContigBlock cb = (*contigSeqCache_)[nextHit.contigIdx_] ;
           nextCompatibleStruct theBest {cb.contigIdx_, tpos, 0, true};
           bool isBestValid = false;
           for(auto& posIt: nextHit.refRange){
@@ -459,3 +465,4 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
 
 template class RefSeqConstructor<PufferfishIndex>;
 template class RefSeqConstructor<PufferfishSparseIndex>;
+template class RefSeqConstructor<PufferfishLossyIndex>;

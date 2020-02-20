@@ -19,49 +19,144 @@
 // along with RapMap.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "CLI/CLI.hpp"
 #include "clipp.h"
 #include <fstream>
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cstdlib>
-//#include <cereal/archives/json.hpp>
+#include <clocale>
+#include <ghc/filesystem.hpp>
+#include <cereal/archives/json.hpp>
 
 #include "PufferfishConfig.hpp"
 #include "ProgOpts.hpp"
 #include "Util.hpp"
 //#include "IndexHeader.hpp"
 
-int pufferfishIndex(IndexOptions& indexOpts); // int argc, char* argv[]);
-int pufferfishTest(TestOptions& testOpts);    // int argc, char* argv[]);
+int pufferfishIndex(pufferfish::IndexOptions& indexOpts); // int argc, char* argv[]);
+int pufferfishTest(pufferfish::TestOptions& testOpts);    // int argc, char* argv[]);
 int pufferfishValidate(
-    ValidateOptions& validateOpts); // int argc, char* argv[]);
+                       pufferfish::ValidateOptions& validateOpts); // int argc, char* argv[]);
 int pufferfishTestLookup(
-    ValidateOptions& lookupOpts); // int argc, char* argv[]);
-int pufferfishAligner(AlignmentOpts& alignmentOpts) ;
+                         pufferfish::ValidateOptions& lookupOpts); // int argc, char* argv[]);
+int pufferfishAligner(pufferfish::AlignmentOpts& alignmentOpts) ;
+int pufferfishExamine(pufferfish::ExamineOptions& examineOpts);
+int pufferfishStats(pufferfish::StatsOptions& statsOpts);
 
 int main(int argc, char* argv[]) {
   using namespace clipp;
   using std::cout;
-  enum class mode {help, index, validate, lookup, align};
+  std::setlocale(LC_ALL, "en_US.UTF-8");
+
+  enum class mode {help, index, validate, lookup, align, examine, stat};
   mode selected = mode::help;
-  AlignmentOpts alignmentOpt ;
-  IndexOptions indexOpt;
+  pufferfish::AlignmentOpts alignmentOpt ;
+  pufferfish::IndexOptions indexOpt;
   //TestOptions testOpt;
-  ValidateOptions validateOpt;
-  ValidateOptions lookupOpt;
+  pufferfish::ValidateOptions validateOpt;
+  pufferfish::ValidateOptions lookupOpt;
+  pufferfish::ExamineOptions examineOpt;
+  pufferfish::StatsOptions statOpt;
+
+  auto ensure_file_exists = [](const std::string& s) -> bool {
+      bool exists = ghc::filesystem::exists(s);
+      if (!exists) {
+        std::string e = "The required input file " + s + " does not seem to exist.";
+        throw std::runtime_error{e};
+      }
+      return true;
+  };
+
+  auto ensure_index_exists = [](const std::string& s) -> bool {
+      bool exists = ghc::filesystem::exists(s);
+      if (!exists) {
+        std::string e = "The index directory " + s + " does not seem to exist.";
+        throw std::runtime_error{e};
+      }
+      bool isDir = ghc::filesystem::is_directory(s);
+      if (!isDir) {
+          std::string e = s + " is not a directory containing index files.";
+          throw std::runtime_error{e};
+      }
+  
+	  for (auto & elem : {pufferfish::util::INFO,
+                          pufferfish::util::MPH,
+                          pufferfish::util::SEQ,
+                          pufferfish::util::RANK,
+                          pufferfish::util::CTABLE,
+                          pufferfish::util::REFSEQ,
+                          pufferfish::util::REFNAME,
+                          pufferfish::util::REFLENGTH,
+                          pufferfish::util::REFACCUMLENGTH}) {
+          if (!ghc::filesystem::exists(s+"/"+elem)) {
+              std::string e = "Index is incomplete. Missing file ";
+              e+=elem;
+              throw std::runtime_error{e};
+          }
+      }
+      std::string indexType;
+      {
+          std::ifstream infoStream(s + "/" + pufferfish::util::INFO);
+          cereal::JSONInputArchive infoArchive(infoStream);
+          infoArchive(cereal::make_nvp("sampling_type", indexType));
+          infoStream.close();
+          if (indexType == "dense") {
+              if (!ghc::filesystem::exists(s+"/"+pufferfish::util::POS)) {
+                  std::string e = "Index is incomplete. Missing file " + std::string(pufferfish::util::POS);
+                  throw std::runtime_error{e};
+              }
+          } else if (indexType == "sparse") {
+              for (auto & elem : {pufferfish::util::EXTENSION,
+                                  pufferfish::util::EXTENSIONSIZE,
+                                  pufferfish::util::SAMPLEPOS}) {
+                  if (!ghc::filesystem::exists(s+"/"+elem)) {
+                      std::string e = "Index is incomplete. Missing file ";
+                      e+=elem;
+                      throw std::runtime_error{e};
+                  }
+              }
+          }
+      }
+ 
+      return true;
+  };
+
+
 
   auto indexMode = (
                     command("index").set(selected, mode::index),
-                    (required("-o", "--output").call([]{cout << "parsing --output\n\n";}) & value("output_dir", indexOpt.outdir)) % "directory where index is written",
-                    (required("-g", "--gfa").call([]{cout << "parsing --gfa\n\n";}) & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
-                    (required("-r", "--ref").call([]{cout << "parsing --ref\n\n";}) & value("ref_file", indexOpt.rfile)) % "path to the reference fasta file",
+                    (required("-r", "--ref") & values(ensure_file_exists, "ref_file", indexOpt.rfile)) % "path to the reference fasta file",
+                    (required("-o", "--output") & value("output_dir", indexOpt.outdir)) % "directory where index is written",
+                    //(required("-g", "--gfa") & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
+                    (option("--headerSep") & value("sep_strs", indexOpt.header_sep)) %
+                    "Instead of a space or tab, break the header at the first "
+                    "occurrence of this string, and name the transcript as the token before "
+                    "the first separator (default = space & tab)",
+                    (option("--keepFixedFasta").set(indexOpt.keep_fixed_fasta) % "Retain the fixed fasta file (without short transcripts and duplicates, clipped, etc.) generated during indexing"),
+                    (option("--keepDuplicates").set(indexOpt.keep_duplicates) % "Retain duplicate references in the input"),
+                    (option("-d", "--decoys") & value("decoy_list", indexOpt.decoy_file)) %
+                    "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
+                    (option("-f", "--filt-size") & value("filt_size", indexOpt.filt_size)) % "filter size to pass to TwoPaCo when building the reference dBG",
+                    (option("--tmpdir") & value("twopaco_tmp_dir", indexOpt.twopaco_tmp_dir)) % "temporary work directory to pass to TwoPaCo when building the reference dBG",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
-                    (option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
-                    (option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)"
+                    (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
+                    (option("-l", "--build-edges").set(indexOpt.buildEdgeVec, true) % "build and record explicit edge table for the contaigs of the ccdBG (default = false)"),
+                    (option("-q", "--build-eqclses").set(indexOpt.buildEqCls, true) % "build and record equivalence classes (default = false)"),
+                    (((option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
+                     ((option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)")) |
+                     ((option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)"))
                     );
 
+  // Examine properties of the index
+  auto examineMode = (
+                      command("examine").set(selected, mode::examine),
+                      (required("-i", "--index") & value("index", examineOpt.index_dir)) % "pufferfish index directory",
+                      (option("--dump-fasta") & value("fasta_out", examineOpt.fasta_out)) %
+                      "dump the reference sequences in the index in the provided fasta file",
+                      (option("--dump-kmer-freq") & value("kmer_freq_out", examineOpt.kmer_freq_out)) %
+                      "dump the frequency histogram of k-mers"
+                      );
   /*
   auto testMode = (
                    command("test").set(selected, mode::test)
@@ -69,16 +164,24 @@ int main(int argc, char* argv[]) {
   */
   auto validateMode = (
                        command("validate").set(selected, mode::validate),
-                       (required("-i", "--index") & value("index", validateOpt.indexDir)) % "directory where the pufferfish index is stored",
+                       (required("-i", "--index") & value("index", validateOpt.indexDir)) % "directory where the pufferfish index is stored");/*,
                        (required("-r", "--ref") & value("ref", validateOpt.refFile)) % "fasta file with reference sequences",
                        (required("-g", "--gfa") & value("gfa", validateOpt.gfaFileName)) % "GFA file name needed for edge table validation"
                        );
+                                                                                                                                              */
   auto lookupMode = (
                      command("lookup").set(selected, mode::lookup),
                      (required("-i", "--index") & value("index", lookupOpt.indexDir)) % "directory where the pufferfish index is stored",
                      (required("-r", "--ref") & value("ref", lookupOpt.refFile)) % "fasta file with reference sequences"
                      );
-
+  std::string statType = "ctab";
+  auto statMode = (
+                    command("stat").set(selected, mode::stat),
+                    (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab)",
+                    (required("-i", "--index") & value("index", statOpt.indexDir)) % "directory where the pufferfish index is stored");
+  if (statType == "ctab") {
+      statOpt.statType = pufferfish::StatType::ctab;
+  }
   std::string throwaway;
   auto isValidRatio = [](const char* s) -> void {
     float r{0.0};
@@ -97,31 +200,60 @@ int main(int argc, char* argv[]) {
 
   auto alignMode = (
                     command("align").set(selected, mode::align),
-                    (required("-i", "--index") & value("index", alignmentOpt.indexDir)) % "directory where the pufferfish index is stored",
+                    (required("-i", "--index") & value(ensure_index_exists, "index", alignmentOpt.indexDir)) % "Directory where the Pufferfish index is stored",
                     (
-                     (
-                      ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "path to the left end of the read files"),
-                      ((required("--mate2", "-2") & value("mate 2", alignmentOpt.read2)) % "path to the right end of the read files")
-                     ) |
-                     ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "path to single-end read files")
+                      (
+                        ((required("--mate1", "-1") & value("mate 1", alignmentOpt.read1)) % "Path to the left end of the read files"),
+                        ((required("--mate2", "-2") & value("mate 2", alignmentOpt.read2)) % "Path to the right end of the read files")
+                      ) 
+                      |
+                      ((required("--read").set(alignmentOpt.singleEnd, true) & value("reads", alignmentOpt.unmatedReads)) % "Path to single-end read files")
                     ),
-                    (option("--scoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "mappings with a score < scoreRatio * OPT are discarded (default=0.5)",
-                    (option("-p", "--threads") & value("num threads", alignmentOpt.numThreads)) % "specify the number of threads (default=8)",
+                    (option("-b", "--batchOfReads").set(alignmentOpt.listOfReads, true)) % "Is each input a file containing the list of reads? (default=false)",
+
+
+                    (option("--coverageScoreRatio") & value("score ratio", alignmentOpt.scoreRatio).call(isValidRatio)) % "Discard mappings with a coverage score < scoreRatio * OPT (default=0.6)",
+                    (option("-t", "--threads") & value("num threads", alignmentOpt.numThreads)) % "Specify the number of threads (default=8)",
                     (option("-m", "--just-mapping").set(alignmentOpt.justMap, true)) % "don't attempt alignment validation; just do mapping",
                     (
-                      (required("--noOutput").set(alignmentOpt.noOutput, true)) % "run without writing SAM file"
-                        |
-                      (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "output file where the alignment results will be stored"
+                      (required("--noOutput").set(alignmentOpt.noOutput, true)) % "Run without writing SAM file"
+                      |
+                      (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "Output file where the alignment results will be stored"
                     ),
-                    (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "specify maximum splice gap that two uni-MEMs should have",
-                    (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % "specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs",
-                    (option("--writeOrphans").set(alignmentOpt.writeOrphans, true)) % "write Orphans flag",
-                    (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "write output in the format required for krakMap"
-                    );
+                    (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
+                    (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
+                            "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs (default:1000)",
+                    (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
+                    (option("--orphanRecovery").set(alignmentOpt.recoverOrphans, true)) % "Recover mappings for the other end of orphans using alignment",
+                    (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
+		            (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
+                    (
+                      (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "Write output in the format required for krakMap"
+                      |
+                      (option("-p", "--pam").set(alignmentOpt.salmonOut, true)) % "Write output in the format required for salmon"
+                    ),
+					(option("--verbose").set(alignmentOpt.verbose, true)) % "Print out auxilary information to trace program's flow",
+                    (option("--fullAlignment").set(alignmentOpt.fullAlignment, true)) % "Perform full alignment instead of gapped alignment",
+                    (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Whether or not perform only 2 rounds of chaining",
+                    (option("--bestStrata").set(alignmentOpt.bestStrata, true)) % "Keep only the alignments with the best score for each read",
+					(option("--genomicReads").set(alignmentOpt.genomicReads, true)) % "Align genomic dna-seq reads instead of RNA-seq reads",
+					(option("--primaryAlignment").set(alignmentOpt.primaryAlignment, true).set(alignmentOpt.bestStrata, true)) % "Report at most one alignment per read",
+                    (option("--filterGenomics").set(alignmentOpt.filterGenomics, true) & value("genes names file", alignmentOpt.genesNamesFile)) % 
+                         "Path to the file containing gene IDs. Filters alignments to the IDs listed in the file. Used to filter genomic reads while aligning to both genome and transcriptome."
+                         "A read will be reported with only the valid gene ID alignments and will be discarded if the best alignment is to an invalid ID"
+                         "The IDs are the same as the IDs in the fasta file provided for the index construction phase",
+                    (option("--filterBestScoreMicrobiome").set(alignmentOpt.filterMicrobiomBestScore, true) & value("genes ID file", alignmentOpt.genesNamesFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if aligned equally best to a valid and invalid gene ID.",
+                    (option("--filterMicrobiome").set(alignmentOpt.filterMicrobiom, true) & value("genes ID file", alignmentOpt.rrnaFile)) % "Path to the file containing gene IDs. Same as option \"filterGenomics\" except that a read will be discarded if an invalid gene ID is in the list of alignments.",
+                    (option("--bt2DefaultThreshold").set(alignmentOpt.mimicBt2Default, true)) % "mimic the default threshold function of Bowtie2 which is t = -0.6 -0.6 * read_len",
+                    (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)",
+                    (option("--consensusFraction") & value("consensus fraction", alignmentOpt.consensusFraction)) % "The fraction of mems, relative to the reference with "
+                    "the maximum number of mems, that a reference must contain in order "
+                    "to move forward with computing an optimal chain score (default=0.65)"
+  );
 
   auto cli = (
-              (indexMode | validateMode | lookupMode | alignMode | command("help").set(selected,mode::help) ),
-              option("-v", "--version").call([]{std::cout << "version 0.1.0\n\n";}).doc("show version"));
+              (indexMode | validateMode | lookupMode | alignMode | examineMode | statMode | command("help").set(selected,mode::help) ),
+              option("-v", "--version").call([]{std::cout << "version " << pufferfish::version << "\n"; std::exit(0);}).doc("show version"));
 
   decltype(parse(argc, argv, cli)) res;
   try {
@@ -129,7 +261,7 @@ int main(int argc, char* argv[]) {
   } catch (std::exception& e) {
     std::cout << "\n\nParsing command line failed with exception: " << e.what() << "\n";
     std::cout << "\n\n";
-    std::cout << make_man_page(cli, "pufferfish");
+    std::cout << make_man_page(cli, pufferfish::progname);
     return 1;
   }
 
@@ -140,160 +272,32 @@ int main(int argc, char* argv[]) {
     case mode::validate: pufferfishValidate(validateOpt);  break;
     case mode::lookup: pufferfishTestLookup(lookupOpt); break;
     case mode::align: pufferfishAligner(alignmentOpt); break;
-    case mode::help: std::cout << make_man_page(cli, "pufferfish"); break;
+    case mode::examine: pufferfishExamine(examineOpt); break;
+    case mode::stat: pufferfishStats(statOpt); break;
+    case mode::help: std::cout << make_man_page(cli, pufferfish::progname); break;
     }
   } else {
     auto b = res.begin();
     auto e = res.end();
     if (std::distance(b,e) > 0) {
       if (b->arg() == "index") {
-        std::cout << make_man_page(indexMode, "pufferfish");
+        std::cout << make_man_page(indexMode, pufferfish::progname);
       } else if (b->arg() == "validate") {
-        std::cout << make_man_page(validateMode, "pufferfish");
+        std::cout << make_man_page(validateMode, pufferfish::progname);
       } else if (b->arg() == "lookup") {
-        std::cout << make_man_page(lookupMode, "pufferfish");
+        std::cout << make_man_page(lookupMode, pufferfish::progname);
       } else if (b->arg() == "align") {
-        std::cout << make_man_page(alignMode, "pufferfish");
+        std::cout << make_man_page(alignMode, pufferfish::progname);
       } else {
         std::cout << "There is no command \"" << b->arg() << "\"\n";
-        std::cout << usage_lines(cli, "pufferfish") << '\n';
+        std::cout << usage_lines(cli, pufferfish::progname) << '\n';
         return 1;
       }
     } else {
-      std::cout << usage_lines(cli, "pufferfish") << '\n';
+      std::cout << usage_lines(cli, pufferfish::progname) << '\n';
       return 1;
     }
   }
 
-
-  /*
-  if (app.got_subcommand(indexApp)) {
-    return pufferfishIndex(indexOpt);
-  } else if (app.got_subcommand(testApp)) {
-    return pufferfishTest(testOpt);
-  } else if (app.got_subcommand(validateApp)) {
-    return pufferfishValidate(validateOpt);
-  } else if (app.got_subcommand(lookupApp)) {
-    return pufferfishTestLookup(lookupOpt);
-  } else if (app.got_subcommand(alignmentApp)) {
-    return pufferfishAligner(alignmentOpt);
-  }
-
-  AlignmentOpts alignmentOpt ;
-  alignmentApp
-    ->add_option("-i,--index", alignmentOpt.indexDir,
-                 "directory where the pufferfish index is stored")
-    ->required() ;
-  alignmentApp
-    ->add_option(",--mate1", alignmentOpt.read1,
-                 "path to left end of the read files")
-    ->required() ;
-  alignmentApp
-    ->add_option(",--mate2", alignmentOpt.read2,
-                 "path to right end of the read files")
-    ->required() ;
-  alignmentApp
-    ->add_flag("-m,--just-mapping", alignmentOpt.justMap,
-               "don't attempt alignment validation; just do mapping");
-  alignmentApp
-    ->add_option("-p,--threads", alignmentOpt.numThreads,
-                 "specfy number of threads") ;
-  alignmentApp
-    ->add_option("-o,--outdir", alignmentOpt.outname,
-                 "output directory where the alignment results would get stored")
-    ->required() ;
-
-  alignmentApp
-    ->add_option(",--maxSpliceGap", alignmentOpt.maxSpliceGap,
-               "specify maximum splice gap that two uni-mems should have");
-  alignmentApp
-    ->add_option(",--maxFragmentLength", alignmentOpt.maxFragmentLength,
-               "specify maximum distance between last uni-mem of the left end and first uni-mem of the right end of the read pairs");
-  alignmentApp
-    ->add_flag(",--writeOrphans", alignmentOpt.writeOrphans,
-                 "write Orphans flag");
-
-  alignmentApp
-    ->add_flag(",--noOutput", alignmentOpt.noOutput,
-                 "run without writing sam");
-
-
-  CLI::App app{"Pufferfish : An efficient dBG index."};
-  auto indexApp = app.add_subcommand("index", "build the pufferfish index");
-  auto testApp = app.add_subcommand("test", "test k-mer lookup in the index");
-  auto validateApp = app.add_subcommand(
-      "validate", "test k-mer lookup for reference sequences");
-  auto lookupApp = app.add_subcommand("lookup", "test k-mer lookup");
-  auto alignmentApp = app.add_subcommand("align", "align paired end RNA-seq reads") ;
-
-  IndexOptions indexOpt;
-  indexApp
-      ->add_option("-k,--klen", indexOpt.k,
-                   "length of the k-mer with which the compacted dBG was built",
-                   static_cast<uint32_t>(31))
-      ->required();
-  indexApp->add_option("-g,--gfa", indexOpt.gfa_file, "path to the GFA file")
-      ->required();
-  indexApp
-      ->add_option("-o,--output", indexOpt.outdir,
-                   "directory where index is written")
-      ->required();
-  indexApp
-    ->add_flag("-s,--sparse", indexOpt.isSparse,
-               "use the sparse pufferfish index (less space, but slower lookup)");
-  indexApp
-    ->add_option("-e,--extension", indexOpt.extensionSize,
-                 "length of the extension to store in the sparse index",
-                 static_cast<uint32_t>(4));
-  IndexOptions indexOpt;
-
-  TestOptions testOpt;
-
-  ValidateOptions validateOpt;
-  validateApp
-      ->add_option("-i,--index", validateOpt.indexDir,
-                   "directory where the pufferfish index is stored")
-      ->required();
-  validateApp
-      ->add_option("-r,--ref", validateOpt.refFile,
-                   "fasta file with reference sequences")
-      ->required();
-  validateApp
-    ->add_option("-g,--gfa", validateOpt.gfaFileName,
-                 "GFA file name needed for edge table validation") ;
-
-  ValidateOptions lookupOpt;
-  lookupApp
-      ->add_option("-i,--index", lookupOpt.indexDir,
-                   "directory where the pufferfish index is stored")
-      ->required();
-  lookupApp
-      ->add_option("-r,--ref", lookupOpt.refFile,
-                   "fasta file with reference sequences")
-      ->required();
-
-
-  try {
-    app.parse(argc, argv);
-  } catch (const CLI::ParseError& e) {
-    return app.exit(e);
-  }
-
-  if (app.got_subcommand(indexApp)) {
-    return pufferfishIndex(indexOpt);
-  } else if (app.got_subcommand(testApp)) {
-    return pufferfishTest(testOpt);
-  } else if (app.got_subcommand(validateApp)) {
-    return pufferfishValidate(validateOpt);
-  } else if (app.got_subcommand(lookupApp)) {
-    return pufferfishTestLookup(lookupOpt);
-  } else if (app.got_subcommand(alignmentApp)) {
-    return pufferfishAligner(alignmentOpt);
-  }
-  else {
-    std::cerr << "I don't know the requested sub-command\n";
-    return 1;
-  }
-  */
   return 0;
 }

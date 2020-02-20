@@ -60,12 +60,12 @@
 #include <iosfwd>
 #include <ios>
 
-#include <sparsepp/spp_stdint.h>  // includes spp_config.h
-#include <sparsepp/spp_traits.h>
-#include <sparsepp/spp_utils.h>
+#include "spp_stdint.h"  // includes spp_config.h
+#include "spp_traits.h"
+#include "spp_utils.h"
 
 #ifdef SPP_INCLUDE_SPP_ALLOC
-    #include <sparsepp/spp_alloc.h>
+    #include "spp_dlalloc.h"
 #endif
 
 #if !defined(SPP_NO_CXX11_HDR_INITIALIZER_LIST)
@@ -778,11 +778,15 @@ public:
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 template <class T, class row_it, class col_it, class iter_type>
-class Two_d_iterator : public std::iterator<iter_type, T>
+class Two_d_iterator
 {
 public:
     typedef Two_d_iterator iterator;
+    typedef iter_type      iterator_category;
     typedef T              value_type;
+    typedef std::ptrdiff_t difference_type;
+    typedef T*             pointer;
+    typedef T&             reference;
 
     explicit Two_d_iterator(row_it curr) : row_current(curr), col_current(0)
     {
@@ -1064,6 +1068,7 @@ private:
     // T can be std::pair<const K, V>, but sometime we need to cast to a mutable type
     // ------------------------------------------------------------------------------
     typedef typename spp_::cvt<T>::type                    mutable_value_type;
+    typedef mutable_value_type &                           mutable_reference;
     typedef mutable_value_type *                           mutable_pointer;
     typedef const mutable_value_type *                     const_mutable_pointer;
 
@@ -1084,31 +1089,36 @@ private:
 #if !defined(SPP_ALLOC_SZ) || (SPP_ALLOC_SZ == 0)
         // aggressive allocation first, then decreasing as sparsegroups fill up
         // --------------------------------------------------------------------
-        static uint8_t s_alloc_batch_sz[SPP_GROUP_SIZE] = { 0 };
-        if (!s_alloc_batch_sz[0])
+        struct alloc_batch_size
         {
             // 32 bit bitmap
             // ........ .... .... .. .. .. .. .  .  .  .  .  .  .  .
             //     8     12   16  18 20 22 24 25 26   ...          32
             // ------------------------------------------------------
-            uint8_t group_sz          = SPP_GROUP_SIZE / 4;
-            uint8_t group_start_alloc = SPP_GROUP_SIZE / 8; //4;
-            uint8_t alloc_sz          = group_start_alloc;
-            for (int i=0; i<4; ++i)
+            SPP_CXX14_CONSTEXPR alloc_batch_size()
+                : data()
             {
-                for (int j=0; j<group_sz; ++j)
+                uint8_t group_sz          = SPP_GROUP_SIZE / 4;
+                uint8_t group_start_alloc = SPP_GROUP_SIZE / 8; //4;
+                uint8_t alloc_sz          = group_start_alloc;
+                for (int i=0; i<4; ++i)
                 {
-                    if (j && j % group_start_alloc == 0)
-                        alloc_sz += group_start_alloc;
-                    s_alloc_batch_sz[i * group_sz + j] = alloc_sz;
+                    for (int j=0; j<group_sz; ++j)
+                    {
+                        if (j && j % group_start_alloc == 0)
+                            alloc_sz += group_start_alloc;
+                        data[i * group_sz + j] = alloc_sz;
+                    }
+                    if (group_start_alloc > 2)
+                        group_start_alloc /= 2;
+                    alloc_sz += group_start_alloc;
                 }
-                if (group_start_alloc > 2)
-                    group_start_alloc /= 2;
-                alloc_sz += group_start_alloc;
             }
-        }
+            uint8_t data[SPP_GROUP_SIZE];
+        };
 
-        return n ? static_cast<uint32_t>(s_alloc_batch_sz[n-1]) : 0; // more aggressive alloc at the beginning
+        static alloc_batch_size s_alloc_batch_sz;
+        return n ? static_cast<uint32_t>(s_alloc_batch_sz.data[n-1]) : 0; // more aggressive alloc at the beginning
 
 #elif (SPP_ALLOC_SZ == 1)
         // use as little memory as possible - slowest insert/delete in table
@@ -1133,8 +1143,7 @@ private:
         if (retval == NULL)
         {
             // the allocator is supposed to throw an exception if the allocation fails.
-            fprintf(stderr, "sparsehash FATAL ERROR: failed to allocate %d groups\n", num_alloc);
-            exit(1);
+            throw_exception(std::bad_alloc());
         }
         return retval;
     }
@@ -1220,7 +1229,7 @@ public:
     {
         _set_num_items(0);
         _set_num_alloc(0);
-         assert(_group == 0); if (_group) exit(1);
+         assert(_group == 0); 
     }
 
     sparsegroup(const sparsegroup& x, allocator_type& a) :
@@ -1238,7 +1247,7 @@ public:
         }
     }
 
-    ~sparsegroup() { assert(_group == 0); if (_group) exit(1); }
+    ~sparsegroup() { assert(_group == 0); }
 
     void destruct(allocator_type& a) { _free_group(a, _num_alloc()); }
 
@@ -1290,20 +1299,21 @@ public:
 
 private:
     //typedef spp_::integral_constant<bool, spp_::is_relocatable<value_type>::value> check_relocatable;
-    //typedef spp_::true_type  relocatable_type;
-    //typedef spp_::false_type not_relocatable_type;
+    typedef spp_::true_type  realloc_ok_type;
+    typedef spp_::false_type realloc_not_ok_type;
 
-    typedef spp_::zero_type  libc_reloc_type;
-    typedef spp_::one_type   spp_reloc_type;
-    typedef spp_::two_type   spp_not_reloc_type;
-    typedef spp_::three_type generic_alloc_type;
+    //typedef spp_::zero_type  libc_reloc_type;
+    //typedef spp_::one_type   spp_reloc_type;
+    //typedef spp_::two_type   spp_not_reloc_type;
+    //typedef spp_::three_type generic_alloc_type;
 
-#if 0
-    typedef typename if_<(spp_::is_same<allocator_type, libc_allocator<value_type> >::value &&
-                          spp_::is_relocatable<value_type>::value), libc_reloc_type, generic_alloc_type>::type
+#if 1
+    typedef typename if_<((spp_::is_same<allocator_type, libc_allocator<value_type> >::value ||
+                           spp_::is_same<allocator_type,  spp_allocator<value_type> >::value) &&
+                          spp_::is_relocatable<value_type>::value), realloc_ok_type, realloc_not_ok_type>::type
              check_alloc_type;
 #else
-    typedef typename if_<spp_::is_same<allocator_type, spp_allocator<value_type, SPP_ALLOC_PAGE_SIZE> >::value,
+    typedef typename if_<spp_::is_same<allocator_type, spp_allocator<value_type> >::value,
                          typename if_<spp_::is_relocatable<value_type>::value, spp_reloc_type, spp_not_reloc_type>::type,
                          typename if_<(spp_::is_same<allocator_type, libc_allocator<value_type> >::value &&
                                        spp_::is_relocatable<value_type>::value), libc_reloc_type, generic_alloc_type>::type >::type 
@@ -1313,12 +1323,12 @@ private:
 
     //typedef if_<spp_::is_same<allocator_type, libc_allocator<value_type> >::value,
     //            libc_alloc_type,
-    //            if_<spp_::is_same<allocator_type, spp_allocator<value_type, SPP_ALLOC_PAGE_SIZE> >::value,
+    //            if_<spp_::is_same<allocator_type, spp_allocator<value_type> >::value,
     //                spp_alloc_type, user_alloc_type> > check_alloc_type;
 
     //typedef spp_::integral_constant<bool,
     //            (spp_::is_relocatable<value_type>::value &&
-    //             (spp_::is_same<allocator_type, spp_allocator<value_type, SPP_ALLOC_PAGE_SIZE> >::value ||
+    //             (spp_::is_same<allocator_type, spp_allocator<value_type> >::value ||
     //              spp_::is_same<allocator_type, libc_allocator<value_type> >::value)) >
     //        realloc_and_memmove_ok;
 
@@ -1326,9 +1336,9 @@ private:
     void _init_val(mutable_value_type *p, reference val)
     {
 #if !defined(SPP_NO_CXX11_RVALUE_REFERENCES)
-        ::new (p) value_type(std::move(val));
+        ::new (p) value_type(std::move((mutable_reference)val));
 #else
-        ::new (p) value_type(val);
+        ::new (p) value_type((mutable_reference)val);
 #endif
     }
 
@@ -1342,7 +1352,7 @@ private:
     void _set_val(value_type *p, reference val)
     {
 #if !defined(SPP_NO_CXX11_RVALUE_REFERENCES)
-        *(mutable_pointer)p = std::move(val);
+        *(mutable_pointer)p = std::move((mutable_reference)val);
 #else
         using std::swap;
         swap(*(mutable_pointer)p, *(mutable_pointer)&val);
@@ -1360,68 +1370,7 @@ private:
     // return true if the slot was constructed (i.e. contains a valid value_type
     // ---------------------------------------------------------------------------------
     template <class Val>
-    void _set_aux(allocator_type &alloc, size_type offset, Val &val, spp_reloc_type)
-    {
-        //static int x=0;  if (++x < 10) printf("x\n"); // check we are getting here
-
-        uint32_t  num_items = _num_items();
-        uint32_t  num_alloc = _sizing(num_items);
-
-        if (num_items == num_alloc)
-        {
-            num_alloc = _sizing(num_items + 1);
-            _group = alloc.reallocate(_group, num_items, num_alloc);
-            _set_num_alloc(num_alloc);
-        }
-
-        for (uint32_t i = num_items; i > offset; --i)
-            memcpy(_group + i, _group + i-1, sizeof(*_group));
-
-        _init_val((mutable_pointer)(_group + offset), val);
-    }
-
-    // Create space at _group[offset], assuming value_type is *not* relocatable, and the 
-    // allocator_type is the spp allocator.
-    // return true if the slot was constructed (i.e. contains a valid value_type
-    // ---------------------------------------------------------------------------------
-    template <class Val>
-    void _set_aux(allocator_type &alloc, size_type offset, Val &val, spp_not_reloc_type)
-    {
-        uint32_t  num_items = _num_items();
-        uint32_t  num_alloc = _sizing(num_items);
-
-        //assert(num_alloc == (uint32_t)_num_allocated);
-        if (num_items < num_alloc)
-        {
-            // create new object at end and rotate it to position
-            _init_val((mutable_pointer)&_group[num_items], val);
-            std::rotate((mutable_pointer)(_group + offset),
-                        (mutable_pointer)(_group + num_items),
-                        (mutable_pointer)(_group + num_items + 1));
-            return;
-        }
-
-        // This is valid because 0 <= offset <= num_items
-        pointer p = _allocate_group(alloc, _sizing(num_items + 1));
-        if (offset)
-            std::uninitialized_copy(MK_MOVE_IT((mutable_pointer)_group),
-                                    MK_MOVE_IT((mutable_pointer)(_group + offset)),
-                                    (mutable_pointer)p);
-        if (num_items > offset)
-            std::uninitialized_copy(MK_MOVE_IT((mutable_pointer)(_group + offset)),
-                                    MK_MOVE_IT((mutable_pointer)(_group + num_items)),
-                                    (mutable_pointer)(p + offset + 1));
-        _init_val((mutable_pointer)(p + offset), val);
-        _free_group(alloc, num_alloc);
-        _group = p;
-    }
-
-    // Extend the array, assuming value_type is relocatable, and the 
-    // allocator_type is the libc allocator (supporting reallocate).
-    // return true if the slot was constructed (i.e. contains a valid value_type
-    // ---------------------------------------------------------------------------------
-    template <class Val>
-    void _set_aux(allocator_type &alloc, size_type offset, Val &val, libc_reloc_type)
+    void _set_aux(allocator_type &alloc, size_type offset, Val &val, realloc_ok_type)
     {
         //static int x=0;  if (++x < 10) printf("x\n"); // check we are getting here
 
@@ -1436,17 +1385,17 @@ private:
         }
 
         for (uint32_t i = num_items; i > offset; --i)
-            memcpy(_group + i, _group + i-1, sizeof(*_group));
+            memcpy(static_cast<void *>(_group + i), _group + i-1, sizeof(*_group));
 
         _init_val((mutable_pointer)(_group + offset), val);
     }
 
-    // Create space at _group[offset], without special assumptions about value_type
-    // and allocator_type, with a default value
+    // Create space at _group[offset], assuming value_type is *not* relocatable, and the 
+    // allocator_type is the spp allocator.
     // return true if the slot was constructed (i.e. contains a valid value_type
     // ---------------------------------------------------------------------------------
     template <class Val>
-    void _set_aux(allocator_type &alloc, size_type offset, Val &val, generic_alloc_type)
+    void _set_aux(allocator_type &alloc, size_type offset, Val &val, realloc_not_ok_type)
     {
         uint32_t  num_items = _num_items();
         uint32_t  num_alloc = _sizing(num_items);
@@ -1521,80 +1470,9 @@ public:
 
 private:
     // Shrink the array, assuming value_type is relocatable, and the 
-    // allocator_type is the spp allocator.
-    // -------------------------------------------------------------
-    void _group_erase_aux(allocator_type &alloc, size_type offset, spp_reloc_type)
-    {
-        // static int x=0;  if (++x < 10) printf("Y\n"); // check we are getting here
-        uint32_t  num_items = _num_items();
-        uint32_t  num_alloc = _sizing(num_items);
-
-        if (num_items == 1)
-        {
-            assert(offset == 0);
-            _free_group(alloc, num_alloc);
-            _set_num_alloc(0);
-            return;
-        }
-
-        _group[offset].~value_type();
-
-        for (size_type i = offset; i < num_items - 1; ++i)
-            memcpy(_group + i, _group + i + 1, sizeof(*_group));
-
-        if (_sizing(num_items - 1) != num_alloc)
-        {
-            uint32_t new_size = _sizing(num_items - 1);
-            assert(new_size);            // because we have at least 1 item left
-            _group = alloc.reallocate(_group, num_alloc, new_size);
-            _set_num_alloc(num_alloc);
-        }
-    }
-
-    // Shrink the array, assuming value_type is *not* relocatable, and the 
-    // allocator_type is the spp allocator.
-    // --------------------------------------------------------------------------
-    void _group_erase_aux(allocator_type &alloc, size_type offset, spp_not_reloc_type)
-    {
-        uint32_t  num_items = _num_items();
-        uint32_t  num_alloc = _sizing(num_items);
-
-        if (_sizing(num_items - 1) != num_alloc)
-        {
-            pointer p = 0;
-            if (num_items > 1)
-            {
-                p = _allocate_group(alloc, num_items - 1);
-                if (offset)
-                    std::uninitialized_copy(MK_MOVE_IT((mutable_pointer)(_group)),
-                                            MK_MOVE_IT((mutable_pointer)(_group + offset)),
-                                            (mutable_pointer)(p));
-                if (static_cast<uint32_t>(offset + 1) < num_items)
-                    std::uninitialized_copy(MK_MOVE_IT((mutable_pointer)(_group + offset + 1)),
-                                            MK_MOVE_IT((mutable_pointer)(_group + num_items)),
-                                            (mutable_pointer)(p + offset));
-            }
-            else
-            {
-                assert(offset == 0);
-                _set_num_alloc(0);
-            }
-            _free_group(alloc, num_alloc);
-            _group = p;
-        }
-        else
-        {
-            std::rotate((mutable_pointer)(_group + offset),
-                        (mutable_pointer)(_group + offset + 1),
-                        (mutable_pointer)(_group + num_items));
-            ((mutable_pointer)(_group + num_items - 1))->~mutable_value_type();
-        }
-    }
-
-    // Shrink the array, assuming value_type is relocatable, and the 
     // allocator_type is the libc allocator (supporting reallocate).
     // -------------------------------------------------------------
-    void _group_erase_aux(allocator_type &alloc, size_type offset, libc_reloc_type)
+    void _group_erase_aux(allocator_type &alloc, size_type offset, realloc_ok_type)
     {
         // static int x=0;  if (++x < 10) printf("Y\n"); // check we are getting here
         uint32_t  num_items = _num_items();
@@ -1611,7 +1489,7 @@ private:
         _group[offset].~value_type();
 
         for (size_type i = offset; i < num_items - 1; ++i)
-            memcpy(_group + i, _group + i + 1, sizeof(*_group));
+            memcpy(static_cast<void *>(_group + i), _group + i + 1, sizeof(*_group));
 
         if (_sizing(num_items - 1) != num_alloc)
         {
@@ -1625,7 +1503,7 @@ private:
     // Shrink the array, without any special assumptions about value_type and
     // allocator_type.
     // --------------------------------------------------------------------------
-    void _group_erase_aux(allocator_type &alloc, size_type offset, generic_alloc_type)
+    void _group_erase_aux(allocator_type &alloc, size_type offset, realloc_not_ok_type)
     {
         uint32_t  num_items = _num_items();
         uint32_t  num_alloc   = _sizing(num_items);
@@ -1815,9 +1693,7 @@ private:
         // allocator (spp::spp_allocator).
         pointer realloc_or_die(pointer /*ptr*/, size_type /*n*/)
         {
-            fprintf(stderr, "realloc_or_die is only supported for "
-                    "spp::spp_allocator\n");
-            exit(1);
+            throw_exception(std::runtime_error("realloc_or_die is only supported for spp::spp_allocator\n"));
             return NULL;
         }
     };
@@ -1841,9 +1717,8 @@ private:
             pointer retval = this->reallocate(ptr, n);
             if (retval == NULL) 
             {
-                fprintf(stderr, "sparsehash: FATAL ERROR: failed to reallocate "
-                        "%lu elements for ptr %p", static_cast<unsigned long>(n), ptr);
-                exit(1);
+                // the allocator is supposed to throw an exception if the allocation fails.
+                throw_exception(std::bad_alloc());
             }
             return retval;
         }
@@ -1853,14 +1728,14 @@ private:
     // spp::spp_allocator that can handle realloc_or_die.
     // -----------------------------------------------------------
     template <class A>
-    class alloc_impl<spp_::spp_allocator<A, SPP_ALLOC_PAGE_SIZE> > : public spp_::spp_allocator<A, SPP_ALLOC_PAGE_SIZE>
+    class alloc_impl<spp_::spp_allocator<A> > : public spp_::spp_allocator<A>
     {
     public:
-        typedef typename spp_::spp_allocator<A, SPP_ALLOC_PAGE_SIZE>::pointer pointer;
-        typedef typename spp_::spp_allocator<A, SPP_ALLOC_PAGE_SIZE>::size_type size_type;
+        typedef typename spp_::spp_allocator<A>::pointer pointer;
+        typedef typename spp_::spp_allocator<A>::size_type size_type;
 
-        explicit alloc_impl(const spp_::spp_allocator<A, SPP_ALLOC_PAGE_SIZE>& a)
-            : spp_::spp_allocator<A, SPP_ALLOC_PAGE_SIZE>(a)
+        explicit alloc_impl(const spp_::spp_allocator<A>& a)
+            : spp_::spp_allocator<A>(a)
         { }
 
         pointer realloc_or_die(pointer ptr, size_type n)
@@ -1868,9 +1743,8 @@ private:
             pointer retval = this->reallocate(ptr, n);
             if (retval == NULL) 
             {
-                fprintf(stderr, "sparsehash: FATAL ERROR: failed to reallocate "
-                        "%lu elements for ptr %p", static_cast<unsigned long>(n), ptr);
-                exit(1);
+                // the allocator is supposed to throw an exception if the allocation fails.
+                throw_exception(std::bad_alloc());
             }
             return retval;
         }
@@ -2111,7 +1985,9 @@ public:
         _last_group(0),
         _table_size(sz),
         _num_buckets(0),
-        _alloc(alloc)  // todo - copy or move allocator according to
+        _group_alloc(alloc),
+        _alloc(alloc)
+                       // todo - copy or move allocator according to
                        // http://en.cppreference.com/w/cpp/container/unordered_map/unordered_map
     {
         _allocate_groups(num_groups(sz));
@@ -2211,7 +2087,7 @@ public:
             if (sz)
             {
                 _alloc_group_array(sz, first, last);
-                memcpy(first, _first_group, sizeof(*first) * (std::min)(sz, old_sz));
+                memcpy(static_cast<void *>(first), _first_group, sizeof(*first) * (std::min)(sz, old_sz));
             }
 
             if (sz < old_sz)
@@ -2748,19 +2624,6 @@ private:
     // -----------------------------------------------------------------------
     enum MoveDontCopyT {MoveDontCopy, MoveDontGrow};
 
-    void _squash_deleted()
-    {
-        // gets rid of any deleted entries we have
-        // ---------------------------------------
-        if (num_deleted)
-        {
-            // get rid of deleted before writing
-            sparse_hashtable tmp(MoveDontGrow, *this);
-            swap(tmp);                    // now we are tmp
-        }
-        assert(num_deleted == 0);
-    }
-
     // creating iterators from sparsetable::ne_iterators
     // -------------------------------------------------
     iterator             _mk_iterator(ne_it it) const               { return it; }
@@ -3054,28 +2917,19 @@ public:
 
 #if !defined(SPP_NO_CXX11_RVALUE_REFERENCES)
 
-    sparse_hashtable(sparse_hashtable&& o) :
-        settings(std::move(o.settings)),
-        key_info(std::move(o.key_info)),
-        num_deleted(o.num_deleted),
-        table(std::move(o.table))
+    sparse_hashtable(sparse_hashtable&& o, const allocator_type& alloc = allocator_type()) :
+        settings(o.settings),
+        key_info(o.key_info),
+        num_deleted(0),
+        table(HT_DEFAULT_STARTING_BUCKETS, alloc)
     {
-    }
-
-    sparse_hashtable(sparse_hashtable&& o, const allocator_type& alloc) :
-        settings(std::move(o.settings)),
-        key_info(std::move(o.key_info)),
-        num_deleted(o.num_deleted),
-        table(std::move(o.table), alloc)
-    {
+        settings.reset_thresholds(bucket_count());
+        this->swap(o);
     }
 
     sparse_hashtable& operator=(sparse_hashtable&& o)
     {
-        using std::swap;
-
-        sparse_hashtable tmp(std::move(o));
-        swap(tmp, *this);
+        this->swap(o);
         return *this;
     }
 #endif
@@ -3128,7 +2982,7 @@ public:
         if (!empty() || num_deleted != 0)
         {
             table.clear();
-            table = Table(HT_DEFAULT_STARTING_BUCKETS);
+            table = Table(HT_DEFAULT_STARTING_BUCKETS, table.get_allocator());
         }
         settings.reset_thresholds(bucket_count());
         num_deleted = 0;
@@ -3377,7 +3231,7 @@ public:
     std::pair<iterator, bool> insert(P &&obj)
     {
         _resize_delta(1);                      // adding an object, grow if need be
-        value_type val(std::forward<value_type>(obj));
+        value_type val(std::forward<P>(obj));
         return _insert_noresize(val);
     }
 #endif
@@ -3393,8 +3247,13 @@ public:
 
     // DefaultValue is a functor that takes a key and returns a value_type
     // representing the default value to be inserted if none is found.
+#if !defined(SPP_NO_CXX11_VARIADIC_TEMPLATES)
+    template <class DefaultValue, class KT>
+    value_type& find_or_insert(KT&& key)
+#else
     template <class DefaultValue>
     value_type& find_or_insert(const key_type& key)
+#endif
     {
         size_type num_probes = 0;              // how many times we've probed
         const size_type bucket_count_minus_one = bucket_count() - 1;
@@ -3410,17 +3269,20 @@ public:
             if (!grp_pos.test_strict())
             {
                 // not found
+#if !defined(SPP_NO_CXX11_VARIADIC_TEMPLATES)
+                auto&& def(default_value(std::forward<KT>(key)));
+#else
+                value_type def(default_value(key));
+#endif                
                 if (_resize_delta(1))
                 {
                     // needed to rehash to make room
                     // Since we resized, we can't use pos, so recalculate where to insert.
-                    value_type def(default_value(key));
                     return *(_insert_noresize(def).first);
                 }
                 else
                 {
                     // no need to rehash, insert right here
-                    value_type def(default_value(key));
                     return _insert_at(def, erased ? erased_pos : bucknum, erased);
                 }
             }
@@ -3723,10 +3585,18 @@ private:
     // For operator[].
     struct DefaultValue
     {
+#if !defined(SPP_NO_CXX11_VARIADIC_TEMPLATES)
+        template <class KT>
+        inline value_type operator()(KT&& key)  const
+        {
+            return { std::forward<KT>(key), T() };
+        }
+#else
         inline value_type operator()(const Key& key)  const
         {
             return std::make_pair(key, T());
         }
+#endif
     };
 
     // The actual data
@@ -3847,6 +3717,8 @@ public:
                     const allocator_type& alloc) :
         rep(std::move(o.rep), alloc)
     {}
+
+    sparse_hash_map& operator=(sparse_hash_map &&o) = default;
 #endif
 
 #if !defined(SPP_NO_CXX11_HDR_INITIALIZER_LIST)
@@ -3929,10 +3801,18 @@ public:
     const_iterator find(const key_type& key) const     { return rep.find(key); }
     bool contains(const key_type& key) const           { return rep.find(key) != rep.end(); }
 
+#if !defined(SPP_NO_CXX11_VARIADIC_TEMPLATES)
+    template <class KT>
+    mapped_type& operator[](KT&& key)
+    {
+        return rep.template find_or_insert<DefaultValue>(std::forward<KT>(key)).second;
+    }
+#else
     mapped_type& operator[](const key_type& key)
     {
         return rep.template find_or_insert<DefaultValue>(key).second;
     }
+#endif
 
     size_type count(const key_type& key) const         { return rep.count(key); }
 
