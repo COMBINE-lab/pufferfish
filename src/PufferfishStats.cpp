@@ -6,6 +6,7 @@
 #include <vector>
 #include <bitset>
 #include <cereal/archives/binary.hpp>
+#include <set>
 
 #include "ProgOpts.hpp"
 #include "CanonicalKmer.hpp"
@@ -29,16 +30,88 @@ struct PrefixTree {
     uint32_t numTxps;
 
     PrefixTree(const std::string &txps, uint32_t exactCnt, uint32_t prefixCnt, uint32_t prefixTotalCnt)
-    : txps(txps), exactCnt(exactCnt), prefixCnt(prefixCnt), prefixTotalCnt(prefixTotalCnt) {
-        numTxps = std::count(txps.begin(), txps.end(), '-')+1;
+            : txps(txps), exactCnt(exactCnt), prefixCnt(prefixCnt), prefixTotalCnt(prefixTotalCnt) {
+        numTxps = std::count(txps.begin(), txps.end(), '-') + 1;
     }
 };
 
-void doFindMotifs(std::string& indexDir) {
+struct NodeInfo {
+    uint32_t cid;
+    std::set<uint32_t> refid;
 
+    NodeInfo(uint32_t cid) : cid(cid) {}
+};
+
+void doFindMotifs(std::string &indexDir) {
+    PufferfishIndex pfi(indexDir);
+    compact::vector<uint64_t, 1> visited(pfi.numContigs());
+    visited.clear_mem();
+    std::vector<char> chars{'A', 'C', 'G', 'T'};
+    for (uint64_t v = 0; v < visited.size(); v++) {
+        if (not visited[v]) {
+
+            visited[v] = 1;
+            std::vector<CanonicalKmer> cks;
+            cks.push_back(pfi.getStartKmer(v));
+            auto end = pfi.getEndKmer(v);
+            if (cks[0].getCanonicalWord() != end.getCanonicalWord()) {
+                cks.push_back(end);
+            }
+            auto chits = pfi.getRefPos(cks[0]);
+            NodeInfo self(chits.contigIdx_); // should be equal to v
+            for (auto &r: chits.refRange) {
+                self.refid.insert(r.transcript_id());
+            }
+            uint32_t intersect{0}, x{0}, y{0}, z{0};
+            bool found = false;
+            for (auto &ck : cks) {
+                std::vector<NodeInfo> oneEndNeighbors;
+                uint32_t cntr = 0;
+                while (not found and cntr < 2) {
+                    for (auto c: chars) {
+                        auto cck(ck);
+                        if (cntr) {
+                            cck.shiftFw(c);
+                        } else {
+                            cck.shiftBw(c);
+                        }
+                        chits = pfi.getRefPos(cck);
+                        if (not chits.empty() and not visited[chits.contigIdx_]) {
+                            oneEndNeighbors.emplace_back(chits.contigIdx_);
+                            for (auto &r: chits.refRange) {
+                                oneEndNeighbors.back().refid.insert(r.transcript_id());
+                            }
+                        }
+
+                        if (oneEndNeighbors.size() >= 2) {
+                            for (auto r : self.refid) {
+                                if (oneEndNeighbors[0].refid.find(r) != oneEndNeighbors[0].refid.end() and
+                                    oneEndNeighbors[1].refid.find(r) != oneEndNeighbors[1].refid.end()) {
+                                    intersect++;
+                                }
+                            }
+                            x = self.refid.size() - intersect;
+                            y = oneEndNeighbors[0].refid.size() - intersect;
+                            z = oneEndNeighbors[1].refid.size() - intersect;
+                            found = true;
+                            visited[oneEndNeighbors[0].cid] = 1;
+                            visited[oneEndNeighbors[1].cid] = 1;
+                            break;
+                        }
+                    }
+                    cntr++;
+                }
+            }
+            if (found) {
+                std::cout << intersect << "\t" << x << "\t" << y << "\t" << z << "\n";
+            } else {
+                std::cout << self.refid.size() << "\t-1\t-1\t-1\n";
+            }
+        }
+    }
 }
 
-void doCtabStats(std::string& indexDir) {
+void doCtabStats(std::string &indexDir) {
     compact::vector<uint64_t> contigOffsets_{16};
     std::vector<std::string> refNames_;
     std::vector<uint32_t> refExt_;
@@ -47,8 +120,10 @@ void doCtabStats(std::string& indexDir) {
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
     contigTableArchive(refExt_);
-    refNames_.clear(); refNames_.shrink_to_fit();
-    refExt_.clear(); refExt_.shrink_to_fit();
+    refNames_.clear();
+    refNames_.shrink_to_fit();
+    refExt_.clear();
+    refExt_.shrink_to_fit();
 
     contigTableArchive(contigTable_);
     contigTableStream.close();
@@ -57,14 +132,14 @@ void doCtabStats(std::string& indexDir) {
     contigOffsets_.set_m_bits(bits_per_element);
     contigOffsets_.deserialize(pfile, false);
     std::cerr << "contigTable size: " << contigTable_.size()
-    << " contigOffsets size: " << contigOffsets_.size() << ", bpe: " << bits_per_element << "\n";
+              << " contigOffsets size: " << contigOffsets_.size() << ", bpe: " << bits_per_element << "\n";
     std::vector<std::string> txps;
-    for (uint64_t i = 0; i < contigOffsets_.size()-1; i++) {
+    for (uint64_t i = 0; i < contigOffsets_.size() - 1; i++) {
         uint32_t idx = contigOffsets_[i];
         auto txp = contigTable_[idx].transcript_id();
         std::string txpstr = std::to_string(txp);
         idx++;
-        while (idx < contigOffsets_[i+1]) {
+        while (idx < contigOffsets_[i + 1]) {
             if (contigTable_[idx].transcript_id() != txp) {
                 txp = contigTable_[idx].transcript_id();
                 txpstr += ("-" + std::to_string(txp));
@@ -73,7 +148,8 @@ void doCtabStats(std::string& indexDir) {
         }
         txps.push_back(txpstr);
     }
-    contigTable_.clear(); contigTable_.shrink_to_fit();
+    contigTable_.clear();
+    contigTable_.shrink_to_fit();
     contigOffsets_.clear();
     std::sort(txps.begin(), txps.end());
     auto prevt = txps[0];
@@ -98,26 +174,27 @@ void doCtabStats(std::string& indexDir) {
             if (isPrefix) {
                 tree[i].prefixCnt++;
                 tree[i].prefixTotalCnt += tree[j].exactCnt;
-            }
-            else break;
+            } else break;
             j++;
         }
     }
     std::cout << "numTxps exactCnt prefixCnt multiPrefixCnt\n";
     for (auto &t:tree) {
         std::cout << t.numTxps << " "
-        << t.exactCnt << " " << t.prefixCnt << " " << t.prefixTotalCnt << "\n";
+                  << t.exactCnt << " " << t.prefixCnt << " " << t.prefixTotalCnt << "\n";
     }
 };
 
-int pufferfishStats(pufferfish::StatsOptions& statsOpts) {
-  auto indexDir = statsOpts.indexDir;
-  switch (statsOpts.statType) {
-      case pufferfish::StatType::ctab:
-        doCtabStats(indexDir); break;
-      case pufferfish::StatType::motif:
-          doFindMotifs(indexDir); break;
-  }
+int pufferfishStats(pufferfish::StatsOptions &statsOpts) {
+    auto indexDir = statsOpts.indexDir;
+    switch (statsOpts.statType) {
+        case pufferfish::StatType::ctab:
+            doCtabStats(indexDir);
+            break;
+        case pufferfish::StatType::motif:
+            doFindMotifs(indexDir);
+            break;
+    }
     return 0;
 }
 
