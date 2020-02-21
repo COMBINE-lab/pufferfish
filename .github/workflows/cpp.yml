@@ -14,4 +14,4 @@ jobs:
     - name: build
       run: cmake --build build
     - name: test
-      run: cd build && ./src/pufferfish
+      run: cd build && ./src/pufferfish -h
