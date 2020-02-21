@@ -40,7 +40,7 @@ public:
 };
 
 enum StatType {
-    ctab
+    ctab, motif
 };
 class StatsOptions {
 public:

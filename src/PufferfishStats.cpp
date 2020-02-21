@@ -34,6 +34,10 @@ struct PrefixTree {
     }
 };
 
+void doFindMotifs(std::string& indexDir) {
+
+}
+
 void doCtabStats(std::string& indexDir) {
     compact::vector<uint64_t> contigOffsets_{16};
     std::vector<std::string> refNames_;
@@ -110,8 +114,9 @@ int pufferfishStats(pufferfish::StatsOptions& statsOpts) {
   auto indexDir = statsOpts.indexDir;
   switch (statsOpts.statType) {
       case pufferfish::StatType::ctab:
-        doCtabStats(indexDir);
-        break;
+        doCtabStats(indexDir); break;
+      case pufferfish::StatType::motif:
+          doFindMotifs(indexDir); break;
   }
     return 0;
 }
