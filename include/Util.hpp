@@ -68,6 +68,7 @@ namespace pufferfish {
         constexpr const char EXTENSION[] = "extension.bin";
         constexpr const char EXTENSIONSIZE[] = "extensionSize.bin";
         constexpr const char DIRECTION[] = "direction.bin";
+		constexpr const char INFO[] = "info.json";
 
         static constexpr int8_t rc_table[128] = {
                 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, // 15
@@ -1073,6 +1074,12 @@ Compile-time selection between list-like and map-like printing.
                 ar(transcript_id_, pos_);
             }
 
+            void update(uint32_t tid, uint32_t tpos, bool torien) {
+                transcript_id_ = tid;
+                pos_ = tpos;
+                setOrientation(torien);
+            }
+
         private:
             // uint32_t orientMask_
         };
@@ -1109,6 +1116,88 @@ Compile-time selection between list-like and map-like printing.
             size_t fileOrder;
             size_t offset;
             uint32_t length;
+
+            PackedContigInfo(size_t fileOrder, size_t offset, uint32_t length) : fileOrder(fileOrder),
+                                                                                 offset(offset),
+                                                                                 length(length) {}
+        };
+
+        struct PackedContigInfoVec {
+          uint64_t useq_len_{0};
+          std::unique_ptr<std::vector<uint64_t>> data_{nullptr};
+
+          PackedContigInfoVec() {}
+
+          PackedContigInfoVec(uint64_t useq_len,
+                              size_t ncontig) {
+            useq_len_ = useq_len;
+            data_.reset(new std::vector<uint64_t>);
+            data_->reserve(ncontig);
+          }
+
+          void add(uint64_t o) { data_->push_back(o); }
+
+          PackedContigInfo operator[](uint64_t i) const {
+            uint32_t len = (i < data_->size() - 1)
+                               ? ((*data_)[i + 1] - (*data_)[i])
+                               : (useq_len_ - (*data_)[i]);
+            return PackedContigInfo{i, (*data_)[i], len};
+          }
+
+          void clear() {
+            useq_len_ = 0;
+            data_->clear();
+            data_->shrink_to_fit();
+            data_.reset(nullptr);
+          }
+
+          size_t size() { return data_->size(); }
+
+          struct PackedContigInfoVecIterator {
+            const PackedContigInfoVec* pci_{nullptr};
+            uint64_t it{std::numeric_limits<uint64_t>::max()};
+	    std::pair<uint64_t, PackedContigInfo> p_{std::numeric_limits<uint64_t>::max(), {size_t(0), size_t(0), uint32_t(0)}};
+
+            PackedContigInfoVecIterator& operator++() {
+              ++it;
+              return *this;
+            }
+
+            bool operator==(const PackedContigInfoVecIterator& o) const {
+              return it == o.it;
+            }
+
+            bool operator!=(const PackedContigInfoVecIterator& other) const {
+              return !(*this == other);
+            }
+
+            std::pair<uint64_t, PackedContigInfo>& operator*() {
+              p_.second = (*pci_)[it];
+              p_.first = it;
+              return p_;
+            }
+          };
+
+          const PackedContigInfoVecIterator find(uint64_t idx) const {
+            PackedContigInfoVecIterator i;
+            i.pci_ = this;
+            i.it = (idx >= data_->size()) ? data_->size() : idx;
+            return i;
+          }
+
+          const PackedContigInfoVecIterator begin() const {
+            PackedContigInfoVecIterator i;
+            i.pci_ = this;
+            i.it = 0;
+            return i;
+          }
+
+          const PackedContigInfoVecIterator end() const {
+            PackedContigInfoVecIterator i;
+            i.pci_ = this;
+            i.it = data_->size();
+            return i;
+          }
         };
 
         struct RefPos {
@@ -1147,7 +1236,11 @@ Compile-time selection between list-like and map-like printing.
         };
 
         struct ContigBlock {
-            ContigBlock() {}
+            ContigBlock() : 
+              contigIdx_(std::numeric_limits<uint64_t>::max()),
+              globalPos_(std::numeric_limits<uint64_t>::max()),
+              contigLen_(std::numeric_limits<uint32_t>::max()),
+              isDummy_(false) {}
 
             ContigBlock(uint64_t idIn, uint64_t cposIn, uint32_t len, std::string seqIn, bool isDummyIn = false) :
                     contigIdx_(idIn), globalPos_(cposIn), contigLen_(len), seq(seqIn), isDummy_(isDummyIn) {}
@@ -1242,15 +1335,19 @@ Compile-time selection between list-like and map-like printing.
         };
 
         struct AlignmentResult {
-            AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn) :
-                    score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn) {}
+            AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn, 
+                            uint16_t softclip_left_in, uint16_t softclip_right_in) :
+                    score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_left(softclip_left_in),
+                    softclip_right(softclip_right_in) {}
 
-            AlignmentResult() : score(0), cigar(""), openGapLen(0) {}
+            AlignmentResult() : score(0), cigar(""), openGapLen(0), softclip_left(0), softclip_right(0) {}
 
             int32_t score;
             uint32_t NM;
             std::string cigar;
             uint32_t openGapLen;
+            uint16_t softclip_left{0};
+            uint16_t softclip_right{0};
         };
 
       void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,

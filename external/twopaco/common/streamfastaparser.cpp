@@ -79,7 +79,7 @@ namespace TwoPaCo
 			{
 				if (!DnaChar::IsValid(toupper(ch)))
 				{
-					throw Exception("Found an invalid character '" + std::string(1, ch) + "'");
+					throw Exception("Found an invalid character '" + std::string(1, ch) + "' in sequence " + currentHeader_);
 				}
 
 				GetCh(ch);

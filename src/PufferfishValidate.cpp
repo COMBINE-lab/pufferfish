@@ -60,6 +60,12 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, pufferfish::util::QueryCache& qc, 
     return false;
   }
 
+  if (chits.refRange.size() < 0) {
+    std::cerr << "There was a row in the contig table with an invalid range (size = " << chits.refRange.size() << "). "
+                 "this means there is something wrong with the stored index.  Please report this issue on GitHub.\n";
+    std::exit(1);
+  }
+
   bool foundKmer{false};
   for (auto& rpos : chits.refRange) {
     auto refInfo = chits.decodeHit(rpos);
@@ -106,6 +112,7 @@ int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& valida
   uint64_t totalKmersSearched{0};
   uint64_t validCnt = pi.getIndexedRefCount();
   for (uint64_t i = 0; i < validCnt; i++) {
+  
     auto refLen = pi.refLength(i);
     uint32_t posWithinRef{0};
 
@@ -139,6 +146,7 @@ int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& valida
         console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), posWithinRef, rn, gpos);
         //return -1;
       }
+
       ++totalKmersSearched;
       ++gpos;
       if (gpos % 10000000 == 0) {
@@ -170,7 +178,7 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
     auto console = spdlog::stderr_color_mt("console");
     // NOTE: Should the false argument below be a command line option?
     // that is, should we consider building the edge vector here?
-    pufferfish::BinaryGFAReader pf(validateOpts.gfaFileName.c_str(), k-1, false, console);
+    pufferfish::BinaryGFAReader pf(validateOpts.gfaFileName.c_str(), k-1, false, false, console);
     pf.parseFile() ;
 
     auto& seq = pi.getSeq() ;

@@ -56,7 +56,7 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
                                      //pufferfish::common_types::RefMemMapT &trMemMap,
                                      RefMemMap& trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
-                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & other_end_refs,
+                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & /*other_end_refs*/,
                                      bool allowHighMultiMappers, bool verbose) {
   using namespace pufferfish::common_types;
   if (hits.empty()) {
@@ -190,9 +190,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
     auto beta = [maxSpliceGap](int32_t qdiff, int32_t rdiff, double avgseed) -> double {
         double l = qdiff - rdiff;
-        int32_t al = std::abs(l);
-        //if (qdiff < 0 or ((uint32_t) std::max(qdiff, rdiff) > maxSpliceGap)) {
-        if (qdiff < 0 or ((uint32_t) al > maxSpliceGap)) {
+        uint32_t al = std::abs(l);
+        if (qdiff < 0 or (al > maxSpliceGap)) {
           return std::numeric_limits<double>::infinity();
         }
         // To penalize cases with organized gaps for reads such as
@@ -200,6 +199,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         // polyester simulated on human transcriptome. 0.01 -> 0.05
         return (l == 0) ? 0.0 : (0.05 * avgseed * al + 0.5 * fastlog2(static_cast<float>(al)));
     };
+
     constexpr const double bottomScore = std::numeric_limits<double>::lowest();
     double bestScore = bottomScore;
     int32_t bestChainEnd = -1;
@@ -223,7 +223,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     //int32_t prev_rposi_start = -1;
 
     int32_t totLen{0};
-    int32_t lastStartPos{0};
+    //int32_t lastStartPos{0};
     for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
       auto &hi = memList[i];
       int32_t qposi_start = hi.isFw ? hi.rpos : signedReadLen - (hi.rpos + hi.extendedlen);
@@ -431,9 +431,22 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     }
 
   }
-  /*
-  if (verbose)
-    std::cerr << "\n[END OF FIND_OPT_CHAIN]\n";
-  */
+
+  // since the maxChainScore was changing while we were computing the chains
+  // do one final pass over the chains we collected to remove any that
+  // should not be considered according to the final threshold.
+  if (filterAfter) {
+    auto cfrac = consensusFraction_;
+    for (auto& mc : memClusters) {
+      auto* clusters_for_txp = mc.second;
+      clusters_for_txp->erase(
+          std::remove_if(clusters_for_txp->begin(), clusters_for_txp->end(),
+                      [maxChainScore, cfrac](const pufferfish::util::MemCluster& c) {
+                        return c.coverage < maxChainScore * cfrac;
+                      }),
+          clusters_for_txp->end());
+    }
+  }
+
   return true;
 }

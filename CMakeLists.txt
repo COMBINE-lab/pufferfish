@@ -1,8 +1,53 @@
 cmake_minimum_required(VERSION 3.9)
 #cmake_policy(SET CMP0069 NEW)
 
+if(DEFINED ENV{CC})
+  set(CC $ENV{CC})
+else()
+  set(CC gcc)
+endif()
+message("CC: ${CC}")
+
+set(CC_VERSION "")
+if(${CC} MATCHES ^gcc-)
+  string(REGEX REPLACE "gcc-" "" CC_VERSION ${CC})
+endif()
+message("CC version: ${CC_VERSION}")
+
+
 project(pufferfish)
 include(ExternalProject)
+
+# auto-populate version:
+# from https://stackoverflow.com/questions/47066115/cmake-get-version-from-multi-line-text-file
+file(READ "current_version.txt" ver)
+
+string(REGEX MATCH "VERSION_MAJOR ([0-9]*)" _ ${ver})
+set(ver_major ${CMAKE_MATCH_1})
+
+string(REGEX MATCH "VERSION_MINOR ([0-9]*)" _ ${ver})
+set(ver_minor ${CMAKE_MATCH_1})
+
+string(REGEX MATCH "VERSION_PATCH ([0-9]*)" _ ${ver})
+set(ver_patch ${CMAKE_MATCH_1})
+
+set(CPACK_PACKAGE_VERSION_MAJOR ${ver_major})
+set(CPACK_PACKAGE_VERSION_MINOR ${ver_minor})
+set(CPACK_PACKAGE_VERSION_PATCH ${ver_patch})
+
+set(CPACK_PACKAGE_VERSION "${ver_major}.${ver_minor}.${ver_patch}")
+message("version: ${CPACK_PACKAGE_VERSION}")
+
+
+set(PROJECT_VERSION ${CPACK_PACKAGE_VERSION})
+set(CPACK_GENERATOR "TGZ")
+set(CPACK_SOURCE_GENERATOR "TGZ")
+set(CPACK_PACKAGE_VENDOR "University of Maryland")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Pufferfish — a tool for indexing and alignment based on the compacted colored de Bruijn Graph")
+set(CPACK_PACKAGE_NAME
+  "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME
+  "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-Source")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
@@ -31,8 +76,29 @@ endif()
 set(KSW_FLAGS "-DHAVE_KALLOC")
 set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
 if (BUILD_PUFF_FOR_SALMON)
+    #list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
+    #list(APPEND PF_CPP_FLAGS "-Wno-unused-variable") 
+    list(APPEND PF_CPP_FLAGS "-Wno-reorder") 
+    #list(APPEND PF_CPP_FLAGS "-Wno-sign-compare") 
+    #list(APPEND PF_CPP_FLAGS "-Wno-sequence-point")
    list(APPEND PF_CPP_FLAGS "-DPUFFERFISH_SALMON_SUPPORT")
 endif()
+
+###
+# Sanitizers BEGIN
+###
+if (ASAN_BUILD)
+  list(APPEND PF_CPP_FLAGS "-fsanitize=address")
+#list(APPEND PF_CPP_FLAGS "-fsanitize=undefined")
+#set(CMAKE_LINK_FLAGS "-fsanitize=address")
+#list(APPEND CMAKE_LINK_FLAGS "-fsanitize=undefined")
+  set(ASAN_LIB "asan")
+else()
+  set(ASAN_LIB "")
+endif()
+###
+# Sanitizers END
+###
 
 set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-Wconversion;-Wctor-dtor-privacy;-Wdisabled-optimization;-Wdouble-promotion;-Wextra;-Wformat=2;-Winit-self;-Wlogical-op;-Wmissing-declarations;-Wmissing-include-dirs;-Wno-sign-conversion;-Wnoexcept;-Wold-style-cast;-Woverloaded-virtual;-Wpedantic;-Wredundant-decls;-Wshadow;-Wstrict-aliasing=1;-Wstrict-null-sentinel;-Wstrict-overflow=5;-Wswitch-default;-Wundef;-Wno-unknown-pragmas;-Wuseless-cast;-Wno-unused-parameter")
 
@@ -167,7 +233,7 @@ if(TBB_RECONFIGURE)
     set(CMAKE_PREFIX_PATH ${GAT_SOURCE_DIR}/external/install)
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
-    find_package(TBB)
+    find_package(TBB 2018.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
 
@@ -219,6 +285,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
 if (NOT BUILD_PUFF_FOR_SALMON) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
 endif()
+
+include(CPack)
 
 include_directories(include)
 link_directories(lib)

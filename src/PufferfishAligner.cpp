@@ -168,8 +168,11 @@ void processReadsPair(paired_parser *parser,
     //For filtering reads
     bool verbose = mopts->verbose;
 //    auto &txpNames = pfi.getRefNames();
+    uint32_t alignmentStreamLimit = mopts->alignmentStreamLimit;
+    uint32_t alignmentStreamCount{0};
     while (parser->refill(rg)) {
-        for (auto &rpair : rg) {
+        for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
+            auto& rpair = *read_it;
             readLen = static_cast<uint32_t >(rpair.first.seq.length());
             mateLen = static_cast<uint32_t >(rpair.second.seq.length());
             totLen = readLen + mateLen;
@@ -500,12 +503,16 @@ void processReadsPair(paired_parser *parser,
             if (!mopts->noOutput) {
               if (mopts->krakOut) {
                 writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap);
+                alignmentStreamCount += jointHits.size();
               } else if (mopts->salmonOut) {
                 writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap, false);
+                alignmentStreamCount += jointHits.size();
               } else if (jointAlignments.size() > 0) {
                 writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
+                alignmentStreamCount += jointAlignments.size();
               } else if (jointAlignments.size() == 0) {
                 writeUnalignedPairToStream(rpair, sstream);
+                alignmentStreamCount += 1;
               }
             }
 
@@ -523,28 +530,30 @@ void processReadsPair(paired_parser *parser,
                 }
             }
             //puffaligner.clear();
-        } // for all reads in this job
-        // dump output
-        if (!mopts->noOutput) {
-            // Get rid of last newline
-            if (mopts->salmonOut) {
-                if (bstream.getBytes() != 0) {
-                    BinWriter sbw(sizeof(uint64_t));
-                    sbw << bstream.getBytes();
-                    outQueue->info("{}{}", sbw, bstream);
+            // try dumping the output
+            bool last_read = (read_it + 1 == rg.end());
+            if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
+                // Get rid of last newline
+                if (mopts->salmonOut) {
+                    if (bstream.getBytes() != 0) {
+                        BinWriter sbw(sizeof(uint64_t));
+                        sbw << bstream.getBytes();
+                        outQueue->info("{}{}", sbw, bstream);
+                    }
+                } else if (mopts->krakOut) {
+                    outQueue->info("{}", bstream);
+                } else {
+                    std::string outStr(sstream.str());
+                    if (!outStr.empty()) {
+                        outStr.pop_back();
+                        outQueue->info(std::move(outStr));
+                    }
                 }
-            } else if (mopts->krakOut) {
-                outQueue->info("{}", bstream);
-            } else {
-                std::string outStr(sstream.str());
-                if (!outStr.empty()) {
-                    outStr.pop_back();
-                    outQueue->info(std::move(outStr));
-                }
+                sstream.clear();
+                bstream.clear();
+                alignmentStreamCount = 0;
             }
-            sstream.clear();
-            bstream.clear();
-        }
+        } // for all reads in this job
     } // processed all reads
 }
 
@@ -617,9 +626,13 @@ void processReadsSingle(single_parser *parser,
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
+    uint32_t alignmentStreamLimit = mopts->alignmentStreamLimit;
+    uint32_t alignmentStreamCount{0};
+
     auto rg = parser->getReadGroup();
     while (parser->refill(rg)) {
-        for (auto &read : rg) {
+        for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
+            auto& read = *read_it;
             readLen = static_cast<uint32_t >(read.seq.length());
             auto totLen = readLen;
             bool verbose = false;
@@ -802,15 +815,19 @@ void processReadsSingle(single_parser *parser,
             if (mopts->krakOut) {
               writeAlignmentsToKrakenDump(read, formatter,
                                           validHits, bstream);
+              alignmentStreamCount += validHits.size();
             } else if (mopts->salmonOut) {
               writeAlignmentsToKrakenDump(read, formatter,
                                             validHits, bstream, false);
+              alignmentStreamCount += validHits.size();
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
                 writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream, !mopts->noOrphan);
+                alignmentStreamCount += jointAlignments.size();
             } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
               writeUnalignedSingleToStream(read, sstream);
+              alignmentStreamCount += 1;
             }
 
             // write them on cmd
@@ -826,32 +843,32 @@ void processReadsSingle(single_parser *parser,
                     iomutex->unlock();
                 }
             }
-        } // for all reads in this job
 
-
-        // dump output
-        if (!mopts->noOutput) {
-            // Get rid of last newline
-            if (mopts->krakOut || mopts->salmonOut) {
-                if (mopts->salmonOut && bstream.getBytes() > 0) {
-                    BinWriter sbw(64);
-                    sbw << bstream.getBytes();
-                    outQueue->info("{}{}", sbw, bstream);
-                } else if (mopts->krakOut) {
-                    outQueue->info("{}", bstream);
-                }
-                bstream.clear();
-            } else {
-                std::string outStr(sstream.str());
+            // try dumping the output
+            bool last_read = (read_it + 1 == rg.end());
+            if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
                 // Get rid of last newline
-                if (!outStr.empty()) {
-                    outStr.pop_back();
-                    outQueue->info(std::move(outStr));
+                if (mopts->krakOut || mopts->salmonOut) {
+                    if (mopts->salmonOut && bstream.getBytes() > 0) {
+                        BinWriter sbw(64);
+                        sbw << bstream.getBytes();
+                        outQueue->info("{}{}", sbw, bstream);
+                    } else if (mopts->krakOut) {
+                        outQueue->info("{}", bstream);
+                    }
+                    bstream.clear();
+                } else {
+                    std::string outStr(sstream.str());
+                    // Get rid of last newline
+                    if (!outStr.empty()) {
+                        outStr.pop_back();
+                        outQueue->info(std::move(outStr));
+                    }
+                    sstream.clear();
                 }
-                sstream.clear();
+                alignmentStreamCount = 0;
             }
-        }
-
+        } // for all reads in this job
     } // processed all reads
 }
 
@@ -1018,7 +1035,7 @@ bool alignReads(
             outStream.reset(new std::ostream(outBuf));
         }
         // the async queue size must be a power of 2
-        size_t queueSize{268435456};
+        size_t queueSize{2*mopts->numThreads};
         spdlog::set_async_mode(queueSize);
 
         if (mopts->krakOut || mopts->salmonOut) {

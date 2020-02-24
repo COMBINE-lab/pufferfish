@@ -1,7 +1,6 @@
 #ifndef _BIFURCATION_STORAGE_H_
 #define _BIFURCATION_STORAGE_H_
 
-#include <algorithm>
 #include "common.h"
 #include "compressedstring.h"
 

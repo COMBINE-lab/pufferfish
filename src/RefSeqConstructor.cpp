@@ -141,10 +141,15 @@ Task RefSeqConstructor<PufferfishIndexT>::doDFS(size_t tid,
         }
         for (auto& c : tmp) {
           pufferfish::util::ContigBlock& cb = (*contigSeqCache_)[c.cid];
-          if (cb.contigLen_-(k-1) <= endContig.contigLen_ &&
-              getRemSeq(cb, cb.contigLen_-(k-1), c.isCurContigFw, suffixIfFw) == getRemSeq(endContig, cb.contigLen_-(k-1), isEndContigFw, prefixIfFw))
-            appendByLen(seq, curContig, startp, txpDist, isCurContigFw, suffixIfFw);
-            return Task::SUCCESS;
+          if (cb.contigLen_ - (k - 1) <= endContig.contigLen_ &&
+              getRemSeq(cb, cb.contigLen_ - (k - 1), c.isCurContigFw,
+                        suffixIfFw) == getRemSeq(endContig,
+                                                 cb.contigLen_ - (k - 1),
+                                                 isEndContigFw, prefixIfFw)) {
+            appendByLen(seq, curContig, startp, txpDist, isCurContigFw,
+                        suffixIfFw);
+          }
+          return Task::SUCCESS;
         }
         return Task::FAILURE; // I'm in the middle of no where!! lost!!
       }

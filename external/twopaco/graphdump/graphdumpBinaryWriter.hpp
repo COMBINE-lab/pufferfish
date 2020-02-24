@@ -11,21 +11,36 @@ enum EntryType {
     S,P,C,L
 };
 
-class BinaryWriter {
+class GraphdumpBinaryWriter {
 private:
     std::ostream* out;
     compact::vector<uint64_t, 2> seqVec_;
     compact::vector<uint64_t, 1> rankVec_;
+    uint64_t stringLengthSizeInBytes = 2;
 
 public:
-    BinaryWriter(): out(&std::cout) {}
-    //BinaryWriter(std::ostream &outin): out(outin) {}
+    GraphdumpBinaryWriter(): out(&std::cout) {}
+    void setAllowedMaxStringLength(uint64_t allowedIn) {
+        std::cerr << "allowedIn: " << allowedIn << "\n";
+        if (allowedIn < (1ULL << 8)) {
+            stringLengthSizeInBytes = 1;
+        } else if (allowedIn < (1ULL << 16)) {
+            stringLengthSizeInBytes = 2;
+        } else if (allowedIn < (1ULL << 32)) {
+            stringLengthSizeInBytes = 4;
+        } else {
+            stringLengthSizeInBytes = 8;
+        }
+    }
+    //GraphdumpBinaryWriter(std::ostream &outin): out(outin) {}
 
     void setOStream(std::ostream* o) { out = o; }
     void setCapacity(uint64_t c) {
         seqVec_.reserve(c);
         rankVec_.reserve(c);
     }
+
+    void writeAllowedMaxStringLength() { (*this)<<stringLengthSizeInBytes; }
 
     void flushSegments(std::string &prefix) {
         std::ofstream seqOut(prefix+"/seq.bin");
@@ -41,63 +56,58 @@ public:
         rankVec_.serialize(rankOut);
     }
 
-    BinaryWriter& operator<<(const EntryType &inval) {
+    GraphdumpBinaryWriter& operator<<(const EntryType &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
         out->write(inCharPtr, sizeof(EntryType));
         return *this;
     }
 
-    BinaryWriter& operator<<(const bool &inval) {
+    GraphdumpBinaryWriter& operator<<(const bool &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
         out->write(inCharPtr, sizeof(inval));
         return *this;
     }
-    BinaryWriter& operator<<(const uint8_t &inval) {
+    GraphdumpBinaryWriter& operator<<(const uint8_t &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
         out->write(inCharPtr, sizeof(inval));
         return *this;
     }
-    BinaryWriter& operator<<(const uint16_t &inval) {
+    GraphdumpBinaryWriter& operator<<(const uint16_t &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
         out->write(inCharPtr, sizeof(inval));
         return *this;
     }
-    BinaryWriter& operator<<(const uint32_t &inval) {
+    GraphdumpBinaryWriter& operator<<(const uint32_t &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
         out->write(inCharPtr, sizeof(inval));
         return *this;
     }
-    BinaryWriter& operator<<(const uint64_t &inval) {
+    GraphdumpBinaryWriter& operator<<(const uint64_t &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
         out->write(inCharPtr, sizeof(inval));
         return *this;
     }
-    BinaryWriter& operator<<(const int64_t &inval) {
+    GraphdumpBinaryWriter& operator<<(const int64_t &inval) {
         char* inCharPtr = const_cast<char*>(reinterpret_cast<const char*>(&inval));
         out->write(inCharPtr, sizeof(inval));
         return *this;
     }
 
 
-    BinaryWriter &operator<<(const double &inval)  {
+    GraphdumpBinaryWriter &operator<<(const double &inval)  {
         char *inCharPtr = const_cast<char *>(reinterpret_cast<const char *>(&inval));
         out->write(inCharPtr, sizeof(inval));
         return *this;
     }
-    BinaryWriter& operator<<(const std::string &inval)  {
-        if (inval.size() >= 0x100) {
-            std::cerr << "ERROR!! DOESN'T SUPPORT STRING LENGTH LONGER THAN 255. String length: "
-                      << inval.size() << "\n";
-            std::exit(1);
-        }
-        auto tmp = static_cast<uint16_t>(inval.size());
-        out->write(reinterpret_cast<const char *>(&tmp), sizeof(tmp));
+    GraphdumpBinaryWriter& operator<<(const std::string &inval)  {
+        uint64_t tmp = inval.size();
+        out->write(reinterpret_cast<const char *>(&tmp), stringLengthSizeInBytes);
         char* inCharPtr = const_cast<char*>(inval.c_str());
         out->write(inCharPtr, inval.size());
         return *this;
     }
 
-    BinaryWriter& operator<<(const compact::vector<uint64_t, 2> &inval) {
+    GraphdumpBinaryWriter& operator<<(const compact::vector<uint64_t, 2> &inval) {
         uint64_t w_size = inval.size();
         out->write(reinterpret_cast<char*>(&w_size), sizeof(w_size));
         uint64_t* m_mem = inval.get_words();
@@ -106,7 +116,7 @@ public:
     }
 
     void addSeq(const std::string &inval) {
-//        std::cerr << seqVec_.capacity() << " " << seqVec_.size() << " ";
+        //std::cerr << seqVec_.capacity() << " " << seqVec_.size() << " ";
 
         for (size_t i = 0; i < inval.size(); ++i) {
             uint16_t c = 0;

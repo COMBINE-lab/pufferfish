@@ -6,9 +6,13 @@
 #include <vector>
 #include <sstream>
 #include <bitset>
+#include <chrono> 
 #include <cerrno>
 #include <cstring>
+#include <memory>
+#include <thread>
 #include <cereal/archives/binary.hpp>
+//#include <unistd.h>
 #include "ghc/filesystem.hpp"
 
 #include "ProgOpts.hpp"
@@ -292,6 +296,7 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
   std::string decoyNameHash256;
   uint64_t numberOfDecoys{0};
   uint64_t firstDecoyIndex{std::numeric_limits<uint64_t>::max()};
+  bool keep_duplicates{false};
 
   sigArch( cereal::make_nvp("SeqHash", seqHash256) );
   sigArch( cereal::make_nvp("NameHash", nameHash256) );
@@ -301,6 +306,7 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
   sigArch( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
   sigArch( cereal::make_nvp("num_decoys", numberOfDecoys));
   sigArch( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
+  sigArch( cereal::make_nvp("keep_duplicates", keep_duplicates));
 
   indexDesc( cereal::make_nvp("SeqHash", seqHash256) );
   indexDesc( cereal::make_nvp("NameHash", nameHash256) );
@@ -310,9 +316,32 @@ bool copySigArchive(cereal::JSONInputArchive& sigArch, cereal::JSONOutputArchive
   indexDesc( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
   indexDesc( cereal::make_nvp("num_decoys", numberOfDecoys));
   indexDesc( cereal::make_nvp("first_decoy_index", firstDecoyIndex));
+  indexDesc( cereal::make_nvp("keep_duplicates", keep_duplicates));
   return true;
 }
 
+/*
+void process_mem_usage(double& vm_usage, double& resident_set)
+{
+    vm_usage     = 0.0;
+    resident_set = 0.0;
+
+    // the two fields we want
+    unsigned long vsize;
+    long rss;
+    {
+        std::string ignore;
+        std::ifstream ifs("/proc/self/stat", std::ios_base::in);
+        ifs >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+                >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+                >> ignore >> ignore >> vsize >> rss;
+    }
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+    vm_usage = vsize / 1024.0;
+    resident_set = rss * page_size_kb;
+}
+*/
 
 int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
@@ -321,7 +350,8 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   std::string outdir = indexOpts.outdir;
   std::string gfa_file = indexOpts.outdir;
   bool buildEdgeVec = indexOpts.buildEdgeVec;
-
+  bool buildEqCls = indexOpts.buildEqCls;
+  bool keepFixedFasta = indexOpts.keep_fixed_fasta;
   std::vector<uint32_t> refIdExtensions;
   std::vector<std::pair<std::string, uint16_t>> shortRefsNameLen;
 
@@ -384,6 +414,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     args.push_back(outdir+"/ref_k"+std::to_string(k)+"_fixed.fa");
 
     int ffres = fixFastaMain(args, refIdExtensions, shortRefsNameLen, jointLog);
+
     if (ffres != 0) {
         jointLog->error("The fixFasta phase failed with exit code {}", ffres);
         std::exit(ffres);
@@ -391,6 +422,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     // replacing rfile with the new fixed fasta file
     rfile = outdir+"/ref_k"+std::to_string(k)+"_fixed.fa";
   }
+
+  //std::this_thread::sleep_for (std::chrono::seconds(10));
+  //double vm, rss;
+  //process_mem_usage(vm, rss);
+  //std::cerr << "\n\n after fix fasta \n";
+  //std::cerr << "VM: " << vm << "; RSS: " << rss << "\n\n";
 
   // If the filter size isn't set by the user, estimate it with ntCard
   if (indexOpts.filt_size == -1){
@@ -449,6 +486,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     ghc::filesystem::remove_all(twopaco_tmp_path);
   }
 
+  //std::this_thread::sleep_for (std::chrono::seconds(10));
+  //double vm, rss;
+  //process_mem_usage(vm, rss);
+  //std::cerr << "\n\n after build graph \n";
+  //std::cerr << "VM: " << vm << "; RSS: " << rss << "\n\n";
+
   {
     std::vector<std::string> args;
     args.push_back("graphdump");
@@ -471,14 +514,21 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     }
   }
 
-  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEdgeVec, jointLog);
+  //std::this_thread::sleep_for (std::chrono::seconds(10));
+  //process_mem_usage(vm, rss);
+  //std::cerr << "\n\n after graph dump \n";
+  //std::cerr << "VM: " << vm << "; RSS: " << rss << "\n\n";
+
+
+  jointLog->info("Starting the Pufferfish indexing by reading the GFA binary file.");
+  pufferfish::BinaryGFAReader pf(outdir.c_str(), k - 1, buildEqCls, buildEdgeVec, jointLog);
   pf.parseFile();
   pf.mapContig2Pos();
   pf.serializeContigTable(outdir, shortRefsNameLen, refIdExtensions);
   {
     auto& cnmap = pf.getContigNameMap();
     for (auto& kv : cnmap) {
-      auto& r1 = kv.second;
+      const auto& r1 = kv.second;
       tlen += r1.length;
       numKmers += r1.length - k + 1;
       ++nread;
@@ -590,8 +640,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
 
   auto keyIt = boomphf::range(kb, ke);
-  boophf_t* bphf =
-      new boophf_t(nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
+  std::unique_ptr<boophf_t> bphf = std::make_unique<boophf_t>(outdir, nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
   jointLog->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
 
 /*  std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);
@@ -749,7 +798,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       size_t ncontig = cnmap.size();
       std::vector<size_t> sampledInds ;
       for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
-        auto& r1 = cnmap[i];
+        const auto& r1 = cnmap[i];
         sampledInds.clear();
         computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
         sampledKmers += sampledInds.size() ;
@@ -914,16 +963,16 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
             auto rank = (idx == 0) ? 0 : realPresenceRank.rank(idx);
 
             int64_t target_idx = (idx - rank);
-            if ( target_idx > canonicalNess.size()) { jointLog->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
+            if ( target_idx > static_cast<int64_t>(canonicalNess.size())) { jointLog->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
             canonicalNess[idx - rank] = kb1.isCanonical();
 
-            if ( target_idx > extSize.size()) { jointLog->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
+            if ( target_idx > static_cast<int64_t>(extSize.size())) { jointLog->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
             extSize[idx - rank] = extensionDist;
 
-            if ( target_idx > auxInfo.size()) { jointLog->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
+            if ( target_idx > static_cast<int64_t>(auxInfo.size())) { jointLog->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
             auxInfo[idx - rank] = ext;
 
-            if ( target_idx > direction.size()) { jointLog->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
+            if ( target_idx > static_cast<int64_t>(direction.size())) { jointLog->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
             direction[idx - rank] = (sampDir == NextSampleDirection::FORWARD) ? 1 : 0;
           }
         }
@@ -1119,7 +1168,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   }
 
   // cleanup the fixed.fa file
-  ghc::filesystem::remove(rfile);
+  if (!keepFixedFasta) { ghc::filesystem::remove(rfile); }
   ghc::filesystem::remove(outdir + "/ref_sigs.json");
   return 0;
 }

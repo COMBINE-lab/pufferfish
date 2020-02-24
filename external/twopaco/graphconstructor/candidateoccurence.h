@@ -30,6 +30,7 @@ namespace TwoPaCo
 			char posPrev,
 			bool isBifurcation)
 		{	
+			count_ = 0;
 			if (posHash0 < negHash0 || (posHash0 == negHash0 && DnaChar::LessSelfReverseComplement(pos, vertexLength)))
 			{
 				body_.CopyFromString(pos, vertexLength);
@@ -46,6 +47,28 @@ namespace TwoPaCo
 			}
 
 			body_.SetChar(IS_BIF_POS, isBifurcation ? TRUE_BIF : FAKE_BIF);
+		}
+
+		CandidateOccurence(const CandidateOccurence & toCopy): body_(toCopy.body_)
+		{
+			int64_t val = toCopy.count_;
+			count_ = val;
+		}
+
+		const CandidateOccurence & operator = (const CandidateOccurence & toCopy)
+		{
+			body_ = toCopy.body_;
+			count_ = toCopy.count_;
+		}
+
+		void Inc()
+		{
+			count_++;
+		}
+
+		uint64_t Count() const
+		{
+			return count_;
 		}
 
 		char Prev() const
@@ -98,6 +121,7 @@ namespace TwoPaCo
 			return DnaChar::LITERAL[(next == 'N' ? IS_NEXT_N : 0) | (prev == 'N' ? IS_PREV_N : 0)];
 		}
 
+		std::atomic<uint64_t> count_;
 		CompressedString<CAPACITY> body_;
 	};
 

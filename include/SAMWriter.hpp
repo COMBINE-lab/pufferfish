@@ -93,7 +93,8 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)
   auto& txpNames = pfi.getFullRefNames();
-  auto& txpLens = pfi.getFullRefLengthsComplete();
+  // TODO: Determine which ref lengths we should use here
+  auto& txpLens = pfi.getFullRefLengths(); // pfi.getFullRefLengthsComplete();
   auto numRef = txpNames.size();
   bw << static_cast<uint64_t>(numRef); // refCount (size_t)
   std::cerr << "is paired: " << !mopts->singleEnd << "\n";

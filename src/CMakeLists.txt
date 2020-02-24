@@ -41,9 +41,9 @@ add_library(ksw2pp_sse2 OBJECT ${KSW2PP_ADVANCED_LIB_SRCS})
 add_library(ksw2pp_sse4 OBJECT ${KSW2PP_ADVANCED_LIB_SRCS})
 add_library(ksw2pp_basic OBJECT ${KSW2PP_BASIC_LIB_SRCS})
 
-set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_FLAGS "-O3 -msse2 -mno-sse4.1")
+set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_FLAGS "-O3 -msse -msse2 -mno-sse4.1")
 set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;KSW_SSE2_ONLY;HAVE_KALLOC")
-set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_FLAGS "-O3 -msse4.1")
+set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_FLAGS "-O3 -msse -msse2 -msse3 -mssse3 -msse4 -msse4.1")
 set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
 set_target_properties(ksw2pp_basic PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
 
@@ -68,6 +68,7 @@ set(pufferfish_lib_srcs
 		rank9sel.cpp
     rank9b.cpp
     PufferfishValidate.cpp
+	PufferfishStats.cpp
     PufferfishTestLookup.cpp 
     PufferfishExamine.cpp
     FastxParser.cpp 
@@ -107,7 +108,7 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLA
 #if (BUILD_PUFF_FOR_SALMON)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
-target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ${TBB_LIBRARIES} ksw2pp ${CMAKE_DL_LIBS} ${LIBRT} ${JEMALLOC_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ${TBB_LIBRARIES} ksw2pp ${CMAKE_DL_LIBS} ${LIBRT} ${JEMALLOC_LIBRARIES} ${CMAKE_DL_LIBS} ${ASAN_LIB})
 
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
@@ -170,11 +171,11 @@ target_compile_options(rank_test PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAG
 target_link_libraries(rank_test)
 ]]
 
-target_link_libraries(bcalm_pufferize Threads::Threads z)
+target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
 #target_link_libraries(fixFasta Threads::Threads z)
-target_link_libraries(edgedensity Threads::Threads z puffer)
-target_link_libraries(edgedensity2 Threads::Threads z puffer)
-target_link_libraries(krakmap Threads::Threads puffer)
-target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover)
-target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z )
+target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
+target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
+target_link_libraries(krakmap Threads::Threads puffer ${ASAN_LIB})
+target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover ${ASAN_LIB})
+target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z ${ASAN_LIB})
 endif()

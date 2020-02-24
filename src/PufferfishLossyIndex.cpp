@@ -264,7 +264,7 @@ auto PufferfishLossyIndex::getRefPos(CanonicalKmer& mer) -> pufferfish::util::Pr
       uint64_t sp =
         (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
 
-      uint64_t contigEnd = contigEnd = rankSelDict.select(rank);
+      uint64_t contigEnd = rankSelDict.select(rank);
       //uint64_t sp = (rank == 0) ? 0 : static_cast<uint64_t>(contigSelect_(rank)) + 1;
       //uint64_t contigEnd =  contigSelect_(rank + 1);
 

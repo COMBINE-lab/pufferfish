@@ -27,7 +27,7 @@
 #include <cstdlib>
 #include <clocale>
 #include <ghc/filesystem.hpp>
-//#include <cereal/archives/json.hpp>
+#include <cereal/archives/json.hpp>
 
 #include "PufferfishConfig.hpp"
 #include "ProgOpts.hpp"
@@ -42,13 +42,14 @@ int pufferfishTestLookup(
                          pufferfish::ValidateOptions& lookupOpts); // int argc, char* argv[]);
 int pufferfishAligner(pufferfish::AlignmentOpts& alignmentOpts) ;
 int pufferfishExamine(pufferfish::ExamineOptions& examineOpts);
+int pufferfishStats(pufferfish::StatsOptions& statsOpts);
 
 int main(int argc, char* argv[]) {
   using namespace clipp;
   using std::cout;
   std::setlocale(LC_ALL, "en_US.UTF-8");
 
-  enum class mode {help, index, validate, lookup, align, examine};
+  enum class mode {help, index, validate, lookup, align, examine, stat};
   mode selected = mode::help;
   pufferfish::AlignmentOpts alignmentOpt ;
   pufferfish::IndexOptions indexOpt;
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
   pufferfish::ValidateOptions validateOpt;
   pufferfish::ValidateOptions lookupOpt;
   pufferfish::ExamineOptions examineOpt;
+  pufferfish::StatsOptions statOpt;
 
   auto ensure_file_exists = [](const std::string& s) -> bool {
       bool exists = ghc::filesystem::exists(s);
@@ -77,10 +79,11 @@ int main(int argc, char* argv[]) {
           std::string e = s + " is not a directory containing index files.";
           throw std::runtime_error{e};
       }
-      for (auto & elem : {pufferfish::util::MPH,
+  
+	  for (auto & elem : {pufferfish::util::INFO,
+                          pufferfish::util::MPH,
                           pufferfish::util::SEQ,
                           pufferfish::util::RANK,
-                          pufferfish::util::POS,
                           pufferfish::util::CTABLE,
                           pufferfish::util::REFSEQ,
                           pufferfish::util::REFNAME,
@@ -92,6 +95,30 @@ int main(int argc, char* argv[]) {
               throw std::runtime_error{e};
           }
       }
+      std::string indexType;
+      {
+          std::ifstream infoStream(s + "/" + pufferfish::util::INFO);
+          cereal::JSONInputArchive infoArchive(infoStream);
+          infoArchive(cereal::make_nvp("sampling_type", indexType));
+          infoStream.close();
+          if (indexType == "dense") {
+              if (!ghc::filesystem::exists(s+"/"+pufferfish::util::POS)) {
+                  std::string e = "Index is incomplete. Missing file " + std::string(pufferfish::util::POS);
+                  throw std::runtime_error{e};
+              }
+          } else if (indexType == "sparse") {
+              for (auto & elem : {pufferfish::util::EXTENSION,
+                                  pufferfish::util::EXTENSIONSIZE,
+                                  pufferfish::util::SAMPLEPOS}) {
+                  if (!ghc::filesystem::exists(s+"/"+elem)) {
+                      std::string e = "Index is incomplete. Missing file ";
+                      e+=elem;
+                      throw std::runtime_error{e};
+                  }
+              }
+          }
+      }
+ 
       return true;
   };
 
@@ -106,6 +133,7 @@ int main(int argc, char* argv[]) {
                     "Instead of a space or tab, break the header at the first "
                     "occurrence of this string, and name the transcript as the token before "
                     "the first separator (default = space & tab)",
+                    (option("--keepFixedFasta").set(indexOpt.keep_fixed_fasta) % "Retain the fixed fasta file (without short transcripts and duplicates, clipped, etc.) generated during indexing"),
                     (option("--keepDuplicates").set(indexOpt.keep_duplicates) % "Retain duplicate references in the input"),
                     (option("-d", "--decoys") & value("decoy_list", indexOpt.decoy_file)) %
                     "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
@@ -114,6 +142,7 @@ int main(int argc, char* argv[]) {
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
                     (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
                     (option("-l", "--build-edges").set(indexOpt.buildEdgeVec, true) % "build and record explicit edge table for the contaigs of the ccdBG (default = false)"),
+                    (option("-q", "--build-eqclses").set(indexOpt.buildEqCls, true) % "build and record equivalence classes (default = false)"),
                     (((option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
                      ((option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)")) |
                      ((option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)"))
@@ -145,7 +174,14 @@ int main(int argc, char* argv[]) {
                      (required("-i", "--index") & value("index", lookupOpt.indexDir)) % "directory where the pufferfish index is stored",
                      (required("-r", "--ref") & value("ref", lookupOpt.refFile)) % "fasta file with reference sequences"
                      );
-
+  std::string statType = "ctab";
+  auto statMode = (
+                    command("stat").set(selected, mode::stat),
+                    (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab)",
+                    (required("-i", "--index") & value("index", statOpt.indexDir)) % "directory where the pufferfish index is stored");
+  if (statType == "ctab") {
+      statOpt.statType = pufferfish::StatType::ctab;
+  }
   std::string throwaway;
   auto isValidRatio = [](const char* s) -> void {
     float r{0.0};
@@ -224,7 +260,7 @@ int main(int argc, char* argv[]) {
   );
 
   auto cli = (
-              (indexMode | validateMode | lookupMode | alignMode | examineMode | command("help").set(selected,mode::help) ),
+              (indexMode | validateMode | lookupMode | alignMode | examineMode | statMode | command("help").set(selected,mode::help) ),
               option("-v", "--version").call([]{std::cout << "version " << pufferfish::version << "\n"; std::exit(0);}).doc("show version"));
 
   decltype(parse(argc, argv, cli)) res;
@@ -245,6 +281,7 @@ int main(int argc, char* argv[]) {
     case mode::lookup: pufferfishTestLookup(lookupOpt); break;
     case mode::align: pufferfishAligner(alignmentOpt); break;
     case mode::examine: pufferfishExamine(examineOpt); break;
+    case mode::stat: pufferfishStats(statOpt); break;
     case mode::help: std::cout << make_man_page(cli, pufferfish::progname); break;
     }
   } else {

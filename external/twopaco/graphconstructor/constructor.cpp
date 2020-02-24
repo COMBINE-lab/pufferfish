@@ -15,6 +15,7 @@
 
 #include <tclap/CmdLine.h>
 
+#include "tbb/scalable_allocator.h"
 #include "test.h"
 #include "assemblyedgeconstructor.h"
 
@@ -50,7 +51,8 @@ public:
 	}
 };
 
-int buildGraphMain(std::vector<std::string>& args)  //}int argc, char * argv[])
+
+int buildGraphMain(std::vector<std::string>& args)  
 {
 	OddConstraint constraint;
 	try
@@ -69,9 +71,15 @@ int buildGraphMain(std::vector<std::string>& args)  //}int argc, char * argv[])
 			"filtersize",
 			"Size of the filter",
 			true,
-			0,
-			"integer",
-			cmd);
+			32,
+			"integer");
+
+		TCLAP::ValueArg<double> filterMemory("",
+                        "filtermemory",
+                        "Memory in GBs allocated for the filter",
+                        true,
+                        4,
+                        "float");
 
 		TCLAP::ValueArg<unsigned int> hashFunctions("q",
 			"hashfnumber",
@@ -94,6 +102,14 @@ int buildGraphMain(std::vector<std::string>& args)  //}int argc, char * argv[])
 			"Number of worker threads",
 			false,
 			1,
+			"integer",
+			cmd);
+
+		TCLAP::ValueArg<size_t> abundance("a",
+			"abundance",
+			"Vertex abundance threshold",
+			false,
+			UINT64_MAX,
 			"integer",
 			cmd);
 
@@ -124,40 +140,50 @@ int buildGraphMain(std::vector<std::string>& args)  //}int argc, char * argv[])
 			"file name",
 			cmd);
 
-		cmd.parse(args);//argc, argv);		
+		cmd.xorAdd(filterSize, filterMemory);
+		cmd.parse(args);
 		using TwoPaCo::Range;
-		if (runTests.getValue())
-		{
+		if (runTests.getValue()) {
 			TwoPaCo::RunTests(10, 20, 9000, 6, Range(3, 11), Range(1, 2), Range(1, 5), Range(4, 5), 0.05, 0.1, tmpDirName.getValue());
 			return 0;
 		}
-		
+
+		int64_t filterBits = 1;
+		if (filterSize.isSet()) {
+			filterBits = filterSize.getValue();
+		} else {
+			filterBits = log2(filterMemory.getValue() * 8e+9);
+		}
+
 		std::unique_ptr<TwoPaCo::VertexEnumerator> vid = TwoPaCo::CreateEnumerator(fileName.getValue(),
-			kvalue.getValue(), filterSize.getValue(),
+			kvalue.getValue(),
+			filterBits,
 			hashFunctions.getValue(),
 			rounds.getValue(),
 			threads.getValue(),
+			abundance.getValue(),
 			tmpDirName.getValue(),
 			outFileName.getValue(),
 			std::cout);
-		
+
 		if (vid)
 		{
 			std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
 			std::cout << std::endl;
 		}
-		
+
 	}
 	catch (TCLAP::ArgException & e)
 	{
-		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+		std::cerr << std::endl << "Error: " << e.error() << " for arg " << e.argId() << std::endl;
 		return 1;
 	}
 	catch (std::runtime_error & e)
 	{
-		std::cerr << "error: " << e.what() << std::endl;
+		std::cerr << std::endl << "Error: " << e.what() << std::endl;
 		return 1;
 	}
-	
+    scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
+	scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);
 	return 0;
 }

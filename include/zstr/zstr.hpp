@@ -218,7 +218,7 @@ private:
     bool auto_detect;
     bool auto_detect_run;
     bool is_text;
-
+public:
     static const std::size_t default_buff_size = (std::size_t)1 << 20;
 }; // class istreambuf
 
@@ -314,7 +314,7 @@ private:
     char * out_buff;
     detail::z_stream_wrapper * zstrm_p;
     std::size_t buff_size;
-
+public:
     static const std::size_t default_buff_size = (std::size_t)1 << 20;
 }; // class ostreambuf
 
@@ -342,8 +342,8 @@ class ostream
     : public std::ostream
 {
 public:
-    ostream(std::ostream & os)
-        : std::ostream(new ostreambuf(os.rdbuf()))
+    ostream(std::ostream & os, int level = Z_DEFAULT_COMPRESSION)
+        : std::ostream(new ostreambuf(os.rdbuf(), ostreambuf::default_buff_size, level))
     {
         exceptions(std::ios_base::badbit);
     }
@@ -394,12 +394,20 @@ class ofstream
       public std::ostream
 {
 public:
-    explicit ofstream(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out)
+    explicit ofstream(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out,
+                      int level = Z_DEFAULT_COMPRESSION)
         : detail::strict_fstream_holder< strict_fstream::ofstream >(filename, mode | std::ios_base::binary),
-          std::ostream(new ostreambuf(_fs.rdbuf()))
+          std::ostream(new ostreambuf(_fs.rdbuf(), ostreambuf::default_buff_size, level))
     {
         exceptions(std::ios_base::badbit);
     }
+
+    ofstream &flush(){
+        std::ostream::flush();
+        _fs.flush();
+        return *this;
+    }
+
     virtual ~ofstream()
     {
         if (rdbuf()) delete rdbuf();

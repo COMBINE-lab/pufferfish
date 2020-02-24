@@ -1,4 +1,5 @@
 #include "Util.hpp"
+#include <cstring> 
 
 #define ALLOW_VERBOSE 0
 
@@ -161,10 +162,8 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                     }
 
                     // FILTERING fragments with size smaller than maxFragmentLength
-                    // FILTER just in case of priority 0 (round 0) -> in every case
-                    if (fragmentLen > maxFragmentLength)
-                      continue;
-                    if ((fragmentLen <= maxFragmentLength) or (round > 0)) {
+                    // FILTER just in case of priority 0 (round 0)
+                    if ((static_cast<uint32_t>(fragmentLen) < maxFragmentLength) or (round > 0)) {
                         // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
                         // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
                         auto totalCoverage = lclust->coverage + rclust->coverage;
@@ -272,6 +271,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
       char * getRefSeqOwned(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, uint32_t refLen) {
         if (refLen == 0) return nullptr;
         char* seq = new char[refLen];
+        std::memset(seq, 0, refLen);
         uint64_t c = 0;
         uint64_t bucket_offset = (refAccPos) * 2;
         auto len_on_vector = refLen * 2;
@@ -282,7 +282,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
           uint64_t word = refseq.get_int(bucket_offset, len);
           for (uint32_t i = 0; i < len; i += 2) {
             uint8_t next_bits = ((word >> i) & 0x03);
-            seq[c++] += "ACGT"[next_bits];
+            seq[c++] = "ACGT"[next_bits];
           }
           bucket_offset += len;
         }

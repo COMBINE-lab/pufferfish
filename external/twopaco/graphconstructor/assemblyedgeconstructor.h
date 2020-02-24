@@ -18,7 +18,7 @@ namespace TwoPaCo
 			size_t chrNumber = 0;
 			ChrReader chrReader(inputFileName);
 			JunctionPositionReader junctionReader(marksFileName);
-			std::unique_ptr<ConcurrentBitVector> bloomFilter = vertexEnumerator_.ReloadBloomFilter();
+//			std::unique_ptr<ConcurrentBitVector> bloomFilter = vertexEnumerator_.ReloadBloomFilter();
 			for (std::string chr; chrReader.NextChr(chr); chrNumber++)
 			{								
 				//Read the current vector of junction marks. Notice: should be done in order!

@@ -136,13 +136,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto readLen = read.length();
   uint32_t buff = (readLen*mopts.matchScore*(1-mopts.minScoreFraction)-mopts.gapOpenPenalty)/mopts.gapExtendPenalty;
   int32_t refExtLength = buff; //static_cast<int32_t>(mopts.refExtendLength);
-  bool firstMem = true;
-  int32_t lastHitEnd_read = -1;
+  //bool firstMem = true;
+  //int32_t lastHitEnd_read = -1;
   int32_t currHitStart_read = 0;
-  int64_t lastHitEnd_ref = -1;
+  // int64_t lastHitEnd_ref = -1;
   int64_t currHitStart_ref = 0;
-  int32_t alignment{0};
-
+  // int32_t alignment{0};
   uint32_t openGapLen{0};
 
   // will we be computing CIGAR strings for this alignment
@@ -153,6 +152,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
   std::string cigar = "";
   if (computeCIGAR) cigarGen.clear();
+  ksw_reset_extz(&ez);
 
   // where this reference starts, and its length.
   int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
@@ -195,6 +195,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool invalidStart = (signedRefStartPos < 0);
   bool invalidEnd = (signedRefEndPos > refTotalLength);
 
+  // bool allowSoftclip = mopts.allowSoftclip;
+  // allowOverhangSoftclip is a special case of allowing soft-clipping
+  // if we allow softclipping generally, then this option is redundant.
   bool allowOverhangSoftclip = mopts.allowOverhangSoftclip;
 
   if (mopts.mimicBT2Strict and (invalidStart or invalidEnd)) {
@@ -210,7 +213,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
     //keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
-    keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+    keyLen = (static_cast<int64_t>(refStart + readLen + buff) < refTotalLength) ? readLen + buff : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
     // If the first hit starts further in the reference than in the
     // read, then we align from the beginning of the read and (ref_start - read_start) on
@@ -226,7 +229,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       readStart = currHitStart_read - currHitStart_ref;
       refStart = 0;
     }
-    keyLen = (refStart + readLen + buff < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+    keyLen = (static_cast<int64_t>(refStart + readLen + buff) < refTotalLength) ? readLen + buff : refTotalLength - refStart;
   }
 
   if (perfectChain) {
@@ -244,12 +247,22 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   }
 
   fillRefSeqBuffer(allRefSeq, refAccPos, refStart, keyLen, refSeqBuffer_);
-  int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
+  // int32_t originalRefSeqLen = static_cast<int32_t>(refSeqBuffer_.length());
   // If we're not using fullAlignment, we'll need the full reference sequence later
   // so copy it into tseq.
   if (!doFullAlignment) { tseq = refSeqBuffer_; }
 
-  if (!alnCache.empty() and isMultimapping_) {
+  // first, check if we can skip this by perfect chaining
+  // if not, check if we can skip it via the alignment cache
+  if (perfectChain) {
+    arOut.score = alignmentScore = readLen * mopts.matchScore;
+    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    hctr.skippedAlignments_byCov += 1;
+    /*SPDLOG_DEBUG(logger_,"[[");
+    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
+    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");*/
+  } else if (!alnCache.empty() and isMultimapping_) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     didHash = true;
@@ -323,7 +336,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       // the gap is of length firstMemStart_read, so grab that much (plus buffer) before the
       // first start position on the reference.
-      int32_t firstMemStart_ref = tpos;
+      // int32_t firstMemStart_ref = tpos;
       int32_t readStartPosOnRef = tpos - firstMemStart_read;
       int32_t maxAllowedGaps_ = maxAllowedGaps(0, mopts, 0);
       int32_t dataDepBuff = std::min(refExtLength, maxAllowedGaps_);
@@ -536,7 +549,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto NM_ = computeCIGAR and !ez.stopped ? cigarGen.gap_length + cigarGen.MMcount(alignmentScore) : 0;
   if (NM_  > read.length())
     std::cerr<<read << " " << NM_ << " " << alignmentScore << "\n";
-  if (isMultimapping_) { // don't bother to fill up a cache unless this is a multi-mapping read
+  if (isMultimapping_ and !perfectChain) { // don't bother to fill up a cache unless this is a multi-mapping read
     if (!didHash) {
       // We want the alignment cache to be on the hash of the full underlying reference sequence.
       // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment

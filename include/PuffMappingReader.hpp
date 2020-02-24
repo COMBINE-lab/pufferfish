@@ -143,7 +143,7 @@ public:
 
     bool nextAlignmentGroup(std::vector<ReadInfo> &alignmentGrp,
                             std::mutex &iomutex,
-                            uint32_t threadID,
+                            uint32_t /*threadID*/,
                             bool needReadName = false) {
         uint32_t readsLeft{0};
         for (ReadInfo& rinfo: alignmentGrp) {

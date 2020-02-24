@@ -19,7 +19,7 @@
 #include <junctionapi/junctionapi.h>
 
 #include "pufferize.h"
-#include "binaryWriter.h"
+#include "graphdumpBinaryWriter.hpp"
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition &a, const TwoPaCo::JunctionPosition &b) {
     return a.GetId() < b.GetId();
@@ -151,9 +151,10 @@ char Sign(int64_t arg) {
     return arg >= 0 ? '+' : '-';
 }
 
-void ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std::string> &chrSegmentId,
+uint64_t ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std::string> &chrSegmentId,
                         std::vector<uint64_t> &chrSegmentLength, std::map<std::string, std::string> &fileName,
                         bool noPrefix) {
+    uint64_t maxChrNameLength = 0;
     size_t chrCount = 0;
     chrSegmentId.clear();
     chrSegmentLength.clear();
@@ -168,6 +169,8 @@ void ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std
             }
 
             chrSegmentId.push_back(ssId.str());
+            maxChrNameLength = maxChrNameLength < ssId.str().size() ? ssId.str().size() : maxChrNameLength;
+
             fileName[ssId.str()] = chrFileName;
 
 
@@ -176,6 +179,7 @@ void ReadInputSequences(const std::vector<std::string> &genomes, std::vector<std
             chrSegmentLength.push_back(size);
         }
     }
+    return maxChrNameLength;
 }
 
 class Gfa1Generator {
@@ -186,6 +190,10 @@ public:
     }
 
     void flushSegments(std::string &prefix) {
+        //empty body-- forced by template
+    }
+
+    void setAllowedMaxStringLength(uint64_t val) {
         //empty body-- forced by template
     }
 
@@ -243,7 +251,7 @@ public:
 };
 
 class Gfa1BinaryGenerator {
-    BinaryWriter bw;
+    GraphdumpBinaryWriter bw;
     //std::ofstream out;
 public:
     //Gfa1BinaryGenerator(): bw(std::cout) {}
@@ -258,7 +266,12 @@ public:
         bw.flushSegments(prefix);
     }
 
+    void setAllowedMaxStringLength(uint64_t val) {
+        bw.setAllowedMaxStringLength(val);
+    }
+
     void Header(std::ostream &out)  {
+        bw.writeAllowedMaxStringLength();
         /*std::string header="H\tVN:Z:1.0";
         bw << header;*/
     }
@@ -307,6 +320,10 @@ public:
     }
 
     void flushSegments(std::string & dummy) {
+        //empty body-- forced by template
+    }
+
+    void setAllowedMaxStringLength(uint64_t val) {
         //empty body-- forced by template
     }
 
@@ -391,9 +408,9 @@ void GenerateGfaOutput(const std::string &inputFileName, const std::vector<std::
     std::map<std::string, std::string> chrFileName;
 
     //std::cout << "H\tVN:Z:1.0" << std::endl;
-    g.Header(std::cout);
 
     ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+    g.Header(std::cout);
     g.ListInputSequences(chrSegmentId, chrFileName, std::cout);
 
     std::vector<int64_t> currentPath;
@@ -599,9 +616,11 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
     std::vector<std::string> chrSegmentId;
     std::map<std::string, std::string> chrFileName;
 
-    g->Header(std::cout);
 
-    ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+    auto maxAllowedSeqNameLength = ReadInputSequences(genomes, chrSegmentId, chrSegmentLength, chrFileName, !prefix);
+
+    g->setAllowedMaxStringLength(maxAllowedSeqNameLength);
+    g->Header(std::cout);
 
     std::vector<int64_t> currentPath;
     const int64_t NO_SEGMENT = 0;
@@ -621,11 +640,11 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         if (Abs(curr.GetId()) > maxJunction)
             maxJunction = (uint64_t)Abs(curr.GetId());
     }
-//    std::cerr << "Max Junction ID: " << maxJunction << "\n";
+    std::cerr << "Max Junction ID: " << maxJunction << "\n";
 
-    std::vector<bool> seen((maxJunction << 3 + 9)/*MAX_SEGMENT_NUMBER*/, 0);
+    std::vector<bool> seen(( (maxJunction << 3) + 9)/*MAX_SEGMENT_NUMBER*/, 0);
     std::vector<KmerInfo> kmerInfo(maxJunction+1/*MAX_JUNCTION_ID*/);
-
+    std::cerr << "seen.size():" << seen.size() << " kmerInfo.size():" << kmerInfo.size() << "\n";
     // First round going over the junctions file
 //    std::cerr << "\n\nRound one:\n";
     reader.RestoreReader();
@@ -680,7 +699,10 @@ void GeneratePufferizedOutput(const std::string &inputFileName, const std::vecto
         for (auto &kmerIn : kmerInfo) {
             kmerIn.decideType(k, approximateContigLen, cntr1, cntr2, cntr3, cntr4);
         }
-        std::cerr << "approximateContigTotalLength: " << approximateContigLen << "\ncounters:\n" << cntr1 << " " << cntr2 << " " << cntr3 << " " << cntr4 << "\n";
+        std::cerr << "approximateContigTotalLength: " << approximateContigLen
+        << "\ncounters for complex kmers:\n"
+        << "(prec>1 & succ>1)=" << cntr1 << " | (succ>1 & isStart)=" << cntr2
+        << " | (prec>1 & isEnd)=" << cntr3 << " | (isStart & isEnd)=" << cntr4 << "\n";
     }
     // Having all the required information for each junction,
     // Start the second round of going over the junctions file
@@ -897,10 +919,9 @@ int dumpGraphMain(std::vector<std::string>& args){//}int argc, char *argv[]) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
             }
 
-            auto * g = new Gfa1Generator();
+            std::unique_ptr<Gfa1Generator> g = std::make_unique<Gfa1Generator>();
             GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
-                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g);
-            delete g;
+                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g.get());
         } else if (outputFileFormat.getValue() == format[7]) { // binPufferized
             if (!seqFileName.isSet()) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
@@ -908,13 +929,12 @@ int dumpGraphMain(std::vector<std::string>& args){//}int argc, char *argv[]) {
             if (!seqAndRankOutputDir.isSet()) {
                 throw TCLAP::ArgParseException("Required argument missing\n", "SeqRankDirPrefix");
             }
-            auto * g = new Gfa1BinaryGenerator();
+            std::unique_ptr<Gfa1BinaryGenerator> g = std::make_unique<Gfa1BinaryGenerator>();
             std::ofstream pfile(seqAndRankOutputDir.getValue()+"/path.bin", std::ofstream::binary);
             g->setOStream(&pfile);
            GeneratePufferizedOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(),
-                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g);
+                                     prefix.getValue(), seqAndRankOutputDir.getValue(), g.get());
            pfile.close();
-           delete g;
         }
     }
     catch (TCLAP::ArgException &e) {

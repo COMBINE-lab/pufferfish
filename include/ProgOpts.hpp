@@ -19,10 +19,12 @@ public:
   uint32_t extensionSize{4};
   uint32_t sampleSize{9};
   bool lossySampling{false};
+  bool keep_fixed_fasta{false};
   bool keep_duplicates{false};
   uint32_t lossy_rate{5};
   int32_t filt_size{-1};
   bool buildEdgeVec{false};
+  bool buildEqCls{false};
   std::string twopaco_tmp_dir{""};
 };
 
@@ -35,6 +37,15 @@ public:
 
 class TestOptions {
 public:
+};
+
+enum StatType {
+    ctab
+};
+class StatsOptions {
+public:
+    StatType statType{ctab};
+    std::string indexDir;
 };
 
 class ValidateOptions {
@@ -104,8 +115,8 @@ public:
   bool mimicBt2Strict{false};
   bool allowOverhangSoftclip{true};
   bool computeCIGAR{true};
-
   std::string singleReadName{"NULL"};
+  uint32_t alignmentStreamLimit{10000};
 };
 }
 
