@@ -110,6 +110,7 @@ public:
   bool mimicBt2Default{false};
   bool mimicBt2Strict{false};
   bool allowOverhangSoftclip{false};
+  bool allowSoftclip{false};
   uint32_t alignmentStreamLimit{10000};
 };
 }

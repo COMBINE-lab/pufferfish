@@ -545,6 +545,7 @@ Compile-time selection between list-like and map-like printing.
             bool perfectChain = false;
             uint32_t readLen{0};
             uint32_t openGapLen{0};
+            uint16_t softClipStart{0};
 
             //bool isValid = true;
             MemCluster(bool isFwIn, uint32_t readLenIn) : isFw(isFwIn), readLen(readLenIn) {}
@@ -561,7 +562,8 @@ Compile-time selection between list-like and map-like printing.
             bool operator==(const MemCluster& mc) {
                 if (!(isFw == mc.isFw and score == mc.score and coverage == mc.coverage
                 and cigar == mc.cigar and perfectChain == mc.perfectChain
-                and readLen == mc.readLen and openGapLen == mc.openGapLen)) return false;
+                and readLen == mc.readLen and openGapLen == mc.openGapLen 
+                and softClipStart == mc.softClipStart )) return false;
                 if (mems.size() != mc.mems.size()) return false;
                 for (uint64_t i = 0; i < mems.size(); i++) {
                     if (mems[i] != mc.mems[i]) return false;
@@ -816,6 +818,7 @@ Compile-time selection between list-like and map-like printing.
         bool mimicBT2{false};
         bool mimicBT2Strict{false};
         bool allowOverhangSoftclip{false};
+        bool allowSoftclip{false};
       };
 
         struct QuasiAlignment {
@@ -1279,17 +1282,15 @@ Compile-time selection between list-like and map-like printing.
 
         struct AlignmentResult {
             AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn, 
-                            uint16_t softclip_left_in, uint16_t softclip_right_in) :
-                    score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_left(softclip_left_in),
-                    softclip_right(softclip_right_in) {}
+                            uint16_t softclip_start_in ) :
+                    score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_start(softclip_start_in) {}
 
-            AlignmentResult() : score(0), cigar(""), openGapLen(0), softclip_left(0), softclip_right(0) {}
+            AlignmentResult() : score(0), cigar(""), openGapLen(0), softclip_start(0) {}
 
             int32_t score;
             std::string cigar;
             uint32_t openGapLen;
-            uint16_t softclip_left{0};
-            uint16_t softclip_right{0};
+            uint16_t softclip_start{0};
         };
 
       void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,

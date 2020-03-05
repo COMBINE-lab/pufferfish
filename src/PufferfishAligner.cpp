@@ -144,6 +144,8 @@ void processReadsPair(paired_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
+    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    aconf.allowSoftclip = mopts->allowSoftclip;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -581,6 +583,8 @@ void processReadsSingle(single_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
+    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    aconf.allowSoftclip = mopts->allowSoftclip;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
