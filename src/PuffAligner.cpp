@@ -406,12 +406,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
       if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
         int32_t gapDiff = std::abs(gapRef - gapRead);
-        if ( cigarGen.lastMatchLen() == -1 or std::abs(std::min(gapRead, gapRef) >= cigarGen.lastMatchLen()) ) {
+        if ( cigarGen.lastMatchLen() == -1 or std::abs(std::min(gapRead, gapRef)) >= cigarGen.lastMatchLen() ) {
           SPDLOG_DEBUG(logger_,"\t GAP NOT THE SAME:\n\t gapRef : {}, gapRead : {}", gapRef, gapRead);
           SPDLOG_DEBUG(logger_,"\t GAP is too long and the mem alignment cannot be continued, so let's align the remaining parts");
           score -= mopts.matchScore * memlen;
           break;
-        }        
+        }
         // subtract off extra matches
         score += mopts.matchScore * std::min(gapRead, gapRef);
         if (computeCIGAR) cigarGen.remove_match(std::abs(std::min(gapRead, gapRef)));
