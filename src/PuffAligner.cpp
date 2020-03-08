@@ -249,7 +249,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // if not, check if we can skip it via the alignment cache
   if (perfectChain) {
     arOut.score = alignmentScore = readLen * mopts.matchScore;
-    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    if (computeCIGAR or approximateCIGAR) { cigarGen.add_item(readLen, 'M'); }
     hctr.skippedAlignments_byCov += 1;
     /*SPDLOG_DEBUG(logger_,"[[");
     SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
@@ -265,7 +265,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     if (hit != alnCache.end() ) {//}and refStart + readLen + refExtLength < refTotalLength) {
       hctr.skippedAlignments_byCache += 1;
       arOut.score /*= alignmentScore*/ = hit->second.score;
-      if (computeCIGAR) { arOut.cigar = hit->second.cigar; }
+      if (computeCIGAR or approximateCIGAR) { arOut.cigar = hit->second.cigar; }
       arOut.openGapLen = hit->second.openGapLen;
       return true;
     }
