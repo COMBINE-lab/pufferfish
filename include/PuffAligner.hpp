@@ -16,11 +16,11 @@ struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
 };
 
-enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, CIGAR };
+/*enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, CIGAR };
 
 struct PuffAlignmentOptions {
   PuffAlignmentMode mode;
-};
+};*/
 
 using HitCounters = pufferfish::util::HitCounters;
 using AlignmentResult = pufferfish::util::AlignmentResult;

@@ -376,11 +376,32 @@ Compile-time selection between list-like and map-like printing.
         // with CIGAR Op class or some such.
         std::vector<uint32_t> cigar_counts;
         std::string cigar_types;
+        int32_t begin_softclip_len{0}, end_softclip_len{0};
+        bool beginOverhang{false}, endOverhang{false};
+        bool allowOverhangSoftClip{false};
 
-        void clear() { cigar_counts.clear(); cigar_types.clear(); }
+        void clear() {
+          cigar_counts.clear(); cigar_types.clear();
+          begin_softclip_len = end_softclip_len = 0;
+          beginOverhang = endOverhang = false;
+        }
+
         void add_item(uint32_t count, char type) {
           cigar_counts.push_back(count);
           cigar_types.push_back(type);
+        }
+
+        void get_approx_cigar(int32_t readLen, std::string& cigar) {
+          if (begin_softclip_len > 0) {
+            cigar += std::to_string(begin_softclip_len);
+            cigar += beginOverhang and allowOverhangSoftClip ? "I" : "S";
+          }
+          cigar += std::to_string(readLen - (begin_softclip_len + end_softclip_len));
+          cigar += "M";
+          if (end_softclip_len > 0) {
+            cigar += std::to_string(end_softclip_len);
+            cigar += endOverhang and allowOverhangSoftClip ? "I" : "S";
+          }
         }
 
         std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
@@ -808,6 +829,8 @@ Compile-time selection between list-like and map-like printing.
     };
     */
 
+      enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, APPROXIMATE_CIGAR,  EXACT_CIGAR};
+
       struct AlignmentConfig {
         int32_t refExtendLength{20};
         bool fullAlignment{false};
@@ -819,6 +842,7 @@ Compile-time selection between list-like and map-like printing.
         bool mimicBT2Strict{false};
         bool allowOverhangSoftclip{false};
         bool allowSoftclip{false};
+        PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
       };
 
         struct QuasiAlignment {
