@@ -25,6 +25,7 @@ public:
   int32_t filt_size{-1};
   bool buildEdgeVec{false};
   bool buildEqCls{false};
+  bool featuresRef{false};
   std::string twopaco_tmp_dir{""};
 };
 
