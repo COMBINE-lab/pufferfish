@@ -487,7 +487,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
             SPDLOG_DEBUG(logger_,
                          "\t\t tseq was not long enough; need to fetch more!");
           }
-
+          
+          ksw_reset_extz(&ez);
           score += aligner(
               readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
@@ -562,6 +563,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                      gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
 
         if (refLen > 0) {
+          ksw_reset_extz(&ez);
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
                   refLen, &ez,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
