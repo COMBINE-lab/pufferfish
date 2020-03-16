@@ -652,7 +652,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
     AlignmentResult aln;
     aln.score = alignmentScore;
-    if (computeCIGAR) { aln.cigar = cigar; }
+    if (computeCIGAR or approximateCIGAR) { aln.cigar = cigar; }
     aln.openGapLen = openGapLen;
     alnCache[hashKey] = aln;
   }
