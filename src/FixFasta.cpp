@@ -485,12 +485,119 @@ spp::sparse_hash_set<std::string> populateDecoyHashPuff(const std::string& fname
   return dset;
 }
 
+bool extractFasta(std::string& inputTsv, std::string& outFile, uint32_t& numFeats) {
+  std::ifstream ifile(inputTsv);
+  std::ofstream ofile(outFile);
+
+  digestpp::sha256 seqHasher256;
+  digestpp::sha256 nameHasher256;
+  digestpp::sha512 seqHasher512;
+  digestpp::sha512 nameHasher512;
+  digestpp::sha256 decoySeqHasher256;
+  digestpp::sha256 decoyNameHasher256;
+
+  size_t seqLen{0};
+  std::unordered_set<std::string> names;
+  std::unordered_set<std::string> seqs;
+
+  if(ifile.is_open()) {
+    while( true ) {
+      std::string featStr, seqStr;
+      ifile >> featStr >> seqStr;
+      if( ifile.eof() ) { break; }
+
+      ofile << ">" << featStr << "\n" << seqStr << "\n";
+      ++numFeats;
+
+      nameHasher256.absorb(featStr);
+      nameHasher512.absorb(featStr);
+
+      seqHasher256.absorb(seqStr.begin(), seqStr.end());
+      seqHasher512.absorb(seqStr.begin(), seqStr.end());
+
+      if (seqLen == 0) { seqLen = seqStr.size(); }
+      if (seqLen > 0 && seqLen != seqStr.size()) {
+        std::cerr << "CRITICAL ERROR: The length of all the feature sequences should be the same."
+                  << std::endl;
+        std::exit(1);
+      }
+
+      if (seqs.find(seqStr) == seqs.end()) {
+        seqs.insert(seqStr);
+      } else {
+        std::cerr << "CRITICAL ERROR: The feature sequences should be unique"
+                  << std::endl;
+        std::exit(1);
+      }
+
+      if (names.find(featStr) == names.end()) {
+        names.insert(featStr);
+      } else {
+        std::cerr << "CRITICAL ERROR: The feature ids should be unique"
+                  << std::endl;
+        std::exit(1);
+      }
+    }
+    ifile.close();
+    ofile.close();
+  }
+
+  { // this block mostly copy paste
+    // Set the hash info
+    std::string seqHash256 = seqHasher256.hexdigest();
+    std::string nameHash256 = nameHasher256.hexdigest();
+    std::string seqHash512 = seqHasher512.hexdigest();
+    std::string nameHash512 = nameHasher512.hexdigest();
+    std::string decoySeqHash256 = decoySeqHasher256.hexdigest();
+    std::string decoyNameHash256 = decoyNameHasher256.hexdigest();
+
+    ghc::filesystem::path outFilePath{outFile};
+    ghc::filesystem::path outDir = outFilePath.parent_path();
+    { // writing the json
+      ghc::filesystem::path sigPath = outDir / ghc::filesystem::path{"ref_sigs.json"};
+      std::ofstream os(sigPath.string());
+      cereal::JSONOutputArchive ar(os);
+
+      uint64_t numShortBeforeFirstDecoy {0}; // forcing to all the features to be of equal length
+      uint64_t firstDecoyIndex{std::numeric_limits<uint64_t>::max()};
+      auto adjustedFirstDecoyIndex = firstDecoyIndex - numShortBeforeFirstDecoy;
+
+      ar( cereal::make_nvp("keep_duplicates", false));
+      ar( cereal::make_nvp("num_decoys", 0));
+      ar( cereal::make_nvp("first_decoy_index", adjustedFirstDecoyIndex));
+      ar( cereal::make_nvp("SeqHash", seqHash256) );
+      ar( cereal::make_nvp("NameHash", nameHash256) );
+      ar( cereal::make_nvp("SeqHash512", seqHash512) );
+      ar( cereal::make_nvp("NameHash512", nameHash512) );
+      ar( cereal::make_nvp("DecoySeqHash", decoySeqHash256) );
+      ar( cereal::make_nvp("DecoyNameHash", decoyNameHash256) );
+    }
+
+    {
+      std::vector<uint32_t> completeLengths(numFeats, seqLen);
+      ghc::filesystem::path sigPath = outDir / ghc::filesystem::path{"complete_ref_lens.bin"};
+      std::ofstream os(sigPath.string(), std::ios::binary);
+      cereal::BinaryOutputArchive lenArchive(os);
+      lenArchive(completeLengths);
+    }
+
+    {
+      ghc::filesystem::path dcPath = outDir / ghc::filesystem::path{"duplicate_clusters.tsv"};
+      std::ofstream dupClusterStream(dcPath.string());
+      dupClusterStream << "RetainedRef" << '\t' << "DuplicateRef" << '\n';
+      dupClusterStream.close();
+    }
+  }
+
+  return true;
+}
 
 
 int fixFastaMain(std::vector<std::string>& args,
         std::vector<uint32_t>& refIdExtension,
         std::vector<std::pair<std::string, uint16_t>>& shortRefs,
-        std::shared_ptr<spdlog::logger> log) {
+        std::shared_ptr<spdlog::logger> log,
+        bool hasFeatures) {
   using namespace clipp;
 
   uint32_t k{31};
@@ -537,16 +644,24 @@ int fixFastaMain(std::vector<std::string>& args,
       }
     }
 
-    size_t numThreads{1};
-    std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
-    size_t numProd = 1;
+    bool fix_ok {false};
+    if (hasFeatures) {
+      uint32_t numFeats{0};
+      fix_ok = extractFasta(refFiles[0], outFile, numFeats);
+      refIdExtension.resize(numFeats, 0);
+    } else {
+      size_t numThreads{1};
+      std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
+      size_t numProd = 1;
 
-    transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
-    transcriptParserPtr->start();
-    std::mutex iomutex;
-    bool fix_ok = fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, log,
-                           outFile, refIdExtension, shortRefs);
-    transcriptParserPtr->stop();
+      transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
+      transcriptParserPtr->start();
+      std::mutex iomutex;
+      fix_ok = fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, log,
+                        outFile, refIdExtension, shortRefs);
+      transcriptParserPtr->stop();
+    }
+
     return fix_ok ? 0 : 1;
   } else {
     std::cout << usage_lines(cli, "fixFasta") << '\n';
