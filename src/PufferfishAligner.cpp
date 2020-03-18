@@ -623,15 +623,11 @@ void processReadsSingle(single_parser *parser,
                                    true, // isLeft
                                    verbose);
 
-            logger->info("leftHits.size() = {}", leftHits.size());            
-
             (void) lh;
             all.clear();
             pufferfish::util::joinReadsAndFilterSingle(leftHits, jointHits,
                                      totLen,
                                      mopts->scoreRatio);
-
-            logger->info("jointHits.size() = {}", jointHits.size());            
 
             std::vector<QuasiAlignment> jointAlignments;
             std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>> validHits;
@@ -651,7 +647,6 @@ void processReadsSingle(single_parser *parser,
                 bool isMultimapping = (jointHits.size() > 1);
                 for (auto &jointHit : jointHits) {
                   int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
-                  logger->info("jointHit {} : score = {}", idx+1, hitScore);
                     scores[idx] = hitScore;
 
                     const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
@@ -730,9 +725,6 @@ void processReadsSingle(single_parser *parser,
                     jointHits.clear();
                 }
             }
-
-            logger->info("jointHits after alignment scoring and filtering size = {}", jointHits.size());
-
 
             if (jointHits.size() > mopts->maxNumHits) {
                 std::sort(jointHits.begin(), jointHits.end(),
