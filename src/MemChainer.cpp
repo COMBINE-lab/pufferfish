@@ -174,7 +174,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     auto beta = [maxSpliceGap](int32_t qdiff, int32_t rdiff, double avgseed) -> double {
         double l = qdiff - rdiff;
         uint32_t al = std::abs(l);
-        if (qdiff < 0 or (al > maxSpliceGap)) {
+        if (qdiff <= 0 or rdiff <= 0 or (al > maxSpliceGap)) {
           return std::numeric_limits<double>::infinity();
         }
         // To penalize cases with organized gaps for reads such as
@@ -262,7 +262,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
       int32_t qposi = hi.rpos + hi.extendedlen;
       int32_t rposi = hi.tpos + hi.extendedlen;
-
+      /*
+      if (tid == 39286) {
+      std::cerr << "mem " << i << ", read [" << hi.rpos << ", " << hi.rpos + hi.extendedlen << "], ref [" 
+                << hi.tpos << ", " << hi.tpos + hi.extendedlen << "]\n";
+      }
+      */
       double baseScore = static_cast<double>(hi.extendedlen);
       p.push_back(i);
       f.push_back(baseScore);
@@ -281,7 +286,15 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         int32_t rdiff = rposi - rposj;
 
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
-
+        /*
+        if (tid == 39286) {
+          std::cerr << "considering chaining " << i << ", with " << j 
+                    << ", extensionScore = " << extensionScore << ", f[" << j << "] = " << f[j] << ", f[" << i << "] = " << f[i]
+                    << ", qdiff = " << qdiff << ", rdiff = " << rdiff 
+                    << " :  alpha = " << alpha(qdiff, rdiff, hi.extendedlen) 
+                    << ", beta = " << beta(qdiff, rdiff, avgseed) << "\n";
+        }
+        */
         bool extendWithJ = (extensionScore > f[i]);
         p[i] = extendWithJ ? j : p[i];
         f[i] = extendWithJ ? extensionScore : f[i];
