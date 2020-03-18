@@ -277,7 +277,9 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   int q = config_.gapo;
   int e = config_.gape;
   int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
-  int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
+  //int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
+  int w = max_qt_len;
+
   ez->score =
       (config_.flag & KSW_EZ_SCORE_ONLY)
           ? ksw_gg2(kalloc_allocator_.get(), qlen, query_.data(), tlen,
@@ -308,7 +310,8 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
   int q = config_.gapo;
   int e = config_.gape;
   int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
-  int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
+  //int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
+  int w = max_qt_len;
 
   ez->score =
       (config_.flag & KSW_EZ_SCORE_ONLY)
