@@ -262,12 +262,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
       int32_t qposi = hi.rpos + hi.extendedlen;
       int32_t rposi = hi.tpos + hi.extendedlen;
-      /*
-      if (tid == 39286) {
-      std::cerr << "mem " << i << ", read [" << hi.rpos << ", " << hi.rpos + hi.extendedlen << "], ref [" 
-                << hi.tpos << ", " << hi.tpos + hi.extendedlen << "]\n";
-      }
-      */
+
       double baseScore = static_cast<double>(hi.extendedlen);
       p.push_back(i);
       f.push_back(baseScore);
@@ -286,15 +281,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         int32_t rdiff = rposi - rposj;
 
         auto extensionScore = f[j] + alpha(qdiff, rdiff, hi.extendedlen) - beta(qdiff, rdiff, avgseed);
-        /*
-        if (tid == 39286) {
-          std::cerr << "considering chaining " << i << ", with " << j 
-                    << ", extensionScore = " << extensionScore << ", f[" << j << "] = " << f[j] << ", f[" << i << "] = " << f[i]
-                    << ", qdiff = " << qdiff << ", rdiff = " << rdiff 
-                    << " :  alpha = " << alpha(qdiff, rdiff, hi.extendedlen) 
-                    << ", beta = " << beta(qdiff, rdiff, avgseed) << "\n";
-        }
-        */
+
         bool extendWithJ = (extensionScore > f[i]);
         p[i] = extendWithJ ? j : p[i];
         f[i] = extendWithJ ? extensionScore : f[i];
@@ -391,6 +378,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
     for (auto & memClust : memClusters[tid]) {
       auto &memList = memClust.mems;
+      size_t nmem = 0; // the number of mems that will be in this chain
       for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
         auto &hi = memList[i];
         //chainOfInterest = /*chainOfInterest or */(hi.rpos == 1 and hi.tpos == 163 and tid == 151214);
@@ -411,6 +399,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
           }
           hi.extendedlen = std::numeric_limits<decltype(hi.extendedlen)>::max();
         } else {
+          ++nmem;
           currentMemIdx=i;
         }
         //prev_qposi_start = qposi_start;
@@ -419,10 +408,22 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         prev_rposi_end = rposi_end;
       }
 
+      chainQuerySig.clear();
+      chainQuerySig.reserve(2*nmem);
       memList.erase(std::remove_if(memList.begin(), memList.end(),
-                                   [](pufferfish::util::MemInfo& m) {
-                                       bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); return r;
+                                   [this, signedReadLen](pufferfish::util::MemInfo& m) {
+                                       bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); 
+                                       if (!r) {
+                                        int32_t qposi_start = m.isFw ? m.rpos : signedReadLen - (m.rpos + m.extendedlen);
+                                        this->chainQuerySig.push_back(qposi_start);
+                                        this->chainQuerySig.push_back(static_cast<int32_t>(m.extendedlen));
+                                       }
+                                       return r;
                                    }), memList.end());
+
+      MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<int32_t*>(chainQuerySig.data())), 
+                        chainQuerySig.size() * sizeof(int32_t), 
+                        reinterpret_cast<uint8_t *>(&memClust.queryChainHash), 0);
     }
 
   }
