@@ -208,7 +208,10 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             const char* const targetOriginal,
                             const int targetLength, ksw_extz_t* ez,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
-  // auto ez = &result_;
+  // NOTE: all ksw extension aligner calls clear out ez 
+  // *internally*.  This is why we do not need to (and do not)
+  // clear it out here.
+  // ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int asize = transformSequencesKSW2(queryOriginal, queryLength, targetOriginal,
@@ -268,7 +271,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             const char* const targetOriginal,
                             const int targetLength, ksw_extz_t* ez,
                             EnumToType<KSW2AlignmentType::GLOBAL>) {
-  // auto ez = &result_;
+  ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int asize = transformSequencesKSW2(queryOriginal, queryLength, targetOriginal,
@@ -305,6 +308,7 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const uint8_t* const target_,
                             const int targetLength, ksw_extz_t* ez,
                             EnumToType<KSW2AlignmentType::GLOBAL>) {
+  ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int q = config_.gapo;
@@ -352,6 +356,10 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const uint8_t* const target_,
                             const int targetLength, ksw_extz_t* ez,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
+  // NOTE: all ksw extension aligner calls clear out ez 
+  // *internally*.  This is why we do not need to (and do not)
+  // clear it out here.
+  //ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int8_t q = config_.gapo;
