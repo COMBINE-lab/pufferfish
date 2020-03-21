@@ -191,7 +191,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   uint64_t hashKey{0};
   bool didHash{false};
   uint32_t refStart, readStart{0};
-  uint32_t buff{20};
 
   int32_t signedRefStartPos = currHitStart_ref - currHitStart_read;
   int32_t signedRefEndPos = signedRefStartPos + read.length();
@@ -210,11 +209,16 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
+  bool overhangingRead = false;
+  if (currHitStart_ref < currHitStart_read) overhangingRead = true;
+  uint32_t remLen = 0;
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
-    //keyLen = (refStart + readLen < refTotalLength) ? readLen : refTotalLength - refStart;
-    keyLen = (static_cast<int64_t>(refStart + readLen + buff) < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+    uint32_t refStartExtLength = refExtLength < refStart ? refExtLength : refStart;
+    refStart = refStart > refExtLength ? refStart - refExtLength : 0;
+    remLen = (currHitStart_ref >= currHitStart_read) ? readLen : readLen - (currHitStart_read - currHitStart_ref);
+    keyLen = (static_cast<int64_t>(refStart + refStartExtLength + remLen + refExtLength) < refTotalLength) ? refStartExtLength + remLen + refExtLength : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
     // If the first hit starts further in the reference than in the
     // read, then we align from the beginning of the read and (ref_start - read_start) on
@@ -222,6 +226,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     if (currHitStart_ref > currHitStart_read) {
       refStart = currHitStart_ref - currHitStart_read;
       readStart = 0;
+      remLen = readLen;
     } else if (currHitStart_ref < currHitStart_read) {
       // If the first his starts further in the read than in the reference, than
       // the read overhangs the beginning of the reference and we start aligning
@@ -229,13 +234,15 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       // in the read.
       readStart = currHitStart_read - currHitStart_ref;
       refStart = 0;
+      remLen = readLen - readStart;
     } else {
       // If the first hit starts at the same position in the reference and the read
       // ... what is this case?
       readStart = 0;
       refStart = currHitStart_ref - currHitStart_read;
+      remLen = readLen;
     }
-    keyLen = (static_cast<int64_t>(refStart + readLen + buff) < refTotalLength) ? readLen + buff : refTotalLength - refStart;
+    keyLen = (static_cast<int64_t>(refStart + remLen + refExtLength) < refTotalLength) ? remLen + refExtLength : refTotalLength - refStart;
   }
 
 
@@ -255,7 +262,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
     SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
     SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");*/
-  } else if (!alnCache.empty() and isMultimapping_) {
+  } else if (!alnCache.empty() and isMultimapping_) {// and !overhangingRead) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     didHash = true;
@@ -425,6 +432,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
               computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read - num_soft_clipped;
           SPDLOG_DEBUG(logger_, "score : {}", std::max(ez.mqe, ez.mte));
         } else {
+          overhangingRead = true;
           // do any special soft clipping penalty here if we want
           alignmentScore +=
               allowOverhangSoftclip
@@ -532,6 +540,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         prevMemEnd_read = currMemStart_read + memlen - 1;
         prevMemEnd_ref = tpos + memlen - 1;
         alignmentScore += score;
+
       }
 
       // If we got to the end, and there is a read gap left, then align that as
@@ -621,6 +630,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // std::max(alnCost, delCost);
           SPDLOG_DEBUG(logger_, "POST score : {}", part_score);
         } else {
+          overhangingRead = true;
           // do any special soft clipping penalty here if we want
           alignmentScore +=
               allowOverhangSoftclip
@@ -642,7 +652,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
   if (approximateCIGAR) { cigarGen.get_approx_cigar(readLen, cigar); }
   if (cigar_fixed) { hctr.cigar_fixed_count++; }
-  if (isMultimapping_ and !perfectChain) { // don't bother to fill up a cache unless this is a multi-mapping read
+  if (isMultimapping_ and !perfectChain) {//and !overhangingRead) { // don't bother to fill up a cache unless this is a multi-mapping read
     if (!didHash) {
       // We want the alignment cache to be on the hash of the full underlying reference sequence.
       // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment
