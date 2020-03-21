@@ -567,7 +567,8 @@ Compile-time selection between list-like and map-like printing.
             uint32_t readLen{0};
             uint32_t openGapLen{0};
             uint16_t softClipStart{0};
-
+            uint64_t queryChainHash{0};
+            
             //bool isValid = true;
             MemCluster(bool isFwIn, uint32_t readLenIn) : isFw(isFwIn), readLen(readLenIn) {}
             /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
@@ -1305,12 +1306,12 @@ Compile-time selection between list-like and map-like printing.
         };
 
         struct AlignmentResult {
-            AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn, 
+            AlignmentResult(bool isFwIn, int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn, 
                             uint16_t softclip_start_in ) :
-                    score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_start(softclip_start_in) {}
+                    isFw(isFwIn), score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_start(softclip_start_in) {}
 
-            AlignmentResult() : score(0), cigar(""), openGapLen(0), softclip_start(0) {}
-
+            AlignmentResult() : isFw(true), score(0), cigar(""), openGapLen(0), softclip_start(0) {}
+            bool isFw;
             int32_t score;
             std::string cigar;
             uint32_t openGapLen;
