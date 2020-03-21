@@ -209,13 +209,14 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
-  bool overhangingRead = false;
-  if (currHitStart_ref < currHitStart_read) overhangingRead = true;
+  bool overhangingEnd = false;
+  bool overhangingStart = currHitStart_ref < currHitStart_read;
   uint32_t remLen = 0;
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
-    uint32_t refStartExtLength = refExtLength < refStart ? refExtLength : refStart;
+    overhangingStart = refStart < refExtLength;
+    int32_t refStartExtLength = refExtLength < refStart ? refExtLength : refStart;
     refStart = refStart > refExtLength ? refStart - refExtLength : 0;
     remLen = (currHitStart_ref >= currHitStart_read) ? readLen : readLen - (currHitStart_read - currHitStart_ref);
     keyLen = (static_cast<int64_t>(refStart + refStartExtLength + remLen + refExtLength) < refTotalLength) ? refStartExtLength + remLen + refExtLength : refTotalLength - refStart;
@@ -262,7 +263,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
     SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
     SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");*/
-  } else if (!alnCache.empty() and isMultimapping_) {// and !overhangingRead) {
+  } else if (!alnCache.empty() and isMultimapping_) {// and !overhangingStart) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     hashKey ^= queryChainHash;
@@ -437,7 +438,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
               computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read - num_soft_clipped;
           SPDLOG_DEBUG(logger_, "score : {}", std::max(ez.mqe, ez.mte));
         } else {
-          overhangingRead = true;
+          overhangingStart = true;
           // do any special soft clipping penalty here if we want
           alignmentScore +=
               allowOverhangSoftclip
@@ -560,6 +561,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         int32_t refTailStart = prevMemEnd_ref + 1;
         int32_t dataDepBuff = std::min(refExtLength, 5 * gapRead);
         int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
+        overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
         if (refTailEnd >= refTotalLength) {
           refTailEnd = refTotalLength - 1;
         }
@@ -636,7 +638,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // std::max(alnCost, delCost);
           SPDLOG_DEBUG(logger_, "POST score : {}", part_score);
         } else {
-          overhangingRead = true;
+          overhangingEnd = true;
           // do any special soft clipping penalty here if we want
           alignmentScore +=
               allowOverhangSoftclip
@@ -658,7 +660,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
   if (approximateCIGAR) { cigarGen.get_approx_cigar(readLen, cigar); }
   if (cigar_fixed) { hctr.cigar_fixed_count++; }
-  if (isMultimapping_ and !perfectChain) {//and !overhangingRead) { // don't bother to fill up a cache unless this is a multi-mapping read
+  if (isMultimapping_ and !perfectChain and !overhangingEnd) { // don't bother to fill up a cache unless this is a multi-mapping read
     if (!didHash) {
       // We want the alignment cache to be on the hash of the full underlying reference sequence.
       // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment
