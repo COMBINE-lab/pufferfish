@@ -209,8 +209,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
-  bool overhangingRead = false;
-  if (currHitStart_ref < currHitStart_read) overhangingRead = true;
+  bool overhangingRead = (currHitStart_ref < currHitStart_read);
   uint32_t remLen = 0;
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
