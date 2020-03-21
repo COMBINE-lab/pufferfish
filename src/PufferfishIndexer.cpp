@@ -280,9 +280,9 @@ void dumpCompactToFile(VecT& v, std::string fname) {
 }
 
 int fixFastaMain(std::vector<std::string>& args,
-        std::vector<uint32_t>& refIdExtension,
+                 std::vector<uint32_t>& refIdExtension,
                  std::vector<std::pair<std::string, uint16_t>>& shortRefsNameLen,
-                 std::shared_ptr<spdlog::logger> logger);
+                 std::shared_ptr<spdlog::logger> logger, bool hasFeatures);
 int buildGraphMain(std::vector<std::string>& args);
 int dumpGraphMain(std::vector<std::string>& args);
 uint64_t getNumDistinctKmers(unsigned kmlen, const std::string& ifile);
@@ -413,7 +413,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     args.push_back("--output");
     args.push_back(outdir+"/ref_k"+std::to_string(k)+"_fixed.fa");
 
-    int ffres = fixFastaMain(args, refIdExtensions, shortRefsNameLen, jointLog);
+    int ffres = fixFastaMain(args, refIdExtensions, shortRefsNameLen, jointLog, indexOpts.featuresRef);
 
     if (ffres != 0) {
         jointLog->error("The fixFasta phase failed with exit code {}", ffres);
