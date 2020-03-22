@@ -209,7 +209,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
-  bool overhangingEnd = false;
+  const auto& lastMem = mems.back();
+  int last_rpos = isFw ? lastMem.rpos : readLen - (lastMem.rpos + lastMem.extendedlen);
+  int leftEndRead = readLen - (last_rpos + lastMem.extendedlen);
+  int32_t dataDepBuff = std::min(refExtLength, 5 * leftEndRead);
+  bool overhangingEnd = lastMem.tpos + lastMem.extendedlen + leftEndRead + dataDepBuff > refTotalLength;
   bool overhangingStart = currHitStart_ref < currHitStart_read;
   uint32_t remLen = 0;
   // If we are only aligning between MEMs
@@ -263,7 +267,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
     SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
     SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");*/
-  } else if (mopts.useAlignmentCache and !alnCache.empty() and isMultimapping_) {// and !overhangingStart) {
+  } else if (mopts.useAlignmentCache and !alnCache.empty() and isMultimapping_ and !overhangingEnd) { //  and !overhangingStart) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     hashKey ^= queryChainHash;
@@ -559,7 +563,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         int32_t refTailStart = prevMemEnd_ref + 1;
         int32_t dataDepBuff = std::min(refExtLength, 5 * gapRead);
         int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
-        overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
+        //overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
         if (refTailEnd >= refTotalLength) {
           refTailEnd = refTotalLength - 1;
         }
@@ -634,7 +638,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // std::max(alnCost, delCost);
           SPDLOG_DEBUG(logger_, "POST score : {}", part_score);
         } else {
-          overhangingEnd = true;
+          //overhangingEnd = true;
           // do any special soft clipping penalty here if we want
           alignmentScore +=
               allowOverhangSoftclip

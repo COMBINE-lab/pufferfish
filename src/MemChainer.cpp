@@ -410,13 +410,17 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
       chainQuerySig.clear();
       chainQuerySig.reserve(2*nmem);
+      int32_t prev_tpos = -1;
       memList.erase(std::remove_if(memList.begin(), memList.end(),
-                                   [this, signedReadLen](pufferfish::util::MemInfo& m) {
+                                   [this, signedReadLen, &prev_tpos](pufferfish::util::MemInfo& m) {
                                        bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); 
                                        if (!r) {
                                         int32_t qposi_start = m.isFw ? m.rpos : signedReadLen - (m.rpos + m.extendedlen);
+                                        int32_t rdiff = prev_tpos == -1 ? 0 : m.tpos - prev_tpos;
+                                        prev_tpos = m.tpos;
                                         this->chainQuerySig.push_back(qposi_start);
-                                        this->chainQuerySig.push_back(static_cast<int32_t>(m.extendedlen));
+                                        //this->chainQuerySig.push_back(static_cast<int32_t>(m.extendedlen));
+                                        this->chainQuerySig.push_back(rdiff);
                                        }
                                        return r;
                                    }), memList.end());
