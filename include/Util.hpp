@@ -843,6 +843,7 @@ Compile-time selection between list-like and map-like printing.
         bool mimicBT2Strict{false};
         bool allowOverhangSoftclip{false};
         bool allowSoftclip{false};
+        bool useAlignmentCache{true};
         PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
       };
 

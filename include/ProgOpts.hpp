@@ -112,6 +112,7 @@ public:
   bool mimicBt2Strict{false};
   bool allowOverhangSoftclip{false};
   bool allowSoftclip{false};
+  bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
 };
 }

@@ -263,7 +263,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
     SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
     SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");*/
-  } else if (!alnCache.empty() and isMultimapping_) {// and !overhangingStart) {
+  } else if (mopts.useAlignmentCache and !alnCache.empty() and isMultimapping_) {// and !overhangingStart) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     hashKey ^= queryChainHash;
@@ -656,7 +656,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
   if (approximateCIGAR) { cigarGen.get_approx_cigar(readLen, cigar); }
   if (cigar_fixed) { hctr.cigar_fixed_count++; }
-  if (isMultimapping_ and !perfectChain and !overhangingEnd) { // don't bother to fill up a cache unless this is a multi-mapping read
+  if (mopts.useAlignmentCache and isMultimapping_ and !perfectChain and !overhangingEnd) { // don't bother to fill up a cache unless this is a multi-mapping read
     if (!didHash) {
       // We want the alignment cache to be on the hash of the full underlying reference sequence.
       // If we are using fullAlignment, this is in refSeqBuffer_, but if we are using between-mem alignment
