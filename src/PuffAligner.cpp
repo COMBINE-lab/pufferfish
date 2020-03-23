@@ -210,18 +210,18 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   }
 
   const auto& lastMem = mems.back();
-  int last_rpos = isFw ? lastMem.rpos : readLen - (lastMem.rpos + lastMem.extendedlen);
-  int leftEndRead = readLen - (last_rpos + lastMem.extendedlen);
+  int32_t last_rpos = isFw ? lastMem.rpos : readLen - (lastMem.rpos + lastMem.extendedlen);
+  int32_t leftEndRead = readLen - (last_rpos + lastMem.extendedlen);
   int32_t dataDepBuff = std::min(refExtLength, 5 * leftEndRead);
-  bool overhangingEnd = lastMem.tpos + lastMem.extendedlen + leftEndRead + dataDepBuff > refTotalLength;
-  bool overhangingStart = currHitStart_ref < currHitStart_read;
+  bool overhangingEnd = static_cast<int64_t>(lastMem.tpos + lastMem.extendedlen + leftEndRead + dataDepBuff) > refTotalLength;
+  // bool overhangingStart = currHitStart_ref < currHitStart_read;
   uint32_t remLen = 0;
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
-    overhangingStart = refStart < refExtLength;
-    int32_t refStartExtLength = refExtLength < refStart ? refExtLength : refStart;
-    refStart = refStart > refExtLength ? refStart - refExtLength : 0;
+    // overhangingStart = static_cast<int32_t>(refStart) < refExtLength;
+    int32_t refStartExtLength = (refExtLength < static_cast<int32_t>(refStart)) ? refExtLength : refStart;
+    refStart = static_cast<int32_t>(refStart) > refExtLength ? static_cast<int32_t>(refStart) - refExtLength : 0;
     remLen = (currHitStart_ref >= currHitStart_read) ? readLen : readLen - (currHitStart_read - currHitStart_ref);
     keyLen = (static_cast<int64_t>(refStart + refStartExtLength + remLen + refExtLength) < refTotalLength) ? refStartExtLength + remLen + refExtLength : refTotalLength - refStart;
   } else { // we are aligning from the start of the read
@@ -380,8 +380,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // we start out with the score we obtain if we extend all the
           // way to the beginning of the **query**.
           // simply deleting the rest of the read
-          int32_t delCost = (-1 * mopts.gapOpenPenalty +
-                             -1 * mopts.gapExtendPenalty * readWindow.length());
+          //int32_t delCost = (-1 * mopts.gapOpenPenalty +
+          //                   -1 * mopts.gapExtendPenalty * readWindow.length());
           decltype(alignmentScore) part_score = ez.mqe;//std::max(delCost, ez.mqe);
           int32_t num_soft_clipped{0};
           
@@ -444,7 +444,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
               computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read - num_soft_clipped;
           SPDLOG_DEBUG(logger_, "score : {}", std::max(ez.mqe, ez.mte));
         } else {
-          overhangingStart = true;
+          // overhangingStart = true;
           // do any special soft clipping penalty here if we want
           alignmentScore +=
               allowOverhangSoftclip
