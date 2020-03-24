@@ -266,7 +266,14 @@ void processReadsPair(paired_parser *parser,
                                                                             jointHits, puffaligner, mopts->noOrphan, verbose);
               (void)recoveredAny;
             }
-
+            if (mopts->noOrphan) {
+                jointHits.erase(std::remove_if(jointHits.begin(), jointHits.end(),
+                                                 [](pufferfish::util::JointMems &jointMem) -> bool {
+                                                   return jointMem.mateStatus != MateStatus::PAIRED_END_PAIRED;
+                                                 }),
+                                jointHits.end()
+                                );
+            }
             hctr.totHits += jointHits.size();
             hctr.peHits += !jointHits.empty() && !jointHits.back().isOrphan() ? jointHits.size() : 0;
             hctr.seHits += !jointHits.empty() && jointHits.back().isOrphan() ? jointHits.size() : 0;            
