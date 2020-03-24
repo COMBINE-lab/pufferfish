@@ -1,6 +1,7 @@
 #include "nonstd/string_view.hpp"
 #include "PuffAligner.hpp"
 #include "Util.hpp"
+#include "libdivide/libdivide.h"
 
 std::string extractReadSeq(const std::string& readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
     std::string subseq = readSeq.substr(rstart, rend - rstart);
@@ -209,10 +210,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
+  libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
+  int32_t minAcceptedScore = mopts.minScoreFraction * mopts.matchScore * readLen;
+  auto maxAllowedGaps = [&minAcceptedScore, &readLen, &gapExtDivisor, this] (uint32_t alignedLen, int32_t alignmentScore) -> int {
+    int maxAllowedGaps = (alignmentScore + static_cast<int32_t>(mopts.matchScore) * static_cast<int32_t>(readLen - alignedLen) - minAcceptedScore - static_cast<int32_t>(mopts.gapOpenPenalty)) / gapExtDivisor;
+    return std::max(maxAllowedGaps + 1, 1);                                                                       
+  };
+
   const auto& lastMem = mems.back();
   int32_t last_rpos = isFw ? lastMem.rpos : readLen - (lastMem.rpos + lastMem.extendedlen);
   int32_t leftEndRead = readLen - (last_rpos + lastMem.extendedlen);
-  int32_t dataDepBuff = std::min(refExtLength, 5 * leftEndRead);
+  int32_t dataDepBuff = maxAllowedGaps(0, 0) + 1; // std::min(refExtLength, 5 * leftEndRead);
   bool overhangingEnd = static_cast<int64_t>(lastMem.tpos + lastMem.extendedlen + leftEndRead + dataDepBuff) > refTotalLength;
   // bool overhangingStart = currHitStart_ref < currHitStart_read;
   uint32_t remLen = 0;
@@ -367,6 +375,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           SPDLOG_DEBUG(logger_, "refWindowLength : {}\nread : [{}]\nref : [{}]",
                        refWindowLength, readWindow, refSeqBuffer_);
           
+          aligner.config().bandwidth = maxAllowedGaps(0, 0) + 1;
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
                   refSeqBuffer_.length(), &ez,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -508,6 +517,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                          "\t\t tseq was not long enough; need to fetch more!");
           }
           
+          aligner.config().bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
           score += aligner(
               readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
@@ -564,7 +574,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if (gapAtEnd) {
         int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
         int32_t refTailStart = prevMemEnd_ref + 1;
-        int32_t dataDepBuff = std::min(refExtLength, 5 * gapRead);
+        aligner.config().bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
+        int32_t dataDepBuff = aligner.config().bandwidth; // std::min(refExtLength, 5 * gapRead);
         int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
         //overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
         if (refTailEnd >= refTotalLength) {
