@@ -210,8 +210,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
+  auto& bandwidth = aligner.config().bandwidth;
+
   libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
-  int32_t minAcceptedScore = mopts.minScoreFraction * mopts.matchScore * readLen;
+  const int32_t minAcceptedScore = mopts.minScoreFraction * mopts.matchScore * readLen;
+  // compute the maximum gap length that would be allowed given the length of read aligned so far and the current 
+  // alignment score.
   auto maxAllowedGaps = [&minAcceptedScore, &readLen, &gapExtDivisor, this] (uint32_t alignedLen, int32_t alignmentScore) -> int {
     int maxAllowedGaps = (alignmentScore + static_cast<int32_t>(mopts.matchScore) * static_cast<int32_t>(readLen - alignedLen) - minAcceptedScore - static_cast<int32_t>(mopts.gapOpenPenalty)) / gapExtDivisor;
     return std::max(maxAllowedGaps + 1, 1);                                                                       
@@ -375,7 +379,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           SPDLOG_DEBUG(logger_, "refWindowLength : {}\nread : [{}]\nref : [{}]",
                        refWindowLength, readWindow, refSeqBuffer_);
           
-          aligner.config().bandwidth = maxAllowedGaps(0, 0) + 1;
+          bandwidth = maxAllowedGaps(0, 0) + 1;
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
                   refSeqBuffer_.length(), &ez,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -517,7 +521,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                          "\t\t tseq was not long enough; need to fetch more!");
           }
           
-          aligner.config().bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
+          bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
           score += aligner(
               readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
@@ -574,8 +578,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       if (gapAtEnd) {
         int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
         int32_t refTailStart = prevMemEnd_ref + 1;
-        aligner.config().bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
-        int32_t dataDepBuff = aligner.config().bandwidth; // std::min(refExtLength, 5 * gapRead);
+        bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
+        int32_t dataDepBuff = bandwidth; // std::min(refExtLength, 5 * gapRead);
         int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
         //overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
         if (refTailEnd >= refTotalLength) {
