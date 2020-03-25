@@ -25,6 +25,7 @@ public:
   int32_t filt_size{-1};
   bool buildEdgeVec{false};
   bool buildEqCls{false};
+  bool featuresRef{false};
   std::string twopaco_tmp_dir{""};
 };
 
@@ -113,9 +114,11 @@ public:
   bool recoverOrphans{true};
   bool mimicBt2Default{false};
   bool mimicBt2Strict{false};
-  bool allowOverhangSoftclip{true};
   bool computeCIGAR{true};
   std::string singleReadName{"NULL"};
+  bool allowOverhangSoftclip{true};
+  bool allowSoftclip{false};
+  bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
 };
 }

@@ -13,6 +13,7 @@
 
 #include <sparsepp/spp.h>
 #include "parallel_hashmap/phmap.h"
+#include "metro/metrohash64.h"
 
 class MemClusterer {
 private:
@@ -53,6 +54,7 @@ private:
   chobo::small_vector<uint8_t> keepMem;
   chobo::small_vector<uint64_t> memIndicesInReverse;
   chobo::small_vector<int32_t> bestChainEndList;
+  chobo::small_vector<int32_t> chainQuerySig;
   pufferfish::util::HitFilterPolicy hitFilterPolicy_{pufferfish::util::HitFilterPolicy::FILTER_AFTER_CHAINING};
 };
 

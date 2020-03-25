@@ -209,7 +209,10 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             const int targetLength, ksw_extz_t* ez,
                             bool allowOverhangSoftClip, int cutoff,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
-  // auto ez = &result_;
+  // NOTE: all ksw extension aligner calls clear out ez 
+  // *internally*.  This is why we do not need to (and do not)
+  // clear it out here.
+  // ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int asize = transformSequencesKSW2(queryOriginal, queryLength, targetOriginal,
@@ -217,7 +220,8 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   (void)asize;
   int8_t q = config_.gapo;
   int8_t e = config_.gape;
-  int w = config_.bandwidth;
+  int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
+  int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
   int z = config_.dropoff;
   if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_.data(), tlen,
@@ -269,7 +273,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             const char* const targetOriginal,
                             const int targetLength, ksw_extz_t* ez,
                             EnumToType<KSW2AlignmentType::GLOBAL>) {
-  // auto ez = &result_;
+  ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int asize = transformSequencesKSW2(queryOriginal, queryLength, targetOriginal,
@@ -277,7 +281,10 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   (void)asize;
   int q = config_.gapo;
   int e = config_.gape;
-  int w = config_.bandwidth;
+  int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
+  //int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
+  int w = max_qt_len;
+
   ez->score =
       (config_.flag & KSW_EZ_SCORE_ONLY)
           ? ksw_gg2(kalloc_allocator_.get(), qlen, query_.data(), tlen,
@@ -303,11 +310,15 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const uint8_t* const target_,
                             const int targetLength, ksw_extz_t* ez,
                             EnumToType<KSW2AlignmentType::GLOBAL>) {
+  ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int q = config_.gapo;
   int e = config_.gape;
-  int w = config_.bandwidth;
+  int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
+  //int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
+  int w = max_qt_len;
+
   ez->score =
       (config_.flag & KSW_EZ_SCORE_ONLY)
           ? ksw_gg2(kalloc_allocator_.get(), qlen, query_, tlen, target_,
@@ -347,11 +358,16 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const uint8_t* const target_,
                             const int targetLength, ksw_extz_t* ez, bool allowOverhangSoftClip, int cutoff,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
+  // NOTE: all ksw extension aligner calls clear out ez 
+  // *internally*.  This is why we do not need to (and do not)
+  // clear it out here.
+  //ksw_reset_extz(ez);
   auto qlen = queryLength;
   auto tlen = targetLength;
   int8_t q = config_.gapo;
   int8_t e = config_.gape;
-  int w = config_.bandwidth;
+  int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
+  int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
   int z = config_.dropoff;
   if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_, tlen, target_,

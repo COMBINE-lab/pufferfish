@@ -16,11 +16,11 @@ struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
 };
 
-enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, CIGAR };
+/*enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, CIGAR };
 
 struct PuffAlignmentOptions {
   PuffAlignmentMode mode;
-};
+};*/
 
 struct ScoreStatus {
   ScoreStatus(int32_t matchScore_, double minScoreFraction_, bool bestStrata_, bool decoyPresent_) {
@@ -89,8 +89,7 @@ public:
   int32_t calculateAlignments(std::string& rl, std::string& rr, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose);
   int32_t calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose);
 
-  bool alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo>& mems, bool perfectChain, bool isFw,
-                 size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool isLeft);
+  bool alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo>& mems, uint64_t queryChainHash, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool verbose);
 
   int32_t align_ungapped(const char* const query, const char* const target, int len);
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);

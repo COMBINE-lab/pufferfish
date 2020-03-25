@@ -93,7 +93,7 @@ void processReadsPair(paired_parser *parser,
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
 
-    auto logger = spdlog::get("stderrLog");
+    auto logger = spdlog::get("console");
     fmt::MemoryWriter sstream;
     BinWriter bstream;
 
@@ -148,10 +148,13 @@ void processReadsPair(paired_parser *parser,
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
     aconf.missMatchPenalty = mopts->missMatchScore;
-    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.bestStrata = mopts->bestStrata;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
     aconf.noOrphan = mopts->noOrphan;
+    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    aconf.allowSoftclip = mopts->allowSoftclip;
+    aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    aconf.useAlignmentCache = mopts->useAlignmentCache;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -583,7 +586,7 @@ void processReadsSingle(single_parser *parser,
     BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};
     phmap::flat_hash_map<uint32_t, std::pair<int32_t, int32_t>> bestScorePerTranscript;
 
-    auto logger = spdlog::get("stderrLog");
+    auto logger = spdlog::get("console");
     fmt::MemoryWriter sstream;
     BinWriter bstream;
     //size_t batchSize{2500} ;
@@ -626,10 +629,13 @@ void processReadsSingle(single_parser *parser,
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
     aconf.missMatchPenalty = mopts->missMatchScore;
-    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.bestStrata = mopts->bestStrata;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
     aconf.noOrphan = mopts->noOrphan;
+    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    aconf.allowSoftclip = mopts->allowSoftclip;
+    aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    aconf.useAlignmentCache = mopts->useAlignmentCache;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -666,6 +672,7 @@ void processReadsSingle(single_parser *parser,
                                    mopts->numChainRounds,
                                    true, // isLeft
                                    verbose);
+
             (void) lh;
             all.clear();
             pufferfish::util::joinReadsAndFilterSingle(leftHits, jointHits,
@@ -775,8 +782,6 @@ void processReadsSingle(single_parser *parser,
                     jointHits.clear();
                 }
             }
-
-
 
             if (jointHits.size() > mopts->maxNumHits) {
                 std::sort(jointHits.begin(), jointHits.end(),

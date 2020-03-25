@@ -378,19 +378,25 @@ Compile-time selection between list-like and map-like printing.
         std::string cigar_types;
         uint32_t begin_softClipped_len = 0;
         uint32_t end_softClipped_len = 0;
+        int32_t begin_softclip_len{0}, end_softclip_len{0};        
         uint32_t cigar_length = 0;
         uint32_t gap_penalty = 0;
         uint32_t gap_length = 0;
         uint32_t go,ge,m,mm;
+        bool beginOverhang{false}, endOverhang{false};
+        bool allowOverhangSoftClip{false};
 
         void clear() { 
           cigar_counts.clear();
           cigar_types.clear();
           begin_softClipped_len = 0;
           end_softClipped_len = 0;
+          begin_softclip_len = 0;
+          end_softclip_len = 0;
           cigar_length = 0;
           gap_penalty = 0;
           gap_length = 0;
+          beginOverhang = endOverhang = false;
         }
         void add_item(uint32_t count, char type) {
           if (count > 0) {
@@ -406,23 +412,6 @@ Compile-time selection between list-like and map-like printing.
           return cigar_types[cigar_types.size()-1] == 'M' ? 
                   cigar_counts[cigar_counts.size()-1] : -1;
         }
-        uint32_t MMcount(int32_t score) {
-          if (score < 0)
-            return 0;
-          auto aligned_length = cigar_length - (begin_softClipped_len + end_softClipped_len);
-          float MMcount_ = (aligned_length * m - score - gap_penalty) / (m + mm);
-          uint32_t MMcount_1 = MMcount_;
-          // TODO : fix later for the scores which are greater than what we expect
-          //TATGTCACCTGGCCAATTCACTAGCTCACTTTCTCTCTGTCTCTGTCTCTGTCTCTGTCTCTCTGTCTTTCTCTTTCATTGTTTTCTACCTGGCCCTGTTCTATCCCA in ERR013103
-          if (aligned_length * m < score + gap_penalty)
-            return 0;
-          if (MMcount_ != MMcount_1 or MMcount_>aligned_length or MMcount_<0) {
-            std::cerr << MMcount_1 << " " <<MMcount_ << " " << score << " " << gap_penalty << " "
-                      << aligned_length << " " << get_cigar() << "\n";
-            exit(1);
-          }
-          return (uint32_t)MMcount_;
-        }        
         std::string get_cigar() {
           std::string cigar = "";
           if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
@@ -471,6 +460,37 @@ Compile-time selection between list-like and map-like printing.
           }
           return cigar;
         }
+        uint32_t MMcount(int32_t score) {
+          if (score < 0)
+            return 0;
+          auto aligned_length = cigar_length - (begin_softClipped_len + end_softClipped_len);
+          float MMcount_ = (aligned_length * m - score - gap_penalty) / (m + mm);
+          uint32_t MMcount_1 = MMcount_;
+          // TODO : fix later for the scores which are greater than what we expect
+          //TATGTCACCTGGCCAATTCACTAGCTCACTTTCTCTCTGTCTCTGTCTCTGTCTCTGTCTCTCTGTCTTTCTCTTTCATTGTTTTCTACCTGGCCCTGTTCTATCCCA in ERR013103
+          if (aligned_length * m < score + gap_penalty)
+            return 0;
+          if (MMcount_ != MMcount_1 or MMcount_>aligned_length or MMcount_<0) {
+            std::cerr << MMcount_1 << " " <<MMcount_ << " " << score << " " << gap_penalty << " "
+                      << aligned_length << " " << this->get_cigar() << "\n";
+            exit(1);
+          }
+          return (uint32_t)MMcount_;
+        }
+
+        void get_approx_cigar(int32_t readLen, std::string& cigar) {
+          if (begin_softclip_len > 0) {
+            cigar += std::to_string(begin_softclip_len);
+            cigar += beginOverhang and allowOverhangSoftClip ? "I" : "S";
+          }
+          cigar += std::to_string(readLen - (begin_softclip_len + end_softclip_len));
+          cigar += "M";
+          if (end_softclip_len > 0) {
+            cigar += std::to_string(end_softclip_len);
+            cigar += endOverhang and allowOverhangSoftClip ? "I" : "S";
+          }
+        }
+
       };
 
         //Mapped object contains all the information
@@ -580,6 +600,9 @@ Compile-time selection between list-like and map-like printing.
             uint32_t openGapLen{0};
             uint32_t NM{0};
 
+            uint16_t softClipStart{0};
+            uint64_t queryChainHash{0};
+            
             //bool isValid = true;
             MemCluster(bool isFwIn, uint32_t readLenIn) : isFw(isFwIn), readLen(readLenIn) {}
             /*MemCluster(bool isFwIn, MemInfo memIn): isFw(isFwIn) {
@@ -595,7 +618,8 @@ Compile-time selection between list-like and map-like printing.
             bool operator==(const MemCluster& mc) {
                 if (!(isFw == mc.isFw and score == mc.score and coverage == mc.coverage
                 and cigar == mc.cigar and perfectChain == mc.perfectChain
-                and readLen == mc.readLen and openGapLen == mc.openGapLen)) return false;
+                and readLen == mc.readLen and openGapLen == mc.openGapLen 
+                and softClipStart == mc.softClipStart )) return false;
                 if (mems.size() != mc.mems.size()) return false;
                 for (uint64_t i = 0; i < mems.size(); i++) {
                     if (mems[i] != mc.mems[i]) return false;
@@ -840,6 +864,8 @@ Compile-time selection between list-like and map-like printing.
     };
     */
 
+      enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, APPROXIMATE_CIGAR,  EXACT_CIGAR};
+
       struct AlignmentConfig {
         uint32_t maxFragmentLength{1000};
         int32_t refExtendLength{20};
@@ -856,6 +882,9 @@ Compile-time selection between list-like and map-like printing.
         bool bestStrata{false};
         bool decoyPresent{false};
         bool noOrphan{false};
+        bool allowSoftclip{false};
+        bool useAlignmentCache{true};
+        PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
       };
 
         struct QuasiAlignment {
@@ -1335,19 +1364,17 @@ Compile-time selection between list-like and map-like printing.
         };
 
         struct AlignmentResult {
-            AlignmentResult(int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn, 
-                            uint16_t softclip_left_in, uint16_t softclip_right_in) :
-                    score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_left(softclip_left_in),
-                    softclip_right(softclip_right_in) {}
+            AlignmentResult(bool isFwIn, int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn, 
+                            uint16_t softclip_start_in ) :
+                    isFw(isFwIn), score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_start(softclip_start_in) {}
 
-            AlignmentResult() : score(0), cigar(""), openGapLen(0), softclip_left(0), softclip_right(0) {}
-
+            AlignmentResult() : isFw(true), score(0), cigar(""), openGapLen(0), softclip_start(0) {}
+            bool isFw;
             int32_t score;
             uint32_t NM;
             std::string cigar;
             uint32_t openGapLen;
-            uint16_t softclip_left{0};
-            uint16_t softclip_right{0};
+            uint16_t softclip_start{0};
         };
 
       void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
