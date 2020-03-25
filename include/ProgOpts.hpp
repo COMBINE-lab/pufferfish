@@ -25,6 +25,7 @@ public:
   int32_t filt_size{-1};
   bool buildEdgeVec{false};
   bool buildEqCls{false};
+  bool featuresRef{false};
   std::string twopaco_tmp_dir{""};
 };
 
@@ -110,6 +111,8 @@ public:
   bool mimicBt2Default{false};
   bool mimicBt2Strict{false};
   bool allowOverhangSoftclip{false};
+  bool allowSoftclip{false};
+  bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
 };
 }
