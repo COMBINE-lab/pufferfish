@@ -1,5 +1,3 @@
-![C/C++ CI](https://github.com/COMBINE-lab/pufferfish/workflows/C/C++%20CI/badge.svg?branch=master)
-
 # Table of Contents
  * [What is puffaligner?](#puffaligner)
  * [What is pufferfish?](#whatis)
