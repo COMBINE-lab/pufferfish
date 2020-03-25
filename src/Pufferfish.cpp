@@ -177,10 +177,14 @@ int main(int argc, char* argv[]) {
   std::string statType = "ctab";
   auto statMode = (
                     command("stat").set(selected, mode::stat),
-                    (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab)",
+                    (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab, motif)",
                     (required("-i", "--index") & value("index", statOpt.indexDir)) % "directory where the pufferfish index is stored");
   if (statType == "ctab") {
+      std::cerr << statType << "\n";
       statOpt.statType = pufferfish::StatType::ctab;
+  } else if (statType == "motif") {
+      std::cerr << statType << "\n";
+      statOpt.statType = pufferfish::StatType::motif;
   }
   std::string throwaway;
   auto isValidRatio = [](const char* s) -> void {

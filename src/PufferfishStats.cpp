@@ -44,12 +44,17 @@ struct NodeInfo {
 
 void doFindMotifs(std::string &indexDir) {
     PufferfishIndex pfi(indexDir);
-    compact::vector<uint64_t, 1> visited(pfi.numContigs());
+    compact::vector<uint64_t, 1> visited(pfi.numContigs()-1);
     visited.clear_mem();
+    std::cerr << "\nTotal contigs: " << visited.size() << "\n";
+    uint64_t prevV{0};
     std::vector<char> chars{'A', 'C', 'G', 'T'};
     for (uint64_t v = 0; v < visited.size(); v++) {
         if (not visited[v]) {
-
+            if (v - prevV > 1000) {
+                std::cerr << "\r" << v;
+                prevV = v;
+            }
             visited[v] = 1;
             std::vector<CanonicalKmer> cks;
             cks.push_back(pfi.getStartKmer(v));
@@ -109,6 +114,7 @@ void doFindMotifs(std::string &indexDir) {
             }
         }
     }
+    std::cerr << "\n";
 }
 
 void doCtabStats(std::string &indexDir) {
@@ -132,7 +138,7 @@ void doCtabStats(std::string &indexDir) {
     contigOffsets_.set_m_bits(bits_per_element);
     contigOffsets_.deserialize(pfile, false);
     std::cerr << "contigTable size: " << contigTable_.size()
-              << " contigOffsets size: " << contigOffsets_.size() << ", bpe: " << bits_per_element << "\n";
+              << " contigOffsets size: " << contigOffsets_.size() << ", bpe: " << bits_per_element << " , total elements in the contig table: " << contigOffsets_[contigOffsets_.size()-1] << "\n";
     std::vector<std::string> txps;
     for (uint64_t i = 0; i < contigOffsets_.size() - 1; i++) {
         uint32_t idx = contigOffsets_[i];
