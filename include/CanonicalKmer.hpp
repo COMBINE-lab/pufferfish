@@ -32,6 +32,7 @@ public:
   CanonicalKmer(CanonicalKmer& other) = default;
   CanonicalKmer(const CanonicalKmer& other) = default;
   CanonicalKmer& operator=(CanonicalKmer& other) = default;
+  CanonicalKmer& operator=(const CanonicalKmer& other) = default;
 
   static inline void k(int kIn) { my_mer::k(kIn);}
   static inline int k() { return my_mer::k(); }
