@@ -1,6 +1,7 @@
 #ifndef __CANONICAL_KMER_HPP__
 #define __CANONICAL_KMER_HPP__
 
+#include "jellyfish/mer_dna.hpp"
 #include "Kmer.hpp"
 
 // NO_MATCH => two k-mers k1, and k2 are distinct such that k1 != k2 and rc(k1)
