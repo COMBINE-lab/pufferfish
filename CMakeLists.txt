@@ -74,7 +74,9 @@ if (NOT GAT_SOURCE_DIR)
 endif()
 
 set(KSW_FLAGS "-DHAVE_KALLOC")
-set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+#set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+set(PF_CPP_FLAGS "-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+
 if (BUILD_PUFF_FOR_SALMON)
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-variable") 
