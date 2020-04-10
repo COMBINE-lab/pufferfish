@@ -1001,20 +1001,19 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     }
     rptr = otherReadRC;
     rlen = otherLen;
-    startPos = std::max(signedZero, static_cast<int32_t>(anchorPos + anchorLen));
+    startPos = std::max(signedZero, static_cast<int32_t>(anchorPos));
     windowLength = std::min(static_cast<int32_t>(mopts.maxFragmentLength), static_cast<int32_t>(refLength - startPos));
     if (!noDovetail) {
-      startPos = std::max(signedZero, static_cast<int32_t>(anchorPos - mopts.maxFragmentLength - anchorLen - otherLen));
+      startPos = std::max(signedZero, static_cast<int32_t>(anchorPos - mopts.maxFragmentLength));
       windowLength = std::min(2*static_cast<int32_t>(mopts.maxFragmentLength), static_cast<int32_t>(refLength - startPos));
     }
   } else {
     rptr = otherRead;
     rlen = otherLen;
-    int32_t endPos = std::min(static_cast<int32_t>(refLength), static_cast<int32_t>(anchorPos) - anchorLen);
-    startPos = std::max(signedZero,  endPos - static_cast<int32_t>(mopts.maxFragmentLength));
-    windowLength = std::min(static_cast<int32_t>(mopts.maxFragmentLength), endPos);
+    int32_t endPos = std::min(static_cast<int32_t>(refLength), static_cast<int32_t>(anchorPos) + anchorLen);
+    startPos = std::max(signedZero, static_cast<int32_t>(anchorPos + anchorLen - mopts.maxFragmentLength));
+    windowLength = std::min(static_cast<int32_t>(mopts.maxFragmentLength),  static_cast<int32_t>(anchorPos + anchorLen));
     if (!noDovetail) {
-      startPos = std::max(signedZero, static_cast<int32_t>(anchorPos - mopts.maxFragmentLength));
       windowLength = std::min(2*static_cast<int32_t>(mopts.maxFragmentLength), static_cast<int32_t>(refLength - startPos));
     }
   }
@@ -1033,6 +1032,10 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   if (result.editDistance > -1) {
     recovered_fwd = !anchorFwd;
     recovered_pos = startPos + result.startLocations[0];
+    if (noDovetail and (recovered_fwd and static_cast<int32_t>(recovered_pos + rlen) > static_cast<int32_t>(anchorPos + anchorLen))) {
+        edlibFreeAlignResult(result);
+        return false;
+    }
     recoveredMemClusters.push_back(pufferfish::util::MemCluster(recovered_fwd, rlen));
     auto it = recoveredMemClusters.begin() + recoveredMemClusters.size() - 1;
     if (verbose) {
