@@ -666,8 +666,8 @@ Compile-time selection between list-like and map-like printing.
           inline int64_t approxReadStartPos() const {
             if (mems.empty()) { return 0; }
             auto& m = mems.front();
-            return isFw ? (static_cast<int64_t>(m.tpos) - static_cast<int64_t>(m.rpos)) :
-              (static_cast<int64_t>(m.tpos) - ((static_cast<int64_t>(readLen) - static_cast<int64_t>(m.rpos + m.extendedlen))));
+            return std::max(static_cast<int64_t>(0), isFw ? (static_cast<int64_t>(m.tpos) - static_cast<int64_t>(m.rpos)) :
+              (static_cast<int64_t>(m.tpos) - ((static_cast<int64_t>(readLen) - static_cast<int64_t>(m.rpos + m.extendedlen)))));
           }
 
             inline int64_t firstRefPos() const { return getTrFirstHitPos(); }
