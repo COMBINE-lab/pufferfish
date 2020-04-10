@@ -299,6 +299,7 @@ public:
   Kmer(Kmer&& other) = default;
   Kmer(Kmer& other) = default;
   Kmer& operator=(Kmer& other) = default;
+  Kmer& operator=(const Kmer& other) = default;
 
   template <
       typename IterT,
