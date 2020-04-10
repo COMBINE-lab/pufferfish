@@ -1,7 +1,7 @@
 #ifndef __CANONICAL_KMER_HPP__
 #define __CANONICAL_KMER_HPP__
 
-#include "jellyfish/mer_dna.hpp"
+#include <algorithm>
 #include "Kmer.hpp"
 
 // NO_MATCH => two k-mers k1, and k2 are distinct such that k1 != k2 and rc(k1)
@@ -32,6 +32,7 @@ public:
   CanonicalKmer(CanonicalKmer& other) = default;
   CanonicalKmer(const CanonicalKmer& other) = default;
   CanonicalKmer& operator=(CanonicalKmer& other) = default;
+  CanonicalKmer& operator=(const CanonicalKmer& other) = default;
 
   static inline void k(int kIn) { my_mer::k(kIn);}
   static inline int k() { return my_mer::k(); }

@@ -819,9 +819,10 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
 
 bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_right, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose) {
   int32_t anchorLen = anchorIsLeft ? read_left.length() : read_right.length();
-  auto tpos = clust.mems[0].tpos;
+  /*auto tpos = clust.mems[0].tpos;
   auto anchorStart = clust.mems[0].isFw ? clust.mems[0].rpos : anchorLen - (clust.mems[0].rpos + clust.mems[0].extendedlen);
-  uint32_t anchorPos = tpos >= anchorStart ? tpos - anchorStart : 0;
+  uint32_t anchorPos = tpos >= anchorStart ? tpos - anchorStart : 0;*/
+  uint32_t anchorPos = clust.approxReadStartPos();
 
   bool recovered_fwd;
   uint32_t recovered_pos=-1;
@@ -889,12 +890,12 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     }
     rptr = otherReadRC;
     rlen = otherLen;
-    startPos = std::max(signedZero, static_cast<int32_t>(anchorPos));
+    startPos = std::max(signedZero, static_cast<int32_t>(anchorPos + anchorLen));
     windowLength = std::min(500, static_cast<int32_t>(refLength - startPos));
   } else {
     rptr = otherRead;
     rlen = otherLen;
-    int32_t endPos = std::min(static_cast<int32_t>(refLength), static_cast<int32_t>(anchorPos) + anchorLen);
+    int32_t endPos = std::min(static_cast<int32_t>(refLength), static_cast<int32_t>(anchorPos) - anchorLen);
     startPos = std::max(signedZero,  endPos - 500);
     windowLength = std::min(500, endPos);
   }
