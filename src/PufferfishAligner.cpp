@@ -148,6 +148,8 @@ void processReadsPair(paired_parser *parser,
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
+    aconf.maxFragmentLength = mopts->maxFragmentLength;
+    aconf.noDovetail = mopts->noDovetail;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -158,7 +160,7 @@ void processReadsPair(paired_parser *parser,
     pufferfish::util::MappingConstraintPolicy mpol;
     mpol.noDiscordant = mopts->noDiscordant;
     mpol.noOrphans = mopts->noOrphan;
-    mpol.noDovetail = false; // Add flag for this
+    mpol.noDovetail = mopts->noDovetail;
     uint64_t firstDecoyIndex = pfi.firstDecoyIndex();
 
     //For filtering reads
