@@ -884,6 +884,7 @@ Compile-time selection between list-like and map-like printing.
         bool noOrphan{false};
         bool allowSoftclip{false};
         bool useAlignmentCache{true};
+        bool noDovetail{false};
         PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
       };
 

@@ -957,6 +957,8 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   int32_t maxDistLeft = l1 / 4;
   constexpr const int32_t signedZero{0};
 
+  bool noDovetail = mopts.noDovetail;
+
   if (anchorIsLeft) {
     anchorLen = l1;
     otherLen = l2;
@@ -1001,12 +1003,20 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     rlen = otherLen;
     startPos = std::max(signedZero, static_cast<int32_t>(anchorPos + anchorLen));
     windowLength = std::min(static_cast<int32_t>(mopts.maxFragmentLength), static_cast<int32_t>(refLength - startPos));
+    if (!noDovetail) {
+      startPos = std::max(signedZero, static_cast<int32_t>(anchorPos - mopts.maxFragmentLength - anchorLen - otherLen));
+      windowLength = std::min(2*static_cast<int32_t>(mopts.maxFragmentLength), static_cast<int32_t>(refLength - startPos));
+    }
   } else {
     rptr = otherRead;
     rlen = otherLen;
     int32_t endPos = std::min(static_cast<int32_t>(refLength), static_cast<int32_t>(anchorPos) - anchorLen);
     startPos = std::max(signedZero,  endPos - static_cast<int32_t>(mopts.maxFragmentLength));
     windowLength = std::min(static_cast<int32_t>(mopts.maxFragmentLength), endPos);
+    if (!noDovetail) {
+      startPos = std::max(signedZero, static_cast<int32_t>(anchorPos - mopts.maxFragmentLength));
+      windowLength = std::min(2*static_cast<int32_t>(mopts.maxFragmentLength), static_cast<int32_t>(refLength - startPos));
+    }
   }
 
   if (verbose) { std::cerr<< anchorPos<< "\n"; }
