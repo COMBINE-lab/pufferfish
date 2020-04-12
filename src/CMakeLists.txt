@@ -146,6 +146,7 @@ target_include_directories(cedar PRIVATE
 )
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+add_dependencies(cedar libseqlib)
 
 add_executable(filtersam testing/SAMFilter.cpp)
 target_include_directories(filtersam PRIVATE
