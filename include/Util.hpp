@@ -844,6 +844,8 @@ Compile-time selection between list-like and map-like printing.
         bool allowOverhangSoftclip{false};
         bool allowSoftclip{false};
         bool useAlignmentCache{true};
+        bool noDovetail{false};
+        uint32_t maxFragmentLength{1000};
         PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
       };
 

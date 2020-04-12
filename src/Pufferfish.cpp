@@ -232,6 +232,7 @@ int main(int argc, char* argv[]) {
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
                     (option("--orphanRecovery").set(alignmentOpt.recoverOrphans, true)) % "Recover mappings for the other end of orphans using alignment",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
+                    (option("--noDovetail").set(alignmentOpt.noDovetail, true)) % "Disallow dovetail alignment for paired end reads",
 		            (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
                     (
                       (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "Write output in the format required for krakMap"
