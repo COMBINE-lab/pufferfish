@@ -220,12 +220,15 @@ int main(int argc, char* argv[]) {
                       |
                       (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "Output file where the alignment results will be stored"
                     ),
+                    (option("--allowSoftclip").set(alignmentOpt.allowSoftclip, true) % "Allow soft-clipping at start and end of alignments"),
+                    (option("--allowOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, true) % "Allow soft-clipping part of a read that overhangs the reference (the regular --allowSoftclip flag overrides this one)"),
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
                             "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs (default:1000)",
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
                     (option("--orphanRecovery").set(alignmentOpt.recoverOrphans, true)) % "Recover mappings for the other end of orphans using alignment",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
+                    (option("--noDovetail").set(alignmentOpt.noDovetail, true)) % "Disallow dovetail alignment for paired end reads",
 		            (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
                     (
                       (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "Write output in the format required for krakMap"
@@ -248,7 +251,8 @@ int main(int argc, char* argv[]) {
                     (option("--minScoreFraction") & value("minScoreFraction", alignmentOpt.minScoreFraction)) % "Discard alignments with alignment score < minScoreFraction * max_alignment_score for that read (default=0.65)",
                     (option("--consensusFraction") & value("consensus fraction", alignmentOpt.consensusFraction)) % "The fraction of mems, relative to the reference with "
                     "the maximum number of mems, that a reference must contain in order "
-                    "to move forward with computing an optimal chain score (default=0.65)"
+                    "to move forward with computing an optimal chain score (default=0.65)",
+                    (option("--noAlignmentCache").set(alignmentOpt.useAlignmentCache, false)) % "Do not use the alignment cache during the alignment."
   );
 
   auto cli = (

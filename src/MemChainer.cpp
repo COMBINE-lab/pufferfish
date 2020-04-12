@@ -174,7 +174,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     auto beta = [maxSpliceGap](int32_t qdiff, int32_t rdiff, double avgseed) -> double {
         double l = qdiff - rdiff;
         uint32_t al = std::abs(l);
-        if (qdiff < 0 or (al > maxSpliceGap)) {
+        if (qdiff <= 0 or rdiff <= 0 or (al > maxSpliceGap)) {
           return std::numeric_limits<double>::infinity();
         }
         // To penalize cases with organized gaps for reads such as
@@ -378,6 +378,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
 
     for (auto & memClust : memClusters[tid]) {
       auto &memList = memClust.mems;
+      size_t nmem = 0; // the number of mems that will be in this chain
       for (int32_t i = 0; i < static_cast<int32_t>(memList.size()); ++i) {
         auto &hi = memList[i];
         //chainOfInterest = /*chainOfInterest or */(hi.rpos == 1 and hi.tpos == 163 and tid == 151214);
@@ -398,6 +399,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
           }
           hi.extendedlen = std::numeric_limits<decltype(hi.extendedlen)>::max();
         } else {
+          ++nmem;
           currentMemIdx=i;
         }
         //prev_qposi_start = qposi_start;
@@ -406,10 +408,25 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         prev_rposi_end = rposi_end;
       }
 
+      chainQuerySig.clear();
+      chainQuerySig.reserve(2*nmem);
+      int32_t prev_tpos = -1;
       memList.erase(std::remove_if(memList.begin(), memList.end(),
-                                   [](pufferfish::util::MemInfo& m) {
-                                       bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); return r;
+                                   [this, signedReadLen, &prev_tpos](pufferfish::util::MemInfo& m) {
+                                       bool r = m.extendedlen == std::numeric_limits<decltype(m.extendedlen)>::max(); 
+                                       if (!r) {
+                                        int32_t qposi_start = m.isFw ? m.rpos : signedReadLen - (m.rpos + m.extendedlen);
+                                        int32_t rdiff = (prev_tpos == -1) ? 0 : (m.tpos - prev_tpos);
+                                        prev_tpos = m.tpos;
+                                        this->chainQuerySig.push_back(qposi_start);
+                                        this->chainQuerySig.push_back(rdiff);
+                                       }
+                                       return r;
                                    }), memList.end());
+
+      MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<int32_t*>(chainQuerySig.data())), 
+                        chainQuerySig.size() * sizeof(int32_t), 
+                        reinterpret_cast<uint8_t *>(&memClust.queryChainHash), 0);
     }
 
   }

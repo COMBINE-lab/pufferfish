@@ -74,7 +74,9 @@ if (NOT GAT_SOURCE_DIR)
 endif()
 
 set(KSW_FLAGS "-DHAVE_KALLOC")
-set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+#set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
+set(PF_CPP_FLAGS "-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
+
 if (BUILD_PUFF_FOR_SALMON)
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-variable") 
@@ -92,6 +94,7 @@ if (ASAN_BUILD)
 #list(APPEND PF_CPP_FLAGS "-fsanitize=undefined")
 #set(CMAKE_LINK_FLAGS "-fsanitize=address")
 #list(APPEND CMAKE_LINK_FLAGS "-fsanitize=undefined")
+# list(APPEND PF_CPP_FLAGS "-g")
   set(ASAN_LIB "asan")
 else()
   set(ASAN_LIB "")
@@ -104,7 +107,7 @@ set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
-set(OPT_FLAGS "-g;-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-ftree-vectorize;-fno-strict-aliasing")
+set(OPT_FLAGS "-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-ftree-vectorize;-fno-strict-aliasing")
 set(DEBUG_FLAGS "-pg;-g;-gstabs")
 
 ##
@@ -164,7 +167,7 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
     message("Build system will fetch and build Intel Threading Building Blocks")
     message("==================================================================")
     # These are useful for the custom install step we'll do later
-    set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/tbb-2019_U8)
+    set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/oneTBB-2020.1)
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
 
     if("${TBB_COMPILER}" STREQUAL "gcc")
@@ -177,9 +180,9 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
 
     ExternalProject_Add(libtbb
             DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
-            DOWNLOAD_COMMAND curl -k -L https://github.com/intel/tbb/archive/2019_U8.tar.gz -o tbb-2019_U8.tgz &&
-            ${SHASUM} 7b1fd8caea14be72ae4175896510bf99c809cd7031306a1917565e6de7382fba tbb-2019_U8.tgz &&
-            tar -xzvf tbb-2019_U8.tgz
+            DOWNLOAD_COMMAND curl -k -L https://github.com/oneapi-src/oneTBB/archive/v2020.1.tar.gz -o v2020.1.tar.gz &&
+            ${SHASUM} 7c96a150ed22bc3c6628bc3fef9ed475c00887b26d37bca61518d76a56510971 v2020.1.tar.gz &&
+            tar -xzvf v2020.1.tar.gz
             ##
             #URL https://github.com/01org/tbb/archive/2018_U3.tar.gz
             #DOWNLOAD_NAME 2018_U3.tar.gz
