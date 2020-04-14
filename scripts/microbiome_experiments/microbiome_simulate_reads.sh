@@ -99,3 +99,12 @@ while read l;do
 	rm ${dataDir}/tmp_1.fastq
 	rm ${dataDir}/tmp_2.fastq
 done < ${simulatedReads}.profile
+
+
+### STEP6
+echo ""
+echo ""
+echo "STEP6: Shuffle simulated reads"
+bash shuffle_reads.sh ${simulatedReads}_1.fastq ${simulatedReads}_2.fastq
+echo ""
+echo "DONE SIMULATING READS"
