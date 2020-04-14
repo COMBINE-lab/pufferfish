@@ -1,7 +1,7 @@
 r1=$1
 r2=$2
 
-cmd="paste -d $'\10' <(awk '{printf(\"%s%s\",$0,(NR%4==0)?\"\n\":\"\0\")}' ${r1}) <(awk '{printf(\"%s%s\",$0,(NR%4==0)?\"\n\":\"\0\")}' ${r2}) | shuf | awk -v FS=$'\10' '{ print $1 > \"${r1}.shuf\" ; print $2 > \"${r2}.shuf\" }'"
+cmd="paste -d \$'\10' <(awk '{printf(\"%s%s\",\$0,(NR%4==0)?\"\n\":\"\0\")}' ${r1}) <(awk '{printf(\"%s%s\",\$0,(NR%4==0)?\"\n\":\"\0\")}' ${r2}) | shuf | awk -v FS=\$'\\10' '{ print \$1 > \"${r1}.shuf\" ; print \$2 > \"${r2}.shuf\" }'"
 echo ${cmd}
 eval ${cmd}
 
