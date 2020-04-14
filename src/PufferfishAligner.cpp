@@ -443,9 +443,9 @@ void processReadsPair(paired_parser *parser,
             }
 
             if (jointHits.size() > mopts->maxNumHits) {
-                std::sort(jointHits.begin(), jointHits.end(),
+                std::nth_element(jointHits.begin(), jointHits.end(),
                           [](const auto &lhs, const auto &rhs) {
-                              return lhs.alignmentScore < rhs.alignmentScore;
+                              return lhs.alignmentScore > rhs.alignmentScore;
                           });
                 jointHits.erase(jointHits.begin() + mopts->maxNumHits, jointHits.end());
             }
@@ -785,9 +785,9 @@ void processReadsSingle(single_parser *parser,
             }
 
             if (jointHits.size() > mopts->maxNumHits) {
-                std::sort(jointHits.begin(), jointHits.end(),
+                std::nth_element(jointHits.begin(), jointHits.end(),
                           [](const auto &lhs, const auto &rhs) {
-                              return lhs.alignmentScore < rhs.alignmentScore;
+                              return lhs.alignmentScore > rhs.alignmentScore;
                           });
                 jointHits.erase(jointHits.begin() + mopts->maxNumHits, jointHits.end());
             }
