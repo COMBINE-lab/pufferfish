@@ -148,7 +148,7 @@ void processReadsPair(paired_parser *parser,
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
     aconf.missMatchPenalty = mopts->missMatchScore;
-    aconf.bestStrata = mopts->bestStrata;
+    aconf.bestStrata = mopts->bestStrata or mopts->primaryAlignment;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
     aconf.noOrphan = mopts->noOrphan;
     aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
@@ -434,6 +434,7 @@ void processReadsPair(paired_parser *parser,
                                   );
 
                   if (mopts->primaryAlignment and !jointHits.empty()) {
+                    std::random_shuffle(jointHits.begin(), jointHits.end());
                     jointHits.resize(1);
                   }
                 } else {
@@ -443,6 +444,7 @@ void processReadsPair(paired_parser *parser,
             }
 
             if (jointHits.size() > mopts->maxNumHits) {
+                std::random_shuffle(jointHits.begin(), jointHits.end());
                 std::nth_element(jointHits.begin(), jointHits.begin() + mopts->maxNumHits,jointHits.end(),
                           [](const auto &lhs, const auto &rhs) {
                               return lhs.alignmentScore > rhs.alignmentScore;
@@ -776,6 +778,7 @@ void processReadsSingle(single_parser *parser,
                     );
 
                     if (mopts->primaryAlignment and !jointHits.empty()) {
+                        std::random_shuffle(jointHits.begin(), jointHits.end());
                         jointHits.resize(1);
                     }
                 } else {
@@ -785,6 +788,7 @@ void processReadsSingle(single_parser *parser,
             }
 
             if (jointHits.size() > mopts->maxNumHits) {
+                std::random_shuffle(jointHits.begin(), jointHits.end());
                 std::nth_element(jointHits.begin(), jointHits.begin() + mopts->maxNumHits,jointHits.end(),
                           [](const auto &lhs, const auto &rhs) {
                               return lhs.alignmentScore > rhs.alignmentScore;
