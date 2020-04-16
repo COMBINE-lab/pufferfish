@@ -142,7 +142,7 @@ else()
   try_compile(HAVE_INT128_NUMERIC_LIMITS ${CMAKE_BINARY_DIR} 
               SOURCES ${GAT_SOURCE_DIR}/tests/compile_tests/int128_numeric_limits.cpp
               CXX_STANDARD 14
-              CXX_STANDARD_REQUIRED TRUE 
+              CXX_STANDARD_REQUIRED ON
               )
   if(HAVE_INT128_NUMERIC_LIMITS)
     message("setting -DHAVE_NUMERIC_LIMITS128")
