@@ -132,6 +132,26 @@ else()
 #    endif()
 endif()
 
+###
+# check if numeric_limits<__int128_t> is defined
+###
+if(HAVE_INT128_NUMERIC_LIMITS)
+  message("setting -DHAVE_NUMERIC_LIMITS128")
+  list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
+else()
+  try_compile(HAVE_INT128_NUMERIC_LIMITS ${CMAKE_BINARY_DIR} 
+              SOURCES ${GAT_SOURCE_DIR}/tests/compile_tests/int128_numeric_limits.cpp
+              CXX_STANDARD 14
+              CXX_STANDARD_REQUIRED ON
+              )
+  if(HAVE_INT128_NUMERIC_LIMITS)
+    message("setting -DHAVE_NUMERIC_LIMITS128")
+    list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
+  else()
+    message("not setting -DHAVE_NUMERIC_LIMITS128")
+  endif()
+endif()
+
 ##
 # Let us check the sha sum of our packages if we have the right tools
 ##

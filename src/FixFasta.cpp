@@ -61,6 +61,7 @@ bool fixFasta(single_parser* parser,
   // sequence after having observed a decoy, then we complain and exit.
   bool sawDecoy{false};
   uint64_t numberOfDecoys{0};
+  uint64_t numberOfDuplicateDecoys{0};
   uint64_t firstDecoyIndex{std::numeric_limits<uint64_t>::max()};
 
   bool firstRecord{true};
@@ -267,6 +268,7 @@ bool fixFasta(single_parser* parser,
           if (!keepDuplicates and didCollide) {
             // roll back the txp index & skip the rest of this loop
             n--;
+            if (isDecoy) { ++numberOfDuplicateDecoys; }
             continue;
           }
 
@@ -344,12 +346,16 @@ bool fixFasta(single_parser* parser,
     }
   }
 
-  if (numberOfDecoys != decoyNames.size()) {
+  if ((numberOfDecoys + numberOfDuplicateDecoys) != decoyNames.size()) {
     log->critical("The decoy file contained the names of {} decoy sequences, but "
     "{} were matched by sequences in the reference file provided. To prevent unintentional "
     "errors downstream, please ensure that the decoy file exactly matches with the "
     "fasta file that is being indexed.", decoyNames.size(), numberOfDecoys);
     return false;
+  }
+
+  if (numberOfDuplicateDecoys > 0) {
+    log->warn("There were {} duplicate decoy sequences.", numberOfDuplicateDecoys);
   }
 
   {

@@ -256,6 +256,7 @@ int main(int argc, char* argv[]) {
                     (option("--consensusFraction") & value("consensus fraction", alignmentOpt.consensusFraction)) % "The fraction of mems, relative to the reference with "
                     "the maximum number of mems, that a reference must contain in order "
                     "to move forward with computing an optimal chain score (default=0.65)",
+                    (option("--altSkip") & value("alternative k-mer skip", alignmentOpt.altSkip)) % "Set the value of k-mer skipping, skipping happens if a mis-match is encountered at the time of querying k-kmers (default 5)",
                     (option("--noAlignmentCache").set(alignmentOpt.useAlignmentCache, false)) % "Do not use the alignment cache during the alignment."
   );
 

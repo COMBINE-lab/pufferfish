@@ -92,6 +92,7 @@ void processReadsPair(paired_parser *parser,
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
+    memCollector.setAltSkip(mopts->altSkip);
 
     auto logger = spdlog::get("console");
     fmt::MemoryWriter sstream;
@@ -543,6 +544,7 @@ void processReadsSingle(single_parser *parser,
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
+    memCollector.setAltSkip(mopts->altSkip);
 
     using pufferfish::util::BestHitReferenceType;
     BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};

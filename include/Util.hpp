@@ -13,7 +13,7 @@
 #include "CanonicalKmer.hpp"
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
-#include "jellyfish/mer_dna.hpp"
+//#include "jellyfish/mer_dna.hpp"
 #include "Kmer.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
