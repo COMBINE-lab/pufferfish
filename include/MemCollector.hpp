@@ -8,7 +8,7 @@
 #include "PufferfishLossyIndex.hpp"
 #include "Util.hpp"
 #include "edlib.h"
-#include "jellyfish/mer_dna.hpp"
+// #include "jellyfish/mer_dna.hpp"
 
 #include <algorithm>
 #include <iostream>
