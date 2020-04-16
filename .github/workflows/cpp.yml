@@ -6,17 +6,19 @@ jobs:
   build:
     name: ${ { matrix.config.name } }
     runs-on: ${ { matrix.config.os } }
+    strategy:
+      fail-fast: false
     config:
-    - {
-        name : "ubuntu-latest",
-        os : ubuntu-latest,
-        build_type: "Release", cc: "gcc", cxx: "g++"
-    }
-    - {
-      name : "macOS Latest Clang",
-      os : macos-latest,
-      build_type: "Release", cc: "clang", cxx: "clang++" 
-    }
+        - {
+            name : "ubuntu-latest",
+            os : ubuntu-latest,
+            build_type: "Release", cc: "gcc", cxx: "g++"
+        }
+        - {
+          name : "macOS Latest Clang",
+          os : macos-latest,
+          build_type: "Release", cc: "clang", cxx: "clang++" 
+        }
 
     steps:
     - uses: actions/checkout@v2
