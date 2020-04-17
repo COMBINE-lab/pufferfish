@@ -8,7 +8,7 @@
 #include "PufferfishLossyIndex.hpp"
 #include "Util.hpp"
 #include "edlib.h"
-#include "jellyfish/mer_dna.hpp"
+// #include "jellyfish/mer_dna.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -50,6 +50,8 @@ public:
 
   void setConsensusFraction(double cf);
 
+  void setAltSkip(uint32_t altSkip);
+
   double getConsensusFraction() const;
 
   void setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp);
@@ -59,6 +61,7 @@ public:
 private:
   PufferfishIndexT* pfi_;
   size_t k;
+  uint32_t altSkip{5};
   //AlignerEngine ae_;
   std::vector<pufferfish::util::UniMemInfo> memCollectionLeft;
   std::vector<pufferfish::util::UniMemInfo> memCollectionRight;

@@ -177,10 +177,14 @@ int main(int argc, char* argv[]) {
   std::string statType = "ctab";
   auto statMode = (
                     command("stat").set(selected, mode::stat),
-                    (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab)",
+                    (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab, motif)",
                     (required("-i", "--index") & value("index", statOpt.indexDir)) % "directory where the pufferfish index is stored");
   if (statType == "ctab") {
+      std::cerr << statType << "\n";
       statOpt.statType = pufferfish::StatType::ctab;
+  } else if (statType == "motif") {
+      std::cerr << statType << "\n";
+      statOpt.statType = pufferfish::StatType::motif;
   }
   std::string throwaway;
   auto isValidRatio = [](const char* s) -> void {
@@ -226,10 +230,10 @@ int main(int argc, char* argv[]) {
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
                             "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs (default:1000)",
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
-                    (option("--noDovetail").set(alignmentOpt.noDovetail, true)) % "Do not allow dovetail alignment of paired end reads",
                     (option("--noOrphanRecovery").set(alignmentOpt.recoverOrphans, false)) % "Don't recover mappings for the other end of orphans using alignment",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
-                    (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
+                    (option("--noDovetail").set(alignmentOpt.noDovetail, true)) % "Disallow dovetail alignment for paired end reads",
+		                (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
                     (
                       (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "Write output in the format required for krakMap"
                       |
@@ -259,6 +263,7 @@ int main(int argc, char* argv[]) {
                     (option("--maxNumHits") & value("max number of hits reported", alignmentOpt.maxNumHits)) % "maximum number of hits reported",
                     (option("--singleReadName") & value("singleReadName", alignmentOpt.singleReadName)) % "Only align the read with this name",
                     (option("--noOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, false)) % "Do not allow sof-clipping the overhanging ends of the reads",
+                    (option("--altSkip") & value("alternative k-mer skip", alignmentOpt.altSkip)) % "Set the value of k-mer skipping, skipping happens if a mis-match is encountered at the time of querying k-kmers (default 5)",
                     (option("--noAlignmentCache").set(alignmentOpt.useAlignmentCache, false)) % "Do not use the alignment cache during the alignment."
   );
 

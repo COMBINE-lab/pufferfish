@@ -116,6 +116,11 @@ double MemCollector<PufferfishIndexT>::getConsensusFraction() const {
 }
 
 template <typename PufferfishIndexT>
+void MemCollector<PufferfishIndexT>::setAltSkip(uint32_t as) {
+  altSkip = as;
+}
+
+template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
                   pufferfish::util::QueryCache& qc,
                   bool isLeft,
@@ -145,7 +150,6 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
   // Start off pretending we are at least k bases away from the last hit
   uint32_t skip{1};
-  uint32_t altSkip{5};
   int32_t signedK = static_cast<int32_t>(k);
   int32_t basesSinceLastHit{signedK};
   ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};

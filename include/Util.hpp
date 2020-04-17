@@ -13,7 +13,7 @@
 #include "CanonicalKmer.hpp"
 #include "cereal/types/string.hpp"
 #include "cereal/types/vector.hpp"
-#include "jellyfish/mer_dna.hpp"
+//#include "jellyfish/mer_dna.hpp"
 #include "Kmer.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
@@ -867,7 +867,6 @@ Compile-time selection between list-like and map-like printing.
       enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, APPROXIMATE_CIGAR,  EXACT_CIGAR};
 
       struct AlignmentConfig {
-        uint32_t maxFragmentLength{1000};
         int32_t refExtendLength{20};
         int32_t alignmentBandwidth{15};
         bool fullAlignment{false};
@@ -885,6 +884,7 @@ Compile-time selection between list-like and map-like printing.
         bool allowSoftclip{false};
         bool useAlignmentCache{true};
         bool noDovetail{false};
+        uint32_t maxFragmentLength{1000};
         PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
       };
 

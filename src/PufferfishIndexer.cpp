@@ -69,6 +69,15 @@ public:
     return (curr_ + k_ <= rank_->size());
   }
 
+  ContigKmerIterator(const ContigKmerIterator& other) { 
+    storage_ = other.storage_;
+    rank_ = other.rank_;
+    k_ = other.k_;
+    curr_ = other.curr_;
+    mer_ = other.mer_;
+    word_ = other.word_;
+  }
+
   ContigKmerIterator&
   operator=(ContigKmerIterator& other) { //}= default;
                                          // storage, 

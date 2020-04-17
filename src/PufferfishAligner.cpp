@@ -92,6 +92,7 @@ void processReadsPair(paired_parser *parser,
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
+    memCollector.setAltSkip(mopts->altSkip);
 
     auto logger = spdlog::get("console");
     fmt::MemoryWriter sstream;
@@ -139,7 +140,6 @@ void processReadsPair(paired_parser *parser,
 
     pufferfish::util::AlignmentConfig aconf;
     aconf.refExtendLength = mopts->refExtendLength;
-    aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.alignmentBandwidth = mopts->alignmentBandwidth;
     aconf.fullAlignment = mopts->fullAlignment;
     aconf.matchScore = mopts->matchScore;
@@ -155,6 +155,7 @@ void processReadsPair(paired_parser *parser,
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
+    aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.noDovetail = mopts->noDovetail;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
@@ -584,6 +585,7 @@ void processReadsSingle(single_parser *parser,
     MemCollector<PufferfishIndexT> memCollector(&pfi);
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
+    memCollector.setAltSkip(mopts->altSkip);
 
     using pufferfish::util::BestHitReferenceType;
     BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};

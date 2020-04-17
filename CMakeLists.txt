@@ -74,7 +74,9 @@ if (NOT GAT_SOURCE_DIR)
 endif()
 
 set(KSW_FLAGS "-DHAVE_KALLOC")
-set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-openmp;-Wno-unknown-pragmas;-Wno-unused-function")
+#set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
+set(PF_CPP_FLAGS "-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
+
 if (BUILD_PUFF_FOR_SALMON)
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-variable") 
@@ -105,7 +107,7 @@ set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
-set(OPT_FLAGS "-g;-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-ftree-vectorize;-fno-strict-aliasing")
+set(OPT_FLAGS "-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-ftree-vectorize;-fno-strict-aliasing")
 set(DEBUG_FLAGS "-pg;-g;-gstabs")
 
 ##
@@ -128,6 +130,26 @@ else()
 #        list(APPEND PF_CPP_FLAGS -static-libstdc++)
 #        message("PF_CPP_FLAGS = ${PF_CPP_FLAGS}")
 #    endif()
+endif()
+
+###
+# check if numeric_limits<__int128_t> is defined
+###
+if(HAVE_INT128_NUMERIC_LIMITS)
+  message("setting -DHAVE_NUMERIC_LIMITS128")
+  list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
+else()
+  try_compile(HAVE_INT128_NUMERIC_LIMITS ${CMAKE_BINARY_DIR} 
+              SOURCES ${GAT_SOURCE_DIR}/tests/compile_tests/int128_numeric_limits.cpp
+              CXX_STANDARD 14
+              CXX_STANDARD_REQUIRED ON
+              )
+  if(HAVE_INT128_NUMERIC_LIMITS)
+    message("setting -DHAVE_NUMERIC_LIMITS128")
+    list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
+  else()
+    message("not setting -DHAVE_NUMERIC_LIMITS128")
+  endif()
 endif()
 
 ##

@@ -41,7 +41,7 @@ public:
 };
 
 enum StatType {
-    ctab
+    ctab, motif
 };
 class StatsOptions {
 public:
@@ -70,6 +70,7 @@ public:
   uint32_t maxFragmentLength{1000};
   double scoreRatio{0.6};
   double consensusFraction{0.65};
+  uint32_t altSkip{5};
   std::string outname;
   double quasiCov{0.0};
   bool pairedEnd{false};
