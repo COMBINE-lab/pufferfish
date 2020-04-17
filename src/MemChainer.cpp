@@ -283,7 +283,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
       f.push_back(baseScore);
 
       // possible predecessors in the chain
-      int32_t numRounds{numChainRounds};
+      uint32_t numRounds{numChainRounds};
       (void) numRounds;
       for (int32_t j = i - 1; j >= 0; --j) {
         auto &hj = memList[j];
