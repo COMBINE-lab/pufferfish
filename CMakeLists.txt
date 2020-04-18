@@ -227,10 +227,6 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
     set(FETCHED_TBB TRUE)
 endif()
 
-if (FETCHED_TBB)
-    add_dependencies(pufferfish libtbb)
-endif()
-
 ##
 # If we're fetching tbb, we need to have dummy paths for these variables
 # so that CMake won't complain
@@ -283,9 +279,6 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r htslib <INSTALL_DIR>/include
 )
 
-add_dependencies(cedar libseqlib)
-add_dependencies(filtersam libseqlib)
-
 ExternalProject_Add(libSetCover
         GIT_REPOSITORY https://github.com/martin-steinegger/setcover.git
         GIT_TAG        master
@@ -304,9 +297,6 @@ ExternalProject_Add(libSetCover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
-
-add_dependencies(cedar libSetCover)
-
 endif() # end of BUILD_PUFF_FOR_SALMON
 
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
