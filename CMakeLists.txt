@@ -228,7 +228,7 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
 endif()
 
 if (FETCHED_TBB)
-    add_dependencies(puffer libtbb)
+    add_dependencies(pufferfish libtbb)
 endif()
 
 ##
