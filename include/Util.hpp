@@ -440,6 +440,7 @@ Compile-time selection between list-like and map-like printing.
               if (type == 'I' or type == 'D') {
                 gap_penalty += go + count*ge;
                 gap_length += count;
+                if (type == 'I') gap_penalty += m*count;
               }
               cigar += std::to_string(count);
               cigar += type;
@@ -450,6 +451,7 @@ Compile-time selection between list-like and map-like printing.
           if (type == 'I' or type == 'D'){
             gap_penalty += go + count*ge;
             gap_length += count;
+            if (type == 'I') gap_penalty += m*count;
           }
           cigar += std::to_string(count);
           cigar += type;
