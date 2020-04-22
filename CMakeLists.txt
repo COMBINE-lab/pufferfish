@@ -223,7 +223,7 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
             COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR} ${RECONFIG_FLAGS}
             DEPENDEES install
             )
-
+	
     set(FETCHED_TBB TRUE)
 endif()
 
@@ -278,6 +278,7 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r json <INSTALL_DIR>/include &&
                   cp -r htslib <INSTALL_DIR>/include
 )
+
 ExternalProject_Add(libSetCover
         GIT_REPOSITORY https://github.com/martin-steinegger/setcover.git
         GIT_TAG        master
@@ -296,7 +297,7 @@ ExternalProject_Add(libSetCover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
-endif()
+endif() # end of BUILD_PUFF_FOR_SALMON
 
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS}")
