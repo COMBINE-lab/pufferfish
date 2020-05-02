@@ -66,6 +66,10 @@ find_package(Threads REQUIRED)
 
 if (BUILD_PUFF_FOR_SALMON) 
     message("Building basic pufferfish components for salmon")
+else()
+  if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Clang|AppleClang)$")
+  	set(CLANG TRUE)
+  endif()
 endif()
 
 if (NOT GAT_SOURCE_DIR)
