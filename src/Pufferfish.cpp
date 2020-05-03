@@ -3,20 +3,20 @@
 //
 // Copyright (C) 2017 Rob Patro, Fatemeh Almodaresi, Hirak Sarkar
 //
-// This file is part of Pufferfish.
+// This file is part of pufferfish.
 //
-// RapMap is free software: you can redistribute it and/or modify
+// pufferfish is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// RapMap is distributed in the hope that it will be useful,
+// pufferfish is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with RapMap.  If not, see <http://www.gnu.org/licenses/>.
+// along with pufferfish.  If not, see <http://www.gnu.org/licenses/>.
 //
 
 #include "clipp.h"
@@ -49,8 +49,19 @@ int main(int argc, char* argv[]) {
   using std::cout;
   std::setlocale(LC_ALL, "en_US.UTF-8");
 
+
   enum class mode {help, index, validate, lookup, align, examine, stat};
   mode selected = mode::help;
+
+  std::map<std::string, clipp::parameter> cmd_map = {
+    {"align", command("align").set(selected, mode::align)},
+    {"index", command("index").set(selected, mode::index)},
+    {"validate", command("validate").set(selected, mode::validate)},
+    {"lookup", command("align").set(selected, mode::align)},
+    {"examine", command("examine").set(selected, mode::examine)},
+    {"stat", command("stat").set(selected, mode::stat)}
+  };
+
   pufferfish::AlignmentOpts alignmentOpt ;
   pufferfish::IndexOptions indexOpt;
   //TestOptions testOpt;
@@ -180,12 +191,13 @@ int main(int argc, char* argv[]) {
                     (option("-t", "--type") & value("statType", statType)) % "statType (options:ctab, motif)",
                     (required("-i", "--index") & value("index", statOpt.indexDir)) % "directory where the pufferfish index is stored");
   if (statType == "ctab") {
-      std::cerr << statType << "\n";
+      //std::cerr << statType << "\n";
       statOpt.statType = pufferfish::StatType::ctab;
   } else if (statType == "motif") {
-      std::cerr << statType << "\n";
+      //std::cerr << statType << "\n";
       statOpt.statType = pufferfish::StatType::motif;
   }
+
   std::string throwaway;
   auto isValidRatio = [](const char* s) -> void {
     float r{0.0};
@@ -286,8 +298,18 @@ int main(int argc, char* argv[]) {
     case mode::help: std::cout << make_man_page(cli, pufferfish::progname); break;
     }
   } else {
+    std::string nl = "The valid commands to pufferfish are : ";
+    bool first = true;
+    for (auto& kv : cmd_map) {
+      nl += (first ? "{" : " ") + kv.first + ",";
+      first = false;
+    }
+    nl.pop_back();
+    nl += "}";
+
     auto b = res.begin();
     auto e = res.end();
+    // if there was a command provided
     if (std::distance(b,e) > 0) {
       if (b->arg() == "index") {
         std::cout << make_man_page(indexMode, pufferfish::progname);
@@ -299,11 +321,11 @@ int main(int argc, char* argv[]) {
         std::cout << make_man_page(alignMode, pufferfish::progname);
       } else {
         std::cout << "There is no command \"" << b->arg() << "\"\n";
-        std::cout << usage_lines(cli, pufferfish::progname) << '\n';
+        std::cout << nl << '\n';
         return 1;
       }
     } else {
-      std::cout << usage_lines(cli, pufferfish::progname) << '\n';
+      std::cout << nl << '\n';
       return 1;
     }
   }
