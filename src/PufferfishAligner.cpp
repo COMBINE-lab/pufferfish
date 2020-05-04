@@ -1076,11 +1076,12 @@ bool alignReadsWrapper(
         if (mopts->singleEnd) {
             std::string unmatedReadsFile = mopts->unmatedReads;
             std::ifstream unmatedReadsF(unmatedReadsFile);
+            std::string outname = mopts->outname;
             while (unmatedReadsF.good()) {
                 unmatedReadsF >> mopts->unmatedReads;
                 uint64_t start = mopts->unmatedReads.find_last_of('/');
                 uint64_t end = mopts->unmatedReads.find_last_of('.');
-                mopts->outname += mopts->unmatedReads.substr(start + 1, end - start - 1);
+                mopts->outname = outname + mopts->unmatedReads.substr(start + 1, end - start - 1);
                 res &= alignReads(pfi, consoleLog, mopts);
             }
         } else {
