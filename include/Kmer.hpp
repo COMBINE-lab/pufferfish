@@ -318,6 +318,25 @@ public:
   }
 
   /**
+   * FROM JELLYFISH
+   **/
+  // Get bits [start, start+len). start must be < 2k, len <=
+  // sizeof(base_type) and start+len < 2k. No checks
+  // performed. start and len are in bits, not bases.
+  base_type get_bits(unsigned int start, unsigned int len) const {
+    unsigned int q = start / wbits;
+    unsigned int r = start % wbits;
+
+    base_type res = data_[q] >> r;
+    /* this case should never happen with k <= 32
+     * and valid input arguments.
+    if(len > wbits - r)
+      res |= data_[q + 1] << (wbits - r);
+    */
+    return len < (unsigned int)wbits ? res & (((base_type)1 << len) - 1) : res;
+  }
+
+  /**
    * Populate this kmer by consuming characters pointed to by iter.
    *
    * @ASSUMPTIONS:
@@ -507,6 +526,9 @@ public:
 private:
   base_type data_[numWordsRequired(K)] = {};
   static uint16_t k_;
+  static constexpr const int32_t wshift = sizeof(base_type) * 8 - 2; // left shift in 1 word
+  static constexpr const int32_t wbases = 4 * sizeof(base_type); // bases in a word
+  static constexpr const int32_t wbits  = 8 * sizeof(base_type); // bits in a word
 };
 
 template <uint64_t K, uint64_t CID> uint16_t Kmer<K, CID>::k_ = 0;

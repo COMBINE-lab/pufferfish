@@ -110,6 +110,10 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLA
 #endif()
 target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ${TBB_LIBRARIES} ksw2pp ${CMAKE_DL_LIBS} ${LIBRT} ${JEMALLOC_LIBRARIES} ${CMAKE_DL_LIBS} ${ASAN_LIB})
 
+if (FETCHED_TBB)
+    add_dependencies(pufferfish libtbb)
+endif()
+
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
@@ -147,6 +151,7 @@ target_include_directories(cedar PRIVATE
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 add_dependencies(cedar libseqlib)
+add_dependencies(cedar libSetCover)
 
 add_executable(filtersam testing/SAMFilter.cpp)
 target_include_directories(filtersam PRIVATE

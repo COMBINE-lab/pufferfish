@@ -265,10 +265,22 @@ bool fixFasta(single_parser* parser,
             }     // for dupInfo : dupList
           }       // if we had a potential duplicate
 
+          // if this was a duplicate and a decoy sequence
+          // then we don't care about the status of the `--keepDuplicates` 
+          // flag.  It never really makes sense to keep a duplicate 
+          // decoy.
+          if (didCollide and isDecoy) {
+            // roll back the txp index & skip the rest of this loop
+            n--;
+            ++numberOfDuplicateDecoys;
+            continue;
+          }
+
+          // if this was a duplicate and not a decoy, then take proper
+          // action based on the status of `--keepDuplicates`
           if (!keepDuplicates and didCollide) {
             // roll back the txp index & skip the rest of this loop
             n--;
-            if (isDecoy) { ++numberOfDuplicateDecoys; }
             continue;
           }
 
