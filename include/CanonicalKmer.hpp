@@ -71,6 +71,8 @@ public:
     //rc_ = tmp ;
   }
 
+  inline bool is_homopolymer() { return fw_.is_homopolymer(); }
+
   inline bool isFwCanonical() const { return fw_ < rc_; }
 
   inline auto shiftFw(int c) -> decltype(this->fw_.prepend(c)) {

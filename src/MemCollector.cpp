@@ -150,6 +150,7 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 
   // Start off pretending we are at least k bases away from the last hit
   uint32_t skip{1};
+  uint32_t homoPolymerSkip{1};
   int32_t signedK = static_cast<int32_t>(k);
   int32_t basesSinceLastHit{signedK};
   ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
@@ -162,6 +163,12 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
       // stamping the readPos
       // NOTE: expandHitEfficient advances kit1 by *at least* 1 base
       size_t readPosOld = kit1->second;
+
+      if (kit1->first.is_homopolymer()) {
+        kit1 += homoPolymerSkip;
+        continue;
+      }
+
       expandHitEfficient(phits, kit1, et);
 			if (verbose){
 			  std::cerr<<"after expansion\n";
