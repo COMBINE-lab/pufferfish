@@ -1156,7 +1156,11 @@ bool alignReadsWrapper(
                 readF1 >> mopts->read1;
                 readF2 >> mopts->read2;
                 uint64_t start = mopts->read1.find_last_of('/');
-                uint64_t end = mopts->read1.find_last_of('.');
+                uint64_t dot = mopts->read1.find_last_of('.');
+                uint64_t underline = mopts->read1.find_last_of('_');
+                uint64_t end = dot - 1;
+                if (dot > underline and dot - underline == 2)
+                  end = dot -2;
                 mopts->outname = outname + mopts->read1.substr(start + 1, end - start - 1);
 //                std::cerr << mopts->read1 << "\n";
 //                std::cerr << mopts->read2 << "\n";
