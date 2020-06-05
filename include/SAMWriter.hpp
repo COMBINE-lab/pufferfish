@@ -114,10 +114,17 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
 
   auto& txpNames = pfi.getFullRefNames();
   auto& txpLens = pfi.getFullRefLengthsComplete();
+  auto& txpLensTrimmed = pfi.getFullRefLengths();
 
+  auto k = pfi.k();
+  int64_t numShort{0};
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
-    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
+    bool isShort = txpLensTrimmed[i] <= k;
+    bool isDecoy = pfi.isDecoy(i - numShort);
+    char refType = isDecoy ? 'D' : 'T';
+    hd.write("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i], refType);
+    numShort += isShort ? 1 : 0;
   }
   // Eventually output a @PG line
   hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
@@ -135,11 +142,19 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
 
   auto& txpNames = pfi.getFullRefNames();
   auto& txpLens = pfi.getFullRefLengthsComplete();
+  auto& txpLensTrimmed = pfi.getFullRefLengths();
 
+  auto k = pfi.k();
+  int64_t numShort{0};
   auto numRef = txpNames.size();
   for (size_t i = 0; i < numRef; ++i) {
-    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
+    bool isShort = txpLensTrimmed[i] <= k;
+    bool isDecoy = pfi.isDecoy(i - numShort);
+    char refType = isDecoy ? 'D' : 'T';
+    hd.write("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i], refType);
+    numShort += isShort ? 1 : 0;
   }
+
   // Eventually output a @PG line
   hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
   outStream << hd.str();
@@ -155,17 +170,24 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
 
   auto& txpNames = pfi.getFullRefNames();
   auto& txpLens = pfi.getFullRefLengthsComplete();
+  auto& txpLensTrimmed = pfi.getFullRefLengths();
 
+  auto k = pfi.k();
+  int64_t numShort{0};
   auto numRef = txpNames.size();
 
   // for now go with constant length
   // TODO read reference information
   // while reading the index
   for (size_t i = 0; i < numRef; ++i) {
+    bool isShort = txpLensTrimmed[i] <= k;
+    bool isDecoy = pfi.isDecoy(i - numShort);
+    char refType = isDecoy ? 'D' : 'T';
+    numShort += isShort ? 1 : 0;
     if (filterGenomics and
     (gene_names.find(txpNames[i]) != gene_names.end() or rrna_names.find(txpNames[i]) != rrna_names.end()))
       continue; 
-    hd.write("@SQ\tSN:{}\tLN:{:d}\n", txpNames[i], txpLens[i]);
+    hd.write("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i], refType);
   }
   // Eventually output a @PG line
   // some other version number for now,
