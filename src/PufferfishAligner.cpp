@@ -1073,12 +1073,15 @@ bool alignReadsWrapper(
         pufferfish::AlignmentOpts *mopts) {
     bool res = true;
     if (mopts->listOfReads) {
+        uint64_t readCntr = 1;
         if (mopts->singleEnd) {
             std::string unmatedReadsFile = mopts->unmatedReads;
             std::ifstream unmatedReadsF(unmatedReadsFile);
             std::string outname = mopts->outname;
             unmatedReadsF >> mopts->unmatedReads;
             while (unmatedReadsF.good() and mopts->unmatedReads != "") {
+                consoleLog->info("Read {}: {}", readCntr, mopts->unmatedReads);
+                readCntr++;
                 uint64_t start = mopts->unmatedReads.find_last_of('/');
                 if (start == std::string::npos) {
                     start = 0;
@@ -1104,6 +1107,8 @@ bool alignReadsWrapper(
             readF1 >> mopts->read1;
             readF2 >> mopts->read2;
             while (readF1.good() and readF2.good() and mopts->read1 != "" and mopts->read2 != "") {
+                consoleLog->info("Read Pair {}: {}, {}", readCntr, mopts->read1, mopts->read2);
+                readCntr++;
                 uint64_t start = mopts->read1.find_last_of('/');
                 if (start == std::string::npos) {
                     start = 0; // if / not found, start from index 0 of read name
