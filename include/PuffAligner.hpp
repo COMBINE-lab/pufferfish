@@ -59,7 +59,8 @@ public:
               pufferfish::util::AlignmentConfig& m, ksw2pp::KSW2Aligner& a) : 
     allRefSeq(ar), refAccumLengths(ral), k(k_),
     mopts(m), aligner(a), scoreStatus_(m.matchScore,m.minScoreFraction,m.bestStrata, m.decoyPresent) {
-    ksw_reset_extz(&ez);
+    ez = new ksw_extz_t();
+    ksw_reset_extz(ez);
 
     cigarGen_.m = std::abs(mopts.matchScore);
     cigarGen_.mm = std::abs(mopts.missMatchPenalty);
@@ -68,6 +69,10 @@ public:
 
 		alnCacheLeft.reserve(32);
 		alnCacheRight.reserve(32);
+  }
+
+  ~PuffAligner() {
+    aligner.freeCIGAR(ez);
   }
 
 /*
@@ -95,7 +100,7 @@ public:
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
 
   void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
-  void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();  read_left_rc_.clear(); read_right_rc_.clear(); ksw_reset_extz(&ez); }
+  void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();  read_left_rc_.clear(); read_right_rc_.clear(); ksw_reset_extz(ez); }
 
   ScoreStatus getScoreStatus() { return scoreStatus_; }
   std::vector<pufferfish::util::UniMemInfo> orphanRecoveryMemCollection;
@@ -105,7 +110,7 @@ private:
   uint32_t k;
   pufferfish::util::AlignmentConfig mopts;
   ksw2pp::KSW2Aligner& aligner;
-  ksw_extz_t ez;
+  ksw_extz_t* ez;
 
   pufferfish::util::CIGARGenerator cigarGen_;
   std::string rc1_;

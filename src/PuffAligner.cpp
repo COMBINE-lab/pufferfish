@@ -154,7 +154,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
   std::string cigar = "";
   if (computeCIGAR) cigarGen.clear();
-  ksw_reset_extz(&ez);
+  ksw_reset_extz(ez);
 
   // where this reference starts, and its length.
   int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
@@ -210,7 +210,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     return false;
   }
 
-  ksw_reset_extz(&ez);
+  ksw_reset_extz(ez);
   auto& bandwidth = aligner.config().bandwidth;
 
   int32_t minLengthGapRequired = ( 2 * (mopts.gapOpenPenalty + mopts.gapExtendPenalty) + mopts.matchScore ) / (mopts.matchScore - mopts.missMatchPenalty);
@@ -334,18 +334,18 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         cigarGen.begin_softClipped_len = readOffset;
       nonstd::string_view readSeq = readView.substr(readOffset);
       hctr.aligner_calls_count += 1;
-      ksw_reset_extz(&ez);
+      ksw_reset_extz(ez);
       auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
       bandwidth = maxAllowedGaps(0, 0) + 1;
       aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
-              refSeqBuffer_.length(), &ez, allowOverhangSoftclip, cutoff,
+              refSeqBuffer_.length(), ez, allowOverhangSoftclip, cutoff,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
       // if we allow softclipping of overhaning bases, then we only care about
       // the best score to the end of the query or the end of the reference.
       // Otherwise, we care about the best score all the way until the end of
       // the query.
       alignmentScore =
-          allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+          allowOverhangSoftclip ? std::max(ez->mqe, ez->mte) : ez->mqe;
 
       SPDLOG_DEBUG(logger_,
                    "readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}",
@@ -353,12 +353,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       SPDLOG_DEBUG(
           logger_,
           "currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n",
-          currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
+          currHitStart_read, currHitStart_ref, ez->mqe, ez->mte);
 
       if (computeCIGAR) {
-        addCigar(cigarGen, &ez, false);
-        if (allowOverhangSoftclip and ez.mte > ez.mqe) {
-          cigarGen.end_softClipped_len = readSeq.length() - ez.max_q - 1;
+        addCigar(cigarGen, ez, false);
+        if (allowOverhangSoftclip and ez->mte > ez->mqe) {
+          cigarGen.end_softClipped_len = readSeq.length() - ez->max_q - 1;
         }
       } else {
         // can make start pos negative, but sam writer deals with this right now
@@ -407,12 +407,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           bandwidth = maxAllowedGaps(0, 0) + 1;
           auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refSeqBuffer_.length(), &ez, allowOverhangSoftclip, cutoff,
+                  refSeqBuffer_.length(), ez, allowOverhangSoftclip, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          if (ez.stopped) hctr.stopped_count+=1;
-          if(ez.mqe != KSW_NEG_INF and ez.stopped>0) ez.stopped = 0;
-          if (ez.mte > ez.mqe and computeCIGAR and allowOverhangSoftclip) {
-              cigarGen.begin_softClipped_len = readWindow.length() - ez.max_q - 1;
+          if (ez->stopped) hctr.stopped_count+=1;
+          if(ez->mqe != KSW_NEG_INF and ez->stopped>0) ez->stopped = 0;
+          if (ez->mte > ez->mqe and computeCIGAR and allowOverhangSoftclip) {
+              cigarGen.begin_softClipped_len = readWindow.length() - ez->max_q - 1;
           }
 
           // If we are doing approximate soft clipping, then we will retain the
@@ -426,11 +426,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // simply deleting the rest of the read
           //int32_t delCost = (-1 * mopts.gapOpenPenalty +
           //                   -1 * mopts.gapExtendPenalty * readWindow.length());
-          decltype(alignmentScore) part_score = ez.mqe;//std::max(delCost, ez.mqe);
+          decltype(alignmentScore) part_score = ez->mqe;//std::max(delCost, ez->mqe);
           int32_t num_soft_clipped{0};
           
           if (allowSoftclip) {
-            auto max_score = std::max(ez.mqe, ez.mte);
+            auto max_score = std::max(ez->mqe, ez->mte);
             // if we are allowing softclipping, then we consider the
             // best score we could get as the maximum of
             // 1. extending to the beginning of the query.
@@ -442,26 +442,26 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
               part_score = 0;
               // we soft clip the entire read part 
               num_soft_clipped = readWindow.length();
-            } else if (ez.mqe >= ez.mte) {
+            } else if (ez->mqe >= ez->mte) {
               // if we are in case 1
-              part_score = ez.mqe;
+              part_score = ez->mqe;
               // we soft-clip nothing
             } else {
               // if we are in case 2
-              part_score = ez.mte;
+              part_score = ez->mte;
               // we soft clip the difference between the read part length 
               // and the number of aligned bases in the read part
-              num_soft_clipped = readWindow.length() - ez.max_q - 1;
+              num_soft_clipped = readWindow.length() - ez->max_q - 1;
             } 
             arOut.softclip_start = static_cast<uint16_t>(num_soft_clipped);
           } else if (allowOverhangSoftclip) {
-            if (ez.mte > ez.mqe) {
+            if (ez->mte > ez->mqe) {
               // we soft clip the difference between the read part length
               // and the number of aligned bases in the read part
-              num_soft_clipped = readWindow.length() - ez.max_q - 1;
-              part_score = ez.mte;
+              num_soft_clipped = readWindow.length() - ez->max_q - 1;
+              part_score = ez->mte;
             } else {
-              part_score = ez.mqe;
+              part_score = ez->mqe;
             }
           }
           alignmentScore += part_score;
@@ -470,7 +470,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           }
 
           // NOTE: pre soft-clip code for adjusting the alignment score.
-          // alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+          // alignmentScore += allowOverhangSoftclip ? std::max(ez->mqe, ez->mte) : ez->mqe;
 
           // NOTE: If we are not writing down the CIGAR, we assume *for the
           // purpose of computing positions* that the prefix of the read we are
@@ -485,9 +485,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // out the actual CIGAR string, this is the best we can do. (addresses
           // https://github.com/COMBINE-lab/salmon/issues/475).
           openGapLen =
-              computeCIGAR ? addCigar(cigarGen, &ez, true) : firstMemStart_read - num_soft_clipped;
+              computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read - num_soft_clipped;
           SPDLOG_DEBUG(logger_,"The current cigar is: {}", cigarGen.get_cigar());
-          SPDLOG_DEBUG(logger_, "score : {}", std::max(ez.mqe, ez.mte));
+          SPDLOG_DEBUG(logger_, "score : {}", std::max(ez->mqe, ez->mte));
         } else {
           // overhangingStart = true;
           // do any special soft clipping penalty here if we want
@@ -515,13 +515,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       int32_t prevMemEnd_ref = tpos - 1;
       if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
         hctr.not_alignable_skips+=1;
-        ez.stopped = 1;
+        ez->stopped = 1;
         SPDLOG_DEBUG(logger_,"ez stopped");
       }
 
       SPDLOG_DEBUG(logger_, "\t Aligning through MEM chain : ");
       // for the second through the last mem
-      for(auto it = mems.begin(); it != mems.end() and !ez.stopped; ++it) {
+      for(auto it = mems.begin(); it != mems.end() and !ez->stopped; ++it) {
         auto& mem = *it;
         rpos = mem.rpos;
         memlen = mem.extendedlen;
@@ -576,13 +576,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           } else {
             hctr.aligner_calls_count += 1;
             hctr.between_aligner_calls_count += 1;
-            ksw_reset_extz(&ez);
+            ksw_reset_extz(ez);
             bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
             score += aligner(
-              readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
+              readWindow.data(), readWindow.length(), refSeq1, gapRef, ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
             if (computeCIGAR) {
-              addCigar(cigarGen, &ez, false);
+              addCigar(cigarGen, ez, false);
             }
           }
         } else if (it > mems.begin() and
@@ -626,7 +626,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
         if (!alignable(prevMemEnd_read+1, mopts.matchScore, alignmentScore)) {
           hctr.not_alignable_skips+=1;
-          ez.stopped = 1;
+          ez->stopped = 1;
           SPDLOG_DEBUG(logger_,"ez stopped");
         }
       }
@@ -637,7 +637,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                    prevMemEnd_read, readLen);
       bool gapAtEnd =
           (prevMemEnd_read + 1) <= (static_cast<int32_t>(readLen) - 1);
-      if (gapAtEnd and !ez.stopped) {
+      if (gapAtEnd and !ez->stopped) {
         int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
         int32_t refTailStart = prevMemEnd_ref + 1;
         bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
@@ -666,12 +666,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           hctr.end_aligner_calls_count += 1;
 
           auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * (readWindow.length()-1); //cutoff - computed - match_score*(qlen+remlen-1)
-          ksw_reset_extz(&ez);
+          ksw_reset_extz(ez);
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refLen, &ez, allowOverhangSoftclip, cutoff,
+                  refLen, ez, allowOverhangSoftclip, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          if (ez.stopped) { SPDLOG_DEBUG(logger_,"ez stopped"); hctr.stopped_count+=1; }
-          if(ez.mqe != KSW_NEG_INF or ez.mqe > 0) ez.stopped = 0;
+          if (ez->stopped) { SPDLOG_DEBUG(logger_,"ez stopped"); hctr.stopped_count+=1; }
+          if(ez->mqe != KSW_NEG_INF or ez->mqe > 0) ez->stopped = 0;
 
           // we start out with the score we obtain if we extend all the
           // way to the end of the **query**.  This is the max score we can
@@ -680,7 +680,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           int32_t delCost = (-1 * mopts.gapOpenPenalty +
                              -1 * mopts.gapExtendPenalty * readWindow.length());
           // or taking the ksw2 alignment score to the end fo the read
-          decltype(alignmentScore) part_score = std::max(ez.mqe, delCost);
+          decltype(alignmentScore) part_score = std::max(ez->mqe, delCost);
 
           int32_t num_soft_clipped{0};
           if (allowSoftclip) {
@@ -697,21 +697,21 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
             // 1 is the default case here, and corresponds to clipping no bases
 
-            if (ez.mte > 0 and ez.mte > part_score) {
+            if (ez->mte > 0 and ez->mte > part_score) {
               // if we are in case 2
 
               // if extending to the end of the reference is better than the end
               // of the query and if the score is greater than 0 (which we can
               // always get when soft clipping) then take that
-              part_score = ez.mte;
-              num_soft_clipped = readWindow.length() - ez.max_q - 1;
+              part_score = ez->mte;
+              num_soft_clipped = readWindow.length() - ez->max_q - 1;
             } else if (part_score < 0) {
               // if we are in case 3
               part_score = 0;
               num_soft_clipped = readWindow.length();
             }
           } else if (allowOverhangSoftclip) {
-            part_score = std::max(std::max(ez.mqe, ez.mte), part_score);
+            part_score = std::max(std::max(ez->mqe, ez->mte), part_score);
           }
           alignmentScore += part_score;
           if (approximateCIGAR) {
@@ -719,18 +719,18 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           }
 
           // NOTE: pre soft-clip code for adjusting the alignment score.
-          // int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte)
-          // : ez.mqe; int32_t delCost = (-1 * mopts.gapOpenPenalty + -1 *
+          // int32_t alnCost = allowOverhangSoftclip ? std::max(ez->mqe, ez->mte)
+          // : ez->mqe; int32_t delCost = (-1 * mopts.gapOpenPenalty + -1 *
           // mopts.gapExtendPenalty * readWindow.length()); alignmentScore +=
           // std::max(alnCost, delCost);
           SPDLOG_DEBUG(logger_, "POST score : {}", part_score);
           if (computeCIGAR) {
-            int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+            int32_t alnCost = allowOverhangSoftclip ? std::max(ez->mqe, ez->mte) : ez->mqe;
             SPDLOG_DEBUG(logger_,"The current cigar is: {}", cigarGen.get_cigar());
             if (alnCost >= delCost) {
-              addCigar(cigarGen, &ez, false);
-              if (ez.mte > ez.mqe and allowOverhangSoftclip) 
-                cigarGen.end_softClipped_len = readWindow.length() - ez.max_q - 1;
+              addCigar(cigarGen, ez, false);
+              if (ez->mte > ez->mqe and allowOverhangSoftclip)
+                cigarGen.end_softClipped_len = readWindow.length() - ez->max_q - 1;
             } else {
               cigarGen.add_item(readWindow.length(), 'I');
             }
@@ -759,7 +759,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     }
   } // not a perfect chain
 
-  if (computeCIGAR and !ez.stopped) {
+  if (computeCIGAR and !ez->stopped) {
     cigar = cigarGen.get_cigar();
     if (cigarGen.cigar_length != read.length() && alignmentScore > minAcceptedScore) {
       std::cerr << "[ERROR in PuffAligner::alignRead :] cigar is invalid; this should not happen!\n";
@@ -769,7 +769,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"score: {}\tcigar : {}\n", alignmentScore, cigar);
   }
   if (approximateCIGAR) { cigarGen.get_approx_cigar(readLen, cigar); }
-  auto NM_ = computeCIGAR and !ez.stopped ? cigarGen.gap_length + cigarGen.MMcount(alignmentScore) : 0;
+  auto NM_ = computeCIGAR and !ez->stopped ? cigarGen.gap_length + cigarGen.MMcount(alignmentScore) : 0;
   if (NM_  > read.length())
     std::cerr<<read << " " << NM_ << " " << alignmentScore << "\n";
   if (useAlnCache) { // don't bother to fill up a cache unless this is a multi-mapping read
