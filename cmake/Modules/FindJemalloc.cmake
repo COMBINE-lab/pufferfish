@@ -19,7 +19,7 @@ find_path(JEMALLOC_INCLUDE_DIR jemalloc/jemalloc.h
     ${PC_JEMALLOC_INCLUDE_DIRS}
   PATH_SUFFIXES include)
 
-#[[find_library(JEMALLOC_LIBRARY NAMES jemalloc libjemalloc
+find_library(JEMALLOC_LIBRARY NAMES jemalloc libjemalloc
   HINTS
     ${JEMALLOC_ROOT} ENV JEMALLOC_ROOT
     ${PC_JEMALLOC_MINIMAL_LIBDIR}
@@ -35,7 +35,7 @@ if(JEMALLOC_INCLUDE_DIR)
   string(REGEX REPLACE "${_version_regex}" "\\1"
     JEMALLOC_VERSION "${JEMALLOC_VERSION}")
   unset(_version_regex)
-endif()]]
+endif()
 
 include(FindPackageHandleStandardArgs)
 # handle the QUIETLY and REQUIRED arguments and set JEMALLOC_FOUND to TRUE
