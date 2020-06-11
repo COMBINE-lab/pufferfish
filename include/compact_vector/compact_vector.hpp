@@ -199,6 +199,7 @@ namespace compact {
             const W *get() const { return m_mem; }
 
             size_t bytes() const { return sizeof(W) * elements_to_words(m_size, bits()); }
+            size_t capacity_bytes() const { return sizeof(W) * elements_to_words(m_capacity, bits()); }
 
             inline unsigned bits() const { return static_cast<const Derived *>(this)->bits(); }
 
@@ -212,7 +213,7 @@ namespace compact {
             // *Note* : would be nice to have the constructor
             // optionally take a value to fill in or use a default ...
             inline void clear_mem() {
-                std::memset(this->get(), 0, this->bytes());
+                std::memset(this->get(), 0, this->capacity_bytes());
             }
 
             void serialize(std::ofstream &of) {
@@ -372,11 +373,15 @@ namespace compact {
         protected:
             void enlarge() {
                 const size_t new_capacity = std::max(m_capacity * 2, (size_t) 1);
-                W *new_mem = m_allocator.allocate(elements_to_words(new_capacity, bits()));
+                const size_t new_capacity_in_words = elements_to_words(new_capacity, bits());
+                const size_t new_capacity_in_bytes = sizeof(W) * elements_to_words(new_capacity, bits());
+                const size_t old_capacity_in_words = elements_to_words(m_capacity, bits());
+
+                W *new_mem = m_allocator.allocate(new_capacity_in_words);
                 if (new_mem == nullptr) throw std::bad_alloc();
-                std::memset(new_mem, 0, sizeof(W) * elements_to_words(new_capacity, bits()));
-                std::copy(m_mem, m_mem + elements_to_words(m_capacity, bits()), new_mem);
-                m_allocator.deallocate(m_mem, elements_to_words(m_capacity, bits()));
+                std::memset(new_mem, 0, new_capacity_in_bytes);
+                std::copy(m_mem, m_mem + old_capacity_in_words, new_mem);
+                m_allocator.deallocate(m_mem, old_capacity_in_words);
                 m_mem = new_mem;
                 m_capacity = new_capacity;
             }
