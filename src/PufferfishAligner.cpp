@@ -1073,16 +1073,30 @@ bool alignReadsWrapper(
         pufferfish::AlignmentOpts *mopts) {
     bool res = true;
     if (mopts->listOfReads) {
+        uint64_t readCntr = 1;
         if (mopts->singleEnd) {
             std::string unmatedReadsFile = mopts->unmatedReads;
             std::ifstream unmatedReadsF(unmatedReadsFile);
             std::string outname = mopts->outname;
-            while (unmatedReadsF.good()) {
-                unmatedReadsF >> mopts->unmatedReads;
+            unmatedReadsF >> mopts->unmatedReads;
+            while (unmatedReadsF.good() and mopts->unmatedReads != "") {
+                consoleLog->info("Read {}: {}", readCntr, mopts->unmatedReads);
+                readCntr++;
                 uint64_t start = mopts->unmatedReads.find_last_of('/');
+                if (start == std::string::npos) {
+                    start = 0;
+                } else {
+                    start += 1;
+                }
                 uint64_t end = mopts->unmatedReads.find_last_of('.');
-                mopts->outname = outname + mopts->unmatedReads.substr(start + 1, end - start - 1);
+                mopts->outname = outname + mopts->unmatedReads.substr(start, end - start);
+                if (mopts->salmonOut) {
+                    mopts->outname += ".pam";
+                } else {
+                    mopts->outname += ".sam";
+                }
                 res &= alignReads(pfi, consoleLog, mopts);
+                unmatedReadsF >> mopts->unmatedReads;
             }
         } else {
             std::string readFile1 = mopts->read1;
@@ -1090,16 +1104,32 @@ bool alignReadsWrapper(
             std::ifstream readF1(readFile1);
             std::ifstream readF2(readFile2);
             std::string outname = mopts->outname;
-            while (readF1.good() and readF2.good()) {
+            readF1 >> mopts->read1;
+            readF2 >> mopts->read2;
+            while (readF1.good() and readF2.good() and mopts->read1 != "" and mopts->read2 != "") {
+                consoleLog->info("Read Pair {}: {}, {}", readCntr, mopts->read1, mopts->read2);
+                readCntr++;
+                uint64_t start = mopts->read1.find_last_of('/');
+                if (start == std::string::npos) {
+                    start = 0; // if / not found, start from index 0 of read name
+                } else {
+                    start+=1; // if / found, start the output file name from the index after /
+                }
+                uint64_t end = mopts->read1.find_last_of('.');
+                if (end-2 == start) {
+                    end-=1; // for the very rare names such as r1.fastq and r2.fastq
+                } else {
+                    end-=2; // otherwise, don't worry about the one last character missing for cases such as read1.fastq
+                }
+                mopts->outname = outname + mopts->read1.substr(start, end - start);
+                if (mopts->salmonOut) {
+                    mopts->outname += ".pam";
+                } else {
+                    mopts->outname += ".sam";
+                }
+                res &= alignReads(pfi, consoleLog, mopts);
                 readF1 >> mopts->read1;
                 readF2 >> mopts->read2;
-                uint64_t start = mopts->read1.find_last_of('/');
-                uint64_t end = mopts->read1.find_last_of('_');
-                mopts->outname = outname + mopts->read1.substr(start + 1, end - start - 1);
-//                std::cerr << mopts->read1 << "\n";
-//                std::cerr << mopts->read2 << "\n";
-//                std::cerr << mopts->outname << "\n";
-                res &= alignReads(pfi, consoleLog, mopts);
             }
         }
     } else res &= alignReads(pfi, consoleLog, mopts);
