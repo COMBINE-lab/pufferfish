@@ -374,6 +374,7 @@ namespace compact {
                 const size_t new_capacity = std::max(m_capacity * 2, (size_t) 1);
                 W *new_mem = m_allocator.allocate(elements_to_words(new_capacity, bits()));
                 if (new_mem == nullptr) throw std::bad_alloc();
+                std::memset(new_mem, 0, sizeof(W) * elements_to_words(new_capacity, bits()));
                 std::copy(m_mem, m_mem + elements_to_words(m_capacity, bits()), new_mem);
                 m_allocator.deallocate(m_mem, elements_to_words(m_capacity, bits()));
                 m_mem = new_mem;

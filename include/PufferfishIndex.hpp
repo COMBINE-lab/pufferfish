@@ -54,6 +54,7 @@ private:
   size_t lastSeqPos_{std::numeric_limits<size_t>::max()};
   uint64_t numDecoys_{0};
   uint64_t firstDecoyIndex_{0};
+  uint64_t firstDecoyEncodedIndex_{0};
 
 public:
   PufferfishIndex();

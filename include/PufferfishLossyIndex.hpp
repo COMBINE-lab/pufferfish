@@ -49,6 +49,7 @@ private:
   edge_vector_t edge_;
   uint64_t numDecoys_{0};
   uint64_t firstDecoyIndex_{0};
+  uint64_t firstDecoyEncodedIndex_{0};
 
   //for lossy representation
   compact::vector<uint64_t, 1> presenceVec_;

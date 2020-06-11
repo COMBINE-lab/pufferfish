@@ -121,7 +121,9 @@ protected:
   // Returns true if the reference with the given
   // rank is a decoy, and false otherwise.
   bool isDecoy(uint64_t rank) const;
+  bool isDecoyEncodedIndex(uint64_t rank) const;
   uint64_t firstDecoyIndex() const;
+  uint64_t firstDecoyEncodedIndex() const;
 
 
   // Returns true if the given k-mer appears in the dBG, false otherwise

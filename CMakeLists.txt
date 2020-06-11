@@ -95,6 +95,7 @@ endif()
 ###
 if (ASAN_BUILD)
   list(APPEND PF_CPP_FLAGS "-fsanitize=address")
+  list(APPEND PF_CPP_FLAGS "-fsanitize=memory")
 #list(APPEND PF_CPP_FLAGS "-fsanitize=undefined")
 #set(CMAKE_LINK_FLAGS "-fsanitize=address")
 #list(APPEND CMAKE_LINK_FLAGS "-fsanitize=undefined")
@@ -112,7 +113,7 @@ set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
 set(OPT_FLAGS "-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-ftree-vectorize;-fno-strict-aliasing")
-set(DEBUG_FLAGS "-pg;-g;-gstabs")
+set(DEBUG_FLAGS "-DSTX_NO_STD_STRING_VIEW;-pg;-g;-gstabs")
 
 ##
 # OSX is strange (some might say, stupid in this regard).  Deal with it's quirkines here.
@@ -163,8 +164,8 @@ set(SHASUM ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_shasum.sh)
 
 
 find_package(Jemalloc)
-    if(JEMALLOC_FOUND)
-      include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIRS})
+if(JEMALLOC_FOUND)
+  include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIRS})
 endif()
 
 

@@ -61,6 +61,7 @@ private:
   std::unique_ptr<boophf_t> hash_{nullptr};
   uint64_t numDecoys_{0};
   uint64_t firstDecoyIndex_{0};
+  uint64_t firstDecoyEncodedIndex_{0};
 
   static const constexpr uint64_t shiftTable_[] = {
     0x0, 0x7, 0x38, 0x1c0, 0xe00, 0x7000, 0x38000, 0x1c0000,

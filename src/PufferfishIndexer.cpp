@@ -672,6 +672,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   if (!indexOpts.isSparse and !indexOpts.lossySampling) {  
     // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
     compact::ts_vector<uint64_t> posVec(w, nkeys);
+    posVec.clear_mem();
     {
 
       struct ContigVecChunk {

@@ -5,6 +5,8 @@
 #ifndef ROOT_BINARYWRITER_H
 #define ROOT_BINARYWRITER_H
 
+#include <cstring>
+#include <cerrno>
 #include "compact_vector/compact_vector.hpp"
 
 enum EntryType {
@@ -36,16 +38,28 @@ public:
 
     void setOStream(std::ostream* o) { out = o; }
     void setCapacity(uint64_t c) {
-        seqVec_.reserve(c);
-        rankVec_.reserve(c);
+        seqVec_.reserve(c); seqVec_.clear_mem();
+        rankVec_.reserve(c); rankVec_.clear_mem();
     }
 
     void writeAllowedMaxStringLength() { (*this)<<stringLengthSizeInBytes; }
 
     void flushSegments(std::string &prefix) {
         std::ofstream seqOut(prefix+"/seq.bin");
+        if (seqOut.fail()) {
+            std::cerr << "failed to open " << prefix+"/seq.bin" << "; error " << std::strerror(errno) << "\n";
+            std::exit(1);
+        }
+        
         seqVec_.serialize(seqOut);
+        
         std::ofstream rankOut(prefix+"/rank.bin");
+        if (rankOut.fail()) {
+          std::cerr << "failed to open " << prefix + "/rank.bin"
+                    << "; error " << std::strerror(errno) << "\n";
+          std::exit(1);
+        }
+
         uint64_t ones=0;
         for (uint64_t idx=0; idx < rankVec_.size(); idx++) {
             if (rankVec_[idx]) {

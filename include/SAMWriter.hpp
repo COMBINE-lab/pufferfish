@@ -437,6 +437,7 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "*\t"                // QUAL
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "XT:A:N\t"
                 << "AS:i:0\n";
 
         sstream << mateNameView << '\t' // QNAME
@@ -452,6 +453,7 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "*\t"                // QUAL
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "XT:A:N\t"
                 << "AS:i:0\n";
         return 0;
       }
@@ -483,6 +485,7 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                 << "*\t"            // QSTR
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "XT:A:N\t"
                 << "AS:i:0\n";
         return 0;
       }
@@ -515,12 +518,15 @@ inline uint32_t writeAlignmentsToStreamSingle(
   bool haveRev{false};
   size_t i{0};
 
-  auto* fullRefNames = tidsAlreadyDecoded ? &formatter.index->getFullRefNames() : nullptr;
-  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengths() : nullptr;
+  auto& fullRefNames = formatter.index->getFullRefNames();
+  auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
     ++i;
-    auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
-    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLengths)[qa.tid] : formatter.index->refLength(qa.tid);
+    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+    auto& refName = fullRefNames[encodedID];
+    uint32_t txpLen = fullRefLengths[encodedID];
+    char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
+
     // === SAM
       getSamFlags(qa, flags);
       if (alnCtr != 0) {
@@ -554,6 +560,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
               << "*\t" // QSTR
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score << '\n';
     ++alnCtr;
   }
@@ -610,13 +617,15 @@ inline uint32_t writeAlignmentsToStream(
   bool* haveRev = nullptr;
   size_t i{0};
 
-  auto* fullRefNames = tidsAlreadyDecoded ? &formatter.index->getFullRefNames() : nullptr;
-  auto* fullRefLengths = tidsAlreadyDecoded ? &formatter.index->getFullRefLengths() : nullptr;
-
+  auto& fullRefNames = formatter.index->getFullRefNames();
+  auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
     ++i;
-    auto& refName = tidsAlreadyDecoded ? (*fullRefNames)[qa.tid] : formatter.index->refName(qa.tid);
-    uint32_t txpLen = tidsAlreadyDecoded ? (*fullRefLengths)[qa.tid] : formatter.index->refLength(qa.tid);
+    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+    auto& refName = fullRefNames[encodedID];
+    uint32_t txpLen = fullRefLengths[encodedID];
+    char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
+
     // === SAM
     if (qa.isPaired) {
       getSamFlags(qa, true, flags1, flags2);
@@ -679,6 +688,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score << '\n';
 
       sstream << mateNameView << '\t'                    // QNAME
@@ -697,6 +707,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore << '\n';
     } else if(writeOrphans) {
 		//added orphan support
@@ -784,6 +795,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score << '\n';
 
 
@@ -800,8 +812,8 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore << '\n';
-
     }
     ++alnCtr;
   }

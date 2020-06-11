@@ -150,6 +150,8 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir, pufferfish::util::
     std::string pfile = indexDir + "/" + pufferfish::util::EDGE;
     edge_.deserialize(pfile, false);
   }
+
+  firstDecoyEncodedIndex_ = (numDecoys_ > 0) ? getRefId(firstDecoyIndex_) : std::numeric_limits<decltype(firstDecoyEncodedIndex_)>::max();
 }
 
 /**

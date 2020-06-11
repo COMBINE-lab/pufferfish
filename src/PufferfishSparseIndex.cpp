@@ -179,6 +179,8 @@ PufferfishSparseIndex::PufferfishSparseIndex(const std::string& indexDir, puffer
     std::string pfile = indexDir + "/" + pufferfish::util::DIRECTION;
     directionVec_.deserialize(pfile,false);
   }
+
+  firstDecoyEncodedIndex_ = (numDecoys_ > 0) ? getRefId(firstDecoyIndex_) : std::numeric_limits<decltype(firstDecoyEncodedIndex_)>::max();
 }
 
 auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,

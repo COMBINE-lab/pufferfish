@@ -142,7 +142,7 @@ PufferfishLossyIndex::PufferfishLossyIndex(const std::string& indexDir, pufferfi
       refAccumLengths_ = std::vector<uint64_t>(refNames_.size(), 1000);
     }
   }
-
+  firstDecoyEncodedIndex_ = (numDecoys_ > 0) ? getRefId(firstDecoyIndex_) : std::numeric_limits<decltype(firstDecoyEncodedIndex_)>::max();
 }
 
 /**
