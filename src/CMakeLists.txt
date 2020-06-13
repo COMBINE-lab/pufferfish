@@ -108,7 +108,7 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLA
 #if (BUILD_PUFF_FOR_SALMON)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
-target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ksw2pp ${CMAKE_DL_LIBS} ${LIBRT} ${CMAKE_DL_LIBS} ${ASAN_LIB})
+target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ${TBB_LIBRARIES} ${JEMALLOC_LIBRARIES} ksw2pp ${CMAKE_DL_LIBS} ${LIBRT} ${CMAKE_DL_LIBS} ${ASAN_LIB})
 
 if (FETCHED_TBB)
     add_dependencies(pufferfish libtbb)
