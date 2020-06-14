@@ -571,8 +571,7 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
-    bool writeOrphans,
-    bool tidsAlreadyDecoded = false) {
+    bool writeOrphans, bool tidsAlreadyDecoded = false, std::string extraBAMtags = "") {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
@@ -689,7 +688,11 @@ inline uint32_t writeAlignmentsToStream(
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.score << '\n';
+              << "AS:i:" << qa.score;
+      if(!extraBAMtags.empty) {
+        sstream << extraBAMtags;
+      }
+      sstream << '\n';
 
       sstream << mateNameView << '\t'                    // QNAME
               //<< qa.numHits << '\t'
@@ -708,7 +711,11 @@ inline uint32_t writeAlignmentsToStream(
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.mateScore << '\n';
+              << "AS:i:" << qa.mateScore;
+      if(!extraBAMtags.empty) {
+        sstream << extraBAMtags;
+      }
+      sstream << '\n';
     } else if(writeOrphans) {
 		//added orphan support
 	  //std::cerr<<"orphans here";
@@ -796,7 +803,11 @@ inline uint32_t writeAlignmentsToStream(
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.score << '\n';
+              << "AS:i:" << qa.score;
+      if(!extraBAMtags.empty) {
+        sstream << extraBAMtags;
+      }
+      sstream << '\n';
 
 
       sstream << *(unalignedName) << '\t'                    // QNAME
@@ -813,7 +824,11 @@ inline uint32_t writeAlignmentsToStream(
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.mateScore << '\n';
+              << "AS:i:" << qa.mateScore;
+      if(!extraBAMtags.empty) {
+        sstream << extraBAMtags;
+      }
+      sstream << '\n';
     }
     ++alnCtr;
   }
