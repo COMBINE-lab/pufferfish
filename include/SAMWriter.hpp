@@ -689,7 +689,7 @@ inline uint32_t writeAlignmentsToStream(
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score;
-      if(!extraBAMtags.empty) {
+      if(!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
@@ -712,7 +712,7 @@ inline uint32_t writeAlignmentsToStream(
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore;
-      if(!extraBAMtags.empty) {
+      if(!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
@@ -804,7 +804,7 @@ inline uint32_t writeAlignmentsToStream(
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score;
-      if(!extraBAMtags.empty) {
+      if(!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
@@ -825,7 +825,7 @@ inline uint32_t writeAlignmentsToStream(
               << "HI:i:" << i << '\t'
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore;
-      if(!extraBAMtags.empty) {
+      if(!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
