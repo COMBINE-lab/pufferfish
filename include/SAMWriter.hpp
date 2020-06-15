@@ -571,7 +571,7 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
-    bool writeOrphans, bool tidsAlreadyDecoded = false, stx::string_view extraBAMtags = "") {
+    bool writeOrphans, bool tidsAlreadyDecoded = false, const std::string& extraBAMtags = "") {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
@@ -690,7 +690,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score;
       if(!extraBAMtags.empty()) {
-        sstream << std::string(extraBAMtags);
+        sstream << extraBAMtags;
       }
       sstream << '\n';
 
@@ -713,7 +713,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore;
       if(!extraBAMtags.empty()) {
-        sstream << std::string(extraBAMtags);
+        sstream << extraBAMtags;
       }
       sstream << '\n';
     } else if(writeOrphans) {
@@ -805,7 +805,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score;
       if(!extraBAMtags.empty()) {
-        sstream << std::string(extraBAMtags);
+        sstream << extraBAMtags;
       }
       sstream << '\n';
 
@@ -826,7 +826,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore;
       if(!extraBAMtags.empty()) {
-        sstream << std::string(extraBAMtags);
+        sstream << extraBAMtags;
       }
       sstream << '\n';
     }
