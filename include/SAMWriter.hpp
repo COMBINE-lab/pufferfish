@@ -690,7 +690,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score;
       if(!extraBAMtags.empty()) {
-        sstream << extraBAMtags;
+        sstream << std::string(extraBAMtags);
       }
       sstream << '\n';
 
@@ -713,7 +713,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore;
       if(!extraBAMtags.empty()) {
-        sstream << extraBAMtags;
+        sstream << std::string(extraBAMtags);
       }
       sstream << '\n';
     } else if(writeOrphans) {
@@ -805,7 +805,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.score;
       if(!extraBAMtags.empty()) {
-        sstream << extraBAMtags;
+        sstream << std::string(extraBAMtags);
       }
       sstream << '\n';
 
@@ -826,7 +826,7 @@ inline uint32_t writeAlignmentsToStream(
               << "XT:A:" << alnType << '\t'
               << "AS:i:" << qa.mateScore;
       if(!extraBAMtags.empty()) {
-        sstream << extraBAMtags;
+        sstream << std::string(extraBAMtags);
       }
       sstream << '\n';
     }
