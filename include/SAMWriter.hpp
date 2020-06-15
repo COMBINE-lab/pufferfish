@@ -571,7 +571,7 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
-    bool writeOrphans, bool tidsAlreadyDecoded = false, std::string extraBAMtags = "") {
+    bool writeOrphans, bool tidsAlreadyDecoded = false, stx::string_view extraBAMtags = "") {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
