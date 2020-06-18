@@ -1202,6 +1202,7 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> correctAlignment{0};
             std::atomic<uint64_t> maxMultimapping{0};
             std::atomic<uint64_t> numDovetails{0};
+            std::atomic<uint64_t> tooShortReads{0};
 
             std::atomic<uint64_t> skippedAlignments_byCache{0};
             std::atomic<uint64_t> skippedAlignments_byCov{0};
