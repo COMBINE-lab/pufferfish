@@ -629,6 +629,10 @@ Compile-time selection between list-like and map-like printing.
             //return mems.empty() ? 0 : (mems[0].isFw ? mems[0].tpos-mems[0].rpos : mems[0].tpos - (readLen-mems[0].rpos-mems[0].extendedlen));
           }
 
+          // returns the approximate read start position (approximate because
+          // alignment / selective alignment hasn't been computed yet, and we 
+          // don't know where the read necessarily starts).  If this value is 
+          // less than 0, then the read overhangs the start of the transcript.
           inline int64_t approxReadStartPos() const {
             if (mems.empty()) { return 0; }
             auto& m = mems.front();
