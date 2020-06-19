@@ -175,6 +175,8 @@ void processReadsPair(paired_parser *parser,
             readLen = static_cast<uint32_t >(rpair.first.seq.length());
             mateLen = static_cast<uint32_t >(rpair.second.seq.length());
             totLen = readLen + mateLen;
+            bool tooShortRead = readLen < pfi.k();
+            bool tooShortMate = mateLen < pfi.k();
 
             ++hctr.numReads;
 
@@ -194,14 +196,16 @@ void processReadsPair(paired_parser *parser,
             //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
 
             //verbose = rpair.first.name == "mason_sample5_primary_1M_random.fasta.000050010/1";
-            bool lh = memCollector(rpair.first.seq,
-                                   qc,
-                                   true, // isLeft
-                                   verbose);
-            bool rh = memCollector(rpair.second.seq,
-                                   qc,
-                                   false, // isLeft
-                                   verbose);
+            bool lh = tooShortRead ? false :
+              memCollector(rpair.first.seq,
+                           qc,
+                           true, // isLeft
+                           verbose);
+            bool rh = tooShortMate ? false :
+              memCollector(rpair.second.seq,
+                           qc,
+                           false, // isLeft
+                           verbose);
             memCollector.findChains(rpair.first.seq,
                                    leftHits,
                                    mopts->maxSpliceGap,
@@ -236,30 +240,33 @@ void processReadsPair(paired_parser *parser,
                 ss << "\n\n";
                 std::cerr << ss.str();
             }*/
-            auto mergeRes = pufferfish::util::joinReadsAndFilter(leftHits, rightHits, jointHits,
+            if (tooShortRead and tooShortMate) {
+              ++hctr.tooShortReads;
+            } else {
+              auto mergeRes = pufferfish::util::joinReadsAndFilter(leftHits, rightHits, jointHits,
                                                                  mopts->maxFragmentLength,
                                                                  totLen,
                                                                  mopts->scoreRatio,
                                                                  firstDecoyIndex,
                                                                  mpol, hctr);
 
-            bool mergeStatusOR = (mergeRes == pufferfish::util::MergeResult::HAD_EMPTY_INTERSECTION or
+              bool mergeStatusOR = (mergeRes == pufferfish::util::MergeResult::HAD_EMPTY_INTERSECTION or
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_LEFT or
                                   mergeRes == pufferfish::util::MergeResult::HAD_ONLY_RIGHT);
 
-            if ( mopts->recoverOrphans and mergeStatusOR ) {
-              // TODO NOTE : do futher testing
-              bool recoveredAny = selective_alignment::utils::recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
-              (void)recoveredAny;
-            }
+              if (mopts->recoverOrphans and mergeStatusOR and !tooShortRead and !tooShortMate) {
+                // TODO NOTE : do futher testing
+                bool recoveredAny = selective_alignment::utils::recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
+                (void)recoveredAny;
+              }
 
-            hctr.peHits += jointHits.size();
+              hctr.peHits += jointHits.size();
 
 #if ALLOW_VERBOSE
-            if (verbose)
-                std::cerr<<"Number of hits: "<<jointHits.size()<<"\n";
+              if (verbose)
+                 std::cerr<<"Number of hits: "<<jointHits.size()<<"\n";
 #endif // ALLOW_VERBOSE
-
+            }
             if (!mopts->justMap) {
               puffaligner.clear();
               int32_t bestScore = invalidScore;
@@ -604,6 +611,7 @@ void processReadsSingle(single_parser *parser,
         for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
             auto& read = *read_it;
             readLen = static_cast<uint32_t >(read.seq.length());
+            bool tooShortRead = readLen < pfi.k();
             auto totLen = readLen;
             bool verbose = false;
             //if (verbose) std::cerr << read.name << "\n";
@@ -617,10 +625,11 @@ void processReadsSingle(single_parser *parser,
             bool filterGenomics = mopts->filterGenomics;
             bool filterMicrobiom = mopts->filterMicrobiom;
 
-            bool lh = memCollector(read.seq,
-                                   qc,
-                                   true, // isLeft
-                                   verbose);
+            bool lh = tooShortRead? false :
+              memCollector(read.seq,
+                           qc,
+                           true, // isLeft
+                           verbose);
             memCollector.findChains(read.seq,
                                    leftHits,
                                    mopts->maxSpliceGap,
@@ -631,9 +640,13 @@ void processReadsSingle(single_parser *parser,
 
             (void) lh;
             all.clear();
-            pufferfish::util::joinReadsAndFilterSingle(leftHits, jointHits,
+            if (tooShortRead) {
+              ++hctr.tooShortReads;
+            } else {
+              pufferfish::util::joinReadsAndFilterSingle(leftHits, jointHits,
                                      totLen,
                                      mopts->scoreRatio);
+            }
 
             std::vector<QuasiAlignment> jointAlignments;
             std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>> validHits;
@@ -905,6 +918,7 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("\n\n");
     consoleLog->info("=====");
     consoleLog->info("Observed {} reads", hctrs.numReads);
+    consoleLog->info("Number of reads totally discarded for being smaller than k: {} read", hctrs.tooShortReads);
     consoleLog->info("Rate of Fragments with at least one found k-mer: {:03.2f}%",
                      (100.0 * static_cast<float>(hctrs.numMappedAtLeastAKmer)) / hctrs.numReads);
     consoleLog->info("Discordant Rate: {:03.2f}%",
