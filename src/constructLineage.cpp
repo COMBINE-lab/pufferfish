@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
             << "kingdom"
             << "\n";
     for (uint64_t i = 0; i < tlist.size(); i++) {
-        linFile << i << " "
+        linFile << i << ","
                 << tlist[i].parent << ","
                 << tlist[i].rank << ","
                 << tlist[i].lowestSpecies << ","
