@@ -844,8 +844,8 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
   std::unique_ptr<char[]> windowSeq{nullptr};
   int32_t windowLength = -1;
 
-  int32_t maxDistRight = l2 / 4;
-  int32_t maxDistLeft = l1 / 4;
+  int32_t maxDistRight = std::max(1, l2 / 4);
+  int32_t maxDistLeft = std::max(1, l1 / 4);
   constexpr const int32_t signedZero{0};
 
   bool noDovetail = mopts.noDovetail;
@@ -934,7 +934,7 @@ bool PuffAligner::recoverSingleOrphan(std::string& read_left, std::string& read_
     orphanRecoveryMemCollection.push_back(pufferfish::util::UniMemInfo());
     auto memItr = orphanRecoveryMemCollection.begin() + orphanRecoveryMemCollection.size() - 1;
     if (verbose) { std::cerr<<recovered_fwd << " " << orphanRecoveryMemCollection.size()<<"\n"; }
-    it->addMem(memItr, recovered_pos, 1, recovered_fwd ? 1 : rlen-1, recovered_fwd);
+    it->addMem(memItr, recovered_pos, 1, recovered_fwd ? 0 : rlen-1, recovered_fwd);
 
     //delete windowSeq;
     edlibFreeAlignResult(result);

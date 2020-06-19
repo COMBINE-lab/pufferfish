@@ -629,11 +629,15 @@ Compile-time selection between list-like and map-like printing.
             //return mems.empty() ? 0 : (mems[0].isFw ? mems[0].tpos-mems[0].rpos : mems[0].tpos - (readLen-mems[0].rpos-mems[0].extendedlen));
           }
 
+          // returns the approximate read start position (approximate because
+          // alignment / selective alignment hasn't been computed yet, and we 
+          // don't know where the read necessarily starts).  If this value is 
+          // less than 0, then the read overhangs the start of the transcript.
           inline int64_t approxReadStartPos() const {
             if (mems.empty()) { return 0; }
             auto& m = mems.front();
-            return std::max(static_cast<int64_t>(0), isFw ? (static_cast<int64_t>(m.tpos) - static_cast<int64_t>(m.rpos)) :
-              (static_cast<int64_t>(m.tpos) - ((static_cast<int64_t>(readLen) - static_cast<int64_t>(m.rpos + m.extendedlen)))));
+            return isFw ? (static_cast<int64_t>(m.tpos) - static_cast<int64_t>(m.rpos)) :
+              (static_cast<int64_t>(m.tpos) - ((static_cast<int64_t>(readLen) - static_cast<int64_t>(m.rpos + m.extendedlen))));
           }
 
             inline int64_t firstRefPos() const { return getTrFirstHitPos(); }
@@ -1202,6 +1206,7 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> correctAlignment{0};
             std::atomic<uint64_t> maxMultimapping{0};
             std::atomic<uint64_t> numDovetails{0};
+            std::atomic<uint64_t> tooShortReads{0};
 
             std::atomic<uint64_t> skippedAlignments_byCache{0};
             std::atomic<uint64_t> skippedAlignments_byCov{0};
