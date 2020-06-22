@@ -177,6 +177,11 @@ target_compile_options(rank_test PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAG
 target_link_libraries(rank_test)
 ]]
 
+add_executable(getLineage constructLineage.cpp)
+target_compile_options(getLineage PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
+target_compile_options(getLineage PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+
+
 target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
 #target_link_libraries(fixFasta Threads::Threads z)
 target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
