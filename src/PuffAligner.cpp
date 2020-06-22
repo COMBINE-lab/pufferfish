@@ -499,9 +499,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           int32_t gapDiff = std::abs(gapRef - gapRead);
           score += (-1 * mopts.gapOpenPenalty +
                     -1 * mopts.gapExtendPenalty * gapDiff);
-          if (gapRead < 0) { // subtract off extra matches
-            score += mopts.matchScore * std::min(gapRead, gapRef);
-          }
+          // subtract off extra matches
+          score += mopts.matchScore * std::min(gapRead, gapRef);
+
           SPDLOG_DEBUG(logger_,
                        "\t GAP NOT THE SAME:\n\t gapRef : {}, gapRead : {}",
                        gapRef, gapRead);
