@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <climits>
+#include <cinttypes>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "rank9sel.hpp"
@@ -60,7 +61,7 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 	}
 
 	counts[ num_counts ] = c;
-	fprintf( stderr,"Number of ones: %ld\n", c );	
+	fprintf( stderr,"Number of ones: %" PRIu64 "\n", c );	
 
 	assert( c <= num_bits );
 
@@ -361,7 +362,7 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 	assert( offset_in_block <= 7 );
 
 #ifdef DEBUG
-	printf( "rank_in_block: %lld offset_in_block: %lld rank_in_word: %lld\n", rank_in_block, offset_in_block, rank_in_word );
+	printf( "rank_in_block: %lld offset_in_block:lld rank_in_word: %lld\n", rank_in_block, offset_in_block, rank_in_word );
 	printf( "subcounts: " );
 	for( int i = 0; i < 7; i++ ) printf( "%lld ", subcounts >> i * 9 & 0x1FF );
 	printf( "\n" );
