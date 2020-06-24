@@ -388,6 +388,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   std::string logPath = outdir + "/ref_indexing.log";
   auto fileSink = std::make_shared<spdlog::sinks::simple_file_sink_st>(logPath);
   auto consoleSink = std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>();
+  consoleSink->set_color(spdlog::level::warn, consoleSink->magenta);
   auto consoleLog = spdlog::create("puff::index::stderrLog", {consoleSink});
   auto fileLog = spdlog::create("puff::index::fileLog", {fileSink});
   std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
