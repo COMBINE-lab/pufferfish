@@ -11,6 +11,7 @@
 #include <iostream>
 #include <math.h>
 
+#include <cinttypes>
 #include <array>
 #include <unordered_map>
 #include <vector>
@@ -676,11 +677,11 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 		//for debug purposes
 		void print() const
 		{
-			printf("bit array of size %llu: \n",_size);
+			printf("bit array of size %" PRIu64 ": \n",_size);
 			for(uint64_t ii = 0; ii< _size; ii++)
 			{
 				if(ii%10==0)
-					printf(" (%llu) ",ii);
+					printf(" (%" PRIu64 ") ",ii);
 				int val = (_bitArray[ii >> 6] >> (ii & 63 ) ) & 1;
 				printf("%i",val);
 			}
@@ -689,7 +690,7 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 			printf("rank array : size %lu \n",_ranks.size());
 			for (uint64_t ii = 0; ii< _ranks.size(); ii++)
 			{
-				printf("%llu :  %llu,  ",ii,_ranks[ii]);
+				printf("%" PRIu64 " :  %" PRIu64 ",  ",ii,_ranks[ii]);
 			}
 			printf("\n");
 		}
