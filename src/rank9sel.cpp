@@ -18,6 +18,7 @@
  *
  */
 
+#define __STDC_FORMAT_MACROS 1
 #include <cstdio>
 #include <ctime>
 #include <cassert>
