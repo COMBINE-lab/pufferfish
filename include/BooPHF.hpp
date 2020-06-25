@@ -6,7 +6,6 @@
 #define _BOOPHF_H_
 #pragma once
 
-#define __STDC_FORMAT_MACROS 1
 #include <stdio.h>
 #include <climits>
 #include <stdlib.h>
