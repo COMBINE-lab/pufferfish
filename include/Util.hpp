@@ -9,6 +9,7 @@
 #include <sstream>
 #include <type_traits>
 #include <vector>
+#include <limits>
 
 #include "CanonicalKmer.hpp"
 #include "cereal/types/string.hpp"
@@ -103,9 +104,28 @@ namespace pufferfish {
       // encapsulates policy choices about what types of mappings
       // should be allowed (e.g. orphans, dovetails, etc.)
       struct MappingConstraintPolicy {
-	bool noOrphans;
-	bool noDiscordant;
-	bool noDovetail;
+        bool noOrphans;
+        bool noDiscordant;
+        bool noDovetail;
+        // after merging chains for paired-end reads 
+        // only chains having this threshold score 
+        // *with respect to the best chain on the same target*
+        // will be passed to the next stage of mapping.
+        double post_merge_chain_sub_thresh{0.9};
+        double inv_post_merge_chain_sub_thresh{1.0 / post_merge_chain_sub_thresh};
+        double orphan_chain_sub_thresh{1.0};
+
+        double postMergeChainSubThresh() const { return post_merge_chain_sub_thresh; }
+        void setPostMergeChainSubThresh(double t) {
+          post_merge_chain_sub_thresh = t;
+          inv_post_merge_chain_sub_thresh = std::nexttoward(1.0/post_merge_chain_sub_thresh, std::numeric_limits<long double>::infinity());
+        }
+
+        double orphanChainSubThresh() const { return orphan_chain_sub_thresh; }
+        void setOrphanChainSubThresh(const double t) {
+          orphan_chain_sub_thresh = t;
+        }
+
       };
 
       struct pair_hash

@@ -23,7 +23,10 @@ template <typename PufferfishIndexT> class MemCollector {
 enum class ExpansionTerminationType : uint8_t { MISMATCH = 0, CONTIG_END, READ_END };  
 
 public:
-  explicit MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { k = pfi_->k(); }
+  explicit MemCollector(PufferfishIndexT* pfi) : pfi_(pfi) { 
+    k = pfi_->k(); 
+    setChainSubOptThresh(pre_merge_chain_sub_thresh_);
+  }
 
   size_t expandHitEfficient(pufferfish::util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
@@ -34,32 +37,39 @@ public:
                   bool isLeft=false,
                   bool verbose=false);
 
-  bool findChains(std::string &read,
-                  pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
-                  //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
-                  uint32_t maxSpliceGap,
-                  pufferfish::util::MateStatus mateStatus,
-                  bool hChain=false,
-                  bool isLeft=false,
-                  bool verbose=false);
-  void clear();
+void setChainSubOptThresh(double pre_merge_chain_sub_thresh);
 
-  void configureMemClusterer(uint32_t max);
+double chainSubOptThresh() const;
 
-  void setConsensusFraction(double cf);
+bool findChains(std::string& read,
+                pufferfish::util::CachedVectorMap<
+                    size_t, std::vector<pufferfish::util::MemCluster>,
+                    std::hash<size_t>>& memClusters,
+                // phmap::flat_hash_map<size_t,
+                // std::vector<pufferfish::util::MemCluster>>& memClusters,
+                uint32_t maxSpliceGap, pufferfish::util::MateStatus mateStatus,
+                bool hChain = false, bool isLeft = false, bool verbose = false);
+void clear();
 
-  void setAltSkip(uint32_t altSkip);
+void configureMemClusterer(uint32_t max);
 
-  double getConsensusFraction() const;
+void setConsensusFraction(double cf);
 
-  void setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp);
+void setAltSkip(uint32_t altSkip);
 
-  pufferfish::util::HitFilterPolicy getHitFilterPolicy() const;
+double getConsensusFraction() const;
+
+void setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp);
+
+pufferfish::util::HitFilterPolicy getHitFilterPolicy() const;
 
 private:
   PufferfishIndexT* pfi_;
   size_t k;
-  uint32_t altSkip{5};
+  uint32_t altSkip{3};
+  double pre_merge_chain_sub_thresh_{0.9};
+  double inv_pre_merge_chain_sub_thresh_{1.0/0.9};
+
   //AlignerEngine ae_;
   std::vector<pufferfish::util::UniMemInfo> memCollectionLeft;
   std::vector<pufferfish::util::UniMemInfo> memCollectionRight;

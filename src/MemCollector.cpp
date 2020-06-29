@@ -1,4 +1,6 @@
 #include "MemCollector.hpp"
+#include <cmath>
+#include <limits>
 
 // using spp:sparse_hash_map;
 
@@ -201,6 +203,19 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 }
 
 template <typename PufferfishIndexT>
+void MemCollector<PufferfishIndexT>::setChainSubOptThresh(double pre_merge_chain_sub_thresh) {
+  pre_merge_chain_sub_thresh_ = pre_merge_chain_sub_thresh;
+  inv_pre_merge_chain_sub_thresh_ = std::nexttoward(1.0 / pre_merge_chain_sub_thresh, std::numeric_limits<long double>::infinity());
+  mc.set_chain_sub_opt_thresh_(pre_merge_chain_sub_thresh_, inv_pre_merge_chain_sub_thresh_);
+}
+
+
+template <typename PufferfishIndexT>
+double MemCollector<PufferfishIndexT>::chainSubOptThresh() const {
+  return pre_merge_chain_sub_thresh_;
+}
+
+template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
                                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
                                                 //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>>& memClusters,
@@ -220,7 +235,8 @@ bool MemCollector<PufferfishIndexT>::findChains(std::string &read,
   if (rawHits.size() > 0) {
     auto& other_end_refs = isLeft ? right_refs : left_refs;
     trMemMap.clear();
-    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), other_end_refs, hChain, trMemMap, firstDecoyIndex, verbose);
+    mc.findOptChain(rawHits, memClusters, maxSpliceGap, *memCollection, read.length(), 
+                    other_end_refs, hChain, trMemMap, firstDecoyIndex, verbose);
     /*
     if (verbose) {
       std::cerr << "lets see what we have\n";

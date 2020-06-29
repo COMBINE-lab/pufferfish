@@ -33,6 +33,15 @@ static inline float fasterlog2(float x) {
   return y - 126.94269504f;
 }
 
+void MemClusterer::set_chain_sub_opt_thresh_(const double pre_merge_chain_sub_thresh, const double inv_pre_merge_chain_sub_thresh){
+  pre_merge_chain_sub_thresh_ = pre_merge_chain_sub_thresh;
+  inv_pre_merge_chain_sub_thresh_ = inv_pre_merge_chain_sub_thresh;
+}
+
+double MemClusterer::chainSubOptThresh() const {
+  return pre_merge_chain_sub_thresh_;
+}
+
 void MemClusterer::setConsensusFraction(double cf) { consensusFraction_ = cf; }
 double MemClusterer::getConsensusFraction() const { return consensusFraction_; }
 
@@ -119,7 +128,8 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   using namespace pufferfish::common_types;
   using pufferfish::util::HitFilterPolicy;
   //(void)verbose;
-
+  //std::cerr << "pre_merge_chain_sub_thresh_ = " << pre_merge_chain_sub_thresh_ 
+  //          << ", inv = " << inv_pre_merge_chain_sub_thresh_ << "\n\n";
   // Map from (reference id, orientation) pair to a cluster of MEMs.
   size_t maxHits = fillMemCollection(hits, trMemMap, memCollection, firstDecoyIndex, other_end_refs);
   if (maxHits == 0) {
@@ -309,22 +319,30 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         // TGAACGCTCTATGATGTCAGCCTACGAGCGCTCTATGATGTTAGCCTACGAGCGCTCTATGATGTCCCCTATGGCTGAGCGCTCTATGATGTCAGCTTAT
         // from Polyester simalted sample aligning to the human transcriptome
       }
-      if (f[i] > bestScore) {
+      
+      if (f[i] > bestScore * inv_pre_merge_chain_sub_thresh_) {
         bestScore = f[i];
         bestChainEnd = i;
         bestChainEndList.clear();
         bestChainEndList.push_back(bestChainEnd);
-      } else if (f[i] == bestScore) {
+      } else if (f[i] >= bestScore * pre_merge_chain_sub_thresh_) {
         bestChainEndList.push_back(i);
+        bestScore = std::max(f[i], bestScore);
       }
     }
 
+    // because we were always comparing to the _current_ best chaining score, go through
+    // and remove chains that may have passed at the time, but should not have passed globally
+    bestChainEndList.erase(std::remove_if(bestChainEndList.begin(), bestChainEndList.end(),
+      [this, bestScore](const int32_t& chain_ind) -> bool { 
+        return this->f[chain_ind] < this->pre_merge_chain_sub_thresh_ * bestScore; 
+      }), bestChainEndList.end());
+    
+
     // early exit if this doesn't seem a promising chain
-    //if (fp == FilterPolicy::AFTER_CHAIN and (bestScore < maxChainScore * consensusFraction_)) { continue; }
     if (filterAfter and bestScore < maxChainScore * consensusFraction_) { continue; }
     maxChainScore = std::max(bestScore, maxChainScore);
 
-    //if (chainOfInterest) { std::cerr << "bestScore = " << bestScore << "\n"; }
     // Do backtracking
     chobo::small_vector<uint8_t> seen(f.size(), 0);
     for (auto bestChainEnd : bestChainEndList) {
@@ -332,6 +350,12 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
         bool shouldBeAdded = true;
         memIndicesInReverse.clear();
         auto lastPtr = p[bestChainEnd];
+        
+        // keep track of the actual end index here, because 
+        // we will need it to record the correct score later,
+        // but we modify it when walking the chain.
+        const auto currentChainEndInd = bestChainEnd;
+
         while (lastPtr < bestChainEnd) {
           if (seen[bestChainEnd] > 0) {
             shouldBeAdded = false;
@@ -357,9 +381,10 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
             justAddedCluster.addMem(memList[*it].memInfo, memList[*it].tpos,
                                        memList[*it].extendedlen, memList[*it].rpos, isFw);
           }
-          justAddedCluster.coverage = bestScore;
-          if (justAddedCluster.coverage == signedReadLen)
+          justAddedCluster.coverage = f[currentChainEndInd];
+          if (justAddedCluster.coverage == signedReadLen) {
             justAddedCluster.perfectChain = true;
+          }
           /*
           if (verbose)
             std::cerr<<"Added position: " << memClusters[tid][0].coverage << " " << memClusters[tid][0].mems[0].tpos << "\n";

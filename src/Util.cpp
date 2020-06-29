@@ -11,6 +11,7 @@ void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::ve
                               std::vector<pufferfish::util::JointMems> &jointMemsList,
                               uint32_t perfectCoverage,
                               double coverageRatio) {
+
     uint32_t maxCoverage{0};
     for (auto &leftClustItr : leftMemClusters) {
         // reference id
@@ -54,6 +55,12 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     bool noOrphans = mpol.noOrphans;
     bool noDiscordant = mpol.noDiscordant;
     bool noDovetail = mpol.noDovetail;
+
+    // for filtering concordant chain pairs *on the same target*
+    const double thresh = mpol.post_merge_chain_sub_thresh;
+    const double ithresh = mpol.inv_post_merge_chain_sub_thresh;
+    // for filtering orphan chains with respect to the *best chain for each read*
+    const double orphan_chain_sub_thresh = mpol.orphan_chain_sub_thresh;
 
 #if ALLOW_VERBOSE
     std::cerr << "\n[JOINREADSANDFILTER]\n";
@@ -106,6 +113,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     int32_t sameTxpCount{0};
     int32_t numConcordant{0};
     int32_t numDiscordant{0};
+    size_t index_for_current_transcript{0};
     bool hadDovetail{false};
     //phmap::parallel_hash_set<uint32_t> refsWithJointMems;
     while (round == 0 or (round == 1 and !jointMemsList.size() and !noDiscordant)) {
@@ -117,7 +125,9 @@ pufferfish::util::MergeResult joinReadsAndFilter(
             auto &lClusts = *(leftClustItr.second);
             // right mem clusters for the same reference id
             auto &rClusts = rightMemClusters[tid];
-	
+            using score_type = decltype(lClusts.begin()->coverage);
+            score_type best_pair_in_target{std::numeric_limits<score_type>::min()};
+            index_for_current_transcript = jointMemsList.size();
 	    // if we are allowing orphans, then don't 
 	    // report orphans to any reference that had joint mem hits
 	    // regardless of whether they are concordant or discordant.
@@ -169,22 +179,46 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                         auto totalCoverage = lclust->coverage + rclust->coverage;
                         if ( (totalCoverage >= coverageRatio * maxCoverage) or
                               (totalCoverage == perfectCoverage) ) {
-                            ++sameTxpCount;
-			                      numConcordant += concordantSearch ? 1 : 0;
-                            jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
-                            uint32_t currCoverage = jointMemsList.back().coverage();
-                            if (maxCoverage < currCoverage) {
-                                maxCoverage = currCoverage;
-                                if ( (lclust->coverage < maxLeft) or (rclust->coverage < maxRight)) {
-                                    isMaxLeftAndRight = false;
-                                } else {
-                                    isMaxLeftAndRight = true;
-                                }
-                            }
+
+                            if (totalCoverage >= best_pair_in_target * thresh){
+                              ++sameTxpCount;
+                              numConcordant += concordantSearch ? 1 : 0;                           
+    
+                              //if ((totalCoverage > best_pair_in_target * ithresh) and (jointMemsList.size() > index_for_current_transcript)) {
+                              //  jointMemsList.erase(jointMemsList.begin()+index_for_current_transcript, jointMemsList.end());
+                              //}
+                              best_pair_in_target = std::max(best_pair_in_target, totalCoverage);
+
+                              jointMemsList.emplace_back(tid, lclust, rclust, fragmentLen);
+                              uint32_t currCoverage = jointMemsList.back().coverage();
+                              if (maxCoverage < currCoverage) {
+                                  maxCoverage = currCoverage;
+                                  if ( (lclust->coverage < maxLeft) or (rclust->coverage < maxRight)) {
+                                      isMaxLeftAndRight = false;
+                                  } else {
+                                      isMaxLeftAndRight = true;
+                                  }
+                              }
+                          } //if (totalCoverage >= best_pair_in_target) 
+
                         }
                     }
                 }
-            }
+            } // for (auto rclust = rClusts.begin(); rclust != rClusts.end(); rclust++) 
+
+            //auto start_iter = jointMemsList.begin() + index_for_current_transcript;
+            //auto nhit = std::distance(start_iter, jointMemsList.end());
+            //if (nhit > 1) {
+              jointMemsList.erase(
+                  std::remove_if(
+                    jointMemsList.begin() + index_for_current_transcript,
+                    jointMemsList.end(),
+                    [best_pair_in_target, thresh](const decltype(*jointMemsList.begin())& jm) -> bool {
+                                   return jm.coverage() < thresh * best_pair_in_target;
+                    }),
+                    jointMemsList.end());
+            //}
+
         } // @fatemeh : this nesting just seems too many levels deep.  Can we re-work the logic here to make things simpler?
         round++;
     }
@@ -202,32 +236,79 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     bool noPairedMappings = (sameTxpCount == 0);
     bool leftOrphan = false; bool rightOrphan = false;
     if (!noOrphans and noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
-        auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan]
+        auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan, thresh, ithresh, orphan_chain_sub_thresh]
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {
+            
+            /**
+             * NOTE: we handle orphans a little bit differently than we handle (properly paired)
+             * chains above.  Since orphans are likely to be from lower-quality fragments and/or 
+             * to be more ambiguous than chain pairs, we want to be a bit more aggressive in 
+             * how we filter them.  First, rather than use the standard coverageRatio that 
+             * we use for paired-end chains, we will instead define the orphan coverage ratio 
+             * that comes from the `orphan_chain_sub_thresh`.
+             * Second, we will only consider the orphan chains on a target that pass
+             * this global threshold, so we don't worry about allowing sub-optimality here.
+             **/
+            decltype(coverageRatio) orphanCoverageRatio = orphan_chain_sub_thresh;
+            constexpr const decltype(thresh) orphanThresh = 1.0;
+            constexpr const decltype(thresh) invOrphanThresh = 1.0;
+
             // fragmentLen is set to 0
-            // std::vector<pufferfish::util::MemCluster> dummyCluster;
             for (auto &clustItr : memClusters) {
-                // reference id
-                size_t tid = clustItr.first;
-                // left mem clusters
-                auto &Clusts = *(clustItr.second);
-                for (auto clust = Clusts.begin(); clust != Clusts.end(); clust++) {
-                    if (clust->coverage >= coverageRatio * maxLeftOrRight) {
-                        if (isLeft) {
-                            leftOrphan = true;
-                            jointMemsList.emplace_back(tid, clust, /*dummy*/ clust, 0, MateStatus::PAIRED_END_LEFT);
-                        } else {
-                            rightOrphan = true;
-                            jointMemsList.emplace_back(tid, /*dummy*/ clust , clust, 0, MateStatus::PAIRED_END_RIGHT);
-                        }
-                        uint32_t currCoverage = jointMemsList.back().coverage();
-                        if (maxCoverage < currCoverage) {
-                            maxCoverage = currCoverage;
-                        }
+              double best_pair_in_target{std::numeric_limits<double>::min()};
+              size_t index_for_current_transcript = jointMemsList.size();
+              
+              // reference id
+              size_t tid = clustItr.first;
+              // left mem clusters
+              auto& Clusts = *(clustItr.second);
+              for (auto clust = Clusts.begin(); clust != Clusts.end();
+                   clust++) {
+                
+                if (clust->coverage >= orphanCoverageRatio * maxLeftOrRight) {
+                   
+                   if (clust->coverage >= best_pair_in_target * orphanThresh) {
+
+                    if ((clust->coverage > best_pair_in_target * invOrphanThresh) and
+                        (jointMemsList.size() > index_for_current_transcript)) {
+                      jointMemsList.erase(jointMemsList.begin() + index_for_current_transcript,
+                                          jointMemsList.end());
                     }
+                    
+                    best_pair_in_target = std::max(best_pair_in_target, clust->coverage);
+                    
+                    if (isLeft) {
+                      leftOrphan = true;
+                      jointMemsList.emplace_back(tid, clust, /*dummy*/ clust, 0,
+                                                 MateStatus::PAIRED_END_LEFT);
+                    } else {
+                      rightOrphan = true;
+                      jointMemsList.emplace_back(tid, /*dummy*/ clust, clust, 0,
+                                                 MateStatus::PAIRED_END_RIGHT);
+                    }
+                    uint32_t currCoverage = jointMemsList.back().coverage();
+                    if (maxCoverage < currCoverage) {
+                      maxCoverage = currCoverage;
+                    }
+
+                  } // if (clust->coverage >= best_pair_in_target * orphanThresh) 
+                } 
+
                 }
-            }
+
+                // don't need this since we always keep only the best orphan per-target
+                /*
+                jointMemsList.erase(
+                    std::remove_if(
+                        jointMemsList.begin() + index_for_current_transcript,
+                        jointMemsList.end(),
+                        [best_pair_in_target, orphanThresh](const decltype(*jointMemsList.begin())& jm) -> bool {
+                          return jm.coverage() < orphanThresh * best_pair_in_target;
+                        }),
+                    jointMemsList.end());
+                */
+            } // for (auto &clustItr : memClusters) [ over all transcripts]
         };
         orphanFiller(leftMemClusters, true);
         orphanFiller(rightMemClusters, false);
