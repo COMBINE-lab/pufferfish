@@ -21,9 +21,6 @@ private:
   double consensusFraction_ = 0.65;
   double pre_merge_chain_sub_thresh_{0.9};
   double inv_pre_merge_chain_sub_thresh_{1.0/0.9};
-  double pre_merge_chain_sub_thresh;
-  double post_merge_chain_sub_thresh;
-
 
   using RefMemMap = pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash>;
 
