@@ -150,9 +150,9 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 		    
 		    bool isDovetail{false};
 		    if (satisfiesOri) {
-          isDovetail = lclust->isFw ? (lclust->approxReadStartPos() > rclust->approxReadStartPos()) :
-			             (rclust->approxReadStartPos() > lclust->approxReadStartPos());
-          if (isDovetail and (static_cast<uint64_t>(tid) < firstDecoyIndex)) { hadDovetail = true; }
+			    isDovetail = lclust->isFw ? (lclust->approxReadStartPos() > rclust->approxReadStartPos()) :
+				    (rclust->approxReadStartPos() > lclust->approxReadStartPos());
+			    if (isDovetail and (static_cast<uint64_t>(tid) < firstDecoyIndex)) { hadDovetail = true; }
 		    }
 		    // if noDovetail is set, then dovetail mappings are considered discordant
                     // otherwise we consider then concordant.
