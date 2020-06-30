@@ -862,6 +862,7 @@ Compile-time selection between list-like and map-like printing.
         int16_t matchScore;
         int16_t gapExtendPenalty;
         int16_t gapOpenPenalty;
+        int16_t missMatchPenalty;
         double minScoreFraction{0.0};
         bool mimicBT2{false};
         bool mimicBT2Strict{false};
@@ -871,6 +872,8 @@ Compile-time selection between list-like and map-like printing.
         bool noDovetail{false};
         uint32_t maxFragmentLength{1000};
         PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
+        bool bestStrata{false};
+        bool decoyPresent{false};
       };
 
         struct QuasiAlignment {
@@ -1228,6 +1231,11 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> numDovetails{0};
             std::atomic<uint64_t> tooShortReads{0};
 
+            std::atomic<uint64_t> between_aligner_calls_count{0};
+            std::atomic<uint64_t> begin_aligner_calls_count{0};
+            std::atomic<uint64_t> end_aligner_calls_count{0};
+            std::atomic<uint64_t> not_alignable_skips{0};
+            std::atomic<uint64_t> stopped_count{0};
             std::atomic<uint64_t> skippedAlignments_byCache{0};
             std::atomic<uint64_t> skippedAlignments_byCov{0};
             std::atomic<uint64_t> totalAlignmentAttempts{0};
