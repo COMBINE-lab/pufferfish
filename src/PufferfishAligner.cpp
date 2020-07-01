@@ -949,6 +949,7 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("Total number of alignment attempts : {}", hctrs.totalAlignmentAttempts);
     consoleLog->info("Number of skipped alignments because of cache hits : {}", hctrs.skippedAlignments_byCache);
     consoleLog->info("Number of skipped alignments because of perfect chains : {}", hctrs.skippedAlignments_byCov);
+    consoleLog->info("Number of alignments calculations skipped by non-alignable: {}", hctrs.skippedAlignments_notAlignable);
 
     consoleLog->info("Number of cigar strings which are fixed: {}", hctrs.cigar_fixed_count);
     consoleLog->info("=====");

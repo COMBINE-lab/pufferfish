@@ -1,4 +1,5 @@
 #include "ksw2pp/KSW2Aligner.hpp"
+#include <limits>
 #include <iostream>
 
 /*
@@ -207,6 +208,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             const int queryLength,
                             const char* const targetOriginal,
                             const int targetLength, ksw_extz_t* ez,
+                            int cutoff,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
   // NOTE: all ksw extension aligner calls clear out ez 
   // *internally*.  This is why we do not need to (and do not)
@@ -225,11 +227,11 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                 target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
-                config_.end_bonus, config_.flag, ez);
+                config_.end_bonus, config_.flag, ez, cutoff);
   } else if (haveSSE2) {
     ksw_extz2_sse2(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                   target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
-                  config_.end_bonus, config_.flag, ez);
+                  config_.end_bonus, config_.flag, ez, cutoff);
   } else {
     std::abort();
   }
@@ -242,7 +244,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
                             const int targetLength,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
   return this->operator()(queryOriginal, queryLength, targetOriginal,
-                          targetLength, &result_,
+                          targetLength, &result_, std::numeric_limits<int>::min(),
                           EnumToType<KSW2AlignmentType::EXTENSION>());
 }
 
@@ -254,7 +256,7 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   switch (config_.atype) {
   case KSW2AlignmentType::EXTENSION:
     ret = this->operator()(queryOriginal, queryLength, targetOriginal,
-                           targetLength, &result_,
+                           targetLength, &result_, std::numeric_limits<int>::min(),
                            EnumToType<KSW2AlignmentType::EXTENSION>());
     break;
   case KSW2AlignmentType::GLOBAL:
@@ -341,7 +343,7 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
   int ret{0};
   switch (config_.atype) {
   case KSW2AlignmentType::EXTENSION:
-    ret = this->operator()(query_, queryLength, target_, targetLength, &result_,
+    ret = this->operator()(query_, queryLength, target_, targetLength, &result_, std::numeric_limits<int>::min(),
                            EnumToType<KSW2AlignmentType::EXTENSION>());
     break;
   case KSW2AlignmentType::GLOBAL:
@@ -354,7 +356,7 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
 
 int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const uint8_t* const target_,
-                            const int targetLength, ksw_extz_t* ez,
+                            const int targetLength, ksw_extz_t* ez, int cutoff,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
   // NOTE: all ksw extension aligner calls clear out ez 
   // *internally*.  This is why we do not need to (and do not)
@@ -370,11 +372,11 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
   if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_, tlen, target_,
                 config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
-                ez);
+                ez, cutoff);
   } else if (haveSSE2) {
     ksw_extz2_sse2(kalloc_allocator_.get(), qlen, query_, tlen, target_,
                   config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
-                  ez);
+                  ez, cutoff);
   } else {
     std::abort();
   }
@@ -385,7 +387,7 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
                             const uint8_t* const target_,
                             const int targetLength,
                             EnumToType<KSW2AlignmentType::EXTENSION>) {
-  return this->operator()(query_, queryLength, target_, targetLength, &result_,
+  return this->operator()(query_, queryLength, target_, targetLength, &result_, std::numeric_limits<int>::min(),
                           EnumToType<KSW2AlignmentType::EXTENSION>());
 }
 

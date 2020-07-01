@@ -320,8 +320,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
       nonstd::string_view readSeq = readView.substr(readOffset);
       ksw_reset_extz(&ez);
+      auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1);
       aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
-              refSeqBuffer_.length(), &ez,
+              refSeqBuffer_.length(), &ez, cutoff,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
       // if we allow softclipping of overhaning bases, then we only care about
       // the best score to the end of the query or the end of the reference.
@@ -385,10 +386,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           
           ksw_reset_extz(&ez);
           bandwidth = maxAllowedGaps(0, 0) + 1;
+          auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1);
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refSeqBuffer_.length(), &ez,
+                  refSeqBuffer_.length(), &ez, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          
+          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
+          if (ez.mqe != KSW_NEG_INF and ez.stopped>0) ez.stopped = 0;
+
           // If we are doing approximate soft clipping, then we will retain the
           // higher of the two scores between extending the alignment before the
           // first MEM, or simply soft clipping the part of the alignment before
@@ -482,7 +486,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       int32_t prevMemEnd_read = firstMemStart_read - 1; //isFw ? rpos : readLen - (rpos + memlen);
       int32_t prevMemEnd_ref = tpos - 1;
       if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
-        hctr.not_alignable_skips += 1;
+        hctr.skippedAlignments_notAlignable += 1;
         ez.stopped = 1;
         SPDLOG_DEBUG(logger_,"ez stopped");
       }
@@ -579,7 +583,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         alignmentScore += score;
 
         if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
-          hctr.not_alignable_skips += 1;
+          hctr.skippedAlignments_notAlignable += 1;
           ez.stopped = 1;
           SPDLOG_DEBUG(logger_,"ez stopped");
         }
@@ -617,10 +621,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
         if (refLen > 0) {
           ksw_reset_extz(&ez);
+          auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * (readWindow.length()-1);
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refLen, &ez,
+                  refLen, &ez, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          
+          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
+          if (ez.mqe != KSW_NEG_INF) ez.stopped = 0;
           // we start out with the score we obtain if we extend all the
           // way to the end of the **query**.  This is the max score we can
           // get by either

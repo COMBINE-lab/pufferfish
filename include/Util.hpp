@@ -1231,11 +1231,7 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> numDovetails{0};
             std::atomic<uint64_t> tooShortReads{0};
 
-            std::atomic<uint64_t> between_aligner_calls_count{0};
-            std::atomic<uint64_t> begin_aligner_calls_count{0};
-            std::atomic<uint64_t> end_aligner_calls_count{0};
-            std::atomic<uint64_t> not_alignable_skips{0};
-            std::atomic<uint64_t> stopped_count{0};
+            std::atomic<uint64_t> skippedAlignments_notAlignable{0};
             std::atomic<uint64_t> skippedAlignments_byCache{0};
             std::atomic<uint64_t> skippedAlignments_byCov{0};
             std::atomic<uint64_t> totalAlignmentAttempts{0};
