@@ -85,6 +85,7 @@ public:
 
   bool alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo>& mems, uint64_t queryChainHash, bool perfectChain, bool isFw, size_t tid, AlnCacheMap& alnCache, HitCounters& hctr, AlignmentResult& arOut, bool verbose);
 
+  int32_t align_ungapped(const char* const query, const char* const target, int len);
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
 
   void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}

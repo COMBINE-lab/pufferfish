@@ -125,6 +125,20 @@ bool fillRefSeqBufferReverse(compact::vector<uint64_t, 2> &refseq, uint64_t refA
   return true;
 }
 
+
+// Ungapped Alignment of two sequences with the same length 
+int32_t PuffAligner::align_ungapped(const char* const query, const char* const target, int32_t len) {
+  int32_t score = 0;
+  bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+  auto& cigarGen = cigarGen_;
+  for (int32_t i = 0; i < len; i++) {
+    if (computeCIGAR) cigarGen.add_item(1, 'M');
+    if (query[i] != 'N' and target[i] != 'N')
+      score += query[i] == target[i] ? mopts.matchScore : mopts.missMatchPenalty;
+  }
+  return score;
+}
+
 /**
  *  Align the read `original_read`, whose mems consist of `mems` against the index and return the result
  *  in `arOut`.  How the alignment is computed (i.e. full vs between-mem and CIGAR vs. score only) depends
@@ -211,9 +225,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   }
 
   auto& bandwidth = aligner.config().bandwidth;
-
   libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
   const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length()); //mopts.minScoreFraction * mopts.matchScore * readLen;
+  uint32_t minLengthGapRequired = ( 2 * (mopts.gapOpenPenalty + mopts.gapExtendPenalty) + mopts.matchScore ) / (mopts.matchScore - mopts.missMatchPenalty);
   // compute the maximum gap length that would be allowed given the length of read aligned so far and the current 
   // alignment score.
   auto maxAllowedGaps = [&minAcceptedScore, &readLen, &gapExtDivisor, this] (uint32_t alignedLen, int32_t alignmentScore) -> int {
@@ -535,14 +549,18 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                          "\t\t tseq was not long enough; need to fetch more!");
           }
 
-          ksw_reset_extz(&ez);
-          bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
-          score += aligner(
+          if (readWindow.length() <= minLengthGapRequired and gapRead == gapRef) {
+            score += align_ungapped(readWindow.data(), refSeq1, gapRead);
+          } else {
+            ksw_reset_extz(&ez);
+            bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
+            score += aligner(
               readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
               
-          if (computeCIGAR) {
-            addCigar(cigarGen, ez, false);
+            if (computeCIGAR) {
+              addCigar(cigarGen, ez, false);
+            }
           }
         } else if (it > mems.begin() and
                    ((currMemStart_read <= prevMemEnd_read) or
