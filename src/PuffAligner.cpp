@@ -227,7 +227,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto& bandwidth = aligner.config().bandwidth;
   libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
   const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length()); //mopts.minScoreFraction * mopts.matchScore * readLen;
-  uint32_t minLengthGapRequired = ( 2 * (mopts.gapOpenPenalty + mopts.gapExtendPenalty) + mopts.matchScore ) / (mopts.matchScore - mopts.missMatchPenalty);
+  uint32_t minLengthGapRequired = mopts.matchScore - mopts.missMatchPenalty > 0 ?
+                                  static_cast<uint32_t>( 2 * (mopts.gapOpenPenalty + mopts.gapExtendPenalty) + mopts.matchScore ) / (mopts.matchScore - mopts.missMatchPenalty) : 0;
   // compute the maximum gap length that would be allowed given the length of read aligned so far and the current 
   // alignment score.
   auto maxAllowedGaps = [&minAcceptedScore, &readLen, &gapExtDivisor, this] (uint32_t alignedLen, int32_t alignmentScore) -> int {
