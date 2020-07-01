@@ -32,7 +32,7 @@ struct ScoreStatus {
     maxObservedDecoyScore = KSW_NEG_INF;
   }
 
-  int32_t minAcceptedScore(int32_t readlen) { return minScoreFraction * matchScore * readlen; }
+  int32_t minAcceptedScore(int32_t readlen) { return static_cast<int32_t>(std::floor(minScoreFraction * matchScore * readlen)); }
 
   int32_t getCutoff(int32_t retadlen) { return std::max(std::max(maxObservedScore, maxObservedDecoyScore), minAcceptedScore(retadlen)); }
 

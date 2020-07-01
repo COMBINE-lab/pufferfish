@@ -348,7 +348,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
       nonstd::string_view readSeq = readView.substr(readOffset);
       ksw_reset_extz(&ez);
-      auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1);
+      auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
       aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
               refSeqBuffer_.length(), &ez, cutoff,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -414,7 +414,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           
           ksw_reset_extz(&ez);
           bandwidth = maxAllowedGaps(0, 0) + 1;
-          auto cutoff = minAcceptedScore - mopts.matchScore * (read.length()-1);
+          auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
                   refSeqBuffer_.length(), &ez, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -653,7 +653,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
         if (refLen > 0) {
           ksw_reset_extz(&ez);
-          auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * (readWindow.length()-1);
+          auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * readWindow.length();
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
                   refLen, &ez, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -773,7 +773,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     auto threshold = [&, optFrac] (uint64_t len) -> double {
-        return (!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
+        return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
 
@@ -853,7 +853,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     auto threshold = [&, optFrac] (uint64_t len) -> double {
-        return (!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len;
+        return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
 
