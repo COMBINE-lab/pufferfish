@@ -134,7 +134,7 @@ int32_t PuffAligner::align_ungapped(const char* const query, const char* const t
   for (int32_t i = 0; i < len; i++) {
     if (computeCIGAR) cigarGen.add_item(1, 'M');
     if (query[i] != 'N' and target[i] != 'N')
-      score += query[i] == target[i] ? mopts.matchScore : mopts.missMatchPenalty;
+      score += query[i] == target[i] ? mopts.matchScore : mopts.mismatchPenalty;
   }
   return score;
 }
@@ -182,6 +182,21 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto readLen = read.length();
   auto tpos = frontMem.tpos;
 
+
+  if (perfectChain) {
+    arOut.score = alignmentScore = readLen * mopts.matchScore;
+    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    hctr.skippedAlignments_byCov += 1;
+    SPDLOG_DEBUG(logger_,"[[");
+    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
+    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
+    arOut.cigar = cigar;
+    arOut.openGapLen = openGapLen;
+    return true;
+  }
+
+
   // do full alignment if we are in that mode, or if the
   // current read was recovered via orphan recovery.
   // @mohsen & @fataltes : we need a better signal than memlen == 1
@@ -227,8 +242,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto& bandwidth = aligner.config().bandwidth;
   libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
   const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length()); //mopts.minScoreFraction * mopts.matchScore * readLen;
-  uint32_t minLengthGapRequired = mopts.matchScore - mopts.missMatchPenalty > 0 ?
-                                  static_cast<uint32_t>( 2 * (mopts.gapOpenPenalty + mopts.gapExtendPenalty) + mopts.matchScore ) / (mopts.matchScore - mopts.missMatchPenalty) : 0;
   // compute the maximum gap length that would be allowed given the length of read aligned so far and the current 
   // alignment score.
   auto maxAllowedGaps = [&minAcceptedScore, &readLen, &gapExtDivisor, this] (uint32_t alignedLen, int32_t alignmentScore) -> int {

@@ -862,7 +862,7 @@ Compile-time selection between list-like and map-like printing.
         int16_t matchScore;
         int16_t gapExtendPenalty;
         int16_t gapOpenPenalty;
-        int16_t missMatchPenalty;
+        int16_t mismatchPenalty;
         double minScoreFraction{0.0};
         bool mimicBT2{false};
         bool mimicBT2Strict{false};

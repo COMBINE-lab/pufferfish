@@ -113,7 +113,7 @@ void processReadsPair(paired_parser *parser,
     pufferfish::util::QueryCache qc;
 
     //Initialize aligner ksw
-    ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
+    ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->mismatchScore);
     ksw2pp::KSW2Config config;
 
     config.dropoff = -1;
@@ -151,7 +151,7 @@ void processReadsPair(paired_parser *parser,
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.noDovetail = mopts->noDovetail;
-    aconf.missMatchPenalty = mopts->missMatchScore;
+    aconf.mismatchPenalty = mopts->mismatchScore;
     aconf.bestStrata = mopts->bestStrata;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
 
@@ -580,7 +580,7 @@ void processReadsSingle(single_parser *parser,
     std::vector<pufferfish::util::MemCluster> all;
 
     //Initialize aligner ksw
-    ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->missMatchScore);
+    ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->mismatchScore);
     ksw2pp::KSW2Config config;
 
     config.dropoff = -1;
@@ -608,7 +608,7 @@ void processReadsSingle(single_parser *parser,
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
-    aconf.missMatchPenalty = mopts->missMatchScore;
+    aconf.mismatchPenalty = mopts->mismatchScore;
     aconf.bestStrata = mopts->bestStrata;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
 
