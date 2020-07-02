@@ -772,8 +772,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
     double optFrac{mopts.minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
-    auto threshold = [&, optFrac] (uint64_t len) -> double {
-        return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
+    auto threshold = [&, optFrac] (uint64_t len) -> int32_t {
+         return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
 
@@ -852,7 +852,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     double optFrac{mopts.minScoreFraction};
     bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
     bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
-    auto threshold = [&, optFrac] (uint64_t len) -> double {
+    auto threshold = [&, optFrac] (uint64_t len) -> int32_t {
         return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
     };
     constexpr const auto invalidScore = std::numeric_limits<decltype(ar_left.score)>::min();
