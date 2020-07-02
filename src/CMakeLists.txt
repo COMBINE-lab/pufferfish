@@ -114,6 +114,10 @@ if (FETCHED_TBB)
     add_dependencies(pufferfish libtbb)
 endif()
 
+if (FETCHED_TBB)
+    add_dependencies(pufferfish libtbb)
+endif()
+
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
