@@ -125,6 +125,20 @@ bool fillRefSeqBufferReverse(compact::vector<uint64_t, 2> &refseq, uint64_t refA
   return true;
 }
 
+
+// Ungapped Alignment of two sequences with the same length 
+int32_t PuffAligner::align_ungapped(const char* const query, const char* const target, int32_t len) {
+  int32_t score = 0;
+  bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+  auto& cigarGen = cigarGen_;
+  for (int32_t i = 0; i < len; i++) {
+    if (computeCIGAR) cigarGen.add_item(1, 'M');
+    if (query[i] != 'N' and target[i] != 'N')
+      score += query[i] == target[i] ? mopts.matchScore : mopts.mismatchPenalty;
+  }
+  return score;
+}
+
 /**
  *  Align the read `original_read`, whose mems consist of `mems` against the index and return the result
  *  in `arOut`.  How the alignment is computed (i.e. full vs between-mem and CIGAR vs. score only) depends
@@ -167,6 +181,21 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto memlen = frontMem.extendedlen;
   auto readLen = read.length();
   auto tpos = frontMem.tpos;
+
+
+  if (perfectChain) {
+    arOut.score = alignmentScore = readLen * mopts.matchScore;
+    if (computeCIGAR) { cigarGen.add_item(readLen, 'M'); }
+    hctr.skippedAlignments_byCov += 1;
+    SPDLOG_DEBUG(logger_,"[[");
+    SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
+    SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
+    arOut.cigar = cigar;
+    arOut.openGapLen = openGapLen;
+    return true;
+  }
+
 
   // do full alignment if we are in that mode, or if the
   // current read was recovered via orphan recovery.
@@ -211,14 +240,16 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   }
 
   auto& bandwidth = aligner.config().bandwidth;
-
   libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
-  const int32_t minAcceptedScore = mopts.minScoreFraction * mopts.matchScore * readLen;
+  const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length()); //mopts.minScoreFraction * mopts.matchScore * readLen;
   // compute the maximum gap length that would be allowed given the length of read aligned so far and the current 
   // alignment score.
   auto maxAllowedGaps = [&minAcceptedScore, &readLen, &gapExtDivisor, this] (uint32_t alignedLen, int32_t alignmentScore) -> int {
     int maxAllowedGaps = (alignmentScore + static_cast<int32_t>(mopts.matchScore) * static_cast<int32_t>(readLen - alignedLen) - minAcceptedScore - static_cast<int32_t>(mopts.gapOpenPenalty)) / gapExtDivisor;
     return std::max(maxAllowedGaps + 1, 1);                                                                       
+  };
+  auto alignable = [&minAcceptedScore, &readLen] (uint32_t alignedLen, uint32_t matchScore, int32_t alignmentScore) -> bool {
+    return minAcceptedScore <= alignmentScore + static_cast<int32_t>(matchScore*(readLen-alignedLen));
   };
 
   const auto& lastMem = mems.back();
@@ -316,8 +347,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       // part of the read before the start of the reference
       decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
       nonstd::string_view readSeq = readView.substr(readOffset);
+      ksw_reset_extz(&ez);
+      auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
       aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
-              refSeqBuffer_.length(), &ez,
+              refSeqBuffer_.length(), &ez, cutoff,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
       // if we allow softclipping of overhaning bases, then we only care about
       // the best score to the end of the query or the end of the reference.
@@ -379,11 +412,15 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           SPDLOG_DEBUG(logger_, "refWindowLength : {}\nread : [{}]\nref : [{}]",
                        refWindowLength, readWindow, refSeqBuffer_);
           
+          ksw_reset_extz(&ez);
           bandwidth = maxAllowedGaps(0, 0) + 1;
+          auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refSeqBuffer_.length(), &ez,
+                  refSeqBuffer_.length(), &ez, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          
+          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
+          if (ez.mqe != KSW_NEG_INF and ez.stopped>0) ez.stopped = 0;
+
           // If we are doing approximate soft clipping, then we will retain the
           // higher of the two scores between extending the alignment before the
           // first MEM, or simply soft clipping the part of the alignment before
@@ -474,12 +511,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         }
       }
 
-      int32_t prevMemEnd_read = isFw ? rpos : readLen - (rpos + memlen);
-      int32_t prevMemEnd_ref = tpos;
+      int32_t prevMemEnd_read = firstMemStart_read - 1; //isFw ? rpos : readLen - (rpos + memlen);
+      int32_t prevMemEnd_ref = tpos - 1;
+      if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
+        hctr.skippedAlignments_notAlignable += 1;
+        ez.stopped = 1;
+        SPDLOG_DEBUG(logger_,"ez stopped");
+      }
 
       SPDLOG_DEBUG(logger_, "\t Aligning through MEM chain : ");
       // for the second through the last mem
-      for (auto it = mems.begin(); it != mems.end(); ++it) {
+      for(auto it = mems.begin(); it != mems.end() and !ez.stopped; ++it) {
         auto& mem = *it;
         rpos = mem.rpos;
         memlen = mem.extendedlen;
@@ -520,14 +562,19 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
             SPDLOG_DEBUG(logger_,
                          "\t\t tseq was not long enough; need to fetch more!");
           }
-          
-          bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
-          score += aligner(
+
+          if (readWindow.length() <= minLengthGapRequired and gapRead == gapRef) {
+            score += align_ungapped(readWindow.data(), refSeq1, gapRead);
+          } else {
+            ksw_reset_extz(&ez);
+            bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
+            score += aligner(
               readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
               
-          if (computeCIGAR) {
-            addCigar(cigarGen, ez, false);
+            if (computeCIGAR) {
+              addCigar(cigarGen, ez, false);
+            }
           }
         } else if (it > mems.begin() and
                    ((currMemStart_read <= prevMemEnd_read) or
@@ -567,6 +614,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         prevMemEnd_ref = tpos + memlen - 1;
         alignmentScore += score;
 
+        if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
+          hctr.skippedAlignments_notAlignable += 1;
+          ez.stopped = 1;
+          SPDLOG_DEBUG(logger_,"ez stopped");
+        }
       }
 
       // If we got to the end, and there is a read gap left, then align that as
@@ -575,7 +627,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                    prevMemEnd_read, readLen);
       bool gapAtEnd =
           (prevMemEnd_read + 1) <= (static_cast<int32_t>(readLen) - 1);
-      if (gapAtEnd) {
+      if (gapAtEnd and !ez.stopped) {
         int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
         int32_t refTailStart = prevMemEnd_ref + 1;
         bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
@@ -600,10 +652,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                      gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
 
         if (refLen > 0) {
+          ksw_reset_extz(&ez);
+          auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * readWindow.length();
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refLen, &ez,
+                  refLen, &ez, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          
+          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
+          if (ez.mqe != KSW_NEG_INF) ez.stopped = 0;
           // we start out with the score we obtain if we extend all the
           // way to the end of the **query**.  This is the max score we can
           // get by either

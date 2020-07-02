@@ -66,7 +66,7 @@ public:
 
   int operator()(const char* const queryOriginal, const int queryLength,
                  const char* const targetOriginal, const int targetLength,
-                 ksw_extz_t* ez, EnumToType<KSW2AlignmentType::EXTENSION>);
+                 ksw_extz_t* ez, int cutoff, EnumToType<KSW2AlignmentType::EXTENSION>);
 
   int operator()(const uint8_t* const queryOriginal, const int queryLength,
                  const uint8_t* const targetOriginal, const int targetLength,
@@ -74,7 +74,7 @@ public:
 
   int operator()(const uint8_t* const queryOriginal, const int queryLength,
                  const uint8_t* const targetOriginal, const int targetLength,
-                 ksw_extz_t* ez, EnumToType<KSW2AlignmentType::EXTENSION>);
+                 ksw_extz_t* ez, int cutoff, EnumToType<KSW2AlignmentType::EXTENSION>);
 
   /**
    * Variants of the operator that do not require an output

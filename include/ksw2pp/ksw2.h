@@ -22,6 +22,7 @@ extern "C" {
 
 typedef struct {
 	uint32_t max:31, zdropped:1;
+	int64_t stopped;
 	int max_q, max_t;      // max extension coordinate
 	int mqe, mqe_t;        // max score when reaching the end of query
 	int mte, mte_q;        // max score when reaching the end of target
@@ -29,9 +30,9 @@ typedef struct {
 	int m_cigar, n_cigar;
 	int reach_end;
 	uint32_t *cigar;
-  int n_cigar1, n_cigar2, n_cigar3;
-  int m_cigar1, m_cigar2, m_cigar3;
-  uint32_t *cigar1, *cigar2, *cigar3;
+//  int n_cigar1, n_cigar2, n_cigar3;
+//  int m_cigar1, m_cigar2, m_cigar3;
+//  uint32_t *cigar1, *cigar2, *cigar3;
   int score_only;
 } ksw_extz_t;
 
@@ -56,11 +57,11 @@ void ksw_extz(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t 
 			  int8_t q, int8_t e, int w, int zdrop, int flag, ksw_extz_t *ez);
 
 void ksw_extz2_sse(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-				   int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez);
+				   int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff);
 void ksw_extz2_sse41(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez);
+           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff);
 void ksw_extz2_sse2(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez);
+           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff);
 
 
 void ksw_extd(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
@@ -175,6 +176,7 @@ static inline void ksw_reset_extz(ksw_extz_t *ez)
 	ez->max_q = ez->max_t = ez->mqe_t = ez->mte_q = -1;
 	ez->max = 0, ez->score = ez->mqe = ez->mte = KSW_NEG_INF;
 	ez->n_cigar = 0, ez->zdropped = 0, ez->reach_end = 0;
+        ez->stopped = 0;
 }
 
 static inline int ksw_apply_zdrop(ksw_extz_t *ez, int is_rot, int32_t H, int a, int b, int zdrop, int8_t e)

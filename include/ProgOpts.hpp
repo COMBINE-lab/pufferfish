@@ -94,7 +94,7 @@ public:
   int32_t gapOpenPenalty{5};
   int32_t gapExtendPenalty{3};
   int32_t matchScore{2};
-  int32_t missMatchScore{-4};
+  int32_t mismatchScore{-4};
   uint32_t refExtendLength{20};
   double minScoreFraction{0.65};
   bool fullAlignment{false};
