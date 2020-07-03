@@ -116,6 +116,9 @@ public:
   bool allowSoftclip{false};
   bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
+  double preMergeChainSubThresh{0.9};
+  double postMergeChainSubThresh{0.9};
+  double orphanChainSubThresh{1};
 };
 }
 

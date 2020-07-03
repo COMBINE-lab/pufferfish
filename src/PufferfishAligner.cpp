@@ -93,6 +93,7 @@ void processReadsPair(paired_parser *parser,
     memCollector.configureMemClusterer(mopts->maxAllowedRefsPerHit);
     memCollector.setConsensusFraction(mopts->consensusFraction);
     memCollector.setAltSkip(mopts->altSkip);
+    memCollector.setChainSubOptThresh(mopts->preMergeChainSubThresh);
 
     auto logger = spdlog::get("console");
     fmt::MemoryWriter sstream;
@@ -161,10 +162,14 @@ void processReadsPair(paired_parser *parser,
     using pufferfish::util::BestHitReferenceType;
     BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};
     BestHitReferenceType hitRefType{BestHitReferenceType::UNKNOWN};
+
     pufferfish::util::MappingConstraintPolicy mpol;
     mpol.noDiscordant = mopts->noDiscordant;
     mpol.noOrphans = mopts->noOrphan;
     mpol.noDovetail = mopts->noDovetail;
+    mpol.setPostMergeChainSubThresh(mopts->postMergeChainSubThresh);
+    mpol.setOrphanChainSubThresh(mopts->orphanChainSubThresh);
+
     uint64_t firstDecoyIndex = pfi.firstDecoyIndex();
 
     //For filtering reads
@@ -818,7 +823,7 @@ void processReadsSingle(single_parser *parser,
             }
 
             // write them on cmd
-            if (hctr.numReads > hctr.lastPrint + 1000000) {
+            if (hctr.numReads > hctr.lastPrint + 100000) {
                 hctr.lastPrint.store(hctr.numReads.load());
                 if (!mopts->quiet and iomutex->try_lock()) {
                     if (hctr.numReads > 0) {
