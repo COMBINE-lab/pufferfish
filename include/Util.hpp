@@ -397,12 +397,19 @@ Compile-time selection between list-like and map-like printing.
         std::vector<uint32_t> cigar_counts;
         std::string cigar_types;
         int32_t begin_softclip_len{0}, end_softclip_len{0};
+        uint32_t cigar_length = 0;
+        uint32_t gap_penalty = 0;
+        uint32_t gap_length = 0;
+        uint32_t go, ge, m, mm;
         bool beginOverhang{false}, endOverhang{false};
-        bool allowOverhangSoftClip{false};
+        bool allowOverhangSoftclip{false};
 
         void clear() {
           cigar_counts.clear(); cigar_types.clear();
           begin_softclip_len = end_softclip_len = 0;
+          cigar_length = 0;
+          gap_penalty = 0;
+          gap_length = 0;
           beginOverhang = endOverhang = false;
         }
 
@@ -414,17 +421,77 @@ Compile-time selection between list-like and map-like printing.
         void get_approx_cigar(int32_t readLen, std::string& cigar) {
           if (begin_softclip_len > 0) {
             cigar += std::to_string(begin_softclip_len);
-            cigar += beginOverhang and allowOverhangSoftClip ? "I" : "S";
+            cigar += beginOverhang and allowOverhangSoftclip ? "I" : "S";
           }
           cigar += std::to_string(readLen - (begin_softclip_len + end_softclip_len));
           cigar += "M";
           if (end_softclip_len > 0) {
             cigar += std::to_string(end_softclip_len);
-            cigar += endOverhang and allowOverhangSoftClip ? "I" : "S";
+            cigar += endOverhang and allowOverhangSoftclip ? "I" : "S";
           }
         }
 
-        std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
+        void remove_match(uint32_t count) {
+          if (cigar_types[cigar_types.size()-1] == 'M')
+            cigar_counts[cigar_counts.size()-1] -= count;
+        }
+
+        uint32_t lastMatchLen() {
+          return cigar_types[cigar_types.size()-1] == 'M' ?
+                  cigar_counts[cigar_counts.size()-1] : -1;
+        }
+
+        std::string get_cigar() {
+          std::string cigar = "";
+          if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
+            return "!";
+          }
+
+          cigar_length = 0;
+          gap_penalty = 0;
+          gap_length = 0;
+          uint32_t count = 0;
+          char type = 0;
+
+          if (begin_softclip_len > 0) {
+            cigar += std::to_string(begin_softclip_len);
+            cigar += "S";
+            cigar_length += begin_softclip_len;
+          }
+
+          for (size_t i = 0; i < cigar_counts.size(); i++) {
+            if (cigar_types[i] == 'I' or cigar_types[i] == 'M')
+              cigar_length += cigar_counts[i];
+            if (type == cigar_types[i] or i == 0) {
+              count += cigar_counts[i];
+              if (i == 0) type = cigar_types[i];
+            } else {
+              if (type == 'I' or type == 'D') {
+                gap_penalty += go + count*ge;
+                gap_length += count;
+                if (type == 'I') gap_penalty += m*count;
+              }
+              cigar += std::to_string(count);
+              cigar += type;
+              count = cigar_counts[i];
+              type = cigar_types[i];
+            }
+          }
+          if (type == 'I' or type == 'D'){
+            gap_penalty += go + count*ge;
+            gap_length += count;
+            if (type == 'I') gap_penalty += m*count;
+          }
+          cigar += std::to_string(count);
+          cigar += type;
+          if (end_softclip_len > 0) {
+            cigar += std::to_string(end_softclip_len);
+            cigar += "S";
+            cigar_length += end_softclip_len;
+          }
+          return cigar;
+        }
+        /*std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
           cigar_fixed = false;
           std::string cigar = "";
           if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
@@ -478,7 +545,7 @@ Compile-time selection between list-like and map-like printing.
             }
           }
           return cigar;
-        }
+        }*/
       };
 
         //Mapped object contains all the information
@@ -1235,7 +1302,6 @@ Compile-time selection between list-like and map-like printing.
             std::atomic<uint64_t> skippedAlignments_byCache{0};
             std::atomic<uint64_t> skippedAlignments_byCov{0};
             std::atomic<uint64_t> totalAlignmentAttempts{0};
-            std::atomic<uint64_t> cigar_fixed_count{0};
         };
 
         struct ContigBlock {

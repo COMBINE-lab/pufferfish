@@ -119,6 +119,7 @@ public:
   double preMergeChainSubThresh{0.9};
   double postMergeChainSubThresh{0.9};
   double orphanChainSubThresh{1};
+  bool computeCIGAR{false};
 };
 }
 

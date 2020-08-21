@@ -92,7 +92,7 @@ public:
   bool recoverSingleOrphan(std::string& rl, std::string& rr, pufferfish::util::MemCluster& clust, std::vector<pufferfish::util::MemCluster> &recoveredMemClusters, uint32_t tid, bool anchorIsLeft, bool verbose);
 
   void clearAlnCaches() {alnCacheLeft.clear(); alnCacheRight.clear();}
-  void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear();  read_left_rc_.clear(); read_right_rc_.clear(); ksw_reset_extz(&ez); }
+  void clear() {clearAlnCaches(); orphanRecoveryMemCollection.clear(); read_left_rc_.clear(); read_right_rc_.clear(); ksw_reset_extz(&ez);}
 
   ScoreStatus getScoreStatus() { return scoreStatus_; }
   std::vector<pufferfish::util::UniMemInfo> orphanRecoveryMemCollection;

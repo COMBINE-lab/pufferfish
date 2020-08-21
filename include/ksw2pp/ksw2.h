@@ -57,11 +57,11 @@ void ksw_extz(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t 
 			  int8_t q, int8_t e, int w, int zdrop, int flag, ksw_extz_t *ez);
 
 void ksw_extz2_sse(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-				   int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff);
+				   int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftclip, int cutoff);
 void ksw_extz2_sse41(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff);
+           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftclip, int cutoff);
 void ksw_extz2_sse2(/*unsigned int simd, */void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,
-           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff);
+           int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, uint32_t allowOverhangSoftclip, int cutoff);
 
 
 void ksw_extd(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat,

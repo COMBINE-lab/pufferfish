@@ -123,7 +123,8 @@ void processReadsPair(paired_parser *parser,
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    config.flag |= KSW_EZ_SCORE_ONLY;
+    if (!mopts->computeCIGAR)
+      config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
@@ -148,7 +149,11 @@ void processReadsPair(paired_parser *parser,
     aconf.mimicBT2 = mopts->mimicBt2Default;
     aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.allowSoftclip = mopts->allowSoftclip;
-    aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    aconf.alignmentMode = mopts->noOutput or (!mopts->computeCIGAR and !mopts->allowSoftclip)
+                          ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY :
+                            ( mopts->computeCIGAR
+                              ? pufferfish::util::PuffAlignmentMode::EXACT_CIGAR
+                              : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR);
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.noDovetail = mopts->noDovetail;
@@ -594,7 +599,8 @@ void processReadsSingle(single_parser *parser,
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    config.flag |= KSW_EZ_SCORE_ONLY;
+    if (!mopts->computeCIGAR)
+      config.flag |= KSW_EZ_SCORE_ONLY;
     aligner.config() = config;
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
@@ -611,7 +617,11 @@ void processReadsSingle(single_parser *parser,
     aconf.mimicBT2 = mopts->mimicBt2Default;
     aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.allowSoftclip = mopts->allowSoftclip;
-    aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    aconf.alignmentMode = mopts->noOutput or (!mopts->computeCIGAR and !mopts->allowSoftclip)
+                          ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY :
+                            ( mopts->computeCIGAR
+                              ? pufferfish::util::PuffAlignmentMode::EXACT_CIGAR
+                              : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR);
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.mismatchPenalty = mopts->mismatchScore;
     aconf.bestStrata = mopts->bestStrata;
@@ -955,8 +965,6 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("Number of skipped alignments because of cache hits : {}", hctrs.skippedAlignments_byCache);
     consoleLog->info("Number of skipped alignments because of perfect chains : {}", hctrs.skippedAlignments_byCov);
     consoleLog->info("Number of alignments calculations skipped by non-alignable: {}", hctrs.skippedAlignments_notAlignable);
-
-    consoleLog->info("Number of cigar strings which are fixed: {}", hctrs.cigar_fixed_count);
     consoleLog->info("=====");
 }
 
