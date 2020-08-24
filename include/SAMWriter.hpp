@@ -89,6 +89,27 @@ inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, bool peInp
 }
 
 template <typename IndexT>
+inline void writeRADHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts) {
+  BinWriter bw(100000);
+  bw << !mopts->singleEnd; // isPaired (bool)
+  auto& txpNames = pfi.getFullRefNames();
+  // TODO: Determine which ref lengths we should use here
+  auto& txpLens = pfi.getFullRefLengths();
+  auto numRef = txpNames.size();
+  bw << static_cast<uint64_t>(numRef); // refCount (size_t)
+  std::cerr << "is paired: " << !mopts->singleEnd << "\n";
+  std::cerr << "numRef: " << numRef << "\n";
+            
+  for (size_t i = 0; i < numRef; ++i) {
+    bw << txpNames[i] << txpLens[i]; //txpName (string) , txpLength (size_t)
+  }
+  bw << static_cast<uint64_t>(0); // numChunks
+  out->info("{}",bw);
+}
+
+
+
+template <typename IndexT>
 inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts) {
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)

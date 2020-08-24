@@ -1039,8 +1039,10 @@ bool alignReads(
             outLog->set_pattern("%v");
         }
         // write the SAM Header
-        // If nothing gets printed by this time we are in trouble
-        if (mopts->krakOut || mopts->salmonOut) {
+        // If nothing gets printed by this time we are in troubleR
+        if (mopts->radOut) {
+            writeRADHeader(pfi, outLog, mopts);
+        } else if (mopts->krakOut || mopts->salmonOut) {
             writeKrakOutHeader(pfi, outLog, mopts);
         } else { //TODO do we need to remove the txp from the list? The ids are then invalid
             writeSAMHeader(pfi, outLog,
