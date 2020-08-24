@@ -84,6 +84,7 @@ public:
   bool justMap{false};
   bool krakOut{false};
   bool salmonOut{false};
+  bool radOut{false};
   bool noDiscordant{false};
   bool noOrphan{false};
   bool noDovetail{false};

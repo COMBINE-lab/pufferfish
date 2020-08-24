@@ -247,6 +247,8 @@ int main(int argc, char* argv[]) {
                     (option("--noDovetail").set(alignmentOpt.noDovetail, true)) % "Disallow dovetail alignment for paired end reads",
 		            (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
                     (
+                      (option("-r", "--radOut").set(alignmentOpt.radOut, true)) % "Write output in the format required for krakMap"
+                      |
                       (option("-k", "--krakOut").set(alignmentOpt.krakOut, true)) % "Write output in the format required for krakMap"
                       |
                       (option("-p", "--pam").set(alignmentOpt.salmonOut, true)) % "Write output in the format required for salmon"
