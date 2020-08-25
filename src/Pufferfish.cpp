@@ -140,6 +140,8 @@ int main(int argc, char* argv[]) {
                     (required("-r", "--ref") & values(ensure_file_exists, "ref_file", indexOpt.rfile)) % "path to the reference fasta file",
                     (required("-o", "--output") & value("output_dir", indexOpt.outdir)) % "directory where index is written",
                     //(required("-g", "--gfa") & value("gfa_file", indexOpt.gfa_file)) % "path to the GFA file",
+                    (option("--expectTranscriptome").set(indexOpt.expect_transcriptome) % 
+                    "expect (non-decoy) sequences to be transcripts rather than genomic contigs"),
                     (option("--headerSep") & value("sep_strs", indexOpt.header_sep)) %
                     "Instead of a space or tab, break the header at the first "
                     "occurrence of this string, and name the transcript as the token before "

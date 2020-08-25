@@ -26,6 +26,7 @@ public:
   bool buildEdgeVec{false};
   bool buildEqCls{false};
   bool featuresRef{false};
+  bool expect_transcriptome{false};
   std::string twopaco_tmp_dir{""};
 };
 
