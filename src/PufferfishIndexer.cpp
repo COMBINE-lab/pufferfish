@@ -416,6 +416,9 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     if (indexOpts.keep_duplicates) {
       args.push_back("--keepDuplicates");
     }
+    if (indexOpts.expect_transcriptome) {
+      args.push_back("--expectTranscriptome");
+    }
     args.push_back("--klen");
     args.push_back(std::to_string(k));
     args.push_back("--input");

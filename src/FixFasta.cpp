@@ -33,7 +33,7 @@ bool fixFasta(single_parser* parser,
               // std::string& outputDir,
               spp::sparse_hash_set<std::string>& decoyNames,
               bool keepDuplicates, uint32_t k,
-              std::string& sepStr, std::mutex& iomutex,
+              std::string& sepStr, bool expect_transcriptome, std::mutex& iomutex,
               std::shared_ptr<spdlog::logger> log, std::string outFile,
               std::vector<uint32_t>& refIdExtensions,
               std::vector<std::pair<std::string, uint16_t>>& shortRefs) {
@@ -222,7 +222,7 @@ bool fixFasta(single_parser* parser,
 
           // If we're suspicious the user has fed in a *genome* rather
           // than a transcriptome, say so here.
-          if (readStr.size() >= tooLong and !isDecoy) {
+          if (readStr.size() >= tooLong and !isDecoy and expect_transcriptome) {
             log->warn("Entry with header [{}] was longer than {} nucleotides.  "
                       "This is probably a chromosome instead of a transcript.",
                       read.name, tooLong);
@@ -624,6 +624,7 @@ int fixFastaMain(std::vector<std::string>& args,
   std::string decoyFile;
   bool keepDuplicates{false};
   bool printHelp{false};
+  bool expect_transcriptome{false};
   std::string sepStr{" \t"};
 
   auto cli = (
@@ -634,6 +635,8 @@ int fixFastaMain(std::vector<std::string>& args,
               "Instead of a space or tab, break the header at the first "
               "occurrence of this string, and name the transcript as the token before "
               "the first separator (default = space & tab)",
+              option("--expectTranscriptome").set(expect_transcriptome) % 
+              "expect (non-decoy) sequences to be transcripts rather than genomic contigs",
               option("--decoys", "-d") & value("decoys", decoyFile) %
               "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
               option("--keepDuplicates").set(keepDuplicates) % "Retain duplicate references in the input",
@@ -675,8 +678,8 @@ int fixFastaMain(std::vector<std::string>& args,
       transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
       transcriptParserPtr->start();
       std::mutex iomutex;
-      fix_ok = fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, iomutex, log,
-                        outFile, refIdExtension, shortRefs);
+      fix_ok = fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, expect_transcriptome, 
+                        iomutex, log, outFile, refIdExtension, shortRefs);
       transcriptParserPtr->stop();
     }
 
