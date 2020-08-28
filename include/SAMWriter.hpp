@@ -94,6 +94,9 @@ inline void writeRADHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, puf
   writeKrakOutHeader(pfi, out, mopts);
   BulkTags bt(!mopts->singleEnd);
   auto bwOut = bt.export2Buffer();
+  bwOut << !mopts->noOrphan;
+  bwOut << !mopts->noDiscordant;
+  bwOut << !mopts->noDovetail;
   out->info("{}", bwOut);
 }
 

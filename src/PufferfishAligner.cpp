@@ -497,7 +497,7 @@ void processReadsPair(paired_parser *parser,
               if (mopts->krakOut) {
                 writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap);
                 alignmentStreamCount += jointHits.size();
-              } else if (mopts->salmonOut) {
+              } else if (mopts->salmonOut || mopts->radOut) {
                 writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap, false);
                 alignmentStreamCount += jointHits.size();
               } else if (jointAlignments.size() > 0) {
@@ -527,7 +527,7 @@ void processReadsPair(paired_parser *parser,
             bool last_read = (read_it + 1 == rg.end());
             if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
                 // Get rid of last newline
-                if (mopts->salmonOut) {
+                if (mopts->salmonOut || mopts->radOut) {
                     if (bstream.getBytes() != 0) {
                         BinWriter sbw(sizeof(uint64_t));
                         sbw << bstream.getBytes();
@@ -808,7 +808,7 @@ void processReadsSingle(single_parser *parser,
               writeAlignmentsToKrakenDump(read, formatter,
                                           validHits, bstream);
               alignmentStreamCount += validHits.size();
-            } else if (mopts->salmonOut) {
+            } else if (mopts->salmonOut || mopts->radOut) {
               writeAlignmentsToKrakenDump(read, formatter,
                                             validHits, bstream, false);
               alignmentStreamCount += validHits.size();
@@ -842,7 +842,7 @@ void processReadsSingle(single_parser *parser,
             bool last_read = (read_it + 1 == rg.end());
             if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
                 // Get rid of last newline
-                if (mopts->krakOut || mopts->salmonOut) {
+                if (mopts->krakOut || mopts->salmonOut || mopts->radOut) {
                     if (mopts->salmonOut && bstream.getBytes() > 0) {
                         BinWriter sbw(64);
                         sbw << bstream.getBytes();
@@ -1029,7 +1029,7 @@ bool alignReads(
         size_t queueSize{2*mopts->numThreads};
         spdlog::set_async_mode(queueSize);
 
-        if (mopts->krakOut || mopts->salmonOut) {
+        if (mopts->krakOut || mopts->salmonOut || mopts->radOut) {
             auto outputSink = std::make_shared<ostream_bin_sink_mt>(*outStream);
             outLog = std::make_shared<spdlog::logger>("puffer::outLog", outputSink);
             outLog->set_pattern("");
@@ -1042,7 +1042,7 @@ bool alignReads(
         // If nothing gets printed by this time we are in troubleR
         if (mopts->radOut) {
             writeRADHeader(pfi, outLog, mopts);
-        } else if (mopts->krakOut || mopts->salmonOut) {
+        } else if (mopts->krakOut || mopts->salmonOut || mopts->radOut) {
             writeKrakOutHeader(pfi, outLog, mopts);
         } else { //TODO do we need to remove the txp from the list? The ids are then invalid
             writeSAMHeader(pfi, outLog,
