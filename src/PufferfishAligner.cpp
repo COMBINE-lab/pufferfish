@@ -497,9 +497,12 @@ void processReadsPair(paired_parser *parser,
               if (mopts->krakOut) {
                 writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap);
                 alignmentStreamCount += jointHits.size();
-              } else if (mopts->salmonOut || mopts->radOut) {
+              } else if (mopts->salmonOut) {
                 writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap, false);
                 alignmentStreamCount += jointHits.size();
+              }  else if (mopts->radOut) {
+                writeAlignmentsToRADPair(rpair,  formatter,  jointAlignments, bstream, false);
+                alignmentStreamCount += jointAlignments.size();
               } else if (jointAlignments.size() > 0) {
                 writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
                 alignmentStreamCount += jointAlignments.size();
@@ -808,9 +811,13 @@ void processReadsSingle(single_parser *parser,
               writeAlignmentsToKrakenDump(read, formatter,
                                           validHits, bstream);
               alignmentStreamCount += validHits.size();
-            } else if (mopts->salmonOut || mopts->radOut) {
+            } else if (mopts->salmonOut) {
               writeAlignmentsToKrakenDump(read, formatter,
                                             validHits, bstream, false);
+              alignmentStreamCount += validHits.size();
+            } else if (mopts->radOut) {
+              writeAlignmentsToRADSingle(read, formatter,
+                                            jointAlignments, bstream, false);
               alignmentStreamCount += validHits.size();
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
@@ -1042,7 +1049,7 @@ bool alignReads(
         // If nothing gets printed by this time we are in troubleR
         if (mopts->radOut) {
             writeRADHeader(pfi, outLog, mopts);
-        } else if (mopts->krakOut || mopts->salmonOut || mopts->radOut) {
+        } else if (mopts->krakOut || mopts->salmonOut) {
             writeKrakOutHeader(pfi, outLog, mopts);
         } else { //TODO do we need to remove the txp from the list? The ids are then invalid
             writeSAMHeader(pfi, outLog,

@@ -262,6 +262,113 @@ inline void adjustOverhang(pufferfish::util::QuasiAlignment& qa, uint32_t txpLen
   }
 }
 
+
+
+// Write alignments in RAD format
+// dump paired end read
+template <typename ReadT , typename IndexT >
+inline uint32_t writeAlignmentsToRADSingle(ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, BinWriter& bstream, 
+    bool tidsAlreadyDecoded = false) {
+
+  auto& cigarStr = formatter.cigarStr1;
+
+  auto &readName = r.name;
+  //std::cout << readName << " || ";
+  // If the read name contains multiple space-separated parts,
+  // print only the first
+  size_t nameLen = readName.length();
+  size_t splitPos = readName.find(' ');
+  if (splitPos < readName.length()) {
+    readName[splitPos] = '\0';
+    nameLen = splitPos;
+  } else {
+    splitPos = readName.length();
+  } 
+  if (splitPos > 2 and readName[splitPos - 2] == '/') {
+    readName[splitPos - 2] = '\0';
+    nameLen = splitPos - 2;
+  }
+  bstream << stx::string_view(readName.data(), nameLen)
+          << jointHits.size()
+          << static_cast<rLenType>(r.seq.length()); 
+  // auto& fullRefNames = formatter.index->getFullRefNames();
+  auto& fullRefLengths = formatter.index->getFullRefLengths();
+  for (auto& qa : jointHits) {
+    
+    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+    // auto& refName = fullRefNames[encodedID];
+    uint32_t txpLen = fullRefLengths[encodedID];
+    // char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
+
+    // === SAM
+    adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr);
+    bstream   << static_cast<uint32_t>(encodedID)
+              << qa.pos + 1
+              << qa.fwd
+              << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar)  
+              << qa.score;
+    adjustOverhang(qa.matePos, qa.mateLen, txpLen, cigarStr);
+    bstream   << qa.matePos + 1
+              << qa.mateIsFwd
+              << (qa.mateCigar.empty() ? cigarStr.c_str() : qa.mateCigar)  
+              << qa.mateScore;
+  }
+  return 0;
+}
+
+template <typename ReadPairT, typename IndexT>
+inline uint32_t writeAlignmentsToRADPair(ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, BinWriter& bstream, 
+    bool tidsAlreadyDecoded = false) {
+
+  auto& cigarStr = formatter.cigarStr1;
+
+  auto &readName = r.first.name;
+  //std::cout << readName << " || ";
+  // If the read name contains multiple space-separated parts,
+  // print only the first
+  size_t nameLen = readName.length();
+  size_t splitPos = readName.find(' ');
+  if (splitPos < readName.length()) {
+    readName[splitPos] = '\0';
+    nameLen = splitPos;
+  } else {
+    splitPos = readName.length();
+  } 
+  if (splitPos > 2 and readName[splitPos - 2] == '/') {
+    readName[splitPos - 2] = '\0';
+    nameLen = splitPos - 2;
+  }
+  bstream << stx::string_view(readName.data(), nameLen)
+          << jointHits.size()
+          << static_cast<rLenType>(r.first.seq.length())
+          << static_cast<rLenType>(r.second.seq.length()); 
+  // auto& fullRefNames = formatter.index->getFullRefNames();
+  auto& fullRefLengths = formatter.index->getFullRefLengths();
+  for (auto& qa : jointHits) {
+    
+    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+    // auto& refName = fullRefNames[encodedID];
+    uint32_t txpLen = fullRefLengths[encodedID];
+    // char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
+
+    // === SAM
+    adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr);
+    bstream   << static_cast<uint32_t>(encodedID)
+              << qa.pos + 1
+              << qa.fwd
+              << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar)  
+              << qa.score;
+    adjustOverhang(qa.matePos, qa.mateLen, txpLen, cigarStr);
+    bstream   << qa.matePos + 1
+              << qa.mateIsFwd
+              << (qa.mateCigar.empty() ? cigarStr.c_str() : qa.mateCigar)  
+              << qa.mateScore;
+  }
+  return 0;
+}
+
 // dump paired end read
 template <typename ReadT , typename IndexT >
 inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,

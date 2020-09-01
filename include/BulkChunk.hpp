@@ -72,7 +72,10 @@ class BulkTags : public FileTags {
         readLevel.tags.emplace_back("readName", TypeId::STR);
         readLevel.tags.emplace_back("alignmentCnt", TypeId::U32);
         readLevel.tags.emplace_back("readLen", TypeId::U16);
-        
+        if (isPE) {
+            readLevel.tags.emplace_back("pairedReadLen", TypeId::U16);
+        }
+
         // alignment-level
         alignmentLevel.tags.emplace_back("refId", TypeId::STR);
         // single-end or left-end
