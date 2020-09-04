@@ -176,7 +176,7 @@ void processReadsPair(paired_parser *parser,
     bool verbose = mopts->verbose;
 //    auto &txpNames = pfi.getRefNames();
     uint32_t alignmentStreamLimit = mopts->alignmentStreamLimit;
-    uint32_t alignmentStreamCount{0};
+    uint32_t alignmentStreamCount{0}, chunkReads{0};
     while (parser->refill(rg)) {
         for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
             auto& rpair = *read_it;
@@ -187,7 +187,7 @@ void processReadsPair(paired_parser *parser,
             bool tooShortMate = mateLen < pfi.k();
 
             ++hctr.numReads;
-
+            chunkReads++;
             jointHits.clear();
             leftHits.clear();
             rightHits.clear();
@@ -530,12 +530,19 @@ void processReadsPair(paired_parser *parser,
             bool last_read = (read_it + 1 == rg.end());
             if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
                 // Get rid of last newline
-                if (mopts->salmonOut || mopts->radOut) {
+                if (mopts->salmonOut) {
                     if (bstream.getBytes() != 0) {
                         BinWriter sbw(sizeof(uint64_t));
                         sbw << bstream.getBytes();
                         outQueue->info("{}{}", sbw, bstream);
                     }
+                } else if (mopts->radOut) {
+                    if (bstream.getBytes() != 0) {
+                        BinWriter sbw(sizeof(uint64_t));
+                        sbw << bstream.getBytes() << chunkReads;
+                        outQueue->info("{}{}", sbw, bstream);
+                        chunkReads = 0;
+                    } 
                 } else if (mopts->krakOut) {
                     outQueue->info("{}", bstream);
                 } else {
@@ -623,7 +630,7 @@ void processReadsSingle(single_parser *parser,
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
     uint32_t alignmentStreamLimit = mopts->alignmentStreamLimit;
-    uint32_t alignmentStreamCount{0};
+    uint32_t alignmentStreamCount{0}, chunkReads{0};
 
     auto rg = parser->getReadGroup();
     while (parser->refill(rg)) {
@@ -849,11 +856,21 @@ void processReadsSingle(single_parser *parser,
             bool last_read = (read_it + 1 == rg.end());
             if (!mopts->noOutput and (alignmentStreamCount > alignmentStreamLimit or last_read)) {
                 // Get rid of last newline
-                if (mopts->krakOut || mopts->salmonOut || mopts->radOut) {
+                if (mopts->krakOut || mopts->salmonOut) {
                     if (mopts->salmonOut && bstream.getBytes() > 0) {
                         BinWriter sbw(64);
                         sbw << bstream.getBytes();
                         outQueue->info("{}{}", sbw, bstream);
+                    } else if (mopts->krakOut) {
+                        outQueue->info("{}", bstream);
+                    }
+                    bstream.clear();
+                } else if (mopts->radOut) {
+                    if (mopts->salmonOut && bstream.getBytes() > 0) {
+                        BinWriter sbw(64);
+                        sbw << bstream.getBytes() << chunkReads;
+                        outQueue->info("{}{}", sbw, bstream);
+                        chunkReads = 0;
                     } else if (mopts->krakOut) {
                         outQueue->info("{}", bstream);
                     }

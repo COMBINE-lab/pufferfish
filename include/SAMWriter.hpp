@@ -91,19 +91,19 @@ inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, bool peInp
 
 template <typename IndexT>
 inline void writeRADHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts) {
-  writeKrakOutHeader(pfi, out, mopts);
+  writeKrakOutHeader(pfi, out, mopts, true);
   BulkTags bt(!mopts->singleEnd);
   auto bwOut = bt.export2Buffer();
-  bwOut << !mopts->noOrphan;
-  bwOut << !mopts->noDiscordant;
-  bwOut << !mopts->noDovetail;
+  // bwOut << !mopts->noOrphan;
+  // bwOut << !mopts->noDiscordant;
+  // bwOut << !mopts->noDovetail;
   out->info("{}", bwOut);
 }
 
 
 
 template <typename IndexT>
-inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts) {
+inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts, bool isRad=false) {
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)
   auto& txpNames = pfi.getFullRefNames();
@@ -116,6 +116,9 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
             
   for (size_t i = 0; i < numRef; ++i) {
     bw << txpNames[i] << txpLens[i]; //txpName (string) , txpLength (size_t)
+  }
+  if (isRad) { // number of chunks
+      bw << static_cast<uint64_t>(10);
   }
   out->info("{}",bw);
 }

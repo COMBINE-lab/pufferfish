@@ -22,7 +22,7 @@ struct TagDesc {
 
 struct TagSection {
     std::vector<TagDesc> tags;
-    uint64_t count() {return tags.size();}
+    uint16_t count() {return static_cast<uint16_t>(tags.size());}
 };
 
 class FileTags {
@@ -64,9 +64,9 @@ class BulkTags : public FileTags {
         
 
         // standard tags for bulk
-        fileLevel.tags.emplace_back("allowOrphs", TypeId::Bool);
-        fileLevel.tags.emplace_back("allowDiscords", TypeId::Bool);
-        fileLevel.tags.emplace_back("allowDoves", TypeId::Bool);
+        // fileLevel.tags.emplace_back("allowOrphs", TypeId::Bool);
+        // fileLevel.tags.emplace_back("allowDiscords", TypeId::Bool);
+        // fileLevel.tags.emplace_back("allowDoves", TypeId::Bool);
         // no file-level tags
         // read-level tags
         readLevel.tags.emplace_back("readName", TypeId::STR);
