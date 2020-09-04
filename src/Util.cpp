@@ -55,6 +55,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     bool noOrphans = mpol.noOrphans;
     bool noDiscordant = mpol.noDiscordant;
     bool noDovetail = mpol.noDovetail;
+    bool recoverOrphans = mpol.recoverOrphans;
 
     // for filtering concordant chain pairs *on the same target*
     const double thresh = mpol.post_merge_chain_sub_thresh;
@@ -235,7 +236,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     // then don't consider orphans.
     bool noPairedMappings = (sameTxpCount == 0);
     bool leftOrphan = false; bool rightOrphan = false;
-    if (!noOrphans and noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
+    if ((!noOrphans or recoverOrphans) and noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan, thresh, ithresh, orphan_chain_sub_thresh]
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {

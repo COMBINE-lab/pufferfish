@@ -105,6 +105,7 @@ namespace pufferfish {
       // should be allowed (e.g. orphans, dovetails, etc.)
       struct MappingConstraintPolicy {
         bool noOrphans;
+        bool recoverOrphans;
         bool noDiscordant;
         bool noDovetail;
         // after merging chains for paired-end reads 

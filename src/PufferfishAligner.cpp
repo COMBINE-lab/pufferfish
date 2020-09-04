@@ -175,6 +175,7 @@ void processReadsPair(paired_parser *parser,
     mpol.noDovetail = mopts->noDovetail;
     mpol.setPostMergeChainSubThresh(mopts->postMergeChainSubThresh);
     mpol.setOrphanChainSubThresh(mopts->orphanChainSubThresh);
+    mpol.recoverOrphans = mopts->recoverOrphans;
 
     uint64_t firstDecoyIndex = pfi.firstDecoyIndex();
 
@@ -272,6 +273,15 @@ void processReadsPair(paired_parser *parser,
                 // TODO NOTE : do futher testing
                 bool recoveredAny = selective_alignment::utils::recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
                 (void)recoveredAny;
+                if (mopts->noOrphan) {
+                  jointHits.erase(
+                    std::remove_if(jointHits.begin(), jointHits.end(),
+                      [](pufferfish::util::JointMems &jointMem) -> bool {
+                        return jointMem.mateStatus != MateStatus::PAIRED_END_PAIRED;
+                      }),
+                    jointHits.end()
+                  );
+                }
               }
 
               hctr.peHits += jointHits.size();
