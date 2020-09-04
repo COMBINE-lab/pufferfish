@@ -924,6 +924,7 @@ Compile-time selection between list-like and map-like printing.
       enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, APPROXIMATE_CIGAR,  EXACT_CIGAR};
 
       struct AlignmentConfig {
+        bool orphanedAlignment;
         int32_t refExtendLength{20};
         bool fullAlignment{false};
         int16_t matchScore;

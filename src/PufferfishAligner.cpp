@@ -160,6 +160,7 @@ void processReadsPair(paired_parser *parser,
     aconf.mismatchPenalty = mopts->mismatchScore;
     aconf.bestStrata = mopts->bestStrata;
     aconf.decoyPresent = mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore;
+    aconf.orphanedAlignment = mopts->orphanedAlignment and !mopts->noOrphan;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
