@@ -266,6 +266,7 @@ endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
 
 
+
 ExternalProject_Add(libseqlib
 GIT_REPOSITORY https://github.com/COMBINE-lab/SeqLib.git
 GIT_TAG        master
@@ -303,6 +304,27 @@ ExternalProject_Add(libSetCover
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
 endif() # end of BUILD_PUFF_FOR_SALMON
+
+ExternalProject_Add(libwfa
+GIT_REPOSITORY https://github.com/smarco/WFA.git
+GIT_TAG        master
+UPDATE_COMMAND ""
+CONFIGURE_COMMAND ""
+UPDATE_DISCONNECTED 1
+BUILD_IN_SOURCE TRUE
+DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/wfa
+SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/wfa
+INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
+BUILD_COMMAND     make -j8
+INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/include/wfa &&
+                  cp -r utils/ <INSTALL_DIR>/include/wfa &&
+                  cp -r edit/ <INSTALL_DIR>/include/wfa &&
+                  cp -r system/ <INSTALL_DIR>/include/wfa &&
+                  cp -r gap_affine/ <INSTALL_DIR>/include/wfa &&
+                  cp -r gap_lineal/ <INSTALL_DIR>/include/wfa &&
+                  cp build/libwfa.a <INSTALL_DIR>/lib
+)
+
 
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS}")

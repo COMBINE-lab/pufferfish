@@ -3,6 +3,10 @@
 #include "Util.hpp"
 #include "libdivide/libdivide.h"
 
+extern "C" {
+//#include "system/mm_allocator.h"
+}
+
 std::string extractReadSeq(const std::string& readSeq, uint32_t rstart, uint32_t rend, bool isFw) {
     std::string subseq = readSeq.substr(rstart, rend - rstart);
     if (isFw)
@@ -349,15 +353,29 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       nonstd::string_view readSeq = readView.substr(readOffset);
       ksw_reset_extz(&ez);
       auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
-      aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
+      /*aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
               refSeqBuffer_.length(), &ez, cutoff,
-              ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+              ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());*/
+
+      mm_allocator_t* const mm_allocator = mm_allocator_new(BUFFER_SIZE_8M);
+      affine_penalties_t affine_penalties = {
+        .match = 0,
+        .mismatch = 6,
+        .gap_opening = 5,
+        .gap_extension = 4,
+      };
+      affine_wavefronts_t* affine_wavefronts = affine_wavefronts_new_complete(readSeq.length(), refSeqBuffer_.length(), &affine_penalties, NULL, mm_allocator);
+      affine_wavefronts_align(affine_wavefronts, readSeq.data(), readSeq.length(), refSeqBuffer_.data(), refSeqBuffer_.length());
+      alignmentScore = edit_cigar_score_gap_affine(&affine_wavefronts->edit_cigar,&affine_penalties);
+      affine_wavefronts_delete(affine_wavefronts);
+      mm_allocator_delete(mm_allocator);
+
       // if we allow softclipping of overhaning bases, then we only care about
       // the best score to the end of the query or the end of the reference.
       // Otherwise, we care about the best score all the way until the end of
       // the query.
-      alignmentScore =
-          allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+      //alignmentScore =
+      //    allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
 
       SPDLOG_DEBUG(logger_,
                    "readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}",

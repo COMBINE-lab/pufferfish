@@ -96,6 +96,7 @@ if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()
 
+target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
@@ -108,7 +109,15 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLA
 #if (BUILD_PUFF_FOR_SALMON)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
-target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ksw2pp ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS})
+
+target_include_directories(puffer PUBLIC
+    ${GAT_SOURCE_DIR}/external/install/include
+    ${GAT_SOURCE_DIR}/external/install/include/wfa
+)
+
+add_dependencies(pufferfish libwfa)
+target_link_libraries(pufferfish wfa puffer Threads::Threads z twopaco graphdump ntcard ksw2pp wfa ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS})
+
 
 if (FETCHED_TBB)
     add_dependencies(pufferfish libtbb)

@@ -10,6 +10,8 @@
 #include "ksw2pp/KSW2Aligner.hpp"
 #include "edlib.h"
 
+#include "wfa/gap_affine/affine_wavefront_align.h"
+
 #include "parallel_hashmap/phmap.h"
 
 struct PassthroughHash {
