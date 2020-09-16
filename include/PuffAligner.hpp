@@ -10,7 +10,9 @@
 #include "ksw2pp/KSW2Aligner.hpp"
 #include "edlib.h"
 
+extern "C"{
 #include "wfa/gap_affine/affine_wavefront_align.h"
+}
 
 #include "parallel_hashmap/phmap.h"
 
@@ -67,7 +69,20 @@ public:
     alnCacheRight.reserve(32);
     minLengthGapRequired = mopts.matchScore - mopts.mismatchPenalty > 0 ?
                            static_cast<uint32_t>((2 * (mopts.gapOpenPenalty + mopts.gapExtendPenalty) + mopts.matchScore ) / (mopts.matchScore - mopts.mismatchPenalty)) : 0;
+  
+    mm_allocator = mm_allocator_new(BUFFER_SIZE_8M);
+    affine_penalties = {
+        .match = 0,
+        .mismatch = 6,
+        .gap_opening = 5,
+        .gap_extension = 4,
+    };
+    //affine_wavefronts = affine_wavefronts_new_complete(200, 200, &affine_penalties, NULL, mm_allocator);
   }
+  /*~Puffaligner() {
+    affine_wavefronts_delete(affine_wavefronts);
+    mm_allocator_delete(mm_allocator);
+  }*/
 
 /*
   PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_,
@@ -120,6 +135,10 @@ private:
   AlnCacheMap alnCacheLeft;
   AlnCacheMap alnCacheRight;
   ScoreStatus scoreStatus_;
+
+  mm_allocator_t* mm_allocator;
+  affine_penalties_t affine_penalties;
+  affine_wavefronts_t* affine_wavefronts;
 };
 
 
