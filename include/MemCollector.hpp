@@ -68,8 +68,12 @@ void setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp);
 
 pufferfish::util::HitFilterPolicy getHitFilterPolicy() const;
 
-inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& get_left_hits();
-inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& get_right_hits();
+inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& get_left_hits() { 
+  return left_rawHits;
+}
+inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& get_right_hits() {
+  return right_rawHits;
+}
 
 private:
   PufferfishIndexT* pfi_;

@@ -123,16 +123,6 @@ void MemCollector<PufferfishIndexT>::setAltSkip(uint32_t as) {
 }
 
 template <typename PufferfishIndexT>
-inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& MemCollector<PufferfishIndexT>::get_left_hits() {
-  return left_rawHits;
-}
-
-template <typename PufferfishIndexT>
-inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& MemCollector<PufferfishIndexT>::get_right_hits() {
-  return right_rawHits;
-}
-
-template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
                   pufferfish::util::QueryCache& qc,
                   bool isLeft,
