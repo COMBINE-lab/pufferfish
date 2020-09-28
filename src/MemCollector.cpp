@@ -123,6 +123,73 @@ void MemCollector<PufferfishIndexT>::setAltSkip(uint32_t as) {
 }
 
 template <typename PufferfishIndexT>
+bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
+                  pufferfish::util::QueryCache& qc,
+                  bool isLeft,
+                  bool verbose) {
+  (void) verbose;
+  pufferfish::util::ProjectedHits phits;
+  auto& rawHits = isLeft ? left_rawHits : right_rawHits;
+
+  CanonicalKmer::k(k);
+  pufferfish::CanonicalKmerIterator kit_end;
+  pufferfish::CanonicalKmerIterator kit1(read);
+
+  // Start off pretending we are k bases away from the last hit
+  uint32_t skip{1};
+  uint32_t homoPolymerSkip{static_cast<uint32_t>(k)/2};
+  int32_t signedK = static_cast<int32_t>(k);
+  int32_t basesSinceLastHit{signedK};
+  int32_t signed_read_len = static_cast<int32_t>(read.length());
+  //ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
+
+  while (kit1 != kit_end) {
+    auto phits = pfi_->getRefPos(kit1->first, qc);
+    // if we had a hit
+    if (!phits.empty()) {
+      // the offset of the hit on the read
+      size_t read_offset = kit1->second;
+      
+      // the skip that would take us to the last base of the read
+      int32_t last_skip = (signed_read_len - static_cast<int32_t>(read_offset+k) - 1);
+      uint32_t ulast_skip = static_cast<uint32_t>((last_skip < 1) ? 1 : last_skip);
+      
+      // take the smaller of the two possible skips
+      skip = (altSkip < ulast_skip) ? altSkip : ulast_skip; 
+
+      // if this was a homopolymer, take the homopolymer skip 
+      // rather than the alt skip, and don't add the hit.
+      if (kit1->first.is_homopolymer()) {
+        skip = (homoPolymerSkip < ulast_skip) ? homoPolymerSkip : ulast_skip;
+        kit1 += skip;
+        continue;
+      }
+
+      // if this was a rc hit, adjust the position appropriately 
+      if (!phits.contigOrientation_) {
+        phits.contigPos_ -= (phits.k_ - k);
+        phits.globalPos_ -= (phits.k_ - k);
+      }
+
+      // record this hit
+      rawHits.push_back(std::make_pair(read_offset, phits));
+    
+      basesSinceLastHit = 1;
+      kit1 += skip;
+    } else {
+      // the skip that would take us to the last base of the read
+      int32_t last_skip = (signed_read_len - static_cast<int32_t>(kit1->second+k) - 1);
+      uint32_t ulast_skip = static_cast<uint32_t>((last_skip < 1) ? 1 : last_skip);
+      skip = (basesSinceLastHit >= signedK) ? 1 : ((altSkip < ulast_skip) ? altSkip : ulast_skip);
+      basesSinceLastHit += skip;
+      kit1 += skip;
+    }
+  }
+  
+  return rawHits.size() != 0;
+}
+
+template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
                   pufferfish::util::QueryCache& qc,
                   bool isLeft,

@@ -31,6 +31,11 @@ public:
   size_t expandHitEfficient(pufferfish::util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
                           ExpansionTerminationType& et);
+  
+  bool get_raw_hits_sketch(std::string &read,
+                  pufferfish::util::QueryCache& qc,
+                  bool isLeft=false,
+                  bool verbose=false);
 
   bool operator()(std::string &read,
                   pufferfish::util::QueryCache& qc,

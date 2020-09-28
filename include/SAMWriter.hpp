@@ -293,7 +293,7 @@ inline uint32_t writeAlignmentsToRADSingle(ReadT& r, PairedAlignmentFormatter<In
     nameLen = splitPos - 2;
   }
   bstream << stx::string_view(readName.data(), nameLen)
-          << jointHits.size()
+          << static_cast<uint32_t>(jointHits.size())
           << static_cast<rLenType>(r.seq.length()); 
   // auto& fullRefNames = formatter.index->getFullRefNames();
   auto& fullRefLengths = formatter.index->getFullRefLengths();
@@ -344,7 +344,7 @@ inline uint32_t writeAlignmentsToRADPair(ReadPairT& r, PairedAlignmentFormatter<
     nameLen = splitPos - 2;
   }
   bstream << stx::string_view(readName.data(), nameLen)
-          << jointHits.size()
+          << static_cast<uint32_t>(jointHits.size())
           << static_cast<rLenType>(r.first.seq.length())
           << static_cast<rLenType>(r.second.seq.length()); 
   // auto& fullRefNames = formatter.index->getFullRefNames();
