@@ -122,6 +122,233 @@ void MemCollector<PufferfishIndexT>::setAltSkip(uint32_t as) {
   altSkip = as;
 }
 
+  
+enum class LastSkipType : uint8_t { NO_HIT=0, SKIP_READ=1, SKIP_UNI=2 };
+
+// Idea is to move the logic of the search into here.
+// We should also consider the optimizations that can 
+// be done here (like having small checks expected to)
+// be on the same contig bypass a hash lookup.
+struct SkipContext {
+
+  SkipContext(std::string& read, int32_t k_in) : 
+    kit1(read), kit_tmp(read), read_len(static_cast<int32_t>(read.length())),
+    expected_cid(invalid_cid), safe_skip(1), k(k_in), 
+    last_skip_type(LastSkipType::NO_HIT)
+  { }
+  
+  inline bool is_exhausted() {
+    return kit1 == kit_end;
+  }
+
+  inline CanonicalKmer& curr_kmer() {
+    return kit1->first;
+  }
+
+  template <typename PufferfishIndexT>
+  inline bool query_kmer(PufferfishIndexT* pfi, pufferfish::util::QueryCache& qc) {
+    phits = pfi->getRefPos(kit1->first, qc);
+    return !phits.empty();
+  }
+
+  inline bool hit_is_unexpected() {
+    return (expected_cid != invalid_cid and phits.contigIdx_ != expected_cid);
+  }
+
+  inline int32_t read_pos() { return kit1->second; }
+
+  inline pufferfish::util::ProjectedHits proj_hits() { return phits; }
+
+  inline void clear_expectation() { expected_cid = invalid_cid; }
+
+  inline int32_t compute_safe_skip() {
+    // if we are calling this, then we *did* get 
+    // an unexpected hit.  To avoid iterating to that
+    // already queried hit again, the target pos
+    // will be the position before that hit
+    read_target_pos = kit1->second-1;
+    read_prev_pos = kit_tmp->second;
+    int32_t dist = read_target_pos - read_prev_pos;
+    
+    //if (dist < 0) { std::cerr << "dist = " << dist << " should not happen!\n"; }
+    
+    safe_skip = 1;
+    // if the distance is large enough
+    if (dist > 2) {
+      safe_skip = (read_target_pos - read_prev_pos) / 2;
+      safe_skip = static_cast<uint32_t>(safe_skip < 1 ? 1 : safe_skip);
+    }
+    return dist;
+  }
+
+  inline void rewind() {
+    // start from the next position on the read and 
+    // walk until we hit the read end or the position 
+    // that we wanted to skip to
+    if (kit_tmp->second >= kit1->second) {
+      std::cerr << "rewinding to a greater position; shouldn't happen!\n";
+    }
+    kit_swap = kit1;
+    kit1 = kit_tmp;
+    kit_tmp = kit_swap;
+  }
+
+  inline void fast_forward() {
+    // jump back to the place we were 
+    // at when we called rewind()
+
+    // NOTE: normally we would assume that 
+    // kit1->second >= kit_tmp->second
+    // but, this be violated if we skipped farther than we asked in the iterator
+    // because there were 'N's in the read.
+    // in that case case, ignore the fact that fast forward 
+    // could be a rewind.  We always want to skip back to 
+    // where we were before.  However, in this case we 
+    // ASSUME that no hit *after* kit_tmp has been added
+    // to the set of collected hits.
+    kit1 = kit_tmp;
+  }
+
+  /**
+   * Advance by the safe skip amount calculated in 
+   * `compute_safe_skip`.  
+   * Returns true if we are still before or at the expected
+   * end point, and false otherwise.
+   */
+  inline bool advance_safe() {
+    int32_t remaining_len = read_target_pos - kit1->second;
+    safe_skip = (remaining_len <= safe_skip) ? remaining_len : safe_skip;
+    safe_skip = (safe_skip < 1) ? 1 : safe_skip;
+    kit1 += safe_skip;
+    return kit1->second <= read_target_pos;
+  }
+        
+  inline void advance_from_hit() {
+      int32_t skip = 1;
+      // the offset of the hit on the read
+      int32_t read_offset = kit1->second;
+      // the skip that would take us to the last base of the read
+      int32_t read_skip = (read_len - read_offset + k - 1);
+      // any valid skip should always be at least 1 base
+      read_skip = (read_skip < 1) ? 1 : read_skip;
+      
+      size_t cStartPos = phits.globalPos_ - phits.contigPos_; 
+      size_t cEndPos = cStartPos + phits.contigLen_;
+      size_t cCurrPos = phits.globalPos_; 
+      int32_t ctg_skip = 1;
+      // fw ori
+      if (phits.contigOrientation_) {
+        ctg_skip = static_cast<int64_t>(cEndPos) - (static_cast<int64_t>(cCurrPos + k));
+        if (ctg_skip < 0) { 
+            std::cerr << "cStartPos =  " << cStartPos << "\n";
+            std::cerr << "cEndPos = " << cEndPos << "\n";
+            std::cerr << "cCurrPos = " << cCurrPos << "\n";
+            std::cerr << "contig skip = " << ctg_skip << " < 0, should not happen!\n";
+        }
+      } else { // rc ori
+        ctg_skip = static_cast<int32_t>(phits.contigPos_);
+      }
+      // we're already at the end of the contig
+      bool at_contig_end = (ctg_skip == 0);
+      // if we're at the end of the contig
+      // we'll set the contig skip to be one 
+      // (i.e. look for the next k-mer), but we won't
+      // set an expectation on what that contig should be
+      if (at_contig_end) {
+        ctg_skip = 1;
+        expected_cid = invalid_cid;
+      } else { // otherwise, we expect the next contig to be the same
+        expected_cid = phits.contigIdx_;
+      }
+
+      // check here if we are going to attempt to skip to the 
+      // end of the read, and if this skip is non trivial (>1).
+      // if that doesn't produce a hit, we'll want to "rewind"
+      // to the current position and move forward by alt.
+      // nontrivial_last_skip = (skip > ulast_skip) and ulast_skip > 1;
+      
+      // remember where we are coming from
+      kit_tmp = kit1;
+      
+      // remember the reason we are skipping
+      last_skip_type = (read_skip <= ctg_skip) ? LastSkipType::SKIP_READ : LastSkipType::SKIP_UNI;
+      
+      // skip will be min of read and contig
+      skip = (last_skip_type == LastSkipType::SKIP_READ) ? read_skip : ctg_skip;
+
+      // skip must be at least 1
+      skip = skip < 1 ? 1 : skip;
+      
+      // onward
+      kit1 += skip;
+  }
+
+  inline void advance_from_miss() {
+      int32_t skip = 1;
+      read_target_pos = kit1->second;
+
+      // distance from backup position 
+      int32_t dist = read_target_pos - kit_tmp->second;
+
+      switch (last_skip_type) {
+        // we could have not yet seen a hit
+        // should move 1 at a time
+        case LastSkipType::NO_HIT : {
+          kit1 += 2;
+          return;
+        }
+        break;
+
+        // we could have seen a hit, and tried to jump to the end of the read
+        // and the previous search was either that hit, or a miss
+        case LastSkipType::SKIP_READ  :
+        case LastSkipType::SKIP_UNI : {
+          // if distance from backup is 1, that means we already tried
+          // last position, so we should just move to the next position 
+          if (dist <= 2) {
+            kit1 += 1;
+            return;
+          } else {
+            // otherwise move the backup position toward us
+            // and move the current point to the backup
+            skip = dist / 2;
+            skip = (skip < 2) ? 2 : skip;
+            kit_tmp += skip;
+            kit1 = kit_tmp;
+            return;
+          }
+        }
+        break;
+        
+        // we could have seen a hit, and tried to jump to the end of the contig
+        // and the previous search was either that hit, or a miss
+        //case LastSkipType::SKIP_UNI : {
+        //
+        //
+        // }
+      }
+      // we could have previously not seen a hit either
+      // that doesn't matter since it is recursively one of the above cases.
+  }
+
+  pufferfish::CanonicalKmerIterator kit1;
+  pufferfish::CanonicalKmerIterator kit_tmp;
+  pufferfish::CanonicalKmerIterator kit_end;
+  pufferfish::CanonicalKmerIterator kit_swap;
+  int32_t read_len;
+  int32_t read_target_pos;
+  int32_t read_current_pos;
+  int32_t read_prev_pos;
+  int32_t safe_skip;
+  int32_t k;
+  static constexpr uint32_t invalid_cid{std::numeric_limits<uint32_t>::max()};
+  uint32_t expected_cid;//  = invalid_cid;
+  
+  LastSkipType last_skip_type{LastSkipType::NO_HIT};
+
+  pufferfish::util::ProjectedHits phits;
+};
+
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
                   pufferfish::util::QueryCache& qc,
@@ -129,64 +356,64 @@ bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
                   bool verbose) {
   (void) verbose;
   pufferfish::util::ProjectedHits phits;
-  auto& rawHits = isLeft ? left_rawHits : right_rawHits;
+  auto& raw_hits = isLeft ? left_rawHits : right_rawHits;
 
   CanonicalKmer::k(k);
-  pufferfish::CanonicalKmerIterator kit_end;
-  pufferfish::CanonicalKmerIterator kit1(read);
-
-  // Start off pretending we are k bases away from the last hit
-  uint32_t skip{1};
-  uint32_t homoPolymerSkip{static_cast<uint32_t>(k)/2};
-  int32_t signedK = static_cast<int32_t>(k);
-  int32_t basesSinceLastHit{signedK};
-  int32_t signed_read_len = static_cast<int32_t>(read.length());
-  //ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
-
-  while (kit1 != kit_end) {
-    auto phits = pfi_->getRefPos(kit1->first, qc);
+  int32_t k = static_cast<int32_t>(CanonicalKmer::k());
+  SkipContext skip_ctx(read, k);
+  
+  // while it is possible to search further
+  while (!skip_ctx.is_exhausted()) {
+    
     // if we had a hit
-    if (!phits.empty()) {
-      // the offset of the hit on the read
-      size_t read_offset = kit1->second;
-      
-      // the skip that would take us to the last base of the read
-      int32_t last_skip = (signed_read_len - static_cast<int32_t>(read_offset+k) - 1);
-      uint32_t ulast_skip = static_cast<uint32_t>((last_skip < 1) ? 1 : last_skip);
-      
-      // take the smaller of the two possible skips
-      skip = (altSkip < ulast_skip) ? altSkip : ulast_skip; 
-
-      // if this was a homopolymer, take the homopolymer skip 
-      // rather than the alt skip, and don't add the hit.
-      if (kit1->first.is_homopolymer()) {
-        skip = (homoPolymerSkip < ulast_skip) ? homoPolymerSkip : ulast_skip;
-        kit1 += skip;
-        continue;
-      }
-
-      // if this was a rc hit, adjust the position appropriately 
-      if (!phits.contigOrientation_) {
-        phits.contigPos_ -= (phits.k_ - k);
-        phits.globalPos_ -= (phits.k_ - k);
-      }
+    if (skip_ctx.query_kmer(pfi_, qc)) {
 
       // record this hit
-      rawHits.push_back(std::make_pair(read_offset, phits));
-    
-      basesSinceLastHit = 1;
-      kit1 += skip;
+      bool added_orig_hit = false;
+      int32_t read_pos = skip_ctx.read_pos();
+      auto proj_hits = skip_ctx.proj_hits();
+      
+      // if the hit was not inline with what we were 
+      // expecting. 
+      if (skip_ctx.hit_is_unexpected()){
+        int32_t dist_to_target = skip_ctx.compute_safe_skip();
+
+        // special case is the prev hit was the 
+        // one right before this, in this case
+        // no need to do this work, we already 
+        // have both hits.  In that case, just
+        // proceed as usual.
+        if (dist_to_target > 0) {
+            // start from the next position on the read and
+            // walk until we hit the read end or the position
+            // that we wanted to skip to
+            skip_ctx.rewind();
+            while (skip_ctx.advance_safe()) {
+              if (skip_ctx.query_kmer(pfi_, qc)) {
+                raw_hits.push_back(
+                    std::make_pair(skip_ctx.read_pos(), skip_ctx.proj_hits()));
+              }
+            }
+
+            // if we got here, then either we are done, or we 
+            // reached our target position so we don't
+            // have an expectation of what should come next.
+            skip_ctx.clear_expectation();
+            skip_ctx.fast_forward();
+            // so that the next skip can be computed properly.
+            skip_ctx.phits = proj_hits;
+          }
+      } 
+      // push this hit and advance
+      raw_hits.push_back(std::make_pair(read_pos, proj_hits));
+      skip_ctx.advance_from_hit();
     } else {
-      // the skip that would take us to the last base of the read
-      int32_t last_skip = (signed_read_len - static_cast<int32_t>(kit1->second+k) - 1);
-      uint32_t ulast_skip = static_cast<uint32_t>((last_skip < 1) ? 1 : last_skip);
-      skip = (basesSinceLastHit >= signedK) ? 1 : ((altSkip < ulast_skip) ? altSkip : ulast_skip);
-      basesSinceLastHit += skip;
-      kit1 += skip;
+      // if we got here, we looked for a match and didn't find one
+      skip_ctx.advance_from_miss();
     }
   }
   
-  return rawHits.size() != 0;
+  return raw_hits.size() != 0;
 }
 
 template <typename PufferfishIndexT>
@@ -244,7 +471,7 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
 				std::cerr<<"readPosOld:"<<readPosOld<<" kmer:"<< kit1->first.to_str() <<"\n";
 			}
       rawHits.push_back(std::make_pair(readPosOld, phits));
-    
+
       basesSinceLastHit = 1;
       skip = (et == ExpansionTerminationType::MISMATCH) ? altSkip : 1;
       kit1 += (skip-1);
