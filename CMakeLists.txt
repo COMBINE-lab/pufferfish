@@ -61,6 +61,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #SET(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -static-libgcc -static-libstdc++")
 #set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g")
+SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g")
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -80,6 +84,7 @@ endif()
 set(KSW_FLAGS "-DHAVE_KALLOC")
 #set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
 set(PF_CPP_FLAGS "-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
+SET(PF_CPP_FLAGS "${PF_CPP_FLAGS} -g")
 
 if (BUILD_PUFF_FOR_SALMON)
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
