@@ -41,6 +41,17 @@ public:
     : s_(o.s_), p_(o.p_), /*km_(o.km_), pos_(o.pos_),*/ invalid_(o.invalid_),
         lastinvalid_(o.lastinvalid_), k_(o.k_) {}
 
+  CanonicalKmerIterator& operator=(const CanonicalKmerIterator& o) {
+    if (this != &o) {
+      s_ = o.s_;
+      p_ = o.p_;
+      invalid_ = o.invalid_;
+      lastinvalid_ = o.lastinvalid_;
+      k_ = o.k_;
+    }
+    return *this;
+  }
+
 private:
   inline void find_next(int i, int j) {
     ++i;

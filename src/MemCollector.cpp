@@ -125,17 +125,32 @@ void MemCollector<PufferfishIndexT>::setAltSkip(uint32_t as) {
   
 enum class LastSkipType : uint8_t { NO_HIT=0, SKIP_READ=1, SKIP_UNI=2 };
 
+struct FastHitInfo {
+  // return true if it is currently valid to do 
+  // a fast check, and false otherwise.
+  inline bool valid() { return fast_check; }
+
+  // set the state of this FastHitInfo instance
+  // true if it is valid to check upon next query
+  // and false otherwise.
+  inline void valid(bool v) { fast_check = v; }
+
+  bool fast_check{false};
+  int32_t offset{0};
+  uint64_t ref_kmer{0};
+};
+
 // Idea is to move the logic of the search into here.
 // We should also consider the optimizations that can 
 // be done here (like having small checks expected to)
 // be on the same contig bypass a hash lookup.
+template <typename PufferfishIndexT>
 struct SkipContext {
 
-  SkipContext(std::string& read, int32_t k_in) : 
-    kit1(read), kit_tmp(read), read_len(static_cast<int32_t>(read.length())),
-    expected_cid(invalid_cid), safe_skip(1), k(k_in), 
-    last_skip_type(LastSkipType::NO_HIT)
-  { }
+  SkipContext(std::string& read, PufferfishIndexT* pfi_in, int32_t k_in) : 
+    kit1(read), kit_tmp(read), pfi(pfi_in), read_len(static_cast<int32_t>(read.length())),
+    read_target_pos(0), read_current_pos(0), read_prev_pos(0), safe_skip(1),
+    k(k_in), expected_cid(invalid_cid), last_skip_type(LastSkipType::NO_HIT) { }
   
   inline bool is_exhausted() {
     return kit1 == kit_end;
@@ -145,9 +160,26 @@ struct SkipContext {
     return kit1->first;
   }
 
-  template <typename PufferfishIndexT>
-  inline bool query_kmer(PufferfishIndexT* pfi, pufferfish::util::QueryCache& qc) {
-    phits = pfi->getRefPos(kit1->first, qc);
+  inline bool query_kmer(pufferfish::util::QueryCache& qc) {
+    bool found_match = false;
+    if (fast_hit.valid()) {
+        auto keq = kit1->first.isEquivalent(fast_hit.ref_kmer);
+        if (keq != KmerMatchType::NO_MATCH) {
+          found_match = true;
+          // how the k-mer hits the contig (true if k-mer in fwd orientation, false
+          // otherwise)
+          bool hit_fw = (keq == KmerMatchType::IDENTITY_MATCH);
+          phits.contigOrientation_ = hit_fw;
+          phits.globalPos_ += fast_hit.offset;
+          phits.contigPos_ += fast_hit.offset;
+      }
+      fast_hit.valid(false);
+    } 
+
+    if (!found_match) {
+      phits = pfi->getRefPos(kit1->first, qc);
+    }
+
     return !phits.empty();
   }
 
@@ -261,12 +293,6 @@ struct SkipContext {
         expected_cid = phits.contigIdx_;
       }
 
-      // check here if we are going to attempt to skip to the 
-      // end of the read, and if this skip is non trivial (>1).
-      // if that doesn't produce a hit, we'll want to "rewind"
-      // to the current position and move forward by alt.
-      // nontrivial_last_skip = (skip > ulast_skip) and ulast_skip > 1;
-      
       // remember where we are coming from
       kit_tmp = kit1;
       
@@ -280,7 +306,49 @@ struct SkipContext {
       skip = skip < 1 ? 1 : skip;
       
       // onward
+      int32_t pos_before_skip = kit1->second;
       kit1 += skip;
+
+      // was the skip we got the one we expected?
+      // that is, was the intervening part of the read 
+      // free of `N` characters?
+      bool expected_skip = (kit1->second - pos_before_skip) == skip;
+      
+      // if we didn't get the expected skip, then un-set our expectation
+      // about where we will land.  
+      // NOTE : This should be relatively infrequent, but check the effect
+      if (!expected_skip) { expected_cid = invalid_cid; }
+
+      // if we got the skip we expected, then 
+      // set ourselves up for a fast check in case we see 
+      // what we expect to see.
+      if (expected_skip and (expected_cid != invalid_cid) and (kit1 != kit_end)) {
+        auto& allContigs = pfi->getSeq();
+        if (phits.contigOrientation_) { 
+          // if match is fw, go to the next k-mer in the contig
+          cCurrPos += skip;
+          if (cCurrPos + k > cEndPos) {
+            std::cerr << cCurrPos << " + " << k << " > " << cEndPos << " : shouldn't happen!\n"; 
+            fast_hit.valid(false);
+          } else {
+            fast_hit.valid(true);
+            fast_hit.offset = skip;
+            fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
+          }
+          return;
+        } else {
+          cCurrPos -= skip;
+          if (cCurrPos < cStartPos ) {
+            std::cerr << cCurrPos << " - " << k << " < " << cStartPos << " : shouldn't happen!\n"; 
+            fast_hit.valid(false);
+          } else {
+            fast_hit.valid(true);
+            fast_hit.offset = -skip;
+            fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
+          }
+          return;
+        }
+      }
   }
 
   inline void advance_from_miss() {
@@ -294,12 +362,12 @@ struct SkipContext {
         // we could have not yet seen a hit
         // should move 1 at a time
         case LastSkipType::NO_HIT : {
-          kit1 += 2;
+          kit1 += 5;
           return;
         }
         break;
 
-        // we could have seen a hit, and tried to jump to the end of the read
+        // we could have seen a hit, and tried to jump to the end of the read / uni
         // and the previous search was either that hit, or a miss
         case LastSkipType::SKIP_READ  :
         case LastSkipType::SKIP_UNI : {
@@ -319,13 +387,6 @@ struct SkipContext {
           }
         }
         break;
-        
-        // we could have seen a hit, and tried to jump to the end of the contig
-        // and the previous search was either that hit, or a miss
-        //case LastSkipType::SKIP_UNI : {
-        //
-        //
-        // }
       }
       // we could have previously not seen a hit either
       // that doesn't matter since it is recursively one of the above cases.
@@ -335,18 +396,18 @@ struct SkipContext {
   pufferfish::CanonicalKmerIterator kit_tmp;
   pufferfish::CanonicalKmerIterator kit_end;
   pufferfish::CanonicalKmerIterator kit_swap;
+  PufferfishIndexT* pfi={nullptr};
   int32_t read_len;
   int32_t read_target_pos;
   int32_t read_current_pos;
   int32_t read_prev_pos;
   int32_t safe_skip;
   int32_t k;
-  static constexpr uint32_t invalid_cid{std::numeric_limits<uint32_t>::max()};
-  uint32_t expected_cid;//  = invalid_cid;
-  
+  FastHitInfo fast_hit;
+  uint32_t expected_cid;
   LastSkipType last_skip_type{LastSkipType::NO_HIT};
-
   pufferfish::util::ProjectedHits phits;
+  static constexpr uint32_t invalid_cid{std::numeric_limits<uint32_t>::max()};
 };
 
 template <typename PufferfishIndexT>
@@ -360,16 +421,15 @@ bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
 
   CanonicalKmer::k(k);
   int32_t k = static_cast<int32_t>(CanonicalKmer::k());
-  SkipContext skip_ctx(read, k);
+  SkipContext<PufferfishIndexT> skip_ctx(read, pfi_, k);
   
   // while it is possible to search further
   while (!skip_ctx.is_exhausted()) {
     
     // if we had a hit
-    if (skip_ctx.query_kmer(pfi_, qc)) {
+    if (skip_ctx.query_kmer(qc)) {
 
       // record this hit
-      bool added_orig_hit = false;
       int32_t read_pos = skip_ctx.read_pos();
       auto proj_hits = skip_ctx.proj_hits();
       
@@ -389,7 +449,7 @@ bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
             // that we wanted to skip to
             skip_ctx.rewind();
             while (skip_ctx.advance_safe()) {
-              if (skip_ctx.query_kmer(pfi_, qc)) {
+              if (skip_ctx.query_kmer(qc)) {
                 raw_hits.push_back(
                     std::make_pair(skip_ctx.read_pos(), skip_ctx.proj_hits()));
               }
