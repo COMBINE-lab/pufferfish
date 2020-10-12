@@ -150,7 +150,7 @@ struct SkipContext {
   SkipContext(std::string& read, PufferfishIndexT* pfi_in, int32_t k_in) : 
     kit1(read), kit_tmp(read), pfi(pfi_in), read_len(static_cast<int32_t>(read.length())),
     read_target_pos(0), read_current_pos(0), read_prev_pos(0), safe_skip(1),
-    k(k_in), expected_cid(invalid_cid), last_skip_type(LastSkipType::NO_HIT) { }
+    k(k_in), expected_cid(invalid_cid), last_skip_type(LastSkipType::NO_HIT), miss_it(0) { }
   
   inline bool is_exhausted() {
     return kit1 == kit_end;
@@ -309,6 +309,9 @@ struct SkipContext {
       int32_t pos_before_skip = kit1->second;
       kit1 += skip;
 
+      read_target_pos = (kit1->second > read_len - k) ? read_len - k : read_target_pos;
+      miss_it = 0;
+
       // was the skip we got the one we expected?
       // that is, was the intervening part of the read 
       // free of `N` characters?
@@ -353,15 +356,18 @@ struct SkipContext {
 
   inline void advance_from_miss() {
       int32_t skip = 1;
-      read_target_pos = kit1->second;
+      // this will already have been set; don't need
+      // to reset it here.
+      // read_target_pos = kit1->second;
 
       // distance from backup position 
       int32_t dist = read_target_pos - kit_tmp->second;
 
       switch (last_skip_type) {
         // we could have not yet seen a hit
-        // should move 1 at a time
+        // should move alt_skip at a time
         case LastSkipType::NO_HIT : {
+          //int32_t dist_to_end = (read_len - (kit1->second + k));
           kit1 += 5;
           return;
         }
@@ -375,14 +381,17 @@ struct SkipContext {
           // last position, so we should just move to the next position 
           if (dist <= 2) {
             kit1 += 1;
+            kit_tmp = kit1;
+            //last_skip_type = LastSkipType::NO_HIT;
             return;
           } else {
             // otherwise move the backup position toward us
             // and move the current point to the backup
-            skip = dist / 2;
+            skip = (miss_it < 4) ? dist / 2 : 2;
             skip = (skip < 2) ? 2 : skip;
             kit_tmp += skip;
             kit1 = kit_tmp;
+            miss_it += 1;
             return;
           }
         }
@@ -406,6 +415,7 @@ struct SkipContext {
   FastHitInfo fast_hit;
   uint32_t expected_cid;
   LastSkipType last_skip_type{LastSkipType::NO_HIT};
+  int32_t miss_it;
   pufferfish::util::ProjectedHits phits;
   static constexpr uint32_t invalid_cid{std::numeric_limits<uint32_t>::max()};
 };
