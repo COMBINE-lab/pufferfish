@@ -150,7 +150,8 @@ struct SkipContext {
   SkipContext(std::string& read, PufferfishIndexT* pfi_in, int32_t k_in) : 
     kit1(read), kit_tmp(read), pfi(pfi_in), read_len(static_cast<int32_t>(read.length())),
     read_target_pos(0), read_current_pos(0), read_prev_pos(0), safe_skip(1),
-    k(k_in), expected_cid(invalid_cid), last_skip_type(LastSkipType::NO_HIT), miss_it(0) { }
+    k(k_in), expected_cid(invalid_cid), last_skip_type(LastSkipType::NO_HIT), miss_it(0),
+    global_contig_pos(-1) { }
   
   inline bool is_exhausted() {
     return kit1 == kit_end;
@@ -278,8 +279,10 @@ struct SkipContext {
     int32_t diff = (read_target_pos - kit1->second) + 1;
     kit1 += diff;
     kit_tmp = kit1;
-    miss_it = 0;
   }
+
+  // Reset the miss counter to 0.
+  inline void clear_miss_counter() { miss_it = 0; }
 
   // Reset kit1 to the place it was at when 
   // `rewind()` was called.
@@ -328,18 +331,19 @@ struct SkipContext {
       // the skip that would take us to the last base of the read
       int32_t read_skip = (read_len - read_offset + k - 1);
 
-      // if we got here after a miss, and we have an expectation and this hit 
+      // If we got here after a miss, and we have an expectation, and this hit 
       // matches it, then we want to avoid replaying this whole scenario again.
-      // because this hit is on the same unitig, we will compute the same 
-      // attempted skip.  In this case, we found what we expected, but after
-      // 1 or more misses.  In that case, we're satisfied with the rest of this
-      // unitig so we simply move on to the position after our original skip
-      // position.
+      // Because this hit is on the same unitig as the one that eventually led 
+      // us here, we will compute the same attempted skip.  In this case, we 
+      // found what we expected, but after 1 or more misses.  In that case, 
+      // we're satisfied with the rest of this unitig so we simply move on 
+      // to the position after our original skip position.
       if ( (miss_it > 0) and (expected_cid != invalid_cid) and (expected_cid == phits.contigIdx_) ) {
         skip = read_target_pos - read_offset + 1;
         skip = (skip < 1) ? 1 : skip;
         kit1 += skip;
         kit_tmp = kit1;
+        clear_miss_counter();
         clear_expectation();
         return;
       }
@@ -350,16 +354,11 @@ struct SkipContext {
       size_t cStartPos = phits.globalPos_ - phits.contigPos_; 
       size_t cEndPos = cStartPos + phits.contigLen_;
       size_t cCurrPos = phits.globalPos_; 
+      global_contig_pos = static_cast<int64_t>(cCurrPos);
       int32_t ctg_skip = 1;
       // fw ori
       if (phits.contigOrientation_) {
         ctg_skip = static_cast<int64_t>(cEndPos) - (static_cast<int64_t>(cCurrPos + k));
-        if (ctg_skip < 0) { 
-            std::cerr << "cStartPos =  " << cStartPos << "\n";
-            std::cerr << "cEndPos = " << cEndPos << "\n";
-            std::cerr << "cCurrPos = " << cCurrPos << "\n";
-            std::cerr << "contig skip = " << ctg_skip << " < 0, should not happen!\n";
-        }
       } else { // rc ori
         ctg_skip = static_cast<int32_t>(phits.contigPos_);
       }
@@ -371,7 +370,7 @@ struct SkipContext {
       // set an expectation on what that contig should be
       if (at_contig_end) {
         ctg_skip = 1;
-        expected_cid = invalid_cid;
+        clear_expectation();
       } else { // otherwise, we expect the next contig to be the same
         expected_cid = phits.contigIdx_;
       }
@@ -393,7 +392,7 @@ struct SkipContext {
       kit1 += skip;
 
       read_target_pos = (kit1->second > read_len - k) ? read_len - k : kit1->second;
-      miss_it = 0;
+      clear_miss_counter();
 
       // was the skip we got the one we expected?
       // that is, was the intervening part of the read 
@@ -403,7 +402,7 @@ struct SkipContext {
       // if we didn't get the expected skip, then un-set our expectation
       // about where we will land.  
       // NOTE : This should be relatively infrequent, but check the effect
-      if (!expected_skip) { expected_cid = invalid_cid; }
+      if (!expected_skip) { clear_expectation(); }
 
       // if we got the skip we expected, then 
       // set ourselves up for a fast check in case we see 
@@ -413,25 +412,29 @@ struct SkipContext {
         if (phits.contigOrientation_) { 
           // if match is fw, go to the next k-mer in the contig
           cCurrPos += skip;
+          /*
           if (cCurrPos + k > cEndPos) {
             std::cerr << cCurrPos << " + " << k << " > " << cEndPos << " : shouldn't happen!\n"; 
             fast_hit.valid(false);
           } else {
-            fast_hit.valid(true);
-            fast_hit.offset = skip;
-            fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
-          }
+          */
+          fast_hit.valid(true);
+          fast_hit.offset = skip;
+          fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
+          //}
           return;
         } else {
           cCurrPos -= skip;
+          /*
           if (cCurrPos < cStartPos ) {
             std::cerr << cCurrPos << " - " << k << " < " << cStartPos << " : shouldn't happen!\n"; 
             fast_hit.valid(false);
           } else {
-            fast_hit.valid(true);
-            fast_hit.offset = -skip;
-            fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
-          }
+          */
+          fast_hit.valid(true);
+          fast_hit.offset = -skip;
+          fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
+          //}
           return;
         }
       }
@@ -459,12 +462,13 @@ struct SkipContext {
         case LastSkipType::SKIP_UNI : {
           // if distance from backup is 1, that means we already tried
           // last position, so we should just move to the next position 
+          int32_t pos_before_skip = kit_tmp->second;
           if (dist <= 1) {
             // if we're past the position we tried to jump to
             // then we're willing to skip a little faster
-            int32_t skip = (dist < 0) ? 2 : 1;
-            kit1 += skip;
-            kit_tmp = kit1;
+            skip = (dist < 0) ? 2 : 1;
+            kit_tmp += skip;
+            kit1 = kit_tmp;
           } else {
             // otherwise move the backup position toward us
             // and move the current point to the backup
@@ -473,10 +477,45 @@ struct SkipContext {
             kit_tmp += skip;
             kit1 = kit_tmp;
           }
+
+          // If we can advance to the next query 
+          // point without having to consult the index
+          // then do it.
+          if (// if we have an expecation
+              (expected_cid != invalid_cid) and 
+              // and the prev hit was on the expected unitig
+              (phits.contigIdx_ == expected_cid) and 
+              // and we are still before the final target position 
+              (kit1->second < read_target_pos)) {
+            
+            // Here, we compute the actual amount we skipped by, since
+            // there may have been intervening 'N's in the read and 
+            // we could have skipped more than the expected amount.
+            int actual_skip = (kit1->second - pos_before_skip);
+
+            // If this was the first miss we encountered 
+            // in the most recent round of search, then 
+            // reset the fast_hit offset.
+            if (miss_it == 0) { fast_hit.offset = 0; }
+            
+            auto& allContigs = pfi->getSeq();
+            if (phits.contigOrientation_) {
+              fast_hit.offset += actual_skip;
+              global_contig_pos += actual_skip;
+            } else {
+              fast_hit.offset -= actual_skip;
+              global_contig_pos -= actual_skip;
+            }
+            fast_hit.valid(true);
+            fast_hit.ref_kmer = allContigs.get_int(2*global_contig_pos, 2*k);
+          }
           // if we pass the read target position, then 
           // we no longer have an expectation of what 
           // we should see.
-          if (kit1->second >= read_target_pos) { clear_expectation(); }
+          if (kit1->second >= read_target_pos) { 
+            //fast_hit.valid(false);
+            clear_expectation(); 
+          }
           // increment the miss iterator
           miss_it += 1;
           return;
@@ -502,6 +541,7 @@ struct SkipContext {
   uint32_t expected_cid;
   LastSkipType last_skip_type{LastSkipType::NO_HIT};
   int32_t miss_it;
+  int64_t global_contig_pos;
   pufferfish::util::ProjectedHits phits;
   static constexpr uint32_t invalid_cid{std::numeric_limits<uint32_t>::max()};
 };
@@ -584,6 +624,7 @@ bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
               skip_ctx.fast_forward();
             } else {
               skip_ctx.advance_to_target_pos_successor();
+              skip_ctx.clear_miss_counter();
             }
           }
 
