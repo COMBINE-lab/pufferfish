@@ -187,6 +187,10 @@ struct SkipContext {
     return (expected_cid != invalid_cid and phits.contigIdx_ != expected_cid);
   }
 
+  inline bool hit_is_before_target_pos() {
+    return (miss_it > 0 and read_target_pos > kit1->second);
+  }
+
   inline int32_t read_pos() { return kit1->second; }
 
   inline pufferfish::util::ProjectedHits proj_hits() { return phits; }
@@ -194,11 +198,16 @@ struct SkipContext {
   inline void clear_expectation() { expected_cid = invalid_cid; }
 
   inline int32_t compute_safe_skip() {
+    if (hit_is_before_target_pos()) {
+      if (kit1->second != kit_tmp->second) {
+        std::cerr << "HERE\n";
+      }
+    }
     // if we are calling this, then we *did* get 
     // an unexpected hit.  To avoid iterating to that
     // already queried hit again, the target pos
     // will be the position before that hit
-    read_target_pos = kit1->second-1;
+    read_target_pos = hit_is_before_target_pos() ? read_target_pos : read_target_pos-1;
     read_prev_pos = kit_tmp->second;
     int32_t dist = read_target_pos - read_prev_pos;
     
@@ -207,7 +216,7 @@ struct SkipContext {
     safe_skip = 1;
     // if the distance is large enough
     if (dist > 2) {
-      safe_skip = (read_target_pos - read_prev_pos) / 2;
+      safe_skip = (read_target_pos - read_prev_pos) / 3;
       safe_skip = static_cast<uint32_t>(safe_skip < 1 ? 1 : safe_skip);
     }
     return dist;
@@ -217,12 +226,25 @@ struct SkipContext {
     // start from the next position on the read and 
     // walk until we hit the read end or the position 
     // that we wanted to skip to
-    if (kit_tmp->second >= kit1->second) {
+    if (kit_tmp->second > kit1->second) {
       std::cerr << "rewinding to a greater position; shouldn't happen!\n";
+      std::cerr << "\tkit_tmp->second = " << kit_tmp->second << ", kit1->second = " 
+                << kit1->second << ", read_target_pos = " << read_target_pos << "\n";
     }
     kit_swap = kit1;
     kit1 = kit_tmp;
     kit_tmp = kit_swap;
+  }
+
+  // Advance kit1 and kit_tmp to (at least) the position following
+  // read_target_pos.  This function is intended to be called at 
+  // the end of a `safe_skip` walk when the query at the original
+  // read_target_pos yielded a miss.
+  inline void advance_to_target_pos_successor() {
+    int32_t diff = (read_target_pos - kit1->second) + 1;
+    kit1 += diff;
+    kit_tmp = kit1;
+    miss_it = 0;
   }
 
   inline void fast_forward() {
@@ -251,16 +273,35 @@ struct SkipContext {
     int32_t remaining_len = read_target_pos - kit1->second;
     safe_skip = (remaining_len <= safe_skip) ? remaining_len : safe_skip;
     safe_skip = (safe_skip < 1) ? 1 : safe_skip;
+    //std::cerr << "before : advance_safe() : kit1->second = " << kit1->second << ", read_target_pos = " << read_target_pos << ", safe_skip = " << safe_skip << "\n";
     kit1 += safe_skip;
-    return kit1->second <= read_target_pos;
+    //std::cerr << "after : advance_safe() : kit1->second = " << kit1->second << ", read_target_pos = " << read_target_pos << "\n";
+    return (kit1->second <= read_target_pos) and (kit1 != kit_end);
   }
-        
+  
   inline void advance_from_hit() {
       int32_t skip = 1;
       // the offset of the hit on the read
       int32_t read_offset = kit1->second;
       // the skip that would take us to the last base of the read
       int32_t read_skip = (read_len - read_offset + k - 1);
+
+      // if we got here after a miss, and we have an expectation and this hit 
+      // matches it, then we want to avoid replaying this whole scenario again.
+      // because this hit is on the same unitig, we will compute the same 
+      // attempted skip.  In this case, we found what we expected, but after
+      // 1 or more misses.  In that case, we're satisfied with the rest of this
+      // unitig so we simply move on to the position after our original skip
+      // position.
+      if ( (miss_it > 0) and (expected_cid != invalid_cid) and (expected_cid == phits.contigIdx_) ) {
+        skip = read_target_pos - read_offset + 1;
+        skip = (skip < 1) ? 1 : skip;
+        kit1 += skip;
+        kit_tmp = kit1;
+        clear_expectation();
+        return;
+      }
+
       // any valid skip should always be at least 1 base
       read_skip = (read_skip < 1) ? 1 : read_skip;
       
@@ -309,7 +350,7 @@ struct SkipContext {
       int32_t pos_before_skip = kit1->second;
       kit1 += skip;
 
-      read_target_pos = (kit1->second > read_len - k) ? read_len - k : read_target_pos;
+      read_target_pos = (kit1->second > read_len - k) ? read_len - k : kit1->second;
       miss_it = 0;
 
       // was the skip we got the one we expected?
@@ -356,9 +397,6 @@ struct SkipContext {
 
   inline void advance_from_miss() {
       int32_t skip = 1;
-      // this will already have been set; don't need
-      // to reset it here.
-      // read_target_pos = kit1->second;
 
       // distance from backup position 
       int32_t dist = read_target_pos - kit_tmp->second;
@@ -379,11 +417,12 @@ struct SkipContext {
         case LastSkipType::SKIP_UNI : {
           // if distance from backup is 1, that means we already tried
           // last position, so we should just move to the next position 
-          if (dist <= 2) {
-            kit1 += 1;
+          if (dist <= 1) {
+            // if we're past the position we tried to jump to
+            // then we're willing to skip a little faster
+            int32_t skip = (dist < 0) ? 3 : 1;
+            kit1 += skip;
             kit_tmp = kit1;
-            //last_skip_type = LastSkipType::NO_HIT;
-            return;
           } else {
             // otherwise move the backup position toward us
             // and move the current point to the backup
@@ -391,9 +430,14 @@ struct SkipContext {
             skip = (skip < 2) ? 2 : skip;
             kit_tmp += skip;
             kit1 = kit_tmp;
-            miss_it += 1;
-            return;
           }
+          // if we pass the read target position, then 
+          // we no longer have an expectation of what 
+          // we should see.
+          if (kit1->second >= read_target_pos) { clear_expectation(); }
+          // increment the miss iterator
+          miss_it += 1;
+          return;
         }
         break;
       }
@@ -446,6 +490,27 @@ bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
       // if the hit was not inline with what we were 
       // expecting. 
       if (skip_ctx.hit_is_unexpected()){
+        // there are two scenarios now. Either: 
+        // (1) the hit we found was at the inital place 
+        // we tried to jump to, but just on the wrong unitig. 
+        // OR
+        // (2) we encountered >= 1 miss in between and so 
+        // the hit we found that led us here is before the 
+        // original jump point.
+        //
+        // In case (1), we want to add the current hit 
+        // *after* doing safe advances to the end position, and 
+        // then do a normal `advance_from_hit()`; in case (2) 
+        // we want to add the current hit *before* doing advances 
+        // to the end position, and then do a normal `advance_from_miss()`.
+        
+        bool hit_at_end = !skip_ctx.hit_is_before_target_pos();
+
+        // we are in case (2)
+        if (!hit_at_end) {
+          raw_hits.push_back(std::make_pair(read_pos, proj_hits));
+        }
+
         int32_t dist_to_target = skip_ctx.compute_safe_skip();
 
         // special case is the prev hit was the 
@@ -454,29 +519,59 @@ bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
         // have both hits.  In that case, just
         // proceed as usual.
         if (dist_to_target > 0) {
-            // start from the next position on the read and
-            // walk until we hit the read end or the position
-            // that we wanted to skip to
+
+            // start from the next position on the read 
             skip_ctx.rewind();
+
+            // walk until we hit the read end or the position
+            // that we wanted to skip to, collecting the 
+            // hits we find along the way.
             while (skip_ctx.advance_safe()) {
               if (skip_ctx.query_kmer(qc)) {
                 raw_hits.push_back(
                     std::make_pair(skip_ctx.read_pos(), skip_ctx.proj_hits()));
               }
             }
-
-            // if we got here, then either we are done, or we 
-            // reached our target position so we don't
-            // have an expectation of what should come next.
-            skip_ctx.clear_expectation();
-            skip_ctx.fast_forward();
-            // so that the next skip can be computed properly.
-            skip_ctx.phits = proj_hits;
+            
+            // now we examined the positions in between.
+            // if we were in case (1), jump back to the valid 
+            // hit that we first encountered.  If we were in 
+            // case (2), advance to at least the point right
+            // after the initial jump.
+            if (hit_at_end) {
+              skip_ctx.fast_forward();
+            } else {
+              skip_ctx.advance_to_target_pos_successor();
+            }
           }
-      } 
-      // push this hit and advance
-      raw_hits.push_back(std::make_pair(read_pos, proj_hits));
-      skip_ctx.advance_from_hit();
+
+          // if we got here, then either we are done, or we 
+          // reached our target position so we don't
+          // have an expectation of what should come next.
+          skip_ctx.clear_expectation();
+
+          // If we were in case (1)
+          if (hit_at_end) {
+            // set the phits for the skip_ctx so the 
+            // next jump can be properly computed
+            skip_ctx.phits = proj_hits;
+            // add the hit here
+            raw_hits.push_back(std::make_pair(read_pos, proj_hits));
+            // advance as if this was a normal hit
+            skip_ctx.advance_from_hit();
+          } else {
+            // We were in case 2
+            // now advance as if this was a normal miss.
+            skip_ctx.advance_from_miss();
+          }
+      } else {
+        // We got a hit and either we had no expectation
+        // or the hit was in accordance with our expectation.
+        
+        // push this hit and advance
+        raw_hits.push_back(std::make_pair(read_pos, proj_hits));
+        skip_ctx.advance_from_hit();
+      }
     } else {
       // if we got here, we looked for a match and didn't find one
       skip_ctx.advance_from_miss();
