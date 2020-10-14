@@ -163,18 +163,18 @@ struct SkipContext {
   inline bool query_kmer(pufferfish::util::QueryCache& qc) {
     bool found_match = false;
     if (fast_hit.valid()) {
-        auto keq = kit1->first.isEquivalent(fast_hit.ref_kmer);
-        if (keq != KmerMatchType::NO_MATCH) {
-          found_match = true;
-          // how the k-mer hits the contig (true if k-mer in fwd orientation, false
-          // otherwise)
-          bool hit_fw = (keq == KmerMatchType::IDENTITY_MATCH);
-          phits.contigOrientation_ = hit_fw;
-          phits.globalPos_ += fast_hit.offset;
-          phits.contigPos_ += fast_hit.offset;
+      auto keq = kit1->first.isEquivalent(fast_hit.ref_kmer);
+      if (keq != KmerMatchType::NO_MATCH) {
+        found_match = true;
+        // how the k-mer hits the contig (true if k-mer in fwd orientation,
+        // false otherwise)
+        bool hit_fw = (keq == KmerMatchType::IDENTITY_MATCH);
+        phits.contigOrientation_ = hit_fw;
+        phits.globalPos_ += fast_hit.offset;
+        phits.contigPos_ += fast_hit.offset;
       }
       fast_hit.valid(false);
-    } 
+    }
 
     if (!found_match) {
       phits = pfi->getRefPos(kit1->first, qc);
@@ -183,54 +183,87 @@ struct SkipContext {
     return !phits.empty();
   }
 
+  // Returns true if the current hit occurred 
+  // on a unitig other than that which was expected.
+  // If there is no expecation about the unitig 
+  // (i.e. if `clear_expectation()` was called before
+  // obtaining this hit) or if the current unitig 
+  // matches expectation, then it returns false.
   inline bool hit_is_unexpected() {
     return (expected_cid != invalid_cid and phits.contigIdx_ != expected_cid);
   }
 
+  // Returns:
+  // * True if there is a target position (end of unitig / read)
+  //   jump that is _beyond_ the current hit's position on the read.
+  // * False if the current hit is at the position to which 
+  //   the jump was intended.
+  // This value can be used to determine the appropriate courese
+  // of action during safe skipping.
   inline bool hit_is_before_target_pos() {
     return (miss_it > 0 and read_target_pos > kit1->second);
   }
 
+  // Returns the current position of the skip context 
+  // on the read.
   inline int32_t read_pos() { return kit1->second; }
 
+  // Returns the most recent projected hits object 
+  // obtained by this skip context.
   inline pufferfish::util::ProjectedHits proj_hits() { return phits; }
 
+  // Clears out any expectation we have about the unitig 
+  // on which the next hit should occur.
   inline void clear_expectation() { expected_cid = invalid_cid; }
 
+  // Computes the amount by which we will move along 
+  // the read and query the reference until we hit the 
+  // original target position.  This skip is used in the 
+  // case that we query and find that we have arrived 
+  // at an unexpected unitig (i.e. JE(HD) ).
   inline int32_t compute_safe_skip() {
-    if (hit_is_before_target_pos()) {
-      if (kit1->second != kit_tmp->second) {
-        std::cerr << "HERE\n";
-      }
-    }
-    // if we are calling this, then we *did* get 
-    // an unexpected hit.  To avoid iterating to that
+
+    // read_target_pos = //hit_is_before_target_pos() ? read_target_pos : read_target_pos-1;
+
+    // There are 2 cases we may encounter here.
+    // Either:
+    // (1) The current hit was found at the original
+    // jump location.  In that case we got 
+    // an unexpected hit. To avoid iterating to that
     // already queried hit again, the target pos
     // will be the position before that hit
-    read_target_pos = hit_is_before_target_pos() ? read_target_pos : read_target_pos-1;
+    // (2) The current hit was found at some position
+    // before the original jump location.  This can 
+    // happen if we have an intervening miss (i.e. JE(M))
+    // before we find the discordant hit (i.e. JE(HD)).
+    // In that case, we leave the target position 
+    // the same.
+
+    // In either case, we have *already* checked the k-mer 
+    // at read_target_pos, and it was either a hit (1) or a miss (2).
+    // So, we would like to avoid doing that check again.
+    // Thus, we traverse up to position (read_target_pos - 1)
+
+    int32_t safe_skip_end = read_target_pos - 1;
     read_prev_pos = kit_tmp->second;
-    int32_t dist = read_target_pos - read_prev_pos;
-    
-    //if (dist < 0) { std::cerr << "dist = " << dist << " should not happen!\n"; }
+    int32_t dist = (safe_skip_end) - read_prev_pos;
     
     safe_skip = 1;
     // if the distance is large enough
     if (dist > 2) {
-      safe_skip = (read_target_pos - read_prev_pos) / 3;
-      safe_skip = static_cast<uint32_t>(safe_skip < 1 ? 1 : safe_skip);
+      safe_skip = (safe_skip_end - read_prev_pos) / 2;
+      safe_skip = static_cast<int32_t>(safe_skip < 1 ? 1 : safe_skip);
     }
     return dist;
   }
 
+  // Backup kit1 to the position of kit_tmp, the backup
+  // position on the read.  Save the current location of 
+  // kit1 in kit_swap so we can restore it later.
   inline void rewind() {
     // start from the next position on the read and 
     // walk until we hit the read end or the position 
     // that we wanted to skip to
-    if (kit_tmp->second > kit1->second) {
-      std::cerr << "rewinding to a greater position; shouldn't happen!\n";
-      std::cerr << "\tkit_tmp->second = " << kit_tmp->second << ", kit1->second = " 
-                << kit1->second << ", read_target_pos = " << read_target_pos << "\n";
-    }
     kit_swap = kit1;
     kit1 = kit_tmp;
     kit_tmp = kit_swap;
@@ -240,6 +273,7 @@ struct SkipContext {
   // read_target_pos.  This function is intended to be called at 
   // the end of a `safe_skip` walk when the query at the original
   // read_target_pos yielded a miss.
+  // Side effect : Resets the miss_it counter to 0.
   inline void advance_to_target_pos_successor() {
     int32_t diff = (read_target_pos - kit1->second) + 1;
     kit1 += diff;
@@ -247,10 +281,9 @@ struct SkipContext {
     miss_it = 0;
   }
 
+  // Reset kit1 to the place it was at when 
+  // `rewind()` was called.
   inline void fast_forward() {
-    // jump back to the place we were 
-    // at when we called rewind()
-
     // NOTE: normally we would assume that 
     // kit1->second >= kit_tmp->second
     // but, this be violated if we skipped farther than we asked in the iterator
@@ -270,15 +303,24 @@ struct SkipContext {
    * end point, and false otherwise.
    */
   inline bool advance_safe() {
-    int32_t remaining_len = read_target_pos - kit1->second;
+    int32_t safe_skip_end = read_target_pos - 1;
+    int32_t remaining_len = safe_skip_end - kit1->second;
     safe_skip = (remaining_len <= safe_skip) ? remaining_len : safe_skip;
     safe_skip = (safe_skip < 1) ? 1 : safe_skip;
-    //std::cerr << "before : advance_safe() : kit1->second = " << kit1->second << ", read_target_pos = " << read_target_pos << ", safe_skip = " << safe_skip << "\n";
     kit1 += safe_skip;
-    //std::cerr << "after : advance_safe() : kit1->second = " << kit1->second << ", read_target_pos = " << read_target_pos << "\n";
-    return (kit1->second <= read_target_pos) and (kit1 != kit_end);
+    return (kit1->second <= safe_skip_end) and (kit1 != kit_end);
   }
   
+  /**
+   * Given that we have obtained a hit in response to a query,
+   * and given that that hit was not unexpected (i.e. the jump 
+   * that lead to it was not of type JE(HD)), then this function
+   * will:
+   * (1) calculate the next position to be checked.
+   * (2) advance kit1 to that position
+   * (3) preserve the current hit iterator state in kit_tmp
+   * (4) set up the appropriate context for a fast hit check if appropriate
+   */
   inline void advance_from_hit() {
       int32_t skip = 1;
       // the offset of the hit on the read
@@ -420,7 +462,7 @@ struct SkipContext {
           if (dist <= 1) {
             // if we're past the position we tried to jump to
             // then we're willing to skip a little faster
-            int32_t skip = (dist < 0) ? 3 : 1;
+            int32_t skip = (dist < 0) ? 2 : 1;
             kit1 += skip;
             kit_tmp = kit1;
           } else {
