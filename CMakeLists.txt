@@ -16,7 +16,7 @@ message("CC version: ${CC_VERSION}")
 
 if(NOT DEFINED USE_ARM)
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)")
-    message("Detected ARM host. Setting USE_ARM to true.")
+    message("Detected 64-bit ARM host. Setting USE_ARM to true.")
     set(USE_ARM TRUE)
   else()
     message("Detected non-ARM host. Setting USE_ARM to false.")
