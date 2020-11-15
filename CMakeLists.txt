@@ -15,7 +15,7 @@ endif()
 message("CC version: ${CC_VERSION}")
 
 if(NOT DEFINED USE_ARM)
-  if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)")
     message("Detected ARM host. Setting USE_ARM to true.")
     set(USE_ARM TRUE)
   else()
