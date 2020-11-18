@@ -42,12 +42,24 @@ rank9sel::rank9sel() {
 	num_words = num_counts = inventory_size = ones_per_inventory = log2_ones_per_inventory = num_ones = 0;
 }
 
+void rank9sel::arm_hack() const {}
+
 rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 	this->bits = (uint64_t*)bits_->get_words();
 	num_words = ( num_bits + 63 ) / 64;
 	num_counts = ( ( num_bits + 64 * 8 - 1 ) / ( 64 * 8 ) ) * 2;
 	// Init rank/select structure
 	counts = new uint64_t[ num_counts + 1 ]();
+
+	// NOTE: This, for some reason I have yet to ascertain, prevents
+	// the select data structure from being incorrect when building on 
+	// large-ish references on ARM CPUs.  The code runs cleanly in 
+	// ASAN and UBSAN and works without this function call.  However
+	// when compiled without a sanatizer, this function call is necessary
+	// even though it is essentially a NOP.  We'll continue to dig
+	// to try an determine what is going on here, but this hack 
+	// is in place for the time being and seems to "fix" things. 
+	arm_hack();
 
 	uint64_t c = 0;
 	uint64_t pos = 0;
@@ -124,7 +136,7 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 					else if ( span >= 16 ) {
 						assert( ( block_span + 8 & -8LL ) + 8 <= span * 4 );
 
-						int k;
+						int64_t k;
 						for( k = 0; k < static_cast<int64_t>(block_span); k++ ) {
 							assert( ((uint16_t *)s)[ k + 8 ] == 0 );
 							((uint16_t *)s)[ k + 8 ] = counts[ ( block_left + k + 1 ) * 2 ] - counts_at_start;
@@ -150,7 +162,7 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 					else if ( span >= 2 ) {
 						assert( ( block_span + 8 & -8LL ) <= span * 4 );
 
-						int k;
+						int64_t k;
 						for( k = 0; k < static_cast<int64_t>(block_span); k++ ) {
 							assert( ((uint16_t *)s)[ k ] == 0 );
 							((uint16_t *)s)[ k ] = counts[ ( block_left + k + 1 ) * 2 ] - counts_at_start;
@@ -243,7 +255,7 @@ rank9sel::~rank9sel() {
 	if (subinventory) { delete [] subinventory; }
 }
 
-uint64_t rank9sel::rank( const uint64_t k ) {
+uint64_t rank9sel::rank( const uint64_t k ) const {
 	const uint64_t word = k / 64;
 	const uint64_t block = word / 4 & ~1;
 	const int offset = word % 8 - 1;
@@ -251,7 +263,7 @@ uint64_t rank9sel::rank( const uint64_t k ) {
 }
 
 
-uint64_t rank9sel::select( const uint64_t rank ) {
+uint64_t rank9sel::select( const uint64_t rank ) const {
 	const uint64_t inventory_index_left = rank >> LOG2_ONES_PER_INVENTORY;
 	assert( inventory_index_left < inventory_size );
 
