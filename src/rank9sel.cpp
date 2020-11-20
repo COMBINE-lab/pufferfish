@@ -53,12 +53,13 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 
 	// NOTE: This, for some reason I have yet to ascertain, prevents
 	// the select data structure from being incorrect when building on 
-	// large-ish references on ARM CPUs.  The code runs cleanly in 
+	// large-ish references on ARM CPUs using g++9.  The code runs cleanly in 
 	// ASAN and UBSAN and works without this function call.  However
 	// when compiled without a sanatizer, this function call is necessary
-	// even though it is essentially a NOP.  We'll continue to dig
-	// to try an determine what is going on here, but this hack 
-	// is in place for the time being and seems to "fix" things. 
+	// even though it is essentially a NOP.  With g++8 and g++10, this hack
+	// is unnecessary.  Presumably, this is either an extreme corner case 
+	// somewhere else in the code or, more likely, a compiler bug.  Nonetheless
+	// since g++9 is widespread, we'll leave this here for now. 
 	arm_hack();
 
 	uint64_t c = 0;
