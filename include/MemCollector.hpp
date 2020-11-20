@@ -31,6 +31,11 @@ public:
   size_t expandHitEfficient(pufferfish::util::ProjectedHits& hit,
                           pufferfish::CanonicalKmerIterator& kit,
                           ExpansionTerminationType& et);
+  
+  bool get_raw_hits_sketch(std::string &read,
+                  pufferfish::util::QueryCache& qc,
+                  bool isLeft=false,
+                  bool verbose=false);
 
   bool operator()(std::string &read,
                   pufferfish::util::QueryCache& qc,
@@ -62,6 +67,13 @@ double getConsensusFraction() const;
 void setHitFilterPolicy(pufferfish::util::HitFilterPolicy hfp);
 
 pufferfish::util::HitFilterPolicy getHitFilterPolicy() const;
+
+inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& get_left_hits() { 
+  return left_rawHits;
+}
+inline std::vector<std::pair<int, pufferfish::util::ProjectedHits>>& get_right_hits() {
+  return right_rawHits;
+}
 
 private:
   PufferfishIndexT* pfi_;

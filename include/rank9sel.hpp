@@ -43,8 +43,9 @@ public:
   rank9sel& operator=(rank9sel& other) = delete;
 
 	~rank9sel();
-	uint64_t rank( const uint64_t pos );
-	uint64_t select( const uint64_t rank );
+	void arm_hack() const;
+	uint64_t rank( const uint64_t pos ) const;
+	uint64_t select( const uint64_t rank ) const;
 	uint64_t get_word(const uint64_t index);
 	// Just for analysis purposes
 	void print_counts();

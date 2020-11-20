@@ -20,6 +20,8 @@ namespace ksw2pp {
 #define SIMD_AVX2    0x80
 #define SIMD_AVX512F 0x100
 
+#ifdef KSW_USE_ARM
+#else
 #ifndef _MSC_VER
 // adapted from https://github.com/01org/linux-sgx/blob/master/common/inc/internal/linux/cpuid_gnu.h
 void __cpuidex(int cpuid[4], int func_id, int subfunc_id)
@@ -57,6 +59,7 @@ int x86_simd(void)
 	}
 	return flag;
 }
+#endif // KSW_USE_ARM
 // end of ksw2_dispatch.c here
 
 unsigned char seq_nt4_table_loc[256] = {
@@ -73,34 +76,46 @@ unsigned char seq_nt4_table_loc[256] = {
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4};
 
   KSW2Aligner::KSW2Aligner(int8_t match, int8_t mismatch) {
-  unsigned int simd = x86_simd();
-  haveSSE41 = (simd & SIMD_SSE4_1);
-  haveSSE2 = (simd & SIMD_SSE2);
-  query_.clear();
-  target_.clear();
-  kalloc_allocator_.reset(km_init());
-  int a = match;
-  int b = mismatch;
-  int m = 5;
-  int i, j;
-  // use the ``simple'' scoring matrix for now.
-  mat_.resize(m * m);
+    #ifdef KSW_USE_ARM
+    haveSSE41 = true;
+    haveSSE2 = true;
+    #else
+    unsigned int simd = x86_simd();
+    haveSSE41 = (simd & SIMD_SSE4_1);
+    haveSSE2 = (simd & SIMD_SSE2);
+    #endif // KSW_USE_ARM
+    query_.clear();
+    target_.clear();
+    kalloc_allocator_.reset(km_init());
+    int a = match;
+    int b = mismatch;
+    int m = 5;
+    int i, j;
+    // use the ``simple'' scoring matrix for now.
+    mat_.resize(m * m);
 
-  a = a < 0 ? -a : a;
-  b = b > 0 ? -b : b;
-  for (i = 0; i < m - 1; ++i) {
-    for (j = 0; j < m - 1; ++j)
-      mat_[i * m + j] = i == j ? a : b;
-    mat_[i * m + m - 1] = 0;
-  }
-  for (j = 0; j < m; ++j)
-    mat_[(m - 1) * m + j] = 0;
+    a = a < 0 ? -a : a;
+    b = b > 0 ? -b : b;
+    for (i = 0; i < m - 1; ++i) {
+      for (j = 0; j < m - 1; ++j)
+        mat_[i * m + j] = i == j ? a : b;
+      mat_[i * m + m - 1] = 0;
+    }
+    for (j = 0; j < m; ++j) {
+      mat_[(m - 1) * m + j] = 0;
+    }
 }
 
 KSW2Aligner::KSW2Aligner(std::vector<int8_t> mat) {
-  unsigned int simd = x86_simd();
-  haveSSE41 = (simd & SIMD_SSE4_1);
-  haveSSE2 = (simd & SIMD_SSE2);
+    #ifdef KSW_USE_ARM
+    haveSSE41 = true;
+    haveSSE2 = true;
+    #else
+    unsigned int simd = x86_simd();
+    haveSSE41 = (simd & SIMD_SSE4_1);
+    haveSSE2 = (simd & SIMD_SSE2);
+    #endif // KSW_USE_ARM
+
   query_.clear();
   target_.clear();
   kalloc_allocator_.reset(km_init());
