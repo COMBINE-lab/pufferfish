@@ -546,6 +546,42 @@ struct SkipContext {
   static constexpr uint32_t invalid_cid{std::numeric_limits<uint32_t>::max()};
 };
 
+// This method performs k-mer / hit collection 
+// using a custom implementation of the corresponding 
+// part of the pseudoalignment algorithm as described in (1).
+// Specifically, it attempts to find a small set of 
+// k-mers along the fragment (`read`) that are shared with
+// a set of unitigs in the compacted colored de Bruijn graph, 
+// using the structure of the graph to avoid queries that
+// are unlikely to change the resulting set of unitigs 
+// that are discovered.  This function only fills out the 
+// set of hits, and does not itself implement any 
+// consensus mechanism.  This hit collection mechanism 
+// prioritizes speed compared to e.g. the uniMEM collection
+// strategy implemented in the `operator()` method of this 
+// class.  Currently, this strategy is only used in the 
+// `--sketch` mode of alevin.  One may refer to the 
+// [release notes](https://github.com/COMBINE-lab/salmon/releases/tag/v1.4.0)
+// of the relevant version of salmon and links therein 
+// for a more detailed discussion of the downstream effects of 
+// different strategies.
+//
+// The function fills out the appropriate raw hits 
+// member of this MemCollector instance.  
+// 
+// If the `isLeft` flag is set to true, then the left 
+// raw hits are filled and can be retreived with 
+// `get_left_hits()`.  Otherwise, the right raw hits are 
+// filled and can be retrieved with `get_right_hits()`.
+//
+// This function returns `true` if at least one hit was 
+// found shared between the read and reference and 
+// `false` otherwise.
+// 
+// [1] Bray NL, Pimentel H, Melsted P, Pachter L. 
+// Near-optimal probabilistic RNA-seq quantification. 
+// Nat Biotechnol. 2016;34(5):525-527.
+//
 template <typename PufferfishIndexT>
 bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
                   pufferfish::util::QueryCache& qc,
