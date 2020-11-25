@@ -108,13 +108,16 @@ bool fixFasta(single_parser* parser,
     }
   };
 
-  // http://biology.stackexchange.com/questions/21329/whats-the-longest-transcript-known
-  // longest human transcript is Titin (108861), so this gives us a *lot* of
-  // leeway before
-  // we issue any warning.
-  size_t tooLong = 200000;
-  //size_t numDistinctKmers{0};
-  //size_t numKmers{0};
+  // This used to be set based on the length of Titin (108861).  But, as is almost guaranteed 
+  // with any arbitrary cutoff in code, the data will eventually prove you chose an inadequate
+  // value for some case.  The new winner for longest transcript is ENST00000674361.1
+  // weighing in at 347,561 nucleotides.  It appears in human Gencode 35 (and probably will 
+  // persist).  So, we set this value to 400000 to give some headway and avoid producing 
+  // warnings for standard human transcriptomes.  This addresses 
+  // https://github.com/COMBINE-lab/salmon/issues/591; thanks to @guidohooiveld for reporting 
+  // it.
+  constexpr size_t tooLong = 400000;
+
   size_t currIndex{0};
   size_t numDups{0};
   int64_t numShortBeforeFirstDecoy{0};
