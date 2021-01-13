@@ -48,17 +48,15 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir, pufferfish::util::
   {
     CLI::AutoTimer timer{"Loading contig offsets", CLI::Timer::Big};
     std::string pfile = indexDir + "/" + pufferfish::util::CONTIG_OFFSETS;
-    auto bits_per_element = compact::get_bits_per_element(pfile);
-    contigOffsets_.set_m_bits(bits_per_element);
     contigOffsets_.deserialize(pfile, false);
   }
   numContigs_ = contigOffsets_.size()-1;
 
   {
     std::string rlPath = indexDir + "/" + pufferfish::util::REFLENGTH;
-    if (puffer::fs::FileExists(rlPath.c_str())) {
+    std::ifstream refLengthStream(rlPath);
+    if(refLengthStream.good()) {
       CLI::AutoTimer timer{"Loading reference lengths", CLI::Timer::Big};
-      std::ifstream refLengthStream(rlPath);
       cereal::BinaryInputArchive refLengthArchive(refLengthStream);
       refLengthArchive(refLengths_);
     } else {
@@ -68,8 +66,8 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir, pufferfish::util::
 
   {
     std::string rlPath = indexDir + "/" + pufferfish::util::COMPLETEREFLENGTH;
-    if (puffer::fs::FileExists(rlPath.c_str())) {
-      std::ifstream completeRefLengthStream(rlPath);
+    std::ifstream completeRefLengthStream(rlPath);
+    if(completeRefLengthStream.good()) {
       cereal::BinaryInputArchive completeRefLengthArchive(completeRefLengthStream);
       completeRefLengthArchive(completeRefLengths_);
     } else {
@@ -121,8 +119,6 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir, pufferfish::util::
   {
     CLI::AutoTimer timer{"Loading positions", CLI::Timer::Big};
     std::string pfile = indexDir + "/" + pufferfish::util::POS;
-    auto bits_per_element = compact::get_bits_per_element(pfile);
-    pos_.set_m_bits(bits_per_element);
     pos_.deserialize(pfile, false);
     //auto f = std::async(std::launch::async, &pos_vector_t::touch_all_pages, &pos_, bits_per_element);
   }
@@ -135,9 +131,9 @@ PufferfishIndex::PufferfishIndex(const std::string& indexDir, pufferfish::util::
 
   {
     std::string rlPath = indexDir + "/" + pufferfish::util::REFACCUMLENGTH;
-    if (puffer::fs::FileExists(rlPath.c_str())) {
+    std::ifstream refLengthStream(rlPath);
+    if(refLengthStream.good()) {
       CLI::AutoTimer timer{"Loading reference accumulative lengths", CLI::Timer::Big};
-      std::ifstream refLengthStream(rlPath);
       cereal::BinaryInputArchive refLengthArchive(refLengthStream);
       refLengthArchive(refAccumLengths_);
     } else {
