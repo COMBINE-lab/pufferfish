@@ -10,6 +10,7 @@
 #include "compact_iterator.hpp"
 #include <bitset>
 #include <iostream>
+#include <sys/mman.h>
 
 namespace compact {
   
@@ -52,6 +53,7 @@ namespace compact {
             size_t m_capacity;         // Capacity in number of elements
             W *m_mem;
             mio::mmap_source ro_mmap;
+            bool is_anon_mmaped = false;
         public:
             // Number of bits required for indices/values in the range [0, s).
             static unsigned required_bits(size_t s) {
@@ -97,7 +99,10 @@ namespace compact {
 
             ~vector() {
                 if (!ro_mmap.is_mapped()) {
-                    m_allocator.deallocate(m_mem, elements_to_words(m_capacity, bits()));
+                    if(!is_anon_mmaped)
+                        m_allocator.deallocate(m_mem, elements_to_words(m_capacity, bits()));
+                    else
+                        munmap(m_mem, sizeof(W) * elements_to_words(m_capacity, bits()));
                 }
             }
 
@@ -293,12 +298,20 @@ namespace compact {
 
                 m_allocator.deallocate(m_mem,
                                        elements_to_words(m_capacity, bits()));
-                m_mem =
-                    m_allocator.allocate(elements_to_words(m_capacity, bits_per_element));
-                if (m_mem == nullptr)
-                  throw std::bad_alloc();
+                // m_mem =
+                //     m_allocator.allocate(elements_to_words(m_capacity, bits_per_element));
+                // if (m_mem == nullptr)
+                //   throw std::bad_alloc();
+                m_mem = nullptr;
+                const size_t cap_len = sizeof(W) * elements_to_words(m_capacity, bits_per_element);
+                void* ptr = ::mmap(0, cap_len, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+                if(ptr == MAP_FAILED)
+                    throw std::bad_alloc();
+                is_anon_mmaped = true;
+                m_mem = reinterpret_cast<W*>(ptr);
                 ifile.read(reinterpret_cast<char*>(m_mem),
                            sizeof(W) * elements_to_words(m_size, bits_per_element));
+                mprotect(m_mem, cap_len, PROT_READ);
               }
             }
 
