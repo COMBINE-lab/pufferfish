@@ -206,6 +206,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     arOut.score = std::numeric_limits<decltype(arOut.score)>::min();
     arOut.cigar = "";
     arOut.NM = 0;
+    arOut.longest_match = 0;
     arOut.openGapLen = 0;
     return false;
   }
@@ -278,6 +279,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
     arOut.cigar = cigar;
     arOut.NM = 0;
+    arOut.longest_match = readLen;
     arOut.openGapLen = openGapLen;
     return true;
   }
@@ -294,6 +296,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // if not, check if we can skip it via the alignment cache
   if (perfectChain) {
     arOut.score = alignmentScore = readLen * mopts.matchScore;
+
+    // Calculate the longest match from the read to the reference
+    arOut.longest_match = readLen;
+
     if (computeCIGAR or approximateCIGAR) { cigarGen.add_item(readLen, 'M'); }
     hctr.skippedAlignments_byCov += 1;
     /*SPDLOG_DEBUG(logger_,"[[");
@@ -312,6 +318,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     if (hit != alnCache.end() and (isFw == hit->second.isFw) ) {//}and refStart + readLen + refExtLength < refTotalLength) {
       hctr.skippedAlignments_byCache += 1;
       arOut.score = hit->second.score;
+
+      // Calculate the longest match from the read to the reference
+      arOut.longest_match = hit->second.longest_match;
+
       if (computeCIGAR or approximateCIGAR) { arOut.cigar = hit->second.cigar; arOut.NM = hit->second.NM;}
       arOut.openGapLen = hit->second.openGapLen;
       return true;
@@ -330,6 +340,16 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       // if we allow softclipping of overhanging bases, then we can cut off the
       // part of the read before the start of the reference
       decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
+
+      // Calculate the longest match from the read to the reference
+      if (mopts.computeLM) {
+        for(auto it = mems.begin(); it != mems.end() and !ez->stopped; ++it) {
+          auto& mem = *it;
+          memlen = mem.extendedlen;
+          arOut.longest_match = std::max(arOut.longest_match, memlen);
+        }
+      }
+
       if (computeCIGAR)
         cigarGen.begin_softClipped_len = readOffset;
       nonstd::string_view readSeq = readView.substr(readOffset);
@@ -526,6 +546,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         rpos = mem.rpos;
         memlen = mem.extendedlen;
         tpos = mem.tpos;
+
+        // Calculate the longest match from the read to the reference
+        if (mopts.computeLM)
+          arOut.longest_match = std::max(arOut.longest_match, memlen);
 
         // first score the mem match
         int32_t score = mopts.matchScore * memlen;
@@ -788,6 +812,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     aln.isFw = isFw;
     aln.score = alignmentScore;
     aln.NM = NM_;
+    aln.longest_match = arOut.longest_match;
     if (computeCIGAR or approximateCIGAR) { aln.cigar = cigar; }
     aln.openGapLen = openGapLen;
     alnCache[hashKey] = aln;
@@ -796,6 +821,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   arOut.cigar = cigar;
   arOut.NM = NM_;
   arOut.openGapLen = openGapLen;
+
+  // Calculate the longest match from the read to the reference
   return true;
 }
 
@@ -830,6 +857,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         auto& orphan_aln_cache = isLeft ? alnCacheLeft : alnCacheRight;
 
         ar_orphan.score = invalidScore;
+        ar_orphan.longest_match = 0;
+
         alignRead(read_orphan, rc_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->queryChainHash,
                   jointHit.orphanClust()->perfectChain,
                   jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, true);
@@ -840,6 +869,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         jointHit.orphanClust()->NM = ar_orphan.NM;
         //jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         jointHit.orphanClust()->softClipStart = ar_orphan.softclip_start;
+        jointHit.orphanClust()->longest_match = ar_orphan.longest_match;
         if (jointHit.alignmentScore < 0 and verbose) {
           std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_orphan.score << "\n";
         }
@@ -847,6 +877,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
     } else {
         hctr.totalAlignmentAttempts += 2;
         ar_left.score = ar_right.score = invalidScore;
+        ar_left.longest_match = ar_right.longest_match = 0;
         if (verbose) { std::cerr << "left\n"; }
         alignRead(read_left, read_left_rc_, jointHit.leftClust->mems, jointHit.leftClust->queryChainHash, jointHit.leftClust->perfectChain,
                                             jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
@@ -879,6 +910,10 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
           jointHit.leftClust->NM = 0;
           jointHit.rightClust->NM = 0;
         }
+
+        jointHit.leftClust->longest_match = ar_left.longest_match;
+        jointHit.rightClust->longest_match = ar_right.longest_match;
+
         if ( !mopts.noOrphan and (( jointHit.alignmentScore == invalidScore and jointHit.mateAlignmentScore != invalidScore ) or
           ( jointHit.alignmentScore != invalidScore and jointHit.mateAlignmentScore == invalidScore )) ) {
           jointHit.mateStatus = jointHit.alignmentScore == invalidScore ? pufferfish::util::MateStatus::PAIRED_END_RIGHT : 
@@ -912,6 +947,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
 
     hctr.totalAlignmentAttempts += 1;
     ar_left.score = invalidScore;
+    ar_left.longest_match = 0;
     const auto& oc = jointHit.orphanClust();
     alignRead(read, read_left_rc_, oc->mems, oc->queryChainHash, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
     jointHit.alignmentScore =
@@ -919,6 +955,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     jointHit.orphanClust()->cigar = (approximateCIGAR or computeCIGAR) ? ar_left.cigar : "";
     jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
     jointHit.orphanClust()->NM = ar_left.NM;
+    jointHit.orphanClust()->longest_match = ar_left.longest_match;
     //jointHit.orphanClust()->coverage = jointHit.alignmentScore;
     if (jointHit.alignmentScore < 0 and verbose) {
       std::cerr << read.length() << " " << threshold(read.length()) << " " << ar_left.score << "\n";

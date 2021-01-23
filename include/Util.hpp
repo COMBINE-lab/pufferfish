@@ -601,7 +601,7 @@ Compile-time selection between list-like and map-like printing.
             uint32_t readLen{0};
             uint32_t openGapLen{0};
             uint32_t NM{0};
-
+            uint32_t longest_match{0};
             uint16_t softClipStart{0};
             uint64_t queryChainHash{0};
             
@@ -888,6 +888,7 @@ Compile-time selection between list-like and map-like printing.
         bool noDovetail{false};
         uint32_t maxFragmentLength{1000};
         PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
+        bool computeLM{false};
       };
 
         struct QuasiAlignment {
@@ -1040,6 +1041,9 @@ Compile-time selection between list-like and map-like printing.
             MateStatus mateStatus;
             bool active = true;
             uint32_t numHits = 0;
+
+            uint32_t longest_match{0};
+            uint32_t mateLongest_match{0};
         };
 
 // from https://github.com/cppformat/cppformat/issues/105
@@ -1378,6 +1382,7 @@ Compile-time selection between list-like and map-like printing.
             std::string cigar;
             uint32_t openGapLen;
             uint16_t softclip_start{0};
+            uint32_t longest_match{0};
         };
 
       void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,

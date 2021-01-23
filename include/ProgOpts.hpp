@@ -121,6 +121,7 @@ public:
   bool allowSoftclip{false};
   bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
+  bool computeLM{false};
 };
 }
 
