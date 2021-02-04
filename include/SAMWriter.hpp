@@ -14,6 +14,122 @@ typedef uint16_t rLenType;
 typedef uint32_t refLenType;
 
 
+
+inline uint16_t mapq_bt2(float bestSc, float secondBestSc, float minSc=120, float maxSc=200) {
+    if (secondBestSc == 0) 
+        secondBestSc = minSc-1; 
+    if (secondBestSc > bestSc)
+        return 255;
+    float diff = maxSc - minSc; // Difference of maximum alignment score and minimum alignment score allowed
+    float bestOver = bestSc-minSc;  // difference of read's best alignment score and minimum allowed score
+    float bestdiff = bestSc - secondBestSc; // difference of read's best alignment score and second best alignment score (which could be the same scores)
+    if (secondBestSc < minSc) {  // if unique alignment
+        if (bestOver >= diff*0.8)
+            return 42;
+        else if (bestOver >= diff*0.7)
+            return 40; 
+        else if (bestOver >= diff*0.61)
+            return 24; 
+        else if (bestOver >= diff*0.5)
+            return 23; 
+        else if (bestOver >= diff*0.42) 
+            return 8; 
+        else if (bestOver >= diff*0.3)
+            return 3; 
+        else
+            return 0;
+    }
+    else { // if multiple alignments
+        if (bestdiff >= diff*0.9) {
+            if (bestOver == diff) 
+                return 39;
+            else 
+                return 33;
+        }
+        else if (bestdiff >= diff*0.8) {
+            if (bestOver == diff) 
+                return 38;
+            else 
+                return 27;
+        }
+        else if (bestdiff >= diff*0.97) {
+            if (bestOver == diff)
+                return 37;
+            else
+                return 26;
+        }
+        else if (bestdiff >= diff*0.6) {
+            if (bestOver == diff)
+                return 36;
+            else
+                return 22;
+        }
+        else if (bestdiff >= diff*0.5) {
+            if (bestOver == diff)
+                return 35;
+            else if (bestOver >= diff*0.84)
+                return 25;
+            else if (bestOver >= diff*0.68)
+                return 16;
+            else if (bestOver >= diff*0.68)
+                return 5;
+        }
+        else if (bestdiff >= diff*0.4) {
+            if (bestOver == diff)
+                return 34;
+            else if (bestOver >= diff*0.84)
+                return 21;
+            else if (bestOver >= diff*0.68)
+                return 14;
+            else
+                return 4;
+        }
+        else if (bestdiff >= diff*0.3) {
+            if (bestOver == diff)
+                return 32;
+            else if (bestOver >= diff*0.88)
+                return 18;
+            else if (bestOver >= diff*0.67)
+                return 15;
+            else
+                return 3;
+        }
+        else if (bestdiff >= diff*0.2) {
+            if (bestOver == diff)
+                return 31;
+            else if (bestOver >= diff*0.88)
+                return 17;
+            else if (bestOver >= diff*0.67)
+                return 11;
+            else
+                return 0;
+        }
+        else if (bestdiff >= diff*0.1) {
+            if (bestOver == diff)
+                return 30;
+            else if (bestOver >= diff*0.88)
+                return 12;
+            else if (bestOver >= diff*0.67)
+                return 7;
+            else
+                return 0;
+        }
+        else if (bestdiff > 0) {
+            if (bestOver >= diff*0.67)
+                return 6;
+            else
+                return 2;
+        }
+        else {
+            if (bestOver >= diff*0.68)
+                return 1;
+            else
+                return 0;
+        }
+    }
+
+}
+
 inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, uint16_t& flags) {
   /*
     constexpr uint16_t pairedInSeq = 0x1;
@@ -496,7 +612,7 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
 template <typename ReadT, typename IndexT>
 inline uint32_t writeAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, 
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, uint32_t minScore, uint32_t maxScore, 
     bool tidsAlreadyDecoded = false) {
   (void) writeOrphans;
 
@@ -546,12 +662,12 @@ inline uint32_t writeAlignmentsToStreamSingle(
       }
 
       adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr);
-
+      auto mapq = mapq_bt2(qa.bestScore, qa.secondBestScore, minScore, maxScore);
       sstream << readNameView << '\t' // QNAME
               << flags << '\t' // FLAGS
               << refName << '\t' // RNAME
               << qa.pos + 1 << '\t' // POS (1-based)
-              << 255 << '\t' // MAPQ
+              << mapq << '\t' // MAPQ
               << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar) << '\t' // CIGAR
               << '*' << '\t' // MATE NAME
               << 0 << '\t' // MATE POS
@@ -573,7 +689,7 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
-    bool writeOrphans,
+    bool writeOrphans, uint32_t minScore, uint32_t maxScore,
     bool tidsAlreadyDecoded = false) {
 
   auto& read1Temp = formatter.read1Temp;
@@ -671,13 +787,13 @@ inline uint32_t writeAlignmentsToStream(
       const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
 
       std::stringstream ss;
-
+      auto mapq = mapq_bt2(qa.bestScore, qa.secondBestScore, minScore, maxScore);
       sstream << readNameView << '\t'                    // QNAME
               //<< qa.numHits << '\t'
               << flags1 << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
               << qa.pos + 1 << '\t'                          // POS (1-based)
-              << 1 << '\t'                                   // MAPQ
+              << mapq << '\t'                                   // MAPQ
               << (qa.cigar.empty() ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.matePos + 1 << '\t'                      // PNEXT
@@ -695,7 +811,7 @@ inline uint32_t writeAlignmentsToStream(
               << flags2 << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
               << qa.matePos + 1 << '\t'                      // POS (1-based)
-              << 1 << '\t'                                   // MAPQ
+              << mapq << '\t'                                   // MAPQ
               << (qa.mateCigar.empty() ? cigarStr2.c_str() : qa.mateCigar) << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.pos + 1 << '\t'                          // PNEXT
@@ -777,7 +893,7 @@ inline uint32_t writeAlignmentsToStream(
 
       // If the fragment overhangs the right end of the reference
       // adjust fragLen (overhanging the left end is already handled).
-
+      auto mapq = mapq_bt2(qa.bestScore, qa.secondBestScore, minScore, maxScore);      
       sstream << *(alignedName) << '\t'                    // QNAME
               << flags << '\t'                              // FLAGS
               << refName << '\t'                             // RNAME
@@ -820,5 +936,6 @@ inline uint32_t writeAlignmentsToStream(
 
   return 0;
 }
+
 
 #endif

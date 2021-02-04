@@ -288,9 +288,9 @@ void processReadsPair(paired_parser *parser,
                 std::cerr<<"Number of hits: "<<jointHits.size()<<"\n";
 #endif // ALLOW_VERBOSE
             int32_t bestScore = invalidScore;
+            int32_t secondBestScore = invalidScore;
             if (!mopts->justMap) {
               puffaligner.clear();
-              bestScore = invalidScore;
               std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
               size_t idx{0};
 
@@ -352,9 +352,11 @@ void processReadsPair(paired_parser *parser,
                       }
 //                      if (verbose) ss << "\n";
                     }
-
+                    int32_t tmpBestScore = bestScore;
                     bestScore = (hitScore > bestScore) ? hitScore : bestScore;
-
+                    if (tmpBestScore != bestScore) {
+                        secondBestScore = tmpBestScore;
+                    }
                     // use ALIGNMENT SCORE, not COVERAGE
                     // We should have valid alignment scores at this point as we are inside !justMap if and passed calculating alignment score
                     if (!mopts->genomicReads) {
@@ -482,6 +484,7 @@ void processReadsPair(paired_parser *parser,
                 // NOTE : score should not be filled in from a double
                 qaln.score = mopts->justMap ? static_cast<int32_t >(jointHit.orphanClust()->coverage):jointHit.alignmentScore;//()->coverage;
                 qaln.bestScore = bestScore;
+                qaln.secondBestScore = secondBestScore;
                 // NOTE : wth is numHits?
                 qaln.numHits = static_cast<uint32_t >(jointHits.size());//orphanClust()->coverage;
                 qaln.mateStatus = jointHit.mateStatus;
@@ -507,6 +510,7 @@ void processReadsPair(paired_parser *parser,
                 qaln.score = mopts->justMap ? static_cast<int32_t >(jointHit.leftClust->coverage):jointHit.alignmentScore;
                 qaln.mateScore = mopts->justMap ? static_cast<int32_t >(jointHit.rightClust->coverage):jointHit.mateAlignmentScore;
                 qaln.bestScore = bestScore;
+                qaln.secondBestScore = secondBestScore;
                 qaln.NM = jointHit.leftClust->NM;
                 qaln.mateNM = jointHit.rightClust->NM;
               }
@@ -522,7 +526,8 @@ void processReadsPair(paired_parser *parser,
                 writeAlignmentsToKrakenDump(rpair,  formatter,  jointHits, bstream, mopts->justMap, false);
                 alignmentStreamCount += jointHits.size();
               } else if (jointAlignments.size() > 0) {
-                writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
+                writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan, 
+                puffaligner.getScoreStatus().minAcceptedScore(readLen), puffaligner.getScoreStatus().maxScore(readLen));
                 alignmentStreamCount += jointAlignments.size();
               } else if (jointAlignments.size() == 0) {
                 writeUnalignedPairToStream(rpair, sstream);
@@ -690,11 +695,12 @@ void processReadsSingle(single_parser *parser,
             hctr.totHits += jointHits.size();
             hctr.seHits += jointHits.size();
 
-            int32_t bestScore = invalidScore;            
+            int32_t bestScore = invalidScore;    
+            int32_t secondBestScore = invalidScore;
+
             if (!mopts->justMap) {
                 puffaligner.clear();
 
-                bestScore = invalidScore;
                 std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
                 size_t idx{0};
 
@@ -733,9 +739,11 @@ void processReadsSingle(single_parser *parser,
                             }
                         }
                     }
-
+                    int32_t tmpBestScore = bestScore;
                     bestScore = (hitScore > bestScore) ? hitScore : bestScore;
-
+                    if (tmpBestScore != bestScore) {
+                        secondBestScore = tmpBestScore;
+                    }
 
                     // use ALIGNMENT SCORE, not COVERAGE
                     // We should have valid alignment scores at this point as we are inside !justMap if and passed calculating alignment score
@@ -823,6 +831,7 @@ void processReadsSingle(single_parser *parser,
                 qaln.score = jointHit.alignmentScore;
                 qaln.mateScore = 0;
                 qaln.bestScore = bestScore;
+                qaln.secondBestScore = secondBestScore;
                 qaln.NM = jointHit.orphanClust()->NM;
                 if (mopts->justMap) jointHit.orphanClust()->coverage = jointHit.alignmentScore;
                 validHits.emplace_back(jointHit.tid, jointHit.orphanClust());
@@ -841,7 +850,8 @@ void processReadsSingle(single_parser *parser,
               alignmentStreamCount += validHits.size();
             } else if (jointHits.size() > 0 and !mopts->noOutput) {
                 // write sam output for mapped reads
-                writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream, !mopts->noOrphan);
+                writeAlignmentsToStreamSingle(read, formatter, jointAlignments, sstream, !mopts->noOrphan,
+                puffaligner.getScoreStatus().minAcceptedScore(readLen), puffaligner.getScoreStatus().maxScore(readLen));
                 alignmentStreamCount += jointAlignments.size();
             } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads

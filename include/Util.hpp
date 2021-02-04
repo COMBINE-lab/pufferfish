@@ -907,6 +907,7 @@ Compile-time selection between list-like and map-like printing.
                     score(std::numeric_limits<int32_t>::min()),
                     mateScore(std::numeric_limits<int32_t>::min()),
                     bestScore(std::numeric_limits<int32_t>::min()),
+                    secondBestScore(std::numeric_limits<int32_t>::min()),
                     NM(std::numeric_limits<int32_t>::min()),
                     mateNM(std::numeric_limits<int32_t>::min())
           {}
@@ -926,6 +927,7 @@ Compile-time selection between list-like and map-like printing.
                     score(std::numeric_limits<int32_t>::min()),
                     mateScore(std::numeric_limits<int32_t>::min()),
                     bestScore(std::numeric_limits<int32_t>::min()),
+                    secondBestScore(std::numeric_limits<int32_t>::min()),
                     NM(std::numeric_limits<int32_t>::min()),
                     mateNM(std::numeric_limits<int32_t>::min())
           {}
@@ -1036,7 +1038,8 @@ Compile-time selection between list-like and map-like printing.
             int32_t score;
             int32_t mateScore;
             int32_t bestScore;
-
+            int32_t secondBestScore;
+            
             MateStatus mateStatus;
             bool active = true;
             uint32_t numHits = 0;

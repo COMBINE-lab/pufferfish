@@ -34,6 +34,8 @@ struct ScoreStatus {
 
   int32_t minAcceptedScore(int32_t readlen) { return minScoreFraction * matchScore * readlen; }
 
+  int32_t maxScore(int32_t readlen) {return matchScore * readlen;}
+
   int32_t getCutoff(int32_t retadlen) { return std::max(std::max(maxObservedScore, maxObservedDecoyScore), minAcceptedScore(retadlen)); }
 
   void updateBest(int32_t score) { maxObservedScore = std::max(maxObservedScore, score); }
