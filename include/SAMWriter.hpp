@@ -553,6 +553,7 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "*\t"                // QUAL
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "LM:i:0\t"
                 << "NM:i:0\t"   
                 << "BS:i:0\t"
                 << "AS:i:0\n";
@@ -570,6 +571,7 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                 << "*\t"                // QUAL
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "LM:i:0\t"
                 << "NM:i:0\t"   
                 << "BS:i:0\t"
                 << "AS:i:0\n";
@@ -603,6 +605,7 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                 << "*\t"            // QSTR
                 << "NH:i:0\t"
                 << "HI:i:0\t"
+                << "LM:i:0\t"
                 << "NM:i:0\t"
                 << "BS:i:0\t"
                 << "AS:i:0\n";
@@ -676,6 +679,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
               << "*\t" // QSTR
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "LM:i:" << qa.longest_match << '\t'
               << "NM:i:" << qa.NM << '\t'
               << "BS:i:" << qa.bestScore << '\t'  // Best score found for this read
               << "AS:i:" << qa.score << '\n';
@@ -802,6 +806,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "LM:i:" << qa.longest_match << '\t'
               << "NM:i:" << qa.NM << '\t'
               << "BS:i:" << qa.bestScore << '\t'             // Best score found for this read pair
               << "AS:i:" << qa.score << '\n';
@@ -820,6 +825,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "LM:i:" << qa.mateLongest_match << '\t'
               << "NM:i:" << qa.mateNM << '\t'
               << "BS:i:" << qa.bestScore << '\t'             // Best score found for this read pair
               << "AS:i:" << qa.mateScore << '\n';
@@ -908,6 +914,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "LM:i:" << qa.longest_match << '\t'
               << "NM:i:" << qa.NM << '\t'
               << "BS:i:" << qa.bestScore << '\t'            // Best score found for this read pair
               << "AS:i:" << qa.score << '\n';
@@ -926,6 +933,7 @@ inline uint32_t writeAlignmentsToStream(
               << "*\t"                                       // QUAL
               << numHitFlag << '\t'
               << "HI:i:" << i << '\t'
+              << "LM:i:" << qa.mateLongest_match << '\t'
               << "NM:i:0" << '\t'
               << "BS:i:0" << '\t'
               << "AS:i:0" << '\n';

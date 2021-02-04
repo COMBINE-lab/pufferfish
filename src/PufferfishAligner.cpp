@@ -157,6 +157,9 @@ void processReadsPair(paired_parser *parser,
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.noDovetail = mopts->noDovetail;
+    aconf.computeLM = mopts->computeLM;
+
+    mopts->recoverOrphans = mopts->recoverOrphans & !mopts->computeLM;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -489,6 +492,7 @@ void processReadsPair(paired_parser *parser,
                 qaln.numHits = static_cast<uint32_t >(jointHits.size());//orphanClust()->coverage;
                 qaln.mateStatus = jointHit.mateStatus;
                 qaln.NM = jointHit.orphanClust()->NM;
+                qaln.longest_match = jointHit.orphanClust()->longest_match;
               } else {
                 jointAlignments.emplace_back(jointHit.tid,           // reference id
                                              jointHit.leftClust->getTrFirstHitPos(),     // reference pos
@@ -513,6 +517,9 @@ void processReadsPair(paired_parser *parser,
                 qaln.secondBestScore = secondBestScore;
                 qaln.NM = jointHit.leftClust->NM;
                 qaln.mateNM = jointHit.rightClust->NM;
+
+                qaln.longest_match = jointHit.leftClust->longest_match;
+                qaln.mateLongest_match = jointHit.rightClust->longest_match;
               }
             }
 
@@ -646,6 +653,7 @@ void processReadsSingle(single_parser *parser,
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
+    aconf.computeLM = mopts->computeLM;
 
     PuffAligner puffaligner(pfi.refseq_, pfi.refAccumLengths_, pfi.k(), aconf, aligner);
 
@@ -833,6 +841,7 @@ void processReadsSingle(single_parser *parser,
                 qaln.bestScore = bestScore;
                 qaln.secondBestScore = secondBestScore;
                 qaln.NM = jointHit.orphanClust()->NM;
+                qaln.longest_match = jointHit.orphanClust()->longest_match;
                 if (mopts->justMap) jointHit.orphanClust()->coverage = jointHit.alignmentScore;
                 validHits.emplace_back(jointHit.tid, jointHit.orphanClust());
             }

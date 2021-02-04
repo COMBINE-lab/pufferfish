@@ -243,6 +243,7 @@ int main(int argc, char* argv[]) {
                             "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs (default:1000)",
                     (option("--noOrphans").set(alignmentOpt.noOrphan, true)) % "Write Orphans flag",
                     (option("--noOrphanRecovery").set(alignmentOpt.recoverOrphans, false)) % "Don't recover mappings for the other end of orphans using alignment",
+                    (option("--computeLM").set(alignmentOpt.computeLM, true)) % "Compute the length of the longest match for each alingnment, using this flag sets the recoverOrphan flag to false",
                     (option("--noDiscordant").set(alignmentOpt.noDiscordant, true)) % "Write Orphans flag",
                     (option("--noDovetail").set(alignmentOpt.noDovetail, true)) % "Disallow dovetail alignment for paired end reads",
 		                (option("-z", "--compressedOutput").set(alignmentOpt.compressedOutput, true)) % "Compress (gzip) the output file",
