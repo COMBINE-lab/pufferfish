@@ -239,6 +239,10 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
   int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
   int z = config_.dropoff;
+  config_.flag |= KSW_EZ_EXTZ_ONLY;
+  std::cout<< "gapo:" << int(config_.gapo) << " gape:" << int(config_.gape) << std::endl;
+  for(uint32_t ii = 0; ii < mat_.size(); ii++) std::cout<< "\tmat[" << ii << "]: " << int(mat_[ii]) << std::endl;
+  std::cout<< "end_bonus:" << config_.end_bonus << " flag:" << config_.flag << " zdrop:" << config_.dropoff << std::endl;
   if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                 target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,

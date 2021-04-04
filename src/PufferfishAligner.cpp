@@ -122,14 +122,18 @@ void processReadsPair(paired_parser *parser,
     ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->mismatchScore);
     ksw2pp::KSW2Config config;
 
-    config.dropoff = -1;
+    // config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    config.flag |= KSW_EZ_SCORE_ONLY;
+    if(mopts->allowSoftclip == false) {
+        config.flag |= KSW_EZ_SCORE_ONLY;
+    }
     aligner.config() = config;
+
+    auto logger_ = spdlog::get("console");
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
 
@@ -281,6 +285,8 @@ void processReadsPair(paired_parser *parser,
 #endif // ALLOW_VERBOSE
             }
             if (!mopts->justMap) {
+              logger_->debug("============================================================");
+              logger_->debug("process_PE read_name1: {}, read_name2: {}", rpair.first.name, rpair.second.name);
               puffaligner.clear();
               int32_t bestScore = invalidScore;
               std::vector<decltype(bestScore)> scores(jointHits.size(), bestScore);
@@ -298,6 +304,8 @@ void processReadsPair(paired_parser *parser,
 //                   ss << "\n\n found the read:\n" << rpair.first.name << " " << jointHits.size() <<"\n";
                 puffaligner.getScoreStatus().reset();
                 for (auto &&jointHit : jointHits) {
+                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
+                    logger_->debug("\n\tcalculate_alignments_PE ref_name: {} ref_ID: {}", ref_name, jointHit.tid);
                     auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
                     if (mopts->bestStrata and hitScore != invalidScore)
                         puffaligner.getScoreStatus().updateBest(hitScore - mopts->matchScore * std::max(rpair.first.seq.length(), rpair.second.seq.length()));
@@ -306,7 +314,6 @@ void processReadsPair(paired_parser *parser,
                     scores[idx] = hitScore;
 //                    if (verbose)
 //                        ss << txpNames[jointHit.tid] << " " << jointHit.alignmentScore << " " << scores[idx] << "\n";
-                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
                     if (filterMicrobiom and hitScore != invalidScore
                     and hitRefType != BestHitReferenceType::FILTERED) {
                         bool inFilteredList = (rrna_names.find(ref_name) != rrna_names.end());
@@ -608,14 +615,18 @@ void processReadsSingle(single_parser *parser,
     ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->mismatchScore);
     ksw2pp::KSW2Config config;
 
-    config.dropoff = -1;
+    // config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    config.flag |= KSW_EZ_SCORE_ONLY;
+    if(mopts->allowSoftclip == false) {
+        config.flag |= KSW_EZ_SCORE_ONLY;
+    }
     aligner.config() = config;
+
+    auto logger_ = spdlog::get("console");
 
     constexpr const int32_t invalidScore = std::numeric_limits<int32_t>::min();
 
@@ -688,6 +699,8 @@ void processReadsSingle(single_parser *parser,
             std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>> validHits;
 
             if (!mopts->justMap) {
+                logger_->debug("============================================================");
+                logger_->debug("process_SE read_name: {}", read.name);
                 puffaligner.clear();
 
                 int32_t bestScore = invalidScore;
@@ -702,12 +715,13 @@ void processReadsSingle(single_parser *parser,
                 bool isMultimapping = (jointHits.size() > 1);
                 puffaligner.getScoreStatus().reset();
                 for (auto &jointHit : jointHits) {
+                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
+                    logger_->debug("\n\tcalculate_alignments_SE ref_name: {} ref_ID: {}", ref_name, jointHit.tid);
                     int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
                     if (mopts->bestStrata) puffaligner.getScoreStatus().updateBest(hitScore);
                     if (mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore) puffaligner.getScoreStatus().updateDecoy(hitScore);
                     scores[idx] = hitScore;
 
-                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
                     if (filterGenomics or filterMicrobiom) {
                         bool inFilteredList = (gene_names.find(ref_name) != gene_names.end());
                         if (inFilteredList) {
@@ -1209,6 +1223,8 @@ bool alignReadsWrapper(
 int pufferfishAligner(pufferfish::AlignmentOpts &alnargs) {
 
     auto consoleLog = spdlog::stderr_color_mt("console");
+    consoleLog->set_pattern("%v");
+    spdlog::set_level(spdlog::level::debug);
     bool success{false};
     auto indexDir = alnargs.indexDir;
 
