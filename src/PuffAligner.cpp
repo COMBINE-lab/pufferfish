@@ -129,16 +129,17 @@ bool fillRefSeqBufferReverse(compact::vector<uint64_t, 2> &refseq, uint64_t refA
 // Ungapped Alignment of two sequences with the same length 
 int32_t PuffAligner::align_ungapped(const char* const query, const char* const target, int32_t len) {
   int32_t score = 0;
-  bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+  // bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
   auto& cigarGen = cigarGen_;
   for (int32_t i = 0; i < len; i++) {
-    if (computeCIGAR) cigarGen.add_item(1, 'M');
+    if (mopts.computeCIGAR) cigarGen.add_item(1, 'M');
     if (query[i] != 'N' and target[i] != 'N')
       score += query[i] == target[i] ? mopts.matchScore : mopts.mismatchPenalty;
   }
   return score;
 }
 
+// EHSAN-TODO: for development purposes only. Remove for release
 std::string collapse_cigar(std::string exp_cigar)
 {
   if(exp_cigar.size() < 1) return "";
@@ -163,6 +164,7 @@ std::string collapse_cigar(std::string exp_cigar)
   return collapsed;
 }
 
+// EHSAN-TODO: for development purposes only. Remove for release
 std::string ksw2_to_cigar(const char *qseq, const char *tseq, ksw_extz_t *ez, std::string &exp_cigar)
 {
   int qpos = 0;
@@ -229,8 +231,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   uint32_t openGapLen{0};
 
   // will we be computing CIGAR strings for this alignment
-  bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
-  bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+  // bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+  // bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
   // the cigar generator we will use
   auto& cigarGen = cigarGen_;
   cigarGen.clear();
@@ -259,7 +261,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     // SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
     hctr.skippedAlignments_byCov += 1;
     arOut.score = alignmentScore = readLen * mopts.matchScore;
-    arOut.cigar = (computeCIGAR ? std::to_string(readLen) + 'M' : "");
+    arOut.cigar = (mopts.computeCIGAR ? std::to_string(readLen) + 'M' : "");
     arOut.openGapLen = openGapLen;
     return true;
   }
@@ -295,10 +297,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool invalidStart = (signedRefStartPos < 0);
   bool invalidEnd = (signedRefEndPos > refTotalLength);
 
-  bool allowSoftclip = mopts.allowSoftclip;
+  // bool allowSoftclip = mopts.allowSoftclip;
   // allowOverhangSoftclip is a special case of allowing soft-clipping
   // if we allow softclipping generally, then this option is redundant.
-  bool allowOverhangSoftclip = (mopts.allowOverhangSoftclip or allowSoftclip);
+  // bool allowOverhangSoftclip = (mopts.allowOverhangSoftclip or allowSoftclip);
+  bool allowOverhangSoftclip = mopts.computeCIGAR;
 
   if (mopts.mimicBT2Strict and (invalidStart or invalidEnd)) {
     arOut.score = std::numeric_limits<decltype(arOut.score)>::min();
@@ -397,7 +400,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       logger_->debug("\t\tNOTE cache hit... done!");
       hctr.skippedAlignments_byCache += 1;
       arOut.score = hit->second.score;
-      if (computeCIGAR or approximateCIGAR) { arOut.cigar = hit->second.cigar; }
+      if (mopts.computeCIGAR) { arOut.cigar = hit->second.cigar; }
       arOut.openGapLen = hit->second.openGapLen;
       return true;
     }
@@ -434,7 +437,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       logger_->debug("readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
       logger_->debug("currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
 
-      if (computeCIGAR) {
+      if (mopts.computeCIGAR) {
         openGapLen = addCigar(cigarGen, ez, false);
       } else {
         // can make start pos negative, but sam writer deals with this right now
@@ -489,7 +492,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
           logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
           logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
-          if(computeCIGAR) {
+          // EHSAN-TODO: disable this before release
+          if(mopts.computeCIGAR) {
             std::string tmp_cg_exp;
             logger_->debug("\t\t\t\talnCigar: {}", ksw2_to_cigar(readWindow.c_str(), refSeqBuffer_.c_str(), &ez, tmp_cg_exp));
             logger_->debug("\t\t\t\talnCigar: {}", collapse_cigar(tmp_cg_exp));
@@ -596,7 +600,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                      -1 * mopts.gapExtendPenalty * firstMemStart_read);
           openGapLen = firstMemStart_read;
 
-          if (approximateCIGAR) {
+          if (mopts.computeCIGAR) {
             cigarGen.begin_softclip_len = firstMemStart_read;
             cigarGen.beginOverhang = true;
             openGapLen = 0;
@@ -685,7 +689,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
               readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
               ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
               
-            if (computeCIGAR) {
+            if (mopts.computeCIGAR) {
               addCigar(cigarGen, ez, false);
             }
           }
@@ -776,7 +780,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
           logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
           logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
-          if(computeCIGAR) {
+          // EHSAN-TODO: disable this before release
+          if(mopts.computeCIGAR) {
             std::string tmp_cg_exp;
             logger_->debug("\t\t\t\talnCigar: {}", ksw2_to_cigar(readWindow.c_str(), refSeqBuffer_.c_str(), &ez, tmp_cg_exp));
             logger_->debug("\t\t\t\talnCigar: {}", collapse_cigar(tmp_cg_exp));
@@ -856,7 +861,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                   ? 0
                   : (-1 * mopts.gapOpenPenalty +
                      -1 * mopts.gapExtendPenalty * readWindow.length());
-          if (approximateCIGAR) {
+          if (mopts.computeCIGAR) {
             cigarGen.end_softclip_len = readWindow.length();
             cigarGen.endOverhang = true;
           }
@@ -870,7 +875,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   std::string cigar = "";
   bool cigar_fixed{false};
   // if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
-  if (computeCIGAR) { cigar = cigarGen.get_cigar(); }
+  if (mopts.computeCIGAR) { cigar = cigarGen.get_cigar(); }
   // if (approximateCIGAR) { cigarGen.get_approx_cigar(readLen, cigar); }
   if (cigar_fixed) { hctr.cigar_fixed_count++; }
   if (useAlnCache) { // don't bother to fill up a cache unless this is a multi-mapping read
@@ -888,7 +893,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     AlignmentResult aln;
     aln.isFw = isFw;
     aln.score = alignmentScore;
-    if (computeCIGAR or approximateCIGAR) { aln.cigar = cigar; }
+    if (mopts.computeCIGAR) { aln.cigar = cigar; }
     aln.openGapLen = openGapLen;
     alnCache[hashKey] = aln;
   }
@@ -910,8 +915,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
   isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
     double optFrac{mopts.minScoreFraction};
-    bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
-    bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    // bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+    // bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     auto threshold = [&, optFrac] (uint64_t len) -> int32_t {
          return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
     };
@@ -934,7 +939,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
                   jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, verbose);
         jointHit.alignmentScore =
           ar_orphan.score > threshold(read_orphan.length())  ? ar_orphan.score : invalidScore;
-        jointHit.orphanClust()->cigar = (approximateCIGAR or computeCIGAR) ? ar_orphan.cigar : "";
+        jointHit.orphanClust()->cigar = (mopts.computeCIGAR) ? ar_orphan.cigar : "";
         jointHit.orphanClust()->openGapLen = ar_orphan.openGapLen;
         jointHit.orphanClust()->softClipStart = ar_orphan.softclip_start;
 //        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
@@ -966,7 +971,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         jointHit.rightClust->openGapLen = ar_right.openGapLen;
         jointHit.rightClust->softClipStart = ar_right.softclip_start;
 
-        if (computeCIGAR or approximateCIGAR) {
+        if (mopts.computeCIGAR) {
           jointHit.leftClust->cigar = ar_left.cigar;
           jointHit.rightClust->cigar = ar_right.cigar;
         } else {
@@ -990,8 +995,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
   isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
     double optFrac{mopts.minScoreFraction};
-    bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
-    bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    // bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
+    // bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     auto threshold = [&, optFrac] (uint64_t len) -> int32_t {
         return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
     };
@@ -1003,7 +1008,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     alignRead(read, read_left_rc_, oc->mems, oc->queryChainHash, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
     jointHit.alignmentScore =
       ar_left.score > threshold(read.length())  ? ar_left.score : invalidScore;
-    jointHit.orphanClust()->cigar = (approximateCIGAR or computeCIGAR) ? ar_left.cigar : "";
+    jointHit.orphanClust()->cigar = (mopts.computeCIGAR) ? ar_left.cigar : "";
     jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
     //        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
     if (jointHit.alignmentScore < 0 and verbose) {

@@ -248,8 +248,10 @@ int main(int argc, char* argv[]) {
                       |
                       (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "Output file where the alignment results will be stored"
                     ),
-                    (option("--allowSoftclip").set(alignmentOpt.allowSoftclip, true) % "Allow soft-clipping at start and end of alignments"),
-                    (option("--allowOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, true) % "Allow soft-clipping part of a read that overhangs the reference (the regular --allowSoftclip flag overrides this one)"),
+                    // (option("--allowSoftclip").set(alignmentOpt.allowSoftclip, true) % "Allow soft-clipping at start and end of alignments"),
+                    // (option("--allowOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, true) % "Allow soft-clipping part of a read that overhangs the reference (the regular --allowSoftclip flag overrides this one)"),
+                    (option("--computeCIGAR").set(alignmentOpt.computeCIGAR, true) % "Compute CIGAR string during alignment validation"),
+                    (option("--debug").set(alignmentOpt.debug, true) % "Print debug information in standard error"),
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
                             "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs (default:1000)",

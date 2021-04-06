@@ -892,7 +892,7 @@ Compile-time selection between list-like and map-like printing.
     };
     */
 
-      enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, APPROXIMATE_CIGAR,  EXACT_CIGAR};
+      // enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, APPROXIMATE_CIGAR,  EXACT_CIGAR};
 
       struct AlignmentConfig {
         int32_t refExtendLength{20};
@@ -904,12 +904,13 @@ Compile-time selection between list-like and map-like printing.
         double minScoreFraction{0.0};
         bool mimicBT2{false};
         bool mimicBT2Strict{false};
-        bool allowOverhangSoftclip{false};
-        bool allowSoftclip{false};
+        // bool allowOverhangSoftclip{false};
+        // bool allowSoftclip{false};
+        bool computeCIGAR{false};
         bool useAlignmentCache{true};
         bool noDovetail{false};
         uint32_t maxFragmentLength{1000};
-        PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
+        // PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
         bool bestStrata{false};
         bool decoyPresent{false};
       };

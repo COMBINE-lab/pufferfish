@@ -128,7 +128,7 @@ void processReadsPair(paired_parser *parser,
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    if(mopts->allowSoftclip == false) {
+    if(mopts->computeCIGAR == false) {
         config.flag |= KSW_EZ_SCORE_ONLY;
     }
     aligner.config() = config;
@@ -155,9 +155,10 @@ void processReadsPair(paired_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
-    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
-    aconf.allowSoftclip = mopts->allowSoftclip;
-    aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    // aconf.allowSoftclip = mopts->allowSoftclip;
+    aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
+    // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.noDovetail = mopts->noDovetail;
@@ -621,7 +622,7 @@ void processReadsSingle(single_parser *parser,
     config.bandwidth = 15;
     config.flag = 0;
     config.flag |= KSW_EZ_RIGHT;
-    if(mopts->allowSoftclip == false) {
+    if(mopts->computeCIGAR == false) {
         config.flag |= KSW_EZ_SCORE_ONLY;
     }
     aligner.config() = config;
@@ -640,9 +641,10 @@ void processReadsSingle(single_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
-    aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
-    aconf.allowSoftclip = mopts->allowSoftclip;
-    aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
+    // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
+    // aconf.allowSoftclip = mopts->allowSoftclip;
+    aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
+    // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.mismatchPenalty = mopts->mismatchScore;
     aconf.bestStrata = mopts->bestStrata;
@@ -1224,7 +1226,7 @@ int pufferfishAligner(pufferfish::AlignmentOpts &alnargs) {
 
     auto consoleLog = spdlog::stderr_color_mt("console");
     consoleLog->set_pattern("%v");
-    spdlog::set_level(spdlog::level::debug);
+    if (alnargs.debug) spdlog::set_level(spdlog::level::debug);
     bool success{false};
     auto indexDir = alnargs.indexDir;
 
