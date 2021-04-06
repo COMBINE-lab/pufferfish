@@ -486,8 +486,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
           logger_->debug("\t\t\tksw2_results:");
           logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
-          logger_->debug("\t\t\t\tmqe_score={}, mqe_t={}", ez.mqe, ez.mqe_t);
-          logger_->debug("\t\t\t\tmte_score={}, mte_q={}", ez.mte, ez.mte_q);
+          logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
+          logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
           logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
           if(computeCIGAR) {
             std::string tmp_cg_exp;
@@ -573,7 +573,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           if(ez.mqe + aligner_config.end_bonus > ez.max)
           {
             part_score = ez.mqe;
-            openGapLen = readWindow.length();
+            // openGapLen = readWindow.length();
+            openGapLen = ez.mqe_t + 1;
           }
           else
           {
@@ -772,8 +773,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
           logger_->debug("\t\t\tksw2_results:");
           logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
-          logger_->debug("\t\t\t\tmqe_score={}, mqe_t={}", ez.mqe, ez.mqe_t);
-          logger_->debug("\t\t\t\tmte_score={}, mte_q={}", ez.mte, ez.mte_q);
+          logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
+          logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
           logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
           if(computeCIGAR) {
             std::string tmp_cg_exp;
