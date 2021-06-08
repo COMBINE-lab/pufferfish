@@ -38,7 +38,7 @@ struct KSW2Config {
   int dropoff = -1;
   int flag = 0;
   int alphabetSize = 5;
-  int end_bonus = 10;
+  int end_bonus = 5;
   KSW2AlignmentType atype = KSW2AlignmentType::GLOBAL;
 };
 
