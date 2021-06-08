@@ -252,6 +252,8 @@ int main(int argc, char* argv[]) {
                     // (option("--allowOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, true) % "Allow soft-clipping part of a read that overhangs the reference (the regular --allowSoftclip flag overrides this one)"),
                     (option("--computeCIGAR").set(alignmentOpt.computeCIGAR, true) % "Compute CIGAR string during alignment validation"),
                     (option("--debug").set(alignmentOpt.debug, true) % "Print debug information in standard error"),
+                    (option("--end2end").set(alignmentOpt.end2end, true) % "Perform end to end alignment with no soft-clipping"),
+                    (option("--endBonus") & value("end bonus", alignmentOpt.endBonus)) % "Specify end bonus value when alignment reaches the end of query",
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
                             "Specify the maximum distance between the last uni-MEM of the left and first uni-MEM of the right end of the read pairs (default:1000)",

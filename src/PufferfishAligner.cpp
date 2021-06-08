@@ -131,6 +131,7 @@ void processReadsPair(paired_parser *parser,
     if(mopts->computeCIGAR == false) {
         config.flag |= KSW_EZ_SCORE_ONLY;
     }
+    config.end_bonus = mopts->endBonus;
     aligner.config() = config;
 
     auto logger_ = spdlog::get("console");
@@ -158,6 +159,8 @@ void processReadsPair(paired_parser *parser,
     // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     // aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
+    aconf.endBonus = mopts->endBonus;
+    aconf.endBonus = mopts->end2end;
     // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.maxFragmentLength = mopts->maxFragmentLength;
@@ -625,6 +628,7 @@ void processReadsSingle(single_parser *parser,
     if(mopts->computeCIGAR == false) {
         config.flag |= KSW_EZ_SCORE_ONLY;
     }
+    config.end_bonus = mopts->endBonus;
     aligner.config() = config;
 
     auto logger_ = spdlog::get("console");
@@ -644,6 +648,8 @@ void processReadsSingle(single_parser *parser,
     // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     // aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
+    aconf.endBonus = mopts->endBonus;
+    aconf.end2end = mopts->end2end;
     // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.mismatchPenalty = mopts->mismatchScore;

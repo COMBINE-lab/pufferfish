@@ -127,6 +127,8 @@ public:
   // bool allowSoftclip{false};
   bool computeCIGAR{false};
   bool debug{false};
+  bool end2end{false};
+  uint32_t endBonus{5};
   bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
   double preMergeChainSubThresh{0.9};

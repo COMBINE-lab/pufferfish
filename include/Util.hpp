@@ -907,6 +907,8 @@ Compile-time selection between list-like and map-like printing.
         // bool allowOverhangSoftclip{false};
         // bool allowSoftclip{false};
         bool computeCIGAR{false};
+        bool end2end{false};
+        uint32_t endBonus{5};
         bool useAlignmentCache{true};
         bool noDovetail{false};
         uint32_t maxFragmentLength{1000};

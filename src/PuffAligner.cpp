@@ -574,7 +574,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           //     computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read - num_soft_clipped;
 
           decltype(alignmentScore) part_score = ez.max;
-          if(ez.mqe + aligner_config.end_bonus > ez.max)
+          if(mopts.end2end || ez.mqe + aligner_config.end_bonus > ez.max)
           {
             part_score = ez.mqe;
             // openGapLen = readWindow.length();
@@ -835,7 +835,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // }
 
           decltype(alignmentScore) part_score = ez.max;
-          if(ez.mqe + aligner_config.end_bonus > ez.max)
+          if(mopts.end2end || ez.mqe + aligner_config.end_bonus > ez.max)
           {
             part_score = ez.mqe;
           }
