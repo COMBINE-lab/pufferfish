@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "TargetGroup.hpp"
+#include "cedar/TargetGroup.hpp"
 #include "xxhash.h"
 
 TargetGroup::TargetGroup() : hash(0) {}

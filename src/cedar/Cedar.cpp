@@ -7,17 +7,17 @@
 #include <unordered_set>
 #include <list>
 
-#include "Cedar.hpp"
+#include "SetCover.h"
+#include "cedar/EquivalenceClassBuilder.hpp"
+#include "cedar/Cedar.hpp"
 
 #include "clipp.h"
-#include "EquivalenceClassBuilder.hpp"
 #include "CLI/Timer.hpp"
 #include "PufferFS.hpp"
 #include "cereal/archives/binary.hpp"
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
 //#include "LinearMultiArray.h"
-#include "SetCover.h"
 
 #ifndef LIBASYNC_STATIC
     #define LIBASYNC_STATIC true

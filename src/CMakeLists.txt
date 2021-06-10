@@ -149,12 +149,12 @@ add_executable(edgedensity2 EdgeDensityCustom.cpp)
 target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
-add_executable(krakmap KrakMap.cpp Taxa.cpp)
-target_compile_options(krakmap PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+#add_executable(krakmap KrakMap.cpp cedar/Taxa.cpp)
+#target_compile_options(krakmap PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
+#target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
 
-add_executable(cedar TargetGroup.cpp Cedar.cpp Taxa.cpp)
+add_executable(cedar cedar/TargetGroup.cpp cedar/Cedar.cpp cedar/Taxa.cpp)
 target_include_directories(cedar PRIVATE
     ${GAT_SOURCE_DIR}/external/install/include
     ${GAT_SOURCE_DIR}/external/install/include/htslib
@@ -199,7 +199,7 @@ target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
 #target_link_libraries(fixFasta Threads::Threads z)
 target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
 target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
-target_link_libraries(krakmap Threads::Threads puffer ${ASAN_LIB})
+#target_link_libraries(krakmap Threads::Threads puffer ${ASAN_LIB})
 target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover ${ASAN_LIB})
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z ${ASAN_LIB})
 endif()

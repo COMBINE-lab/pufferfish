@@ -8,7 +8,7 @@
 #include <vector>
 #include <atomic>
 
-#include "TargetGroup.hpp"
+#include "cedar/TargetGroup.hpp"
 
 struct TGValue {
   TGValue(const TGValue& o) {
