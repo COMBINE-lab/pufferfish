@@ -908,6 +908,7 @@ Compile-time selection between list-like and map-like printing.
         // bool allowSoftclip{false};
         bool computeCIGAR{false};
         bool end2end{false};
+        double maxSoftclipFraction{0.2};
         uint32_t endBonus{5};
         bool useAlignmentCache{true};
         bool noDovetail{false};

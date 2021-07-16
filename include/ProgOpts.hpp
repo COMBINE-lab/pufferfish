@@ -128,6 +128,7 @@ public:
   bool computeCIGAR{false};
   bool debug{false};
   bool end2end{false};
+  double maxSoftclipFraction{0.2};
   uint32_t endBonus{5};
   bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
