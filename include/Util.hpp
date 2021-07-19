@@ -401,7 +401,7 @@ Compile-time selection between list-like and map-like printing.
         std::string cigar_types;
         int32_t begin_softclip_len{0}, end_softclip_len{0};
         bool beginOverhang{false}, endOverhang{false};
-        bool allowOverhangSoftClip{false};
+        // bool allowOverhangSoftClip{false};
 
         void clear() {
           cigar_counts.clear(); cigar_types.clear();
@@ -905,9 +905,9 @@ Compile-time selection between list-like and map-like printing.
         bool mimicBT2{false};
         bool mimicBT2Strict{false};
         // bool allowOverhangSoftclip{false};
-        // bool allowSoftclip{false};
+        bool allowSoftclip{false};
         bool computeCIGAR{false};
-        bool end2end{false};
+        bool end2end{true};
         double maxSoftclipFraction{0.2};
         uint32_t endBonus{5};
         bool useAlignmentCache{true};

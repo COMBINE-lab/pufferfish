@@ -297,11 +297,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool invalidStart = (signedRefStartPos < 0);
   bool invalidEnd = (signedRefEndPos > refTotalLength);
 
-  // bool allowSoftclip = mopts.allowSoftclip;
-  // allowOverhangSoftclip is a special case of allowing soft-clipping
-  // if we allow softclipping generally, then this option is redundant.
-  // bool allowOverhangSoftclip = (mopts.allowOverhangSoftclip or allowSoftclip);
-  bool allowOverhangSoftclip = mopts.computeCIGAR;
+  bool allowSoftclip = mopts.allowSoftclip;
 
   uint32_t maxSoftclipLen = mopts.maxSoftclipFraction * readLen;
   
@@ -428,7 +424,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     if (doFullAlignment) {
       // if we allow softclipping of overhanging bases, then we can cut off the
       // part of the read before the start of the reference
-      decltype(readStart) readOffset = allowOverhangSoftclip ? readStart : 0;
+      decltype(readStart) readOffset = allowSoftclip ? readStart : 0;
       nonstd::string_view readSeq = readView.substr(readOffset);
       ksw_reset_extz(&ez);
       auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
@@ -440,7 +436,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       // Otherwise, we care about the best score all the way until the end of
       // the query.
       alignmentScore =
-          allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+          allowSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
 
       logger_->debug("readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
       logger_->debug("currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
@@ -605,18 +601,18 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // overhangingStart = true;
           // do any special soft clipping penalty here if we want
           remainedSoftClipLen -= 
-              allowOverhangSoftclip
+              allowSoftclip
               ? firstMemStart_read
               : 0;
           alignmentScore +=
-              allowOverhangSoftclip && remainedSoftClipLen >= 0
+              allowSoftclip && remainedSoftClipLen >= 0
                   ? 0
                   : (-1 * mopts.gapOpenPenalty +
                      -1 * mopts.gapExtendPenalty * firstMemStart_read);
           openGapLen = firstMemStart_read;
 
           if (mopts.computeCIGAR) {
-            if (remainedSoftClipLen >= 0) {
+            if (allowSoftclip && remainedSoftClipLen >= 0) {
               cigarGen.begin_softclip_len = firstMemStart_read;
               cigarGen.beginOverhang = true;
               openGapLen = 0;
@@ -879,16 +875,16 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           //overhangingEnd = true;
           // do any special soft clipping penalty here if we want
           remainedSoftClipLen -= 
-              allowOverhangSoftclip
+              allowSoftclip
               ? readWindow.length()
               : 0;
           alignmentScore +=
-              allowOverhangSoftclip && remainedSoftClipLen >= 0
+              allowSoftclip && remainedSoftClipLen >= 0
                   ? 0
                   : (-1 * mopts.gapOpenPenalty +
                      -1 * mopts.gapExtendPenalty * readWindow.length());
           if (mopts.computeCIGAR) {
-            if (remainedSoftClipLen >= 0) {
+            if (allowSoftclip && remainedSoftClipLen >= 0) {
               cigarGen.end_softclip_len = readWindow.length();
               cigarGen.endOverhang = true;
             } else {

@@ -157,10 +157,10 @@ void processReadsPair(paired_parser *parser,
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
     // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
-    // aconf.allowSoftclip = mopts->allowSoftclip;
+    aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
     aconf.endBonus = mopts->endBonus;
-    aconf.end2end = mopts->end2end;
+    aconf.end2end = !mopts->allowSoftclip;
     aconf.maxSoftclipFraction = mopts->maxSoftclipFraction;
     // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
@@ -647,10 +647,10 @@ void processReadsSingle(single_parser *parser,
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
     // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
-    // aconf.allowSoftclip = mopts->allowSoftclip;
+    aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
     aconf.endBonus = mopts->endBonus;
-    aconf.end2end = mopts->end2end;
+    aconf.end2end = !mopts->allowSoftclip;
     aconf.maxSoftclipFraction = mopts->maxSoftclipFraction;
     // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;

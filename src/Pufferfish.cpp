@@ -248,12 +248,11 @@ int main(int argc, char* argv[]) {
                       |
                       (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "Output file where the alignment results will be stored"
                     ),
-                    // (option("--allowSoftclip").set(alignmentOpt.allowSoftclip, true) % "Allow soft-clipping at start and end of alignments"),
+                    (option("--allowSoftclip").set(alignmentOpt.allowSoftclip, true) % "Allow soft-clipping at start and end of alignments"),
+                    (option("--maxSoftclipFraction") & value("maxSoftclipFraction", alignmentOpt.maxSoftclipFraction)) % "Discard alignments with soft-clip > maxSoftclipFraction * read_length (default=0.2)",
                     // (option("--allowOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, true) % "Allow soft-clipping part of a read that overhangs the reference (the regular --allowSoftclip flag overrides this one)"),
                     (option("--computeCIGAR").set(alignmentOpt.computeCIGAR, true) % "Compute CIGAR string during alignment validation"),
-                    (option("--debug").set(alignmentOpt.debug, true) % "Print debug information in standard error"),
-                    (option("--end2end").set(alignmentOpt.end2end, true) % "Perform end to end alignment with no soft-clipping"),
-                    (option("--maxSoftclipFraction") & value("maxSoftclipFraction", alignmentOpt.maxSoftclipFraction)) % "Discard alignments with soft-clip > maxSoftclipFraction * read_length (default=0.2)",
+                    // (option("--end2end").set(alignmentOpt.end2end, true) % "Perform end to end alignment with no soft-clipping"),
                     (option("--endBonus") & value("end bonus", alignmentOpt.endBonus)) % "Specify end bonus value when alignment reaches the end of query",
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 
@@ -272,6 +271,7 @@ int main(int argc, char* argv[]) {
                       (option("-p", "--pam").set(alignmentOpt.salmonOut, true)) % "Write output in the format required for salmon"
                     ),
 					(option("--verbose").set(alignmentOpt.verbose, true)) % "Print out auxilary information to trace program's flow",
+          (option("--debug").set(alignmentOpt.debug, true) % "Print debug information in standard error"),
                     (option("--fullAlignment").set(alignmentOpt.fullAlignment, true)) % "Perform full alignment instead of gapped alignment",
                     (option("--heuristicChaining").set(alignmentOpt.heuristicChaining, true)) % "Whether or not perform only 2 rounds of chaining",
                     (option("--bestStrata").set(alignmentOpt.bestStrata, true)) % "Keep only the alignments with the best score for each read",
