@@ -591,7 +591,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           {
             part_score = ez.max;
             openGapLen = ez.max_t + 1;
-            cigarGen.begin_softclip_len = readWindow.length() - (ez.max_q + 1);
+            cigarGen.add_item(readWindow.length() - (ez.max_q + 1), 'S');
+
           }
           alignmentScore += part_score;
           addCigar(cigarGen, ez, true);
@@ -613,8 +614,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
           if (mopts.computeCIGAR) {
             if (allowSoftclip && remainedSoftClipLen >= 0) {
-              cigarGen.begin_softclip_len = firstMemStart_read;
-              cigarGen.beginOverhang = true;
+              cigarGen.add_item(firstMemStart_read, 'S');
               openGapLen = 0;
             } else {
               cigarGen.add_item(firstMemStart_read, 'I');
@@ -860,7 +860,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           else
           {
             part_score = ez.max;
-            cigarGen.end_softclip_len = readWindow.length() - (ez.max_q + 1);
+            cigarGen.add_item(readWindow.length() - (ez.max_q + 1), 'S');
           }
           alignmentScore += part_score;
           addCigar(cigarGen, ez, false);
@@ -885,8 +885,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                      -1 * mopts.gapExtendPenalty * readWindow.length());
           if (mopts.computeCIGAR) {
             if (allowSoftclip && remainedSoftClipLen >= 0) {
-              cigarGen.end_softclip_len = readWindow.length();
-              cigarGen.endOverhang = true;
+              cigarGen.add_item(readWindow.length(), 'S');
             } else {
               cigarGen.add_item(readWindow.length(), 'I');
             }

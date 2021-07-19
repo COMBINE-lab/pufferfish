@@ -400,13 +400,11 @@ Compile-time selection between list-like and map-like printing.
         std::vector<int32_t> cigar_counts;
         std::string cigar_types;
         int32_t begin_softclip_len{0}, end_softclip_len{0};
-        bool beginOverhang{false}, endOverhang{false};
         // bool allowOverhangSoftClip{false};
 
         void clear() {
           cigar_counts.clear(); cigar_types.clear();
           begin_softclip_len = end_softclip_len = 0;
-          beginOverhang = endOverhang = false;
         }
 
         void add_item(int32_t count, char type) {
@@ -417,13 +415,13 @@ Compile-time selection between list-like and map-like printing.
         // void get_approx_cigar(int32_t readLen, std::string& cigar) {
         //   if (begin_softclip_len > 0) {
         //     cigar += std::to_string(begin_softclip_len);
-        //     cigar += beginOverhang and allowOverhangSoftClip ? "I" : "S";
+        //     cigar += allowOverhangSoftClip ? "I" : "S";
         //   }
         //   cigar += std::to_string(readLen - (begin_softclip_len + end_softclip_len));
         //   cigar += "M";
         //   if (end_softclip_len > 0) {
         //     cigar += std::to_string(end_softclip_len);
-        //     cigar += endOverhang and allowOverhangSoftClip ? "I" : "S";
+        //     cigar += allowOverhangSoftClip ? "I" : "S";
         //   }
         // }
 
@@ -488,11 +486,6 @@ Compile-time selection between list-like and map-like printing.
           if (cigar_counts.size() != cigar_types.size()) return "!";
 
           std::string cigar = "";
-          if (begin_softclip_len > 0) {
-            cigar += std::to_string(begin_softclip_len);
-            cigar += 'S';
-          }
-          // 
           int32_t last_count = cigar_counts[0];
           char last_type = cigar_types[0];
           for (size_t i = 1; i < cigar_counts.size(); i++) {
@@ -510,11 +503,6 @@ Compile-time selection between list-like and map-like printing.
           // add last
           cigar += std::to_string(last_count);
           cigar += last_type;
-          // 
-          if (end_softclip_len > 0) {
-            cigar += std::to_string(end_softclip_len);
-            cigar += 'S';
-          }
           return cigar;
         }
       };
