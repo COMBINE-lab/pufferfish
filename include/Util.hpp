@@ -1369,15 +1369,17 @@ Compile-time selection between list-like and map-like printing.
 
         struct AlignmentResult {
             AlignmentResult(bool isFwIn, int32_t scoreIn, std::string cigarIn, uint32_t openGapLenIn, 
-                            uint16_t softclip_start_in ) :
-                    isFw(isFwIn), score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_start(softclip_start_in) {}
+                            uint16_t softclip_start_in, uint16_t softclip_end_in ) :
+                    isFw(isFwIn), score(scoreIn), cigar(cigarIn), openGapLen(openGapLenIn), softclip_start(softclip_start_in),
+                    softclip_end(softclip_end_in) {}
 
-            AlignmentResult() : isFw(true), score(0), cigar(""), openGapLen(0), softclip_start(0) {}
+            AlignmentResult() : isFw(true), score(0), cigar(""), openGapLen(0), softclip_start(0), softclip_end(0) {}
             bool isFw;
             int32_t score;
             std::string cigar;
             uint32_t openGapLen;
             uint16_t softclip_start{0};
+            uint16_t softclip_end{0};
         };
 
       void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,

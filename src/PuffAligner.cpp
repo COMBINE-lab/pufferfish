@@ -317,7 +317,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto& bandwidth = aligner.config().bandwidth;
   auto& aligner_config = aligner.config();
   libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
-  const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length()); //mopts.minScoreFraction * mopts.matchScore * readLen;
+  const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length() - maxSoftclipLen); //mopts.minScoreFraction * mopts.matchScore * readLen;
   logger_->debug("\t\tNOTE mems.size(): {}, isRev: {}, minAcceptedScore: {}", mems.size(), !isFw, minAcceptedScore);
   // compute the maximum gap length that would be allowed given the length of read aligned so far and the current 
   // alignment score.
@@ -476,6 +476,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart,
                                 refWindowLength, refSeqBuffer_);
 
+        int32_t numSoftClipped = 0;
+
         if (refSeqBuffer_.length() > 0) {
           logger_->debug("\t\t\tCASE 1: some reference bases left to align");
           auto readWindow = std::string(readView.substr(0, firstMemStart_read));
@@ -578,22 +580,23 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           //     computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read - num_soft_clipped;
 
           decltype(alignmentScore) part_score = ez.max;
-          int32_t oldRemainedSoftClipLen = remainedSoftClipLen;
-          logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", oldRemainedSoftClipLen, remainedSoftClipLen);
-          remainedSoftClipLen -= readWindow.length() - (ez.max_q + 1);
-          if(remainedSoftClipLen < 0 || ez.mqe + aligner_config.end_bonus > ez.max)
+          numSoftClipped = readWindow.length() - (ez.max_q + 1);
+          if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
           {
             part_score = ez.mqe;
             // openGapLen = readWindow.length();
             openGapLen = ez.mqe_t + 1;
+            numSoftClipped = 0;
           }
           else
           {
             part_score = ez.max;
             openGapLen = ez.max_t + 1;
-            cigarGen.add_item(readWindow.length() - (ez.max_q + 1), 'S');
-
+            cigarGen.add_item(numSoftClipped, 'S');
           }
+          remainedSoftClipLen -= numSoftClipped;
+          logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
+
           alignmentScore += part_score;
           addCigar(cigarGen, ez, true);
           // logger_->debug("score : {}", std::max(ez.mqe, ez.mte));
@@ -601,26 +604,28 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           logger_->debug("\t\t\tCASE 2: no reference bases left (start)");
           // overhangingStart = true;
           // do any special soft clipping penalty here if we want
-          remainedSoftClipLen -= 
+          numSoftClipped = 
               allowSoftclip
               ? firstMemStart_read
               : 0;
           alignmentScore +=
-              allowSoftclip && remainedSoftClipLen >= 0
+              allowSoftclip && remainedSoftClipLen >= numSoftClipped
                   ? 0
                   : (-1 * mopts.gapOpenPenalty +
                      -1 * mopts.gapExtendPenalty * firstMemStart_read);
           openGapLen = firstMemStart_read;
 
           if (mopts.computeCIGAR) {
-            if (allowSoftclip && remainedSoftClipLen >= 0) {
+            if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
               cigarGen.add_item(firstMemStart_read, 'S');
               openGapLen = 0;
             } else {
               cigarGen.add_item(firstMemStart_read, 'I');
+              numSoftClipped = 0;
             }
           }
         }
+        arOut.softclip_start = numSoftClipped;
         logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
         logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
       }
@@ -778,6 +783,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         auto readWindow = readView.substr(prevMemEnd_read + 1).to_string();
         fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
 
+        int32_t numSoftClipped = 0;
+
         logger_->debug("\t\t\tgapRead : {}, refLen : {}, refBuffer_.size() : {}, refTotalLength : {}", gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
         if (refLen > 0) {
           logger_->debug("\t\t\tCASE 1: some reference bases left to align");
@@ -850,20 +857,24 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           // }
 
           decltype(alignmentScore) part_score = ez.max;
-          int32_t oldRemainedSoftClipLen = remainedSoftClipLen;
-          remainedSoftClipLen -= readWindow.length() - (ez.max_q + 1);
-          logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", oldRemainedSoftClipLen, remainedSoftClipLen);
-          if(remainedSoftClipLen < 0 || ez.mqe + aligner_config.end_bonus > ez.max)
+          
+          numSoftClipped = readWindow.length() - (ez.max_q + 1);
+          addCigar(cigarGen, ez, false);
+
+          if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
           {
             part_score = ez.mqe;
+            numSoftClipped = 0;
           }
           else
           {
             part_score = ez.max;
-            cigarGen.add_item(readWindow.length() - (ez.max_q + 1), 'S');
+            cigarGen.add_item(numSoftClipped, 'S');
           }
+          remainedSoftClipLen -= numSoftClipped;
+          logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
+
           alignmentScore += part_score;
-          addCigar(cigarGen, ez, false);
 
           // NOTE: pre soft-clip code for adjusting the alignment score.
           // int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte)
@@ -874,23 +885,25 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           logger_->debug("\t\t\tCASE 2: no reference bases left (end)");
           //overhangingEnd = true;
           // do any special soft clipping penalty here if we want
-          remainedSoftClipLen -= 
+          numSoftClipped = 
               allowSoftclip
               ? readWindow.length()
               : 0;
           alignmentScore +=
-              allowSoftclip && remainedSoftClipLen >= 0
+              allowSoftclip && remainedSoftClipLen >= numSoftClipped
                   ? 0
                   : (-1 * mopts.gapOpenPenalty +
                      -1 * mopts.gapExtendPenalty * readWindow.length());
           if (mopts.computeCIGAR) {
-            if (allowSoftclip && remainedSoftClipLen >= 0) {
+            if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
               cigarGen.add_item(readWindow.length(), 'S');
             } else {
               cigarGen.add_item(readWindow.length(), 'I');
+              numSoftClipped = 0;
             }
           }
         }
+        arOut.softclip_end = numSoftClipped;
         logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
         logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
       }
@@ -962,14 +975,15 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         alignRead(read_orphan, rc_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->queryChainHash,
                   jointHit.orphanClust()->perfectChain,
                   jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, verbose);
+        auto orphan_total_softclip_len = ar_orphan.softclip_start + ar_orphan.softclip_end;
         jointHit.alignmentScore =
-          ar_orphan.score > threshold(read_orphan.length())  ? ar_orphan.score : invalidScore;
+          ar_orphan.score > threshold(read_orphan.length() - orphan_total_softclip_len)  ? ar_orphan.score : invalidScore;
         jointHit.orphanClust()->cigar = (mopts.computeCIGAR) ? ar_orphan.cigar : "";
         jointHit.orphanClust()->openGapLen = ar_orphan.openGapLen;
         jointHit.orphanClust()->softClipStart = ar_orphan.softclip_start;
 //        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
         if (jointHit.alignmentScore < 0 and verbose) {
-          std::cerr << read_orphan.length() << " " << threshold(read_orphan.length()) << " " << ar_left.score << "\n";
+          std::cerr << read_orphan.length() << " " << threshold(read_orphan.length() - orphan_total_softclip_len) << " " << ar_left.score << "\n";
         }
         return jointHit.alignmentScore;
     } else {
@@ -982,8 +996,10 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         alignRead(read_right, read_right_rc_, jointHit.rightClust->mems, jointHit.rightClust->queryChainHash, jointHit.rightClust->perfectChain,
                                              jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right, verbose);
 
-        jointHit.alignmentScore = ar_left.score > threshold(read_left.length()) ? ar_left.score : invalidScore;
-        jointHit.mateAlignmentScore = ar_right.score > threshold(read_right.length()) ? ar_right.score : invalidScore;
+        auto left_total_softclip_len = ar_left.softclip_start + ar_left.softclip_end;
+        jointHit.alignmentScore = ar_left.score > threshold(read_left.length() - left_total_softclip_len) ? ar_left.score : invalidScore;
+        auto right_total_softclip_len = ar_right.softclip_start + ar_right.softclip_end;
+        jointHit.mateAlignmentScore = ar_right.score > threshold(read_right.length() - right_total_softclip_len) ? ar_right.score : invalidScore;
 /*
         jointHit.alignmentScore = (score_left == invalidScore or score_right == invalidScore)?
                                   invalidScore : score_left + score_right;
@@ -1031,13 +1047,14 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     ar_left.score = invalidScore;
     const auto& oc = jointHit.orphanClust();
     alignRead(read, read_left_rc_, oc->mems, oc->queryChainHash, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
+    auto total_softclip_len = ar_left.softclip_start + ar_left.softclip_end;
     jointHit.alignmentScore =
-      ar_left.score > threshold(read.length())  ? ar_left.score : invalidScore;
+      ar_left.score > threshold(read.length() - total_softclip_len)  ? ar_left.score : invalidScore;
     jointHit.orphanClust()->cigar = (mopts.computeCIGAR) ? ar_left.cigar : "";
     jointHit.orphanClust()->openGapLen = ar_left.openGapLen;
     //        jointHit.orphanClust()->coverage = jointHit.alignmentScore;
     if (jointHit.alignmentScore < 0 and verbose) {
-      std::cerr << read.length() << " " << threshold(read.length()) << " " << ar_left.score << "\n";
+      std::cerr << read.length() << " " << threshold(read.length() - total_softclip_len) << " " << ar_left.score << "\n";
     }
     return jointHit.alignmentScore;
 }
