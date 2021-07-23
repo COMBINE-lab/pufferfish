@@ -972,6 +972,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         auto& orphan_aln_cache = isLeft ? alnCacheLeft : alnCacheRight;
 
         ar_orphan.score = invalidScore;
+        ar_orphan.softclip_start = 0;
+        ar_orphan.softclip_end = 0;
         alignRead(read_orphan, rc_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->queryChainHash,
                   jointHit.orphanClust()->perfectChain,
                   jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, verbose);
@@ -989,6 +991,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
     } else {
         hctr.totalAlignmentAttempts += 2;
         ar_left.score = ar_right.score = invalidScore;
+        ar_left.softclip_start = ar_right.softclip_start = 0;
+        ar_left.softclip_end = ar_right.softclip_end = 0;
         if (verbose) { std::cerr << "left\n"; }
         alignRead(read_left, read_left_rc_, jointHit.leftClust->mems, jointHit.leftClust->queryChainHash, jointHit.leftClust->perfectChain,
                                             jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
@@ -1045,6 +1049,8 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
 
     hctr.totalAlignmentAttempts += 1;
     ar_left.score = invalidScore;
+    ar_left.softclip_start = 0;
+    ar_left.softclip_end = 0;
     const auto& oc = jointHit.orphanClust();
     alignRead(read, read_left_rc_, oc->mems, oc->queryChainHash, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
     auto total_softclip_len = ar_left.softclip_start + ar_left.softclip_end;
