@@ -5,11 +5,23 @@
 #include <memory>
 #include "spdlog/spdlog.h"
 #include "sparsepp/spp.h"
-#include "EquivalenceClassBuilder.hpp"
 #include <thread>
 #include <mutex>
-#include "Taxa.h"
 //#include "tbb/tbb.h"
+
+
+#include "cedar/Taxa.h"
+struct ReadInfo {
+    std::string rid;
+    uint32_t cnt = 0;
+    uint32_t len = 0;
+    std::vector<TaxaNode> mappings;
+};
+#include "cedar/EquivalenceClassBuilder.hpp"
+#include "cedar/PuffMappingReader.hpp"
+#include "cedar/SAMReader.hpp"
+
+
 
 constexpr uint32_t ALIGNMENTS_PER_BATCH{20};
 namespace util {
@@ -87,16 +99,6 @@ struct Stats {
         discordantMappings+=s.discordantMappings;
     }
 };
-
-struct ReadInfo {
-    std::string rid;
-    uint32_t cnt = 0;
-    uint32_t len = 0;
-    std::vector<TaxaNode> mappings;
-};
-
-#include "PuffMappingReader.hpp"
-#include "SAMReader.hpp"
 
 template<class ReaderType, class FileReaderType>
 class Cedar {

@@ -3,7 +3,7 @@
 
 #include <mutex>
 
-#include "Taxa.h"
+#include "cedar/Taxa.h"
 #include "spdlog/spdlog.h"
 #include "SeqLib/BamReader.h"
 #include "SeqLib/BamHeader.h"

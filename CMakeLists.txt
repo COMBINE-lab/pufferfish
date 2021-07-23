@@ -27,6 +27,7 @@ endif()
 project(pufferfish)
 include(ExternalProject)
 
+
 # auto-populate version:
 # from https://stackoverflow.com/questions/47066115/cmake-get-version-from-multi-line-text-file
 file(READ "current_version.txt" ver)
@@ -69,6 +70,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #SET(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -static-libgcc -static-libstdc++")
 #set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+set(CXXSTDFLAG "-std=c++14")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -141,6 +143,7 @@ if(APPLE)
     # In order to "think different", we also have to use non-standard suffixes
     # for our shared libraries
     set(SHARED_LIB_EXTENSION "dylib")
+	message("SHARED_LIB_EXT = ${SHARED_LIB_EXTENSION}")
 else()
     # We're in sane linux world
     set(SHARED_LIB_EXTENSION "so")
@@ -183,7 +186,11 @@ if(JEMALLOC_FOUND)
   include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIRS})
 endif()
 
-
+if(DO_QUIET_MAKE)
+  set(QUIET_MAKE "--silent")
+else()
+  set(QUIET_MAKE "")
+endif()
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 ## Try and find TBB first
@@ -210,6 +217,10 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
     set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/oneTBB-2020.1)
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
 
+    if(NO_RTM)
+  	set(TBB_CXXFLAGS "-mno-rtm")
+    endif()
+
     if("${TBB_COMPILER}" STREQUAL "gcc")
         ## Don't know why it's a problem yet, but if we're using
         ## GCC, get rid of the DO_ITT_NOTIFY flag
@@ -233,9 +244,13 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
             INSTALL_DIR ${TBB_INSTALL_DIR}
             PATCH_COMMAND "${TBB_PATCH_STEP}"
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND make ${QUIET_MAKE} CXXFLAGS=${TBB_CXXFLAGS} lambdas=1 compiler=${TBB_COMPILER} cfg=release tbb_build_prefix=LIBS
+	    BUILD_COMMAND make ${QUIET_MAKE} CXXFLAGS=${TBB_CXXFLAGS} lambdas=1 compiler=${TBB_COMPILER} cfg=release tbb_build_prefix=LIBS
             INSTALL_COMMAND sh -c "mkdir -p ${TBB_INSTALL_DIR}/include && mkdir -p ${TBB_INSTALL_DIR}/lib && cp ${TBB_SOURCE_DIR}/build/LIBS_release/*.${SHARED_LIB_EXTENSION}* ${TBB_INSTALL_DIR}/lib && cp -r ${TBB_SOURCE_DIR}/include/* ${TBB_INSTALL_DIR}/include"
-            BUILD_IN_SOURCE 1
+            BUILD_IN_SOURCE TRUE
+	    #LOG_DOWNLOAD TRUE
+	    #LOG_BUILD TRUE
+	    #LOG_INSTALL TRUE
+	    #LOG_DIR ${GAT_SOURCE_DIR}/external/log
             )
 
     set(RECONFIG_FLAGS ${RECONFIG_FLAGS} -DTBB_WILL_RECONFIGURE=FALSE -DTBB_RECONFIGURE=TRUE)
@@ -245,6 +260,72 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
             )
 	
     set(FETCHED_TBB TRUE)
+
+
+
+find_package(LibLZMA)
+if(NOT LIBLZMA_FOUND)
+  message("Will attempt to fetch and build liblzma")
+  message("=======================================")
+  externalproject_add(liblzma
+  DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
+  ##
+  DOWNLOAD_COMMAND wget http://tukaani.org/xz/xz-5.2.2.tar.gz -o xz-5.2.2.tar.gz &&
+    ${SHASUM} 73df4d5d34f0468bd57d09f2d8af363e95ed6cc3a4a86129d2f2c366259902a2 xz-5.2.2.tar.gz &&
+    tar -xzvf xz-5.2.2.tar.gz
+  #URL http://tukaani.org/xz/xz-5.2.2.tar.gz
+  #URL_HASH SHA1=14663612422ab61386673be78fbb2556f50a1f08
+  ##
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2
+  INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
+  BUILD_IN_SOURCE TRUE
+  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2/configure --prefix=<INSTALL_DIR> CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} CPPFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} LDFLAGS=${EXTRA_CMAKE_LIBRARY_FLAGS}
+  BUILD_COMMAND make ${QUIET_MAKE}
+  INSTALL_COMMAND make ${QUIET_MAKE} install
+)
+
+	# Tell cmake that the external project generated a library so we can
+	# add dependencies here instead of later
+	set(LIBLZMA_LIBRARIES ${GAT_SOURCE_DIR}/external/install/lib/liblzma.a)
+	set(LIBSTADEN_LDFLAGS "-L${GAT_SOURCE_DIR}/external/install/lib")
+	set(LIBSTADEN_CFLAGS "-I${GAT_SOURCE_DIR}/external/install/include")
+	set(FETCHED_LIBLZMA TRUE)
+  else()
+  	message("Found liblzma library: ${LIBLZMA_LIBRARIES}")
+	message("===========================================")
+  endif()
+
+
+find_package(BZip2)
+if(NOT BZIP2_FOUND)
+  message("Will attempt to fetch and build libbz2")
+  message("=======================================")
+externalproject_add(libbz2
+  DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
+  DOWNLOAD_COMMAND curl -k -L https://sourceware.org/pub/bzip2/bzip2-1.0.6.tar.gz -o bzip2-1.0.6.tar.gz &&
+    ${SHASUM} a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd bzip2-1.0.6.tar.gz &&
+    tar -xzvf  bzip2-1.0.6.tar.gz
+  #URL http://www.bzip.org/1.0.6/bzip2-1.0.6.tar.gz
+  #URL_HASH SHA1=3f89f861209ce81a6bab1fd1998c0ef311712002
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/bzip2-1.0.6
+  INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
+  BUILD_IN_SOURCE TRUE
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND make ${QUIET_MAKE} CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER}
+  INSTALL_COMMAND make ${QUIET_MAKE} install PREFIX=<INSTALL_DIR>
+)
+	# Tell cmake that the external project generated a library so we can
+	# add dependencies here instead of later
+	set(BZIP2_LIBRARIES ${GAT_SOURCE_DIR}/external/install/lib/libbz2.a)
+	set(LIBSTADEN_LDFLAGS "-L${GAT_SOURCE_DIR}/external/install/lib -I${GAT_SOURCE_DIR}/external/install/include")
+	set(LIBSTADEN_CFLAGS "-I${GAT_SOURCE_DIR}/external/install/include")
+	set(FETCHED_LIBBZ2 TRUE)
+  else()
+  	message("Found libbz2 library: ${BZIP2_LIBRARIES}")
+  	message("===========================================")
+  endif()
+
+
 endif()
 
 ##
@@ -281,6 +362,7 @@ endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
 
 
+
 ExternalProject_Add(libseqlib
 GIT_REPOSITORY https://github.com/COMBINE-lab/SeqLib.git
 GIT_TAG        master
@@ -291,13 +373,25 @@ DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
 CONFIGURE_COMMAND ./configure 
-BUILD_COMMAND     make CXXFLAGS='-std=c++14'
+BUILD_COMMAND     make CXXFLAGS='-std=c++14' ${LIBSTADEN_LDFLAGS} ${LIBSTADEN_CFLAGS}
 INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include && cp src/libseqlib.a <INSTALL_DIR>/lib && 
                   cp htslib/libhts.a <INSTALL_DIR>/lib &&
                   cp -r SeqLib <INSTALL_DIR>/include &&
                   cp -r json <INSTALL_DIR>/include &&
                   cp -r htslib <INSTALL_DIR>/include
 )
+
+if(NOT LIBLZMA_FOUND)
+  ExternalProject_Add_StepDependencies(libseqlib build liblzma)
+endif()
+
+if(NOT BZIP2_FOUND)
+  ExternalProject_Add_StepDependencies(libseqlib build bz2)
+endif()
+
+
+
+
 
 ExternalProject_Add(libSetCover
         GIT_REPOSITORY https://github.com/martin-steinegger/setcover.git
