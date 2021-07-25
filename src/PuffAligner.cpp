@@ -317,7 +317,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto& bandwidth = aligner.config().bandwidth;
   auto& aligner_config = aligner.config();
   libdivide::divider<int32_t> gapExtDivisor(static_cast<int32_t>(mopts.gapExtendPenalty));
-  const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length() - maxSoftclipLen); //mopts.minScoreFraction * mopts.matchScore * readLen;
+  const int32_t minAcceptedScore = scoreStatus_.getCutoff(read.length() - maxSoftclipLen); //mopts.minScoreFraction * mopts.matchScore * (readLen - maxSoftclipLen);
   logger_->debug("\t\tNOTE mems.size(): {}, isRev: {}, minAcceptedScore: {}", mems.size(), !isFw, minAcceptedScore);
   // compute the maximum gap length that would be allowed given the length of read aligned so far and the current 
   // alignment score.
@@ -469,8 +469,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         int32_t readStartPosOnRef = tpos - firstMemStart_read;
         // int32_t dataDepBuff = std::min(refExtLength, 5*firstMemStart_read);
 
-        int32_t refWindowStart = (readStartPosOnRef - refExtLength) > 0
-                                     ? (readStartPosOnRef - refExtLength)
+        int32_t maxGaps = maxAllowedGaps(0, 0) + 1;
+
+        int32_t refWindowStart = (readStartPosOnRef - maxGaps) > 0
+                                     ? (readStartPosOnRef - maxGaps)
                                      : 0;
         int32_t refWindowLength = tpos - refWindowStart;
         fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart,
@@ -487,7 +489,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           logger_->debug("\t\t\tref:  [{}]", refSeqBuffer_);
           
           ksw_reset_extz(&ez);
-          bandwidth = maxAllowedGaps(0, 0) + 1;
+          bandwidth = maxGaps;
           logger_->debug("\t\t\tksw2_parameters: bandwidth={}, end_bonus={}, zdrop={}", bandwidth, aligner_config.end_bonus, aligner_config.dropoff);
           auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
@@ -773,13 +775,14 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         int32_t refTailStart = prevMemEnd_ref + 1;
         bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
         int32_t dataDepBuff = bandwidth; // std::min(refExtLength, 5 * gapRead);
+        // refTailEnd is not included in the target sequence
         int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
         //overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
-        if (refTailEnd >= refTotalLength) {
-          refTailEnd = refTotalLength - 1;
+        if (refTailEnd > refTotalLength) {
+          refTailEnd = refTotalLength;
         }
         int32_t refLen =
-            (refTailEnd > refTailStart) ? refTailEnd - refTailStart + 1 : 0;
+            (refTailEnd > refTailStart) ? refTailEnd - refTailStart: 0;
         auto readWindow = readView.substr(prevMemEnd_read + 1).to_string();
         fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
 
