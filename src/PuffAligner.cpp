@@ -617,14 +617,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                      -1 * mopts.gapExtendPenalty * firstMemStart_read);
           openGapLen = firstMemStart_read;
 
+          char cigar_char;
+          if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
+            cigar_char = 'S';
+            openGapLen = 0;
+          } else {
+            cigar_char = 'I';
+            numSoftClipped = 0;
+          }
+
           if (mopts.computeCIGAR) {
-            if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
-              cigarGen.add_item(firstMemStart_read, 'S');
-              openGapLen = 0;
-            } else {
-              cigarGen.add_item(firstMemStart_read, 'I');
-              numSoftClipped = 0;
-            }
+            cigarGen.add_item(firstMemStart_read, cigar_char);
           }
         }
         arOut.softclip_start = numSoftClipped;
@@ -786,7 +789,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         auto readWindow = readView.substr(prevMemEnd_read + 1).to_string();
         fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
 
-        int32_t numSoftClipped = 0;
+        int32_t numSoftClipped = 0; 
 
         logger_->debug("\t\t\tgapRead : {}, refLen : {}, refBuffer_.size() : {}, refTotalLength : {}", gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
         if (refLen > 0) {
@@ -897,13 +900,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                   ? 0
                   : (-1 * mopts.gapOpenPenalty +
                      -1 * mopts.gapExtendPenalty * readWindow.length());
+
+          char cigar_char;
+          if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
+            cigar_char = 'S';
+          } else {
+            cigar_char = 'I';
+            numSoftClipped = 0;
+          }
+
           if (mopts.computeCIGAR) {
-            if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
-              cigarGen.add_item(readWindow.length(), 'S');
-            } else {
-              cigarGen.add_item(readWindow.length(), 'I');
-              numSoftClipped = 0;
-            }
+            cigarGen.add_item(readWindow.length(), cigar_char);
           }
         }
         arOut.softclip_end = numSoftClipped;
