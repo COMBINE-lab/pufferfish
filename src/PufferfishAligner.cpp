@@ -311,7 +311,7 @@ void processReadsPair(paired_parser *parser,
                 for (auto &&jointHit : jointHits) {
                     const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
                     logger_->debug("\n\tcalculate_alignments_PE ref_name: {} ref_ID: {}", ref_name, jointHit.tid);
-                    auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
+                    auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, logger_, verbose);
                     if (mopts->bestStrata and hitScore != invalidScore)
                         puffaligner.getScoreStatus().updateBest(hitScore - mopts->matchScore * std::max(rpair.first.seq.length(), rpair.second.seq.length()));
                     if ( (mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore) and hitScore != invalidScore)
@@ -727,7 +727,7 @@ void processReadsSingle(single_parser *parser,
                 for (auto &jointHit : jointHits) {
                     const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
                     logger_->debug("\n\tcalculate_alignments_SE ref_name: {} ref_ID: {}", ref_name, jointHit.tid);
-                    int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
+                    int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, logger_, verbose);
                     if (mopts->bestStrata) puffaligner.getScoreStatus().updateBest(hitScore);
                     if (mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore) puffaligner.getScoreStatus().updateDecoy(hitScore);
                     scores[idx] = hitScore;

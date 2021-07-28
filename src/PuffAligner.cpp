@@ -213,7 +213,7 @@ std::string ksw2_to_cigar(const char *qseq, const char *tseq, ksw_extz_t *ez, st
  **/
 bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::vector<pufferfish::util::MemInfo> &mems, 
                             uint64_t queryChainHash, bool perfectChain, bool isFw, size_t tid, AlnCacheMap &alnCache, 
-                            HitCounters &hctr, AlignmentResult& arOut, bool /*verbose*/) {
+                            HitCounters &hctr, AlignmentResult& arOut, std::shared_ptr<spdlog::logger>& logger_, bool /*verbose*/) {
 
   int32_t alignmentScore{std::numeric_limits<decltype(arOut.score)>::min()};
   if (mems.empty()) {
@@ -249,7 +249,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto readLen = read.length();
   auto tpos = frontMem.tpos;
   
-  auto logger_ = spdlog::get("console");
   // spdlog::set_level(spdlog::level::debug); // Set global log level to debug
   // logger_->set_pattern("%v");
 
@@ -959,7 +958,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
  *  PuffAligner object).
  **/
 int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& read_right, pufferfish::util::JointMems& jointHit,
-                                         HitCounters& hctr, bool isMultimapping, bool verbose) {
+                                         HitCounters& hctr, bool isMultimapping, std::shared_ptr<spdlog::logger>& logger_, bool verbose) {
   isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
     double optFrac{mopts.minScoreFraction};
@@ -986,7 +985,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         ar_orphan.softclip_end = 0;
         alignRead(read_orphan, rc_orphan, jointHit.orphanClust()->mems, jointHit.orphanClust()->queryChainHash,
                   jointHit.orphanClust()->perfectChain,
-                  jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, verbose);
+                  jointHit.orphanClust()->isFw, tid, orphan_aln_cache, hctr, ar_orphan, logger_, verbose);
         auto orphan_total_softclip_len = ar_orphan.softclip_start + ar_orphan.softclip_end;
         jointHit.alignmentScore =
           ar_orphan.score > threshold(read_orphan.length() - orphan_total_softclip_len)  ? ar_orphan.score : invalidScore;
@@ -1005,10 +1004,10 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
         ar_left.softclip_end = ar_right.softclip_end = 0;
         if (verbose) { std::cerr << "left\n"; }
         alignRead(read_left, read_left_rc_, jointHit.leftClust->mems, jointHit.leftClust->queryChainHash, jointHit.leftClust->perfectChain,
-                                            jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
+                                            jointHit.leftClust->isFw, tid, alnCacheLeft, hctr, ar_left, logger_, verbose);
         if (verbose) { std::cerr << "right\n"; }
         alignRead(read_right, read_right_rc_, jointHit.rightClust->mems, jointHit.rightClust->queryChainHash, jointHit.rightClust->perfectChain,
-                                             jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right, verbose);
+                                             jointHit.rightClust->isFw, tid, alnCacheRight, hctr, ar_right, logger_, verbose);
 
         auto left_total_softclip_len = ar_left.softclip_start + ar_left.softclip_end;
         jointHit.alignmentScore = ar_left.score > threshold(read_left.length() - left_total_softclip_len) ? ar_left.score : invalidScore;
@@ -1046,7 +1045,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
  *  if CIGAR strings are computed or just scores, is controlled by the configuration that has been passed to this
  *  PuffAligner object).
  **/
-int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, bool verbose) {
+int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::JointMems& jointHit, HitCounters& hctr, bool isMultimapping, std::shared_ptr<spdlog::logger>& logger_, bool verbose) {
   isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
     double optFrac{mopts.minScoreFraction};
@@ -1062,7 +1061,7 @@ int32_t PuffAligner::calculateAlignments(std::string& read, pufferfish::util::Jo
     ar_left.softclip_start = 0;
     ar_left.softclip_end = 0;
     const auto& oc = jointHit.orphanClust();
-    alignRead(read, read_left_rc_, oc->mems, oc->queryChainHash, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, verbose);
+    alignRead(read, read_left_rc_, oc->mems, oc->queryChainHash, oc->perfectChain, oc->isFw, tid, alnCacheLeft, hctr, ar_left, logger_, verbose);
     auto total_softclip_len = ar_left.softclip_start + ar_left.softclip_end;
     jointHit.alignmentScore =
       ar_left.score > threshold(read.length() - total_softclip_len)  ? ar_left.score : invalidScore;
