@@ -250,9 +250,7 @@ int main(int argc, char* argv[]) {
                     ),
                     (option("--allowSoftclip").set(alignmentOpt.allowSoftclip, true) % "Allow soft-clipping at start and end of alignments"),
                     (option("--maxSoftclipFraction") & value("maxSoftclipFraction", alignmentOpt.maxSoftclipFraction)) % "Discard alignments with soft-clip > maxSoftclipFraction * read_length (default=0.2)",
-                    // (option("--allowOverhangSoftclip").set(alignmentOpt.allowOverhangSoftclip, true) % "Allow soft-clipping part of a read that overhangs the reference (the regular --allowSoftclip flag overrides this one)"),
                     (option("--computeCIGAR").set(alignmentOpt.computeCIGAR, true) % "Compute CIGAR string during alignment validation"),
-                    // (option("--end2end").set(alignmentOpt.end2end, true) % "Perform end to end alignment with no soft-clipping"),
                     (option("--endBonus") & value("end bonus", alignmentOpt.endBonus)) % "Specify end bonus value when alignment reaches the end of query",
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
                     (option("--maxFragmentLength") & value("max frag length", alignmentOpt.maxFragmentLength)) % 

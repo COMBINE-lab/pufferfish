@@ -139,7 +139,7 @@ int32_t PuffAligner::align_ungapped(const char* const query, const char* const t
   return score;
 }
 
-// EHSAN-TODO: for development purposes only. Remove for release
+// FOR DEBUGGING PURPOSES. Builds CIGAR string from the expanded CIGAR (contains =/X instead of M)
 std::string collapse_cigar(std::string exp_cigar)
 {
   if(exp_cigar.size() < 1) return "";
@@ -155,7 +155,6 @@ std::string collapse_cigar(std::string exp_cigar)
     else
     {
       collapsed += std::to_string(cnt) + last_char;
-      // printf("%d%c", cnt, last_char);
       last_char = exp_cigar[i];
       cnt = 1;
     }
@@ -164,7 +163,7 @@ std::string collapse_cigar(std::string exp_cigar)
   return collapsed;
 }
 
-// EHSAN-TODO: for development purposes only. Remove for release
+// FOR DEBUGGING PURPOSES. Builds the CIGAR string as well as the expanded CIGAR string (contains =/X and needs to be collapsed with collapse_ciga() function)
 std::string ksw2_to_cigar(const char *qseq, const char *tseq, ksw_extz_t *ez, std::string &exp_cigar)
 {
   int qpos = 0;
@@ -188,7 +187,6 @@ std::string ksw2_to_cigar(const char *qseq, const char *tseq, ksw_extz_t *ez, st
       {
         for(unsigned int j = 0; j < ez->cigar[i]>>4; j++)
         {
-          // printf("tpos:%d qpos:%d %c %c\n", tpos, qpos, tseq[tpos], qseq[qpos]);
           if(tseq[tpos] == qseq[qpos])
             exp_cigar += '=';
           else
@@ -198,10 +196,7 @@ std::string ksw2_to_cigar(const char *qseq, const char *tseq, ksw_extz_t *ez, st
         }
       }
       cigar += std::to_string(ez->cigar[i]>>4) + "MID"[ez->cigar[i]&0xf];
-      // printf("%d%c", ez->cigar[i]>>4, "MID"[ez->cigar[i]&0xf]);
     }
-    // putchar('\t');
-    // collapse_cigar(exp_cigar);
   }
   return cigar;
 }
@@ -230,14 +225,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // int32_t alignment{0};
   uint32_t openGapLen{0};
 
-  // will we be computing CIGAR strings for this alignment
-  // bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
-  // bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
   // the cigar generator we will use
   auto& cigarGen = cigarGen_;
   cigarGen.clear();
-
-  ksw_reset_extz(&ez); // EHSAN: Do we even need to reset here? It's being reset either in the wrapper or in ksw2 itself, no?
 
   // where this reference starts, and its length.
   int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
@@ -248,16 +238,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto memlen = frontMem.extendedlen;
   auto readLen = read.length();
   auto tpos = frontMem.tpos;
-  
-  // spdlog::set_level(spdlog::level::debug); // Set global log level to debug
-  // logger_->set_pattern("%v");
 
   if (perfectChain) {
     logger_->debug("\t\tperfect chain!");
-    // SPDLOG_DEBUG(logger_,"[[");
-    // SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
-    // SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
-    // SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");
     hctr.skippedAlignments_byCov += 1;
     arOut.score = alignmentScore = readLen * mopts.matchScore;
     arOut.cigar = (mopts.computeCIGAR ? std::to_string(readLen) + 'M' : "");
@@ -296,8 +279,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool invalidStart = (signedRefStartPos < 0);
   bool invalidEnd = (signedRefEndPos > refTotalLength);
 
-  bool allowSoftclip = mopts.allowSoftclip;
-
   uint32_t maxSoftclipLen = mopts.maxSoftclipFraction * readLen;
   
   if (mopts.end2end) {
@@ -333,12 +314,12 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   int32_t leftEndRead = readLen - (last_rpos + lastMem.extendedlen);
   int32_t dataDepBuff = maxAllowedGaps(0, 0) + 1; // std::min(refExtLength, 5 * leftEndRead);
   bool overhangingEnd = static_cast<int64_t>(lastMem.tpos + lastMem.extendedlen + leftEndRead + dataDepBuff) > refTotalLength;
-  // bool overhangingStart = currHitStart_ref < currHitStart_read;
+  bool overhangingStart = currHitStart_ref < currHitStart_read;
   uint32_t remLen = 0;
   // If we are only aligning between MEMs
   if (!doFullAlignment) {
     refStart = (currHitStart_ref >= currHitStart_read) ? currHitStart_ref - currHitStart_read : 0;
-    // overhangingStart = static_cast<int32_t>(refStart) < refExtLength;
+    overhangingStart = static_cast<int32_t>(refStart) < refExtLength;
     int32_t refStartExtLength = (refExtLength < static_cast<int32_t>(refStart)) ? refExtLength : refStart;
     refStart = static_cast<int32_t>(refStart) > refExtLength ? static_cast<int32_t>(refStart) - refExtLength : 0;
     remLen = (currHitStart_ref >= currHitStart_read) ? readLen : readLen - (currHitStart_read - currHitStart_ref);
@@ -375,23 +356,11 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   // so copy it into tseq.
   if (!doFullAlignment) { tseq = refSeqBuffer_; }
 
-  // bool useAlnCache = mopts.useAlignmentCache and isMultimapping_ and !perfectChain and !overhangingEnd;
-  bool useAlnCache = mopts.useAlignmentCache and isMultimapping_ and !overhangingEnd; // EHSAN: we're sure that it's not a perfectChain
+  // Mohsen says that we avoid using the cache only when both ends are overhanging (including extensions)
+  bool useAlnCache = mopts.useAlignmentCache and isMultimapping_ and !(overhangingEnd and overhangingStart);
 
-  // first, check if we can skip this by perfect chaining
-  // if not, check if we can skip it via the alignment cache
-  // if (perfectChain) { // EHSAN: this was taken care of before
-  //   arOut.score = alignmentScore = readLen * mopts.matchScore;
-  //   if (computeCIGAR or approximateCIGAR) { cigarGen.add_item(readLen, 'M'); }
-  //   hctr.skippedAlignments_byCov += 1;
-  //   /*SPDLOG_DEBUG(logger_,"[[");
-  //   SPDLOG_DEBUG(logger_,"read sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
-  //   SPDLOG_DEBUG(logger_,"ref  sequence      : {}", (doFullAlignment ? tseq : refSeqBuffer_));
-  //   SPDLOG_DEBUG(logger_,"perfect chain!\n]]\n");*/
-  // } else 
-  if (useAlnCache and !alnCache.empty()) { //  and !overhangingStart) {
+  if (useAlnCache and !alnCache.empty()) {
     logger_->debug("\t\tNOTE checking cache");
-    // mopts.useAlignmentCache and !alnCache.empty() and isMultimapping_ and !overhangingEnd) { //  and !overhangingStart) {
     // hash the reference string
     MetroHash64::Hash(reinterpret_cast<uint8_t *>(const_cast<char*>(refSeqBuffer_.data())), keyLen, reinterpret_cast<uint8_t *>(&hashKey), 0);
     hashKey ^= queryChainHash;
@@ -417,513 +386,397 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
   logger_->debug("\t\t+++ NEXT MEM readPos: {}, refPos: {}, memLen: {}", (isFw ? rpos : readLen - (rpos + memlen)), tpos, memlen);
 
-  // if (!perfectChain) { EHSAN: No need to check this because it has been checked before
-    // NOTE: We don't worry about soft clipping within the `doFullAlignment`
-    // branch, since these two options are currently incompatible.
-    if (doFullAlignment) {
-      // if we allow softclipping of overhanging bases, then we can cut off the
-      // part of the read before the start of the reference
-      decltype(readStart) readOffset = allowSoftclip ? readStart : 0;
-      nonstd::string_view readSeq = readView.substr(readOffset);
-      ksw_reset_extz(&ez);
-      auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
-      aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
-              refSeqBuffer_.length(), &ez, cutoff, readLen,
-              ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-      // if we allow softclipping of overhaning bases, then we only care about
-      // the best score to the end of the query or the end of the reference.
-      // Otherwise, we care about the best score all the way until the end of
-      // the query.
-      alignmentScore =
-          allowSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+  // NOTE: We don't worry about soft clipping within the `doFullAlignment`
+  // branch, since these two options are currently incompatible.
+  if (doFullAlignment) {
+    // if we allow softclipping of overhanging bases, then we can cut off the
+    // part of the read before the start of the reference
+    decltype(readStart) readOffset = mopts.allowSoftclip ? readStart : 0;
+    nonstd::string_view readSeq = readView.substr(readOffset);
+    auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
+    aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
+            refSeqBuffer_.length(), &ez, cutoff, readLen,
+            ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+    // if we allow softclipping of overhaning bases, then we only care about
+    // the best score to the end of the query or the end of the reference.
+    // Otherwise, we care about the best score all the way until the end of
+    // the query.
+    alignmentScore = mopts.allowSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
 
-      logger_->debug("readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
-      logger_->debug("currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
+    logger_->debug("readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
+    logger_->debug("currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
 
-      if (mopts.computeCIGAR) {
-        openGapLen = addCigar(cigarGen, ez, false);
-      } else {
-        // can make start pos negative, but sam writer deals with this right now
-        openGapLen = currHitStart_read;
-        //((currHitStart_ref - currHitStart_read) < 0) ? 0 :
-        //(currHitStart_read);
-      }
+    if (mopts.computeCIGAR) {
+      openGapLen = addCigar(cigarGen, ez, false);
     } else {
-      alignmentScore = 0;
+      // can make start pos negative, but sam writer deals with this right now
+      openGapLen = currHitStart_read;
+      //((currHitStart_ref - currHitStart_read) < 0) ? 0 :
+      //(currHitStart_read);
+    }
+  } else {
+    alignmentScore = 0;
 
-      // std::stringstream ss;
-      logger_->debug("\t\tread sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
-      logger_->debug("\t\tref  sequence      : {}", tseq);
+    logger_->debug("\t\tread sequence ({}) : {}", (isFw ? "FW" : "RC"), readView);
+    logger_->debug("\t\tref  sequence      : {}", tseq);
 
-      // If the first mem does not start at the beginning of the
-      // read, then there is a gap to align.
-      int32_t firstMemStart_read = (isFw) ? rpos : readLen - (rpos + memlen);
-      if (firstMemStart_read > 0) {
-        logger_->debug("\t\t### EXTEND LEFT");
-        // align the part before the first mem
+    // If the first mem does not start at the beginning of the
+    // read, then there is a gap to align.
+    int32_t firstMemStart_read = (isFw) ? rpos : readLen - (rpos + memlen);
+    if (firstMemStart_read > 0) {
+      logger_->debug("\t\t### EXTEND LEFT");
+      // align the part before the first mem
 
-        // the gap is of length firstMemStart_read, so grab that much (plus
-        // buffer) before the first start position on the reference. int32_t
-        // firstMemStart_ref = tpos;
-        int32_t readStartPosOnRef = tpos - firstMemStart_read;
-        // int32_t dataDepBuff = std::min(refExtLength, 5*firstMemStart_read);
+      // the gap is of length firstMemStart_read, so grab that much (plus
+      // buffer) before the first start position on the reference. int32_t
+      // firstMemStart_ref = tpos;
+      int32_t readStartPosOnRef = tpos - firstMemStart_read;
+      // int32_t dataDepBuff = std::min(refExtLength, 5*firstMemStart_read);
 
-        int32_t maxGaps = maxAllowedGaps(0, 0) + 1;
+      int32_t maxGaps = maxAllowedGaps(0, 0) + 1;
 
-        int32_t refWindowStart = (readStartPosOnRef - maxGaps) > 0
-                                     ? (readStartPosOnRef - maxGaps)
-                                     : 0;
-        int32_t refWindowLength = tpos - refWindowStart;
-        fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart,
-                                refWindowLength, refSeqBuffer_);
+      int32_t refWindowStart = (readStartPosOnRef - maxGaps) > 0
+                                    ? (readStartPosOnRef - maxGaps)
+                                    : 0;
+      int32_t refWindowLength = tpos - refWindowStart;
+      fillRefSeqBufferReverse(allRefSeq, refAccPos, refWindowStart,
+                              refWindowLength, refSeqBuffer_);
 
-        int32_t numSoftClipped = 0;
+      int32_t numSoftClipped = 0;
 
-        if (refSeqBuffer_.length() > 0) {
-          logger_->debug("\t\t\tCASE 1: some reference bases left to align");
-          auto readWindow = std::string(readView.substr(0, firstMemStart_read));
-          std::reverse(readWindow.begin(), readWindow.end());
-          logger_->debug("\t\t\treadStartPosOnRef: {}\trefWindowStart: {}\trefWindowLength: {}", readStartPosOnRef, refWindowStart, refWindowLength);
-          logger_->debug("\t\t\tread: [{}]", readWindow);
-          logger_->debug("\t\t\tref:  [{}]", refSeqBuffer_);
-          
-          ksw_reset_extz(&ez);
-          bandwidth = maxGaps;
-          logger_->debug("\t\t\tksw2_parameters: bandwidth={}, end_bonus={}, zdrop={}", bandwidth, aligner_config.end_bonus, aligner_config.dropoff);
-          auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
-          aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refSeqBuffer_.length(), &ez, cutoff, remainedSoftClipLen,
-                  ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          logger_->debug("\t\t\tksw2_results:");
-          logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
-          logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
-          logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
-          logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
-          // EHSAN-TODO: disable this before release
-          if(mopts.computeCIGAR) {
-            std::string tmp_cg_exp;
-            logger_->debug("\t\t\t\talnCigar: {}", ksw2_to_cigar(readWindow.c_str(), refSeqBuffer_.c_str(), &ez, tmp_cg_exp));
-            logger_->debug("\t\t\t\talnCigar: {}", collapse_cigar(tmp_cg_exp));
-          } 
-          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
-          if (ez.mqe != KSW_NEG_INF and ez.stopped>0) ez.stopped = 0;
+      if (refSeqBuffer_.length() > 0) {
+        logger_->debug("\t\t\tCASE 1: some reference bases left to align");
+        auto readWindow = readView.substr(0, firstMemStart_read).to_string();
+        std::reverse(readWindow.begin(), readWindow.end());
+        logger_->debug("\t\t\treadStartPosOnRef: {}\trefWindowStart: {}\trefWindowLength: {}", readStartPosOnRef, refWindowStart, refWindowLength);
+        logger_->debug("\t\t\tread: [{}]", readWindow);
+        logger_->debug("\t\t\tref:  [{}]", refSeqBuffer_);
+        
+        bandwidth = maxGaps;
+        logger_->debug("\t\t\tksw2_parameters: bandwidth={}, end_bonus={}, zdrop={}", bandwidth, aligner_config.end_bonus, aligner_config.dropoff);
+        auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
+        aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
+                refSeqBuffer_.length(), &ez, cutoff, remainedSoftClipLen,
+                ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+        logger_->debug("\t\t\tksw2_results:");
+        logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
+        logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
+        logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
+        logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
+        // FOR DEBUGGING PURPOSES ONLY
+        // if(mopts.computeCIGAR) {
+        //   std::string tmp_cg_exp;
+        //   logger_->debug("\t\t\t\talnCigar: {}", ksw2_to_cigar(readWindow.c_str(), refSeqBuffer_.c_str(), &ez, tmp_cg_exp));
+        //   logger_->debug("\t\t\t\talnCigar: {}", collapse_cigar(tmp_cg_exp));
+        // } 
+        if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
+        if (ez.mqe != KSW_NEG_INF and ez.stopped>0) ez.stopped = 0;
 
-          // If we are doing approximate soft clipping, then we will retain the
-          // higher of the two scores between extending the alignment before the
-          // first MEM, or simply soft clipping the part of the alignment before
-          // the first MEM and setting the associated part of the alignment
-          // score to 0 (we gain no benefit, but it costs us nothing either).
+        // NOTE: pre soft-clip code for adjusting the alignment score.
+        // alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
 
-          // we start out with the score we obtain if we extend all the
-          // way to the beginning of the **query**.
-          // simply deleting the rest of the read
-          //int32_t delCost = (-1 * mopts.gapOpenPenalty +
-          //                   -1 * mopts.gapExtendPenalty * readWindow.length());
-          // decltype(alignmentScore) part_score = ez.mqe;//std::max(delCost, ez.mqe);
-          // int32_t num_soft_clipped{0};
-          
-          // if (allowSoftclip) {
-          //   auto max_score = std::max(ez.mqe, ez.mte);
-          //   // if we are allowing softclipping, then we consider the
-          //   // best score we could get as the maximum of
-          //   // 1. extending to the beginning of the query.
-          //   // 2. extending to the beginning of the reference.
-          //   // 3. 0 : i.e. performing no extension and starting the alignment at
-          //   // the first MEM.
-          //   if (max_score < 0) {
-          //     // if we are in case 3
-          //     part_score = 0;
-          //     // we soft clip the entire read part 
-          //     num_soft_clipped = readWindow.length();
-          //   } else if (ez.mqe >= ez.mte) {
-          //     // if we are in case 1
-          //     part_score = ez.mqe;
-          //     // we soft-clip nothing
-          //   } else {
-          //     // if we are in case 2
-          //     part_score = ez.mte;
-          //     // we soft clip the difference between the read part length 
-          //     // and the number of aligned bases in the read part
-          //     num_soft_clipped = readWindow.length() - ez.max_q - 1;
-          //   } 
-          //   arOut.softclip_start = static_cast<uint16_t>(num_soft_clipped);
-          // } else if (allowOverhangSoftclip) {
-          //   if (ez.mte > ez.mqe) {
-          //     // we soft clip the difference between the read part length
-          //     // and the number of aligned bases in the read part
-          //     num_soft_clipped = readWindow.length() - ez.max_q - 1;
-          //     part_score = ez.mte;
-          //   } else {
-          //     part_score = ez.mqe;
-          //   }
-          // }
-          // alignmentScore += part_score;
-          // if (approximateCIGAR and num_soft_clipped > 0) {
-          //   cigarGen.begin_softclip_len = num_soft_clipped;
-          // }
+        // NOTE: If we are not writing down the CIGAR, we assume *for the
+        // purpose of computing positions* that the prefix of the read we are
+        // aligning here is optimally aligned in a gapless fashion. This,
+        // obviously, may not be the case.  However, if the aligned prefix
+        // does contain indels, and we don't write down the appropriate CIGAR
+        // string to designate this fact, then downstream tools will not be
+        // able to properly adjust (so that e.g. the MEMs in the chain are
+        // properly positioned). This approximation means that the position we
+        // report may not be the one corresponding to the optimal alignment
+        // score that we actually calculate.  However, if we are not writing
+        // out the actual CIGAR string, this is the best we can do. (addresses
+        // https://github.com/COMBINE-lab/salmon/issues/475).
 
-          // NOTE: pre soft-clip code for adjusting the alignment score.
-          // alignmentScore += allowOverhangSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+        decltype(alignmentScore) part_score = ez.max;
+        numSoftClipped = readWindow.length() - (ez.max_q + 1);
+        if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
+        {
+          part_score = ez.mqe;
+          openGapLen = ez.mqe_t + 1;
+          numSoftClipped = 0;
+        }
+        else
+        {
+          part_score = ez.max;
+          openGapLen = ez.max_t + 1;
+          cigarGen.add_item(numSoftClipped, 'S');
+        }
+        remainedSoftClipLen -= numSoftClipped;
+        logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
 
-          // NOTE: If we are not writing down the CIGAR, we assume *for the
-          // purpose of computing positions* that the prefix of the read we are
-          // aligning here is optimally aligned in a gapless fashion. This,
-          // obviously, may not be the case.  However, if the aligned prefix
-          // does contain indels, and we don't write down the appropriate CIGAR
-          // string to designate this fact, then downstream tools will not be
-          // able to properly adjust (so that e.g. the MEMs in the chain are
-          // properly positioned). This approximation means that the position we
-          // report may not be the one corresponding to the optimal alignment
-          // score that we actually calculate.  However, if we are not writing
-          // out the actual CIGAR string, this is the best we can do. (addresses
-          // https://github.com/COMBINE-lab/salmon/issues/475).
-          // openGapLen =
-          //     computeCIGAR ? addCigar(cigarGen, ez, true) : firstMemStart_read - num_soft_clipped;
+        alignmentScore += part_score;
+        addCigar(cigarGen, ez, true);
+      } else {
+        logger_->debug("\t\t\tCASE 2: no reference bases left (start)");
+        // do any special soft clipping penalty here if we want
+        numSoftClipped = 
+            mopts.allowSoftclip
+            ? firstMemStart_read
+            : 0;
+        alignmentScore +=
+            mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped
+                ? 0
+                : (-1 * mopts.gapOpenPenalty +
+                    -1 * mopts.gapExtendPenalty * firstMemStart_read);
+        openGapLen = firstMemStart_read;
 
-          decltype(alignmentScore) part_score = ez.max;
-          numSoftClipped = readWindow.length() - (ez.max_q + 1);
-          if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
-          {
-            part_score = ez.mqe;
-            // openGapLen = readWindow.length();
-            openGapLen = ez.mqe_t + 1;
-            numSoftClipped = 0;
-          }
-          else
-          {
-            part_score = ez.max;
-            openGapLen = ez.max_t + 1;
-            cigarGen.add_item(numSoftClipped, 'S');
-          }
-          remainedSoftClipLen -= numSoftClipped;
-          logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
+        char cigar_char;
+        if (mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
+          cigar_char = 'S';
+          openGapLen = 0;
+        } else {
+          cigar_char = 'I';
+          numSoftClipped = 0;
+        }
 
-          alignmentScore += part_score;
-          addCigar(cigarGen, ez, true);
-          // logger_->debug("score : {}", std::max(ez.mqe, ez.mte));
-        } else { // EHSAN-TODO: check if this is necessary
-          logger_->debug("\t\t\tCASE 2: no reference bases left (start)");
-          // overhangingStart = true;
-          // do any special soft clipping penalty here if we want
-          numSoftClipped = 
-              allowSoftclip
-              ? firstMemStart_read
-              : 0;
-          alignmentScore +=
-              allowSoftclip && remainedSoftClipLen >= numSoftClipped
-                  ? 0
-                  : (-1 * mopts.gapOpenPenalty +
-                     -1 * mopts.gapExtendPenalty * firstMemStart_read);
-          openGapLen = firstMemStart_read;
+        if (mopts.computeCIGAR) {
+          cigarGen.add_item(firstMemStart_read, cigar_char);
+        }
+      }
+      arOut.softclip_start = numSoftClipped;
+      logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
+      logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
+    }
 
-          char cigar_char;
-          if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
-            cigar_char = 'S';
-            openGapLen = 0;
-          } else {
-            cigar_char = 'I';
-            numSoftClipped = 0;
-          }
+    int32_t prevMemEnd_read = firstMemStart_read - 1; //isFw ? rpos : readLen - (rpos + memlen);
+    int32_t prevMemEnd_ref = tpos - 1;
+    
+    if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
+      hctr.skippedAlignments_notAlignable += 1;
+      ez.stopped = 1;
+      logger_->debug("ez stopped");
+    }
 
+    logger_->debug("\t\t### ADD MEM SCORE");
+    alignmentScore += mopts.matchScore * memlen;
+    cigarGen.add_item(memlen, 'M');
+    prevMemEnd_read = firstMemStart_read + memlen - 1;
+    prevMemEnd_ref = tpos + memlen - 1;
+
+    // for the second through the last mem
+    for(auto it = mems.begin() + 1; it != mems.end() and !ez.stopped; ++it) {
+      logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
+      logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
+      logger_->debug("\t\t### FILL GAP");
+      auto& mem = *it;
+      rpos = mem.rpos;
+      memlen = mem.extendedlen;
+      tpos = mem.tpos;
+      logger_->debug("\t\t+++ NEXT MEM rpos: {}, tpos: {}, memLen: {}", (isFw ? rpos : readLen - (rpos + memlen)), tpos, memlen);
+
+      int32_t score = 0;
+
+      int32_t currMemStart_ref = tpos;
+      int32_t currMemStart_read = isFw ? rpos : readLen - (rpos + memlen);
+      int32_t gapRef =
+          currMemStart_ref - prevMemEnd_ref - 1; // both inclusive
+      int32_t gapRead =
+          currMemStart_read - prevMemEnd_read - 1; // both inclusive
+      
+      logger_->debug("\t\t\tgapRef: {}, gapRead: {}", gapRef, gapRead);
+
+      if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
+        logger_->debug("\t\t\tCASE 1: overlapping MEMs");
+        int32_t gapDiff = std::abs(gapRef - gapRead);
+        score += (-1 * mopts.gapOpenPenalty +
+                  -1 * mopts.gapExtendPenalty * gapDiff);
+        // subtract off extra matches
+        score += mopts.matchScore * std::min(gapRead, gapRef);
+        cigarGen.add_item(std::min(gapRead, gapRef), 'M');
+        if(gapRef > gapRead)
+        {
+          cigarGen.add_item(gapDiff, 'D');
+        }
+        else // gapRef < gapRead
+        {
+          cigarGen.add_item(gapDiff, 'I');
+        }
+
+        logger_->debug("\t\t\t\tscore_adjustment: {}", score);
+      } else if (gapRead > 0 and gapRef > 0) {
+        logger_->debug("\t\t\tCASE 2: gaps to align");
+
+        auto readWindow = readView.substr(prevMemEnd_read + 1, gapRead);
+        const char* refSeq1 = tseq.data() + (prevMemEnd_ref)-refStart + 1;
+
+        logger_->debug("\t\t\t\t[{}]\n\t\t\t\t[{}]", readWindow, nonstd::string_view(refSeq1, gapRef));
+        if (prevMemEnd_ref - refStart + 1 + gapRef >= tseq.size()) {
+          logger_->debug("\t\t WARNING: tseq was not long enough; need to fetch more!");
+        }
+
+        if (readWindow.length() <= minLengthGapRequired and gapRead == gapRef) {
+          // EHSAN-TODO: add debug info here
+          logger_->debug("\t\t\t\taligning with align_ungapped (readWindow.length()={} < minLengthGapRequired={})", readWindow.length(), minLengthGapRequired);
+          score += align_ungapped(readWindow.data(), refSeq1, gapRead);
+        } else {
+          logger_->debug("\t\t\t\taligning with ksw2");
+          bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
+          score += aligner(
+            readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
+            ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
+            
           if (mopts.computeCIGAR) {
-            cigarGen.add_item(firstMemStart_read, cigar_char);
+            addCigar(cigarGen, ez, false);
           }
         }
-        arOut.softclip_start = numSoftClipped;
-        logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
-        logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
+
+        logger_->debug("\t\t\t\tscore_adjustment: {}", score);
+      } else if (it > mems.begin() and
+                  ((currMemStart_read <= prevMemEnd_read) or
+                  (currMemStart_ref <= prevMemEnd_ref))) {
+        logger_->debug("\t\t\tCASE 3: Improperly compacted MEM chain. Should not happen!");
+        std::cerr << "[ERROR in PuffAligner, between-MEM alignment]: "
+                  << "Improperly compacted MEM chain. Should not happen!\n";
+        std::cerr << "gapRef : " << gapRef << ", gapRead : " << gapRead
+                  << ", memlen : " << memlen << "\n";
+        std::cerr << "prevMemEnd_read : " << prevMemEnd_read
+                  << ", currMemStart_read : " << currMemStart_read << "\n";
+        std::cerr << "prevMemEnd_ref  : " << prevMemEnd_ref
+                  << ", currMemStart_ref  : " << currMemStart_ref << "\n";
+        std::exit(1);
       }
 
-      int32_t prevMemEnd_read = firstMemStart_read - 1; //isFw ? rpos : readLen - (rpos + memlen);
-      int32_t prevMemEnd_ref = tpos - 1;
-      
+      alignmentScore += score;
+      logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
+      logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
+
+      logger_->debug("\t\t### ADD MEM SCORE");
+      auto printView = readView.substr(currMemStart_read, memlen);
+      auto refView = nonstd::string_view(tseq.c_str() + tpos - refStart, memlen);
+      // logger_->debug("\t\t\tread [{}], pos: {}, len: {}, ori: {}", printView, currMemStart_read, memlen, (isFw ? "FW" : "RC"));
+      // logger_->debug("\t\t\tref  [{}], pos: {}, len: {}", refView, currMemStart_ref, memlen);
+      if (printView.length() != refView.length()) {
+        logger_->debug("\t\t\treadView length != refView length; should not happen!");
+        std::cerr << "[ERROR in PuffAligner, between-MEM alignment]: "
+                  << "readView length != refView length; should not happen!" << "\t";
+        std::exit(1);
+      }
+      // finally score the mem match
+      alignmentScore += mopts.matchScore * memlen;
+      cigarGen.add_item(memlen, 'M');
+
+      prevMemEnd_read = currMemStart_read + memlen - 1;
+      prevMemEnd_ref = tpos + memlen - 1;
+
       if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
         hctr.skippedAlignments_notAlignable += 1;
         ez.stopped = 1;
         logger_->debug("ez stopped");
       }
+    }
+    
+    logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
+    logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
 
-      logger_->debug("\t\t### ADD MEM SCORE");
-      alignmentScore += mopts.matchScore * memlen;
-      cigarGen.add_item(memlen, 'M');
-      prevMemEnd_read = firstMemStart_read + memlen - 1;
-      prevMemEnd_ref = tpos + memlen - 1;
+    // If we got to the end, and there is a read gap left, then align that as
+    // well
+    logger_->debug("\t\tprevMemEnd_read : {}, readLen : {}", prevMemEnd_read, readLen);
+    bool gapAtEnd = (prevMemEnd_read + 1) <= (static_cast<int32_t>(readLen) - 1);
+    if (gapAtEnd and !ez.stopped) {
+      logger_->debug("\t\t### EXTEND RIGHT");
+      int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
+      int32_t refTailStart = prevMemEnd_ref + 1;
+      bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
+      int32_t dataDepBuff = bandwidth; // std::min(refExtLength, 5 * gapRead);
+      // refTailEnd is not included in the target sequence
+      int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
+      //overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
+      if (refTailEnd > refTotalLength) {
+        refTailEnd = refTotalLength;
+      }
+      int32_t refLen =
+          (refTailEnd > refTailStart) ? refTailEnd - refTailStart: 0;
+      auto readWindow = readView.substr(prevMemEnd_read + 1).to_string();
+      fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
 
-      // logger_->debug("\t\t### Aligning through MEM chain: ");
-      // for the second through the last mem
-      for(auto it = mems.begin() + 1; it != mems.end() and !ez.stopped; ++it) {
-        logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
-        logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
-        logger_->debug("\t\t### FILL GAP");
-        auto& mem = *it;
-        rpos = mem.rpos;
-        memlen = mem.extendedlen;
-        tpos = mem.tpos;
-        logger_->debug("\t\t+++ NEXT MEM rpos: {}, tpos: {}, memLen: {}", (isFw ? rpos : readLen - (rpos + memlen)), tpos, memlen);
+      int32_t numSoftClipped = 0; 
 
-        int32_t score = 0;
+      logger_->debug("\t\t\tgapRead : {}, refLen : {}, refBuffer_.size() : {}, refTotalLength : {}", gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
+      if (refLen > 0) {
+        logger_->debug("\t\t\tCASE 1: some reference bases left to align");
+        logger_->debug("\t\t\tread: [{}]", readWindow);
+        logger_->debug("\t\t\tref:  [{}]", refSeqBuffer_);
 
-        int32_t currMemStart_ref = tpos;
-        int32_t currMemStart_read = isFw ? rpos : readLen - (rpos + memlen);
-        int32_t gapRef =
-            currMemStart_ref - prevMemEnd_ref - 1; // both inclusive
-        int32_t gapRead =
-            currMemStart_read - prevMemEnd_read - 1; // both inclusive
+        logger_->debug("\t\t\tksw2_parameters: bandwidth={}, end_bonus={}, zdrop={}", bandwidth, aligner_config.end_bonus, aligner_config.dropoff);
+        auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * readWindow.length();
+        aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
+                refLen, &ez, cutoff, remainedSoftClipLen,
+                ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+        logger_->debug("\t\t\tksw2_results:");
+        logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
+        logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
+        logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
+        logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
+        // FOR DEBUGGING PURPOSES ONLY
+        // if(mopts.computeCIGAR) {
+        //   std::string tmp_cg_exp;
+        //   logger_->debug("\t\t\t\talnCigar: {}", ksw2_to_cigar(readWindow.c_str(), refSeqBuffer_.c_str(), &ez, tmp_cg_exp));
+        //   logger_->debug("\t\t\t\talnCigar: {}", collapse_cigar(tmp_cg_exp));
+        // } 
+        if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
+        if (ez.mqe != KSW_NEG_INF) ez.stopped = 0;
+
+        decltype(alignmentScore) part_score = ez.max;
         
-        logger_->debug("\t\t\tgapRef: {}, gapRead: {}", gapRef, gapRead);
+        numSoftClipped = readWindow.length() - (ez.max_q + 1);
+        addCigar(cigarGen, ez, false);
 
-        if ((gapRef <= 0 or gapRead <= 0) and gapRef != gapRead) {
-          logger_->debug("\t\t\tCASE 1: overlapping MEMs");
-          int32_t gapDiff = std::abs(gapRef - gapRead);
-          score += (-1 * mopts.gapOpenPenalty +
-                    -1 * mopts.gapExtendPenalty * gapDiff);
-          // subtract off extra matches
-          score += mopts.matchScore * std::min(gapRead, gapRef);
-          cigarGen.add_item(std::min(gapRead, gapRef), 'M');
-          if(gapRef > gapRead)
-          {
-            cigarGen.add_item(gapDiff, 'D');
-          }
-          else // gapRef < gapRead
-          {
-            cigarGen.add_item(gapDiff, 'I');
-          }
+        if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
+        {
+          part_score = ez.mqe;
+          numSoftClipped = 0;
+        }
+        else
+        {
+          part_score = ez.max;
+          cigarGen.add_item(numSoftClipped, 'S');
+        }
+        remainedSoftClipLen -= numSoftClipped;
+        logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
 
-          logger_->debug("\t\t\t\tscore_adjustment: {}", score);
-        } else if (gapRead > 0 and gapRef > 0) {
-          logger_->debug("\t\t\tCASE 2: gaps to align");
+        alignmentScore += part_score;
 
-          auto readWindow = readView.substr(prevMemEnd_read + 1, gapRead);
-          const char* refSeq1 = tseq.data() + (prevMemEnd_ref)-refStart + 1;
+        // NOTE: pre soft-clip code for adjusting the alignment score.
+        // int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte)
+        // : ez.mqe; int32_t delCost = (-1 * mopts.gapOpenPenalty + -1 *
+        // mopts.gapExtendPenalty * readWindow.length()); alignmentScore +=
+        // std::max(alnCost, delCost);
+      } else {
+        logger_->debug("\t\t\tCASE 2: no reference bases left (end)");
+        //overhangingEnd = true;
+        // do any special soft clipping penalty here if we want
+        numSoftClipped = 
+            mopts.allowSoftclip
+            ? readWindow.length()
+            : 0;
+        alignmentScore +=
+            mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped
+                ? 0
+                : (-1 * mopts.gapOpenPenalty +
+                    -1 * mopts.gapExtendPenalty * readWindow.length());
 
-          logger_->debug("\t\t\t\t[{}]\n\t\t\t\t[{}]", readWindow, nonstd::string_view(refSeq1, gapRef));
-          if (prevMemEnd_ref - refStart + 1 + gapRef >= tseq.size()) {
-            logger_->debug("\t\t WARNING: tseq was not long enough; need to fetch more!");
-          }
-
-          if (readWindow.length() <= minLengthGapRequired and gapRead == gapRef) {
-            // EHSAN-TODO: add debug info here
-            logger_->debug("\t\t\t\taligning with align_ungapped (readWindow.length()={} < minLengthGapRequired={})", readWindow.length(), minLengthGapRequired);
-            score += align_ungapped(readWindow.data(), refSeq1, gapRead);
-          } else {
-            logger_->debug("\t\t\t\taligning with ksw2");
-            ksw_reset_extz(&ez);
-            bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
-            score += aligner(
-              readWindow.data(), readWindow.length(), refSeq1, gapRef, &ez,
-              ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::GLOBAL>());
-              
-            if (mopts.computeCIGAR) {
-              addCigar(cigarGen, ez, false);
-            }
-          }
-
-          logger_->debug("\t\t\t\tscore_adjustment: {}", score);
-        } else if (it > mems.begin() and
-                   ((currMemStart_read <= prevMemEnd_read) or
-                    (currMemStart_ref <= prevMemEnd_ref))) {
-          logger_->debug("\t\t\tCASE 3: Improperly compacted MEM chain. Should not happen!");
-          std::cerr << "[ERROR in PuffAligner, between-MEM alignment]: "
-                    << "Improperly compacted MEM chain. Should not happen!\n";
-          std::cerr << "gapRef : " << gapRef << ", gapRead : " << gapRead
-                    << ", memlen : " << memlen << "\n";
-          std::cerr << "prevMemEnd_read : " << prevMemEnd_read
-                    << ", currMemStart_read : " << currMemStart_read << "\n";
-          std::cerr << "prevMemEnd_ref  : " << prevMemEnd_ref
-                    << ", currMemStart_ref  : " << currMemStart_ref << "\n";
-          std::exit(1);
+        char cigar_char;
+        if (mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
+          cigar_char = 'S';
+        } else {
+          cigar_char = 'I';
+          numSoftClipped = 0;
         }
 
-        alignmentScore += score;
-        logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
-        logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
-
-        logger_->debug("\t\t### ADD MEM SCORE");
-        // EHSAN: do we really need this check? It has a tiny computational overhead!
-        // auto printView = readView.substr(currMemStart_read, memlen);
-        // auto refView = nonstd::string_view(tseq.c_str() + tpos - refStart, memlen);
-        // logger_->debug("\t\t\tread [{}], pos: {}, len: {}, ori: {}", printView, currMemStart_read, memlen, (isFw ? "FW" : "RC"));
-        // logger_->debug("\t\t\tref  [{}], pos: {}, len: {}", refView, currMemStart_ref, memlen);
-        // if (printView.length() != refView.length()) {
-        //   logger_->debug("\t\t\treadView length != refView length; should not happen!");
-        //   std::cerr << "[ERROR in PuffAligner, between-MEM alignment]: "
-        //             << "readView length != refView length; should not happen!" << "\t";
-        //   std::exit(1);
-        // }
-        // finally score the mem match
-        alignmentScore += mopts.matchScore * memlen;
-        cigarGen.add_item(memlen, 'M');
-
-        prevMemEnd_read = currMemStart_read + memlen - 1;
-        prevMemEnd_ref = tpos + memlen - 1;
-
-        if (!alignable(prevMemEnd_read + 1, mopts.matchScore, alignmentScore)) {
-          hctr.skippedAlignments_notAlignable += 1;
-          ez.stopped = 1;
-          logger_->debug("ez stopped");
+        if (mopts.computeCIGAR) {
+          cigarGen.add_item(readWindow.length(), cigar_char);
         }
       }
-      
+      arOut.softclip_end = numSoftClipped;
       logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
       logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
-
-      // If we got to the end, and there is a read gap left, then align that as
-      // well
-      logger_->debug("\t\tprevMemEnd_read : {}, readLen : {}", prevMemEnd_read, readLen);
-      bool gapAtEnd = (prevMemEnd_read + 1) <= (static_cast<int32_t>(readLen) - 1);
-      if (gapAtEnd and !ez.stopped) {
-        logger_->debug("\t\t### EXTEND RIGHT");
-        int32_t gapRead = (readLen - 1) - (prevMemEnd_read + 1) + 1;
-        int32_t refTailStart = prevMemEnd_ref + 1;
-        bandwidth = maxAllowedGaps(prevMemEnd_read + 1, alignmentScore) + 1;
-        int32_t dataDepBuff = bandwidth; // std::min(refExtLength, 5 * gapRead);
-        // refTailEnd is not included in the target sequence
-        int32_t refTailEnd = refTailStart + gapRead + dataDepBuff;
-        //overhangingEnd =  (refTailStart + gapRead + dataDepBuff) > refTotalLength;
-        if (refTailEnd > refTotalLength) {
-          refTailEnd = refTotalLength;
-        }
-        int32_t refLen =
-            (refTailEnd > refTailStart) ? refTailEnd - refTailStart: 0;
-        auto readWindow = readView.substr(prevMemEnd_read + 1).to_string();
-        fillRefSeqBuffer(allRefSeq, refAccPos, refTailStart, refLen, refSeqBuffer_);
-
-        int32_t numSoftClipped = 0; 
-
-        logger_->debug("\t\t\tgapRead : {}, refLen : {}, refBuffer_.size() : {}, refTotalLength : {}", gapRead, refLen, refSeqBuffer_.size(), refTotalLength);
-        if (refLen > 0) {
-          logger_->debug("\t\t\tCASE 1: some reference bases left to align");
-          logger_->debug("\t\t\tread: [{}]", readWindow);
-          logger_->debug("\t\t\tref:  [{}]", refSeqBuffer_);
-
-          ksw_reset_extz(&ez);
-          logger_->debug("\t\t\tksw2_parameters: bandwidth={}, end_bonus={}, zdrop={}", bandwidth, aligner_config.end_bonus, aligner_config.dropoff);
-          auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * readWindow.length();
-          aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refLen, &ez, cutoff, remainedSoftClipLen,
-                  ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          logger_->debug("\t\t\tksw2_results:");
-          logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
-          logger_->debug("\t\t\t\tmqe={}, mqe_t={}", ez.mqe, ez.mqe_t);
-          logger_->debug("\t\t\t\tmte={}, mte_q={}", ez.mte, ez.mte_q);
-          logger_->debug("\t\t\t\tstopped={}, reach_end={}, zdropped={}, score={}", ez.stopped == 1, ez.reach_end == 1, ez.zdropped == 1, ez.score);
-          // EHSAN-TODO: disable this before release
-          if(mopts.computeCIGAR) {
-            std::string tmp_cg_exp;
-            logger_->debug("\t\t\t\talnCigar: {}", ksw2_to_cigar(readWindow.c_str(), refSeqBuffer_.c_str(), &ez, tmp_cg_exp));
-            logger_->debug("\t\t\t\talnCigar: {}", collapse_cigar(tmp_cg_exp));
-          } 
-          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
-          if (ez.mqe != KSW_NEG_INF) ez.stopped = 0;
-
-          // // we start out with the score we obtain if we extend all the
-          // // way to the end of the **query**.  This is the max score we can
-          // // get by either
-          // // simply deleting the rest of the read
-          // int32_t delCost = (-1 * mopts.gapOpenPenalty +
-          //                    -1 * mopts.gapExtendPenalty * readWindow.length());
-          // // or taking the ksw2 alignment score to the end fo the read
-          // decltype(alignmentScore) part_score = std::max(ez.mqe, delCost);
-
-          // int32_t num_soft_clipped{0};
-          // if (allowSoftclip) {
-          //   // if we are allowing softclipping, then we consider the
-          //   // best score we could get as the maximum of
-          //   // 1. extending to the end of the query. (including deleting the
-          //   // rest of the query)
-          //   // 2. extending to the end of the reference.
-          //   // 3. 0 : i.e. performing no extension and end the alignment at the last MEM.
-          //   // NOTE: Since it won't affect the read position, we do not need to explicitly 
-          //   // compute the number of soft-clipped bases like we have above for the read part
-          //   // before the first MEM
-          //   // int32_t bases_clipped{0};
-
-          //   // 1 is the default case here, and corresponds to clipping no bases
-
-          //   if (ez.mte > 0 and ez.mte > part_score) {
-          //     // if we are in case 2
-
-          //     // if extending to the end of the reference is better than the end
-          //     // of the query and if the score is greater than 0 (which we can
-          //     // always get when soft clipping) then take that
-          //     part_score = ez.mte;
-          //     num_soft_clipped = readWindow.length() - ez.max_q - 1;
-          //   } else if (part_score < 0) {
-          //     // if we are in case 3
-          //     part_score = 0;
-          //     num_soft_clipped = readWindow.length();
-          //   }
-          // } else if (allowOverhangSoftclip) {
-          //   part_score = std::max(std::max(ez.mqe, ez.mte), part_score);
-          // }
-          // alignmentScore += part_score;
-          // if (approximateCIGAR) {
-          //   cigarGen.end_softclip_len = num_soft_clipped;
-          // }
-
-          decltype(alignmentScore) part_score = ez.max;
-          
-          numSoftClipped = readWindow.length() - (ez.max_q + 1);
-          addCigar(cigarGen, ez, false);
-
-          if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
-          {
-            part_score = ez.mqe;
-            numSoftClipped = 0;
-          }
-          else
-          {
-            part_score = ez.max;
-            cigarGen.add_item(numSoftClipped, 'S');
-          }
-          remainedSoftClipLen -= numSoftClipped;
-          logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
-
-          alignmentScore += part_score;
-
-          // NOTE: pre soft-clip code for adjusting the alignment score.
-          // int32_t alnCost = allowOverhangSoftclip ? std::max(ez.mqe, ez.mte)
-          // : ez.mqe; int32_t delCost = (-1 * mopts.gapOpenPenalty + -1 *
-          // mopts.gapExtendPenalty * readWindow.length()); alignmentScore +=
-          // std::max(alnCost, delCost);
-        } else {
-          logger_->debug("\t\t\tCASE 2: no reference bases left (end)");
-          //overhangingEnd = true;
-          // do any special soft clipping penalty here if we want
-          numSoftClipped = 
-              allowSoftclip
-              ? readWindow.length()
-              : 0;
-          alignmentScore +=
-              allowSoftclip && remainedSoftClipLen >= numSoftClipped
-                  ? 0
-                  : (-1 * mopts.gapOpenPenalty +
-                     -1 * mopts.gapExtendPenalty * readWindow.length());
-
-          char cigar_char;
-          if (allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
-            cigar_char = 'S';
-          } else {
-            cigar_char = 'I';
-            numSoftClipped = 0;
-          }
-
-          if (mopts.computeCIGAR) {
-            cigarGen.add_item(readWindow.length(), cigar_char);
-          }
-        }
-        arOut.softclip_end = numSoftClipped;
-        logger_->debug("\t\t\tscore_sofar: {}", alignmentScore);
-        logger_->debug("\t\t\tcigar_sofar: {}", cigarGen.get_cigar());
-      }
     }
-  // } // not a perfect chain
+  }
 
   std::string cigar = "";
   bool cigar_fixed{false};
-  // if (computeCIGAR) { cigar = cigarGen.get_cigar(readLen, cigar_fixed); }
   if (mopts.computeCIGAR) { cigar = cigarGen.get_cigar(); }
-  // if (approximateCIGAR) { cigarGen.get_approx_cigar(readLen, cigar); }
   if (cigar_fixed) { hctr.cigar_fixed_count++; }
   if (useAlnCache) { // don't bother to fill up a cache unless this is a multi-mapping read
     //mopts.useAlignmentCache and isMultimapping_ and !perfectChain and !overhangingEnd) { // don't bother to fill up a cache unless this is a multi-mapping read
@@ -962,8 +815,6 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
   isMultimapping_ = isMultimapping;
     auto tid = jointHit.tid;
     double optFrac{mopts.minScoreFraction};
-    // bool computeCIGAR = !(aligner.config().flag & KSW_EZ_SCORE_ONLY);
-    // bool approximateCIGAR = mopts.alignmentMode == pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     auto threshold = [&, optFrac] (uint64_t len) -> int32_t {
          return static_cast<int32_t>(std::floor((!mopts.matchScore)?(-0.6+-0.6*len):optFrac*mopts.matchScore*len));
     };

@@ -400,7 +400,6 @@ Compile-time selection between list-like and map-like printing.
         std::vector<int32_t> cigar_counts;
         std::string cigar_types;
         int32_t begin_softclip_len{0}, end_softclip_len{0};
-        // bool allowOverhangSoftClip{false};
 
         void clear() {
           cigar_counts.clear(); cigar_types.clear();
@@ -411,75 +410,6 @@ Compile-time selection between list-like and map-like printing.
           cigar_counts.push_back(count);
           cigar_types.push_back(type);
         }
-
-        // void get_approx_cigar(int32_t readLen, std::string& cigar) {
-        //   if (begin_softclip_len > 0) {
-        //     cigar += std::to_string(begin_softclip_len);
-        //     cigar += allowOverhangSoftClip ? "I" : "S";
-        //   }
-        //   cigar += std::to_string(readLen - (begin_softclip_len + end_softclip_len));
-        //   cigar += "M";
-        //   if (end_softclip_len > 0) {
-        //     cigar += std::to_string(end_softclip_len);
-        //     cigar += allowOverhangSoftClip ? "I" : "S";
-        //   }
-        // }
-
-        // std::string get_cigar(uint32_t readLen, bool &cigar_fixed) {
-        //   cigar_fixed = false;
-        //   std::string cigar = "";
-        //   if (cigar_counts.size() != cigar_types.size() or cigar_counts.size() == 0) {
-        //     return "!";
-        //   }
-        //   if (cigar_counts.size() == 0) {
-        //     return cigar;
-        //   }
-
-        //   uint32_t cigar_length = 0;
-        //   uint32_t count = cigar_counts[0];
-
-        //   if (cigar_counts.size() == 1) {
-        //     if (count != readLen) {
-        //       count = readLen;
-        //       cigar_fixed = true;
-        //     }
-        //     cigar += std::to_string(count);
-        //     cigar += cigar_types[0];
-        //     return cigar;
-        //   }
-
-        //   char type = cigar_types[0];
-        //   if (type == 'I' or type == 'M')
-        //     cigar_length += count;
-        //   for (size_t i = 1; i < cigar_counts.size(); i++) {
-        //     if (cigar_types[i] == 'I' or cigar_types[i] == 'M')
-        //       cigar_length += cigar_counts[i];
-        //     if (type == cigar_types[i]) {
-        //       count += cigar_counts[i];
-        //     } else {
-        //       cigar += std::to_string(count);
-        //       cigar += type;
-        //       count = cigar_counts[i];
-        //       type = cigar_types[i];
-        //     }
-        //     if (i == cigar_counts.size() - 1) {
-        //       cigar += std::to_string(count);
-        //       cigar += type;
-        //       if (cigar_length < readLen) {
-        //         cigar_fixed = true;
-        //         count = readLen - cigar_length;
-        //         cigar += std::to_string(count);
-        //         cigar += 'I';
-        //       } else if (cigar_length > readLen) {
-        //         cigar_fixed = true;
-        //         count = cigar_length - readLen;
-        //         cigar += std::to_string(count);
-        //         cigar += 'I';
-        //       }
-        //     }
-        //   }
-        //   return cigar;
-        // }
 
         std::string get_cigar() {
           if (cigar_counts.size() == 0) return "*";
@@ -880,8 +810,6 @@ Compile-time selection between list-like and map-like printing.
     };
     */
 
-      // enum class PuffAlignmentMode : uint8_t { SCORE_ONLY, APPROXIMATE_CIGAR,  EXACT_CIGAR};
-
       struct AlignmentConfig {
         int32_t refExtendLength{20};
         bool fullAlignment{false};
@@ -892,7 +820,6 @@ Compile-time selection between list-like and map-like printing.
         double minScoreFraction{0.0};
         bool mimicBT2{false};
         bool mimicBT2Strict{false};
-        // bool allowOverhangSoftclip{false};
         bool allowSoftclip{false};
         bool computeCIGAR{false};
         bool end2end{true};
@@ -901,7 +828,6 @@ Compile-time selection between list-like and map-like printing.
         bool useAlignmentCache{true};
         bool noDovetail{false};
         uint32_t maxFragmentLength{1000};
-        // PuffAlignmentMode alignmentMode{PuffAlignmentMode::SCORE_ONLY};
         bool bestStrata{false};
         bool decoyPresent{false};
       };

@@ -95,7 +95,6 @@ void processReadsPair(paired_parser *parser,
     memCollector.setAltSkip(mopts->altSkip);
     memCollector.setChainSubOptThresh(mopts->preMergeChainSubThresh);
 
-    auto logger = spdlog::get("console");
     fmt::MemoryWriter sstream;
     BinWriter bstream;
 
@@ -122,7 +121,7 @@ void processReadsPair(paired_parser *parser,
     ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->mismatchScore);
     ksw2pp::KSW2Config config;
 
-    // config.dropoff = -1;
+    config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
     config.bandwidth = 15;
@@ -156,13 +155,11 @@ void processReadsPair(paired_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
-    // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
     aconf.endBonus = mopts->endBonus;
     aconf.end2end = !mopts->allowSoftclip;
     aconf.maxSoftclipFraction = mopts->maxSoftclipFraction;
-    // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.noDovetail = mopts->noDovetail;
@@ -309,7 +306,7 @@ void processReadsPair(paired_parser *parser,
 //                   ss << "\n\n found the read:\n" << rpair.first.name << " " << jointHits.size() <<"\n";
                 puffaligner.getScoreStatus().reset();
                 for (auto &&jointHit : jointHits) {
-                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
+                    const std::string& ref_name = pfi.refName(jointHit.tid);
                     logger_->debug("\n\tcalculate_alignments_PE ref_name: {} ref_ID: {}", ref_name, jointHit.tid);
                     auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, logger_, verbose);
                     if (mopts->bestStrata and hitScore != invalidScore)
@@ -597,7 +594,6 @@ void processReadsSingle(single_parser *parser,
     BestHitReferenceType bestHitRefType{BestHitReferenceType::UNKNOWN};
     phmap::flat_hash_map<uint32_t, std::pair<int32_t, int32_t>> bestScorePerTranscript;
 
-    auto logger = spdlog::get("console");
     fmt::MemoryWriter sstream;
     BinWriter bstream;
     //size_t batchSize{2500} ;
@@ -620,7 +616,7 @@ void processReadsSingle(single_parser *parser,
     ksw2pp::KSW2Aligner aligner(mopts->matchScore, mopts->mismatchScore);
     ksw2pp::KSW2Config config;
 
-    // config.dropoff = -1;
+    config.dropoff = -1;
     config.gapo = mopts->gapOpenPenalty;
     config.gape = mopts->gapExtendPenalty;
     config.bandwidth = 15;
@@ -646,13 +642,11 @@ void processReadsSingle(single_parser *parser,
     aconf.gapOpenPenalty = mopts->gapOpenPenalty;
     aconf.minScoreFraction = mopts->minScoreFraction;
     aconf.mimicBT2 = mopts->mimicBt2Default;
-    // aconf.allowOverhangSoftclip = mopts->allowOverhangSoftclip;
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
     aconf.endBonus = mopts->endBonus;
     aconf.end2end = !mopts->allowSoftclip;
     aconf.maxSoftclipFraction = mopts->maxSoftclipFraction;
-    // aconf.alignmentMode = mopts->noOutput or !mopts->allowSoftclip ? pufferfish::util::PuffAlignmentMode::SCORE_ONLY : pufferfish::util::PuffAlignmentMode::APPROXIMATE_CIGAR;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.mismatchPenalty = mopts->mismatchScore;
     aconf.bestStrata = mopts->bestStrata;
@@ -725,7 +719,7 @@ void processReadsSingle(single_parser *parser,
                 bool isMultimapping = (jointHits.size() > 1);
                 puffaligner.getScoreStatus().reset();
                 for (auto &jointHit : jointHits) {
-                    const std::string& ref_name = pfi.refName(jointHit.tid);//txpNames[jointHit.tid];
+                    const std::string& ref_name = pfi.refName(jointHit.tid);
                     logger_->debug("\n\tcalculate_alignments_SE ref_name: {} ref_ID: {}", ref_name, jointHit.tid);
                     int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, logger_, verbose);
                     if (mopts->bestStrata) puffaligner.getScoreStatus().updateBest(hitScore);
