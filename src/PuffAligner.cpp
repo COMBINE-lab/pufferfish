@@ -229,6 +229,8 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   auto& cigarGen = cigarGen_;
   cigarGen.clear();
 
+  ksw_reset_extz(&ez);
+
   // where this reference starts, and its length.
   int64_t refAccPos = tid > 0 ? refAccumLengths[tid - 1] : 0;
   int64_t refTotalLength = refAccumLengths[tid] - refAccPos;
@@ -606,7 +608,6 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         }
 
         if (readWindow.length() <= minLengthGapRequired and gapRead == gapRef) {
-          // EHSAN-TODO: add debug info here
           logger_->debug("\t\t\t\taligning with align_ungapped (readWindow.length()={} < minLengthGapRequired={})", readWindow.length(), minLengthGapRequired);
           score += align_ungapped(readWindow.data(), refSeq1, gapRead);
         } else {
