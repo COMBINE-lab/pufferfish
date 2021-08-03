@@ -375,6 +375,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
       hctr.skippedAlignments_byCache += 1;
       arOut.score = hit->second.score;
       if (mopts.computeCIGAR) { arOut.cigar = hit->second.cigar; }
+      if (mopts.allowSoftclip) {
+        arOut.softclip_start = hit->second.softclip_start;
+        arOut.softclip_end = hit->second.softclip_end;
+      }
       arOut.openGapLen = hit->second.openGapLen;
       return true;
     }
@@ -795,6 +799,10 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     aln.isFw = isFw;
     aln.score = alignmentScore;
     if (mopts.computeCIGAR) { aln.cigar = cigar; }
+    if (mopts.allowSoftclip) {
+      aln.softclip_start = arOut.softclip_start;
+      aln.softclip_end = arOut.softclip_end;
+    }
     aln.openGapLen = openGapLen;
     alnCache[hashKey] = aln;
   }
