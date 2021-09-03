@@ -267,8 +267,8 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 				simde_mm_storeu_si128((simde__m128i*)mm, max_achievable_score_);
 				for (i = 0; i < 4; ++i) {
 					if (max_H < HH[i]) max_H = HH[i], max_t = tt[i] + i;
-                                        if (max_achievable_score < mm[i]) max_achievable_score = mm[i];
-                                }
+                    if (max_achievable_score < mm[i]) max_achievable_score = mm[i];
+                }
 				for (; t < en0; ++t) { // for the rest of values that haven't been computed with SSE
 					H[t] += (int32_t)v8[t] - qe;
 					if (H[t] > max_H)
@@ -287,7 +287,18 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 				ez->score = H[tlen - 1];
 			// check if the score is achievable
 			int max = max_achievable_score > max_achievable_score_prev ? max_achievable_score : max_achievable_score_prev;
-			if (r>1 && max < cutoff ) { ez->stopped = 1; break; }
+			if (r>1 && max < cutoff ) { 
+				int permit_sc = (max_sc_len >= qlen - (ez->max_q + 1)) ? 1 : 0;
+				// Hossein: give it another chance if ez->max is above the cutoff threshold and the soft-clipping is permitted
+				// we won't have any score higher than ez->max when we get here so if soft-clipping from max is valid and 
+				// above the cutoff, we still break the loop. Reason:
+				// ez->max >= cutoff > max_achievable_score > any_upcomming_value_in_the_dp_table
+				// qlen * match_score is common in all the cutoff and score calculations so it is deducted from cutoff and 
+				// max_achievable_score at all times. That's why we have the subtraction below
+				if (!(permit_sc && ((ez->max - qlen * match_score) >= cutoff)))
+					ez->stopped = 1; 
+				break; 
+			}
 			max_achievable_score_prev = max_achievable_score;
 		} else { // find approximate max; Z-drop might be inaccurate, too.
 			if (r > 0) {
