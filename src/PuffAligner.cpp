@@ -397,17 +397,38 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   if (doFullAlignment) {
     // if we allow softclipping of overhanging bases, then we can cut off the
     // part of the read before the start of the reference
-    decltype(readStart) readOffset = mopts.allowSoftclip ? readStart : 0;
+    // Note: a more accurate way is to perform an extensention to the left as well
+    decltype(readStart) readOffset = (mopts.allowSoftclip && (int32_t)(readStart) <= remainedSoftClipLen) ? readStart : 0;
+    remainedSoftClipLen -= readOffset;
+    arOut.softclip_start = readOffset;
+
+    if (mopts.computeCIGAR && readOffset > 0) {
+      cigarGen.add_item(readOffset, 'S');
+    }
+    
     nonstd::string_view readSeq = readView.substr(readOffset);
     auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
     aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
-            refSeqBuffer_.length(), &ez, cutoff, readLen,
+            refSeqBuffer_.length(), &ez, cutoff, remainedSoftClipLen,
             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
     // if we allow softclipping of overhaning bases, then we only care about
     // the best score to the end of the query or the end of the reference.
     // Otherwise, we care about the best score all the way until the end of
     // the query.
-    alignmentScore = mopts.allowSoftclip ? std::max(ez.mqe, ez.mte) : ez.mqe;
+    // modify this to select between mqe and max like MEMs
+    int32_t numSoftClipped = readSeq.length() - (ez.max_q + 1);
+
+    if (remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
+    {
+      alignmentScore = ez.mqe;
+      numSoftClipped = 0;
+    }
+    else
+    {
+      alignmentScore = ez.max;
+    }
+    
+    arOut.softclip_end = numSoftClipped;
 
     logger_->debug("readSeq : {}\nrefSeq  : {}\nscore   : {}\nreadStart : {}", readSeq, refSeqBuffer_, alignmentScore, readStart);
     logger_->debug("currHitStart_read : {}, currHitStart_ref : {}\nmqe : {}, mte : {}\n", currHitStart_read, currHitStart_ref, ez.mqe, ez.mte);
