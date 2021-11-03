@@ -281,13 +281,17 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
   bool invalidStart = (signedRefStartPos < 0);
   bool invalidEnd = (signedRefEndPos > refTotalLength);
 
-  uint32_t maxSoftclipLen = mopts.maxSoftclipFraction * readLen;
+  uint32_t maxSoftclipLenGeneral = mopts.maxSoftclipFractionGeneral * readLen;
+  uint32_t maxSoftclipLenOverhang = mopts.maxSoftclipFractionOverhang * readLen;
   
   if (mopts.end2end) {
-    maxSoftclipLen = 0;
+    maxSoftclipLenGeneral = 0;
+    maxSoftclipLenOverhang = 0;
   }
+  uint32_t maxSoftclipLen = std::max(maxSoftclipLenGeneral, maxSoftclipLenOverhang);
 
-  int32_t remainedSoftClipLen = maxSoftclipLen;
+  int32_t remainedSoftClipLenGeneral = maxSoftclipLenGeneral;
+  int32_t remainedSoftClipLenOverhang = maxSoftclipLenOverhang;
 
   if (mopts.mimicBT2Strict and (invalidStart or invalidEnd)) {
     arOut.score = std::numeric_limits<decltype(arOut.score)>::min();
@@ -398,8 +402,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     // if we allow softclipping of overhanging bases, then we can cut off the
     // part of the read before the start of the reference
     // Note: a more accurate way is to perform an extensention to the left as well
-    decltype(readStart) readOffset = (mopts.allowSoftclip && (int32_t)(readStart) <= remainedSoftClipLen) ? readStart : 0;
-    remainedSoftClipLen -= readOffset;
+    decltype(readStart) readOffset = (mopts.allowSoftclip && (int32_t)(readStart) <= remainedSoftClipLenOverhang) ? readStart : 0;
+    remainedSoftClipLenOverhang -= readOffset;
+    remainedSoftClipLenGeneral -= readOffset;
     arOut.softclip_start = readOffset;
 
     if (mopts.computeCIGAR && readOffset > 0) {
@@ -409,7 +414,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     nonstd::string_view readSeq = readView.substr(readOffset);
     auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
     aligner(readSeq.data(), readSeq.length(), refSeqBuffer_.data(),
-            refSeqBuffer_.length(), &ez, cutoff, remainedSoftClipLen,
+            refSeqBuffer_.length(), &ez, cutoff, remainedSoftClipLenGeneral,
             ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
     // if we allow softclipping of overhaning bases, then we only care about
     // the best score to the end of the query or the end of the reference.
@@ -418,7 +423,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
     // modify this to select between mqe and max like MEMs
     int32_t numSoftClipped = readSeq.length() - (ez.max_q + 1);
 
-    if (remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
+    if (remainedSoftClipLenGeneral < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
     {
       alignmentScore = ez.mqe;
       numSoftClipped = 0;
@@ -483,7 +488,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         logger_->debug("\t\t\tksw2_parameters: bandwidth={}, end_bonus={}, zdrop={}", bandwidth, aligner_config.end_bonus, aligner_config.dropoff);
         auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                refSeqBuffer_.length(), &ez, cutoff, remainedSoftClipLen,
+                refSeqBuffer_.length(), &ez, cutoff, remainedSoftClipLenGeneral,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         logger_->debug("\t\t\tksw2_results:");
         logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
@@ -517,7 +522,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
         decltype(alignmentScore) part_score = ez.max;
         numSoftClipped = readWindow.length() - (ez.max_q + 1);
-        if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
+        if(remainedSoftClipLenGeneral < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
         {
           part_score = ez.mqe;
           openGapLen = ez.mqe_t + 1;
@@ -529,8 +534,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           openGapLen = ez.max_t + 1;
           cigarGen.add_item(numSoftClipped, 'S');
         }
-        remainedSoftClipLen -= numSoftClipped;
-        logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
+        remainedSoftClipLenGeneral -= numSoftClipped;
+        remainedSoftClipLenOverhang -= numSoftClipped;
+        logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLenGeneral + numSoftClipped, remainedSoftClipLenGeneral);
 
         alignmentScore += part_score;
         addCigar(cigarGen, ez, true);
@@ -542,14 +548,14 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
             ? firstMemStart_read
             : 0;
         alignmentScore +=
-            mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped
+            mopts.allowSoftclip && remainedSoftClipLenOverhang >= numSoftClipped
                 ? 0
                 : (-1 * mopts.gapOpenPenalty +
                     -1 * mopts.gapExtendPenalty * firstMemStart_read);
         openGapLen = firstMemStart_read;
 
         char cigar_char;
-        if (mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
+        if (mopts.allowSoftclip && remainedSoftClipLenOverhang >= numSoftClipped) {
           cigar_char = 'S';
           openGapLen = 0;
         } else {
@@ -727,7 +733,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         logger_->debug("\t\t\tksw2_parameters: bandwidth={}, end_bonus={}, zdrop={}", bandwidth, aligner_config.end_bonus, aligner_config.dropoff);
         auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * readWindow.length();
         aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                refLen, &ez, cutoff, remainedSoftClipLen,
+                refLen, &ez, cutoff, remainedSoftClipLenGeneral,
                 ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
         logger_->debug("\t\t\tksw2_results:");
         logger_->debug("\t\t\t\tmax={}, max_q={}, max_t={}", ez.max, ez.max_q, ez.max_t);
@@ -748,7 +754,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
         numSoftClipped = readWindow.length() - (ez.max_q + 1);
         addCigar(cigarGen, ez, false);
 
-        if(remainedSoftClipLen < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
+        if(remainedSoftClipLenGeneral < numSoftClipped || ez.mqe + aligner_config.end_bonus > ez.max)
         {
           part_score = ez.mqe;
           numSoftClipped = 0;
@@ -758,8 +764,9 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           part_score = ez.max;
           cigarGen.add_item(numSoftClipped, 'S');
         }
-        remainedSoftClipLen -= numSoftClipped;
-        logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLen + numSoftClipped, remainedSoftClipLen);
+        remainedSoftClipLenGeneral -= numSoftClipped;
+        remainedSoftClipLenOverhang -= numSoftClipped;
+        logger_->debug("\t\t\t\tremainedSoftClipLen={}->{};", remainedSoftClipLenGeneral + numSoftClipped, remainedSoftClipLenGeneral);
 
         alignmentScore += part_score;
 
@@ -777,13 +784,13 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
             ? readWindow.length()
             : 0;
         alignmentScore +=
-            mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped
+            mopts.allowSoftclip && remainedSoftClipLenOverhang >= numSoftClipped
                 ? 0
                 : (-1 * mopts.gapOpenPenalty +
                     -1 * mopts.gapExtendPenalty * readWindow.length());
 
         char cigar_char;
-        if (mopts.allowSoftclip && remainedSoftClipLen >= numSoftClipped) {
+        if (mopts.allowSoftclip && remainedSoftClipLenOverhang >= numSoftClipped) {
           cigar_char = 'S';
         } else {
           cigar_char = 'I';

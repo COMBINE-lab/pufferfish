@@ -159,7 +159,8 @@ void processReadsPair(paired_parser *parser,
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
     aconf.endBonus = mopts->endBonus;
     aconf.end2end = !mopts->allowSoftclip;
-    aconf.maxSoftclipFraction = mopts->maxSoftclipFraction;
+    aconf.maxSoftclipFractionGeneral = mopts->maxSoftclipFractionGeneral;
+    aconf.maxSoftclipFractionOverhang = mopts->maxSoftclipFractionOverhang;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.maxFragmentLength = mopts->maxFragmentLength;
     aconf.noDovetail = mopts->noDovetail;
@@ -646,7 +647,8 @@ void processReadsSingle(single_parser *parser,
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
     aconf.endBonus = mopts->endBonus;
     aconf.end2end = !mopts->allowSoftclip;
-    aconf.maxSoftclipFraction = mopts->maxSoftclipFraction;
+    aconf.maxSoftclipFractionGeneral = mopts->maxSoftclipFractionGeneral;
+    aconf.maxSoftclipFractionOverhang = mopts->maxSoftclipFractionOverhang;
     aconf.useAlignmentCache = mopts->useAlignmentCache;
     aconf.mismatchPenalty = mopts->mismatchScore;
     aconf.bestStrata = mopts->bestStrata;

@@ -127,7 +127,8 @@ public:
   bool computeCIGAR{false};
   bool debug{false};
   bool end2end{true};
-  double maxSoftclipFraction{0.2};
+  double maxSoftclipFractionGeneral{0.2};
+  double maxSoftclipFractionOverhang{0.2};
   uint32_t endBonus{5};
   bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
