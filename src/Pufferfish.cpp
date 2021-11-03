@@ -249,10 +249,11 @@ int main(int argc, char* argv[]) {
                       (required("-o", "--outdir") & value("output file", alignmentOpt.outname)) % "Output file where the alignment results will be stored"
                     ),
                     (option("--allowSoftclip").set(alignmentOpt.allowSoftclip, true) % "Allow soft-clipping at start and end of alignments"),
-                    (option("--maxSoftclipFraction") & value("maxSoftclipFractionGeneral", alignmentOpt.maxSoftclipFractionGeneral)
-                    & value("maxSoftclipFractionOverhang", alignmentOpt.maxSoftclipFractionOverhang)) % 
+                    (option("--maxSoftclipFraction") & value("max softclip fraction general", alignmentOpt.maxSoftclipFractionGeneral)
+                    & value("max softclip fraction overhang", alignmentOpt.maxSoftclipFractionOverhang)) % 
                     "Discard alignments with soft-clip > maxSoftclipFraction * read_length." 
-                    "The general and overhang fractions should be specified differently (default=0.2 0.2)",
+                    "The general and overhang fractions should be specified differently."
+                    "This value must be in the range [0, 1] (default=0.2 0.2)",
                     (option("--computeCIGAR").set(alignmentOpt.computeCIGAR, true) % "Compute CIGAR string during alignment validation"),
                     (option("--endBonus") & value("end bonus", alignmentOpt.endBonus)) % "Specify end bonus value when alignment reaches the end of query",
                     (option("--maxSpliceGap") & value("max splice gap", alignmentOpt.maxSpliceGap)) % "Specify maximum splice gap that two uni-MEMs should have",
