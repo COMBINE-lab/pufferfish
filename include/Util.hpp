@@ -825,7 +825,6 @@ Compile-time selection between list-like and map-like printing.
         bool end2end{true};
         double maxSoftclipFractionGeneral{0.2};
         double maxSoftclipFractionOverhang{0.2};
-        uint32_t endBonus{5};
         bool useAlignmentCache{true};
         bool noDovetail{false};
         uint32_t maxFragmentLength{1000};

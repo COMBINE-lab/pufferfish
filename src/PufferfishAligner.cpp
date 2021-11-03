@@ -157,7 +157,6 @@ void processReadsPair(paired_parser *parser,
     aconf.mimicBT2 = mopts->mimicBt2Default;
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
-    aconf.endBonus = mopts->endBonus;
     aconf.end2end = !mopts->allowSoftclip;
     aconf.maxSoftclipFractionGeneral = mopts->maxSoftclipFractionGeneral;
     aconf.maxSoftclipFractionOverhang = mopts->maxSoftclipFractionOverhang;
@@ -645,7 +644,6 @@ void processReadsSingle(single_parser *parser,
     aconf.mimicBT2 = mopts->mimicBt2Default;
     aconf.allowSoftclip = mopts->allowSoftclip;
     aconf.computeCIGAR = (mopts->computeCIGAR and !mopts->noOutput);
-    aconf.endBonus = mopts->endBonus;
     aconf.end2end = !mopts->allowSoftclip;
     aconf.maxSoftclipFractionGeneral = mopts->maxSoftclipFractionGeneral;
     aconf.maxSoftclipFractionOverhang = mopts->maxSoftclipFractionOverhang;
