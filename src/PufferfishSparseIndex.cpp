@@ -418,20 +418,15 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, pufferfish::util::Quer
     if (idx >= numKmers_) {
       return emptyHit;
     }
+    // if we didn't find a present kmer after extension, this is a no-go
+    if (presenceVec_[idx] != 1) {
+      return emptyHit;
+    }
 
     //currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
     currRank = presenceRank_.rank(idx);
 
     inLoop++;
-
-    /*
-      }while(presenceVec_[idx] != 1) ;
-    */
-
-    // if we didn't find a present kmer after extension, this is a no-go
-    if (presenceVec_[idx] != 1) {
-      return emptyHit;
-    }
     auto sampledPos = sampledPos_[currRank];
     pos = sampledPos + signedShift;
   }
