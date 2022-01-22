@@ -15,7 +15,7 @@
 #include <iterator>
 #include <sparsepp/spp.h>
 #include "parallel_hashmap/phmap.h"
-#include "chobo/small_vector.hpp"
+#include "itlib/small_vector.hpp"
 #include "MemChainer.hpp"
 
 

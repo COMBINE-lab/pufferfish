@@ -19,7 +19,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
-#include "chobo/small_vector.hpp"
+#include "itlib/small_vector.hpp"
 #include "parallel_hashmap/phmap.h"
 #include "compact_vector/compact_vector.hpp"
 

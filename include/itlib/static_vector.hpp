@@ -1,9 +1,11 @@
-// chobo-static-vector v1.03
+// itlib-static-vector v1.04
 //
 // std::vector-like class with a fixed capacity
 //
+// SPDX-License-Identifier: MIT
 // MIT License:
 // Copyright(c) 2016-2019 Chobolabs Inc.
+// Copyright(c) 2020-2021 Borislav Stanimirov
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files(the
@@ -27,16 +29,17 @@
 //
 //                  VERSION HISTORY
 //
-//  1.03 (2019-11-04) Proper noexcept specifiers on move ctor and assignment
-//  1.02 (2017-02-05) Added swap to make it a better drop-in replacement of std::vector
-//  1.01 (2016-09-27) Qualified operator new. Fixed self usurp on assignment
-//  1.00 (2016-09-23) First public release
+//  1.04 (2021-11-18) Added assign ops
+//  1.03 (2021-10-05) Don't rely on operator!= from T. Use operator== instead
+//  1.02 (2021-08-04) emplace_back() returns a reference as per C++17
+//  1.01 (2021-08-04) capacity() and max_size() to static constexpr methods
+//  1.00 (2020-10-14) Rebranded release from chobo-static-vector
 //
 //
 //                  DOCUMENTATION
 //
 // Simply include this file wherever you need.
-// It defines the class chobo::static_vector, which is almost a drop-in
+// It defines the class itlib::static_vector, which is almost a drop-in
 // replacement of std::vector, but has a fixed capacity as a template argument.
 // It gives you the benefits of using std::array (cache-locality) with the
 // flexibility of std::vector - dynamic size.
@@ -44,7 +47,7 @@
 //
 // Example:
 //
-// chobo::static_vector<int, 4> myvec; // a static vector of size 0 and capacity 4
+// itlib::static_vector<int, 4> myvec; // a static vector of size 0 and capacity 4
 // myvec.resize(2); // vector is {0,0}
 // myvec[1] = 11; // vector is {0,11}
 // myvec.push_back(7); // vector is {0,11,7}
@@ -65,25 +68,25 @@
 //
 // An out of range error is a runtime error which is triggered when the vector
 // needs to be resized with a size higher than its capacity.
-// For example: chobo::static_vector<int, 100> v(101);
+// For example: itlib::static_vector<int, 100> v(101);
 //
-// This is set by defining CHOBO_STATIC_VECTOR_ERROR_HANDLING to one of the
+// This is set by defining ITLIB_STATIC_VECTOR_ERROR_HANDLING to one of the
 // following values:
-// * CHOBO_STATIC_VECTOR_ERROR_HANDLING_NONE - no error handling. Crashes WILL
+// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_NONE - no error handling. Crashes WILL
 //      ensue if the error is triggered.
-// * CHOBO_STATIC_VECTOR_ERROR_HANDLING_THROW - std::out_of_range is thrown.
-// * CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT - asserions are triggered.
-// * CHOBO_STATIC_VECTOR_ERROR_HANDLING_RESCUE - the error is ignored but
+// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW - std::out_of_range is thrown.
+// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT - asserions are triggered.
+// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_RESCUE - the error is ignored but
 //      sanity is (somewhat) preserved. Functions which trigger the error will
 //      just bail without changing the vector.
-// * CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW - combines assert and
+// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW - combines assert and
 //      throw to catch errors more easily in debug mode
-// * CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE - combines assert and
+// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE - combines assert and
 //      rescue to catch errors in debug mode and silently bail in release mode.
 //
 // To set this setting by editing the file change the line:
 // ```
-// #   define CHOBO_STATIC_VECTOR_ERROR_HANDLING CHOBO_STATIC_VECTOR_ERROR_HANDLING_THROW
+// #   define ITLIB_STATIC_VECTOR_ERROR_HANDLING ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW
 // ```
 // to the default setting of your choice
 //
@@ -92,7 +95,7 @@
 // By default bounds checks are made in debug mode (via an asser) when accessing
 // elements (with `at` or `[]`). Iterators are not checked (yet...)
 //
-// To disable them, you can define CHOBO_STATIC_VECTOR_NO_DEBUG_BOUNDS_CHECK
+// To disable them, you can define ITLIB_STATIC_VECTOR_NO_DEBUG_BOUNDS_CHECK
 // before including the header.
 //
 //
@@ -100,13 +103,13 @@
 //
 // * There is an unused (and unusable) allocator class defined inside
 // static_vector. It's point is to be a sham for templates which refer to
-// container::allocator. It also allows it to work with chobo::flat_map
+// container::allocator. It also allows it to work with itlib::flat_map
+//
 //
 //                  TESTS
 //
-// The tests are included in the header file and use doctest (https://github.com/onqtam/doctest).
-// To run them, define CHOBO_STATIC_VECTOR_TEST_WITH_DOCTEST before including
-// the header in a file which has doctest.h already included.
+// You can find unit tests for static_vector in its official repo:
+// https://github.com/iboB/itlib/blob/master/test/
 //
 #pragma once
 
@@ -114,49 +117,49 @@
 #include <cstddef>
 #include <iterator>
 
-#define CHOBO_STATIC_VECTOR_ERROR_HANDLING_NONE  0
-#define CHOBO_STATIC_VECTOR_ERROR_HANDLING_THROW 1
-#define CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT 2
-#define CHOBO_STATIC_VECTOR_ERROR_HANDLING_RESCUE 3
-#define CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW 4
-#define CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE 5
+#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_NONE  0
+#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW 1
+#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT 2
+#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_RESCUE 3
+#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW 4
+#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE 5
 
-#if !defined(CHOBO_STATIC_VECTOR_ERROR_HANDLING)
-#   define CHOBO_STATIC_VECTOR_ERROR_HANDLING CHOBO_STATIC_VECTOR_ERROR_HANDLING_THROW
+#if !defined(ITLIB_STATIC_VECTOR_ERROR_HANDLING)
+#   define ITLIB_STATIC_VECTOR_ERROR_HANDLING ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW
 #endif
 
-#if CHOBO_STATIC_VECTOR_ERROR_HANDLING == CHOBO_STATIC_VECTOR_ERROR_HANDLING_NONE
-#   define _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return)
-#elif CHOBO_STATIC_VECTOR_ERROR_HANDLING == CHOBO_STATIC_VECTOR_ERROR_HANDLING_THROW
+#if ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_NONE
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return)
+#elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW
 #   include <stdexcept>
-#   define _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) if (cond) throw std::out_of_range("chobo::static_vector out of range")
-#elif CHOBO_STATIC_VECTOR_ERROR_HANDLING == CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) if (cond) throw std::out_of_range("itlib::static_vector out of range")
+#elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT
 #   include <cassert>
-#   define _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) assert(!(cond) && "chobo::static_vector out of range")
-#elif CHOBO_STATIC_VECTOR_ERROR_HANDLING == CHOBO_STATIC_VECTOR_ERROR_HANDLING_RESCUE
-#   define _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) if (cond) return rescue_return
-#elif CHOBO_STATIC_VECTOR_ERROR_HANDLING == CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) assert(!(cond) && "itlib::static_vector out of range")
+#elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_RESCUE
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) if (cond) return rescue_return
+#elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW
 #   include <stdexcept>
 #   include <cassert>
-#   define _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) \
-    do { if (cond) { assert(false && "chobo::static_vector out of range"); throw std::out_of_range("chobo::static_vector out of range"); } } while(false)
-#elif CHOBO_STATIC_VECTOR_ERROR_HANDLING == CHOBO_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) \
+    do { if (cond) { assert(false && "itlib::static_vector out of range"); throw std::out_of_range("itlib::static_vector out of range"); } } while(false)
+#elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE
 #   include <cassert>
-#   define _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) \
-    do { if (cond) { assert(false && "chobo::static_vector out of range"); return rescue_return; } } while(false)
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) \
+    do { if (cond) { assert(false && "itlib::static_vector out of range"); return rescue_return; } } while(false)
 #else
-#error "Unknown CHOBO_STATIC_VECTOR_ERRROR_HANDLING"
+#error "Unknown ITLIB_STATIC_VECTOR_ERRROR_HANDLING"
 #endif
 
 
-#if defined(CHOBO_STATIC_VECTOR_NO_DEBUG_BOUNDS_CHECK)
-#   define _CHOBO_STATIC_VECTOR_BOUNDS_CHECK(i)
+#if defined(ITLIB_STATIC_VECTOR_NO_DEBUG_BOUNDS_CHECK)
+#   define I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK(i)
 #else
 #   include <cassert>
-#   define _CHOBO_STATIC_VECTOR_BOUNDS_CHECK(i) assert((i) < this->size())
+#   define I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK(i) assert((i) < this->size())
 #endif
 
-namespace chobo
+namespace itlib
 {
 
 template<typename T, size_t Capacity>
@@ -192,22 +195,18 @@ public:
 
     static_vector(size_t count, const T& value)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(count > Capacity, );
+        assign_impl_val(count, value);
+    }
 
-        for (size_t i = 0; i < count; ++i)
-        {
-            push_back(value);
-        }
+    template <class InputIterator, typename = decltype(*std::declval<InputIterator>())>
+    static_vector(InputIterator first, InputIterator last)
+    {
+        assign_impl_iter(first, last);
     }
 
     static_vector(std::initializer_list<T> l)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(l.size() > Capacity, );
-
-        for (auto&& i : l)
-        {
-            push_back(i);
-        }
+        assign_impl_ilist(l);
     }
 
     static_vector(const static_vector& v)
@@ -221,7 +220,7 @@ public:
     template <size_t CapacityB>
     static_vector(const static_vector<T, CapacityB>& v)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(v.size() > Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(v.size() > Capacity, );
 
         for (const auto& i : v)
         {
@@ -272,15 +271,34 @@ public:
         return *this;
     }
 
+    void assign(size_type count, const T& value)
+    {
+        clear();
+        assign_impl_val(count, value);
+    }
+
+    template <class InputIterator, typename = decltype(*std::declval<InputIterator>())>
+    void assign(InputIterator first, InputIterator last)
+    {
+        clear();
+        assign_impl_iter(first, last);
+    }
+
+    void assign(std::initializer_list<T> ilist)
+    {
+        clear();
+        assign_impl_ilist(ilist);
+    }
+
     const_reference at(size_type i) const
     {
-        _CHOBO_STATIC_VECTOR_BOUNDS_CHECK(i);
+        I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK(i);
         return *reinterpret_cast<const T*>(m_data + i);
     }
 
     reference at(size_type i)
     {
-        _CHOBO_STATIC_VECTOR_BOUNDS_CHECK(i);
+        I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK(i);
         return *reinterpret_cast<T*>(m_data + i);
     }
 
@@ -396,12 +414,12 @@ public:
         return m_size;
     }
 
-    size_t max_size() const noexcept
+    static constexpr size_t max_size() noexcept
     {
         return Capacity;
     }
 
-    size_t capacity() const noexcept
+    static constexpr size_t capacity() noexcept
     {
         return Capacity;
     }
@@ -423,7 +441,7 @@ public:
 
     void push_back(const_reference v)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
 
         ::new(m_data + m_size) T(v);
         ++m_size;
@@ -431,24 +449,25 @@ public:
 
     void push_back(T&& v)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
 
         ::new(m_data + m_size) T(std::move(v));
         ++m_size;
     }
 
     template<typename... Args>
-    void emplace_back(Args&&... args)
+    reference emplace_back(Args&&... args)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
 
         ::new(m_data + m_size) T(std::forward<Args>(args)...);
         ++m_size;
+        return back();
     }
 
     iterator insert(iterator position, const value_type& val)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, position);
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, position);
 
         if (position == end())
         {
@@ -471,7 +490,7 @@ public:
     template<typename... Args>
     iterator emplace(iterator position, Args&&... args)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, position);
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, position);
 
         if (position == end())
         {
@@ -492,12 +511,12 @@ public:
         return position;
     }
 
-    iterator erase(iterator position)
+    iterator erase(const_iterator position)
     {
         auto dist = position - begin();
         position->~T();
 
-        for (auto i = position + 1; i != end(); ++i)
+        for (auto i = begin() + dist + 1; i != end(); ++i)
         {
             *(i - 1) = std::move(*i);
         }
@@ -508,7 +527,7 @@ public:
 
     void resize(size_type n)
     {
-        _CHOBO_STATIC_VECTOR_OUT_OF_RANGE_IF(n > Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(n > Capacity, );
 
         while (m_size > n)
         {
@@ -554,6 +573,37 @@ public:
     }
 
 private:
+    void assign_impl_val(size_t count, const T& value)
+    {
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(count > Capacity, );
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            push_back(value);
+        }
+    }
+
+    template <class InputIterator>
+    void assign_impl_iter(InputIterator first, InputIterator last)
+    {
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(long(last - first) > long(Capacity), );
+
+        for (auto i = first; i != last; ++i)
+        {
+            push_back(*i);
+        }
+    }
+
+    void assign_impl_ilist(std::initializer_list<T> l)
+    {
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(l.size() > Capacity, );
+
+        for (auto&& i : l)
+        {
+            push_back(i);
+        }
+    }
+
     typename std::aligned_storage<sizeof(T), std::alignment_of<T>::value>::type m_data[Capacity];
     size_t m_size = 0;
 };
@@ -568,7 +618,7 @@ bool operator==(const static_vector<T, CapacityA>& a, const static_vector<T, Cap
 
     for (size_t i = 0; i < a.size(); ++i)
     {
-        if (a[i] != b[i])
+        if (!(a[i] == b[i]))
             return false;
     }
 
@@ -578,185 +628,7 @@ bool operator==(const static_vector<T, CapacityA>& a, const static_vector<T, Cap
 template <typename T, size_t CapacityA, size_t CapacityB>
 bool operator!=(const static_vector<T, CapacityA>& a, const static_vector<T, CapacityB>& b)
 {
-    if (a.size() != b.size())
-    {
-        return true;
-    }
-
-    for (size_t i = 0; i < a.size(); ++i)
-    {
-        if (a[i] != b[i])
-            return true;
-    }
-
-    return false;
+    return !operator==(a, b);
 }
 
 }
-
-
-#if defined(CHOBO_STATIC_VECTOR_TEST_WITH_DOCTEST)
-
-#include <string>
-
-TEST_CASE("[static_vector] test")
-{
-    using namespace chobo;
-    using namespace std;
-
-    static_vector<int, 10> ivec;
-
-    static_assert(sizeof(ivec) == sizeof(int) * 10 + sizeof(size_t), "static_vector must have size of N*t + size_t");
-
-    CHECK(ivec.size() == 0);
-    CHECK(ivec.capacity() == 10);
-    CHECK(ivec.max_size() == 10);
-    CHECK(ivec.begin() == ivec.end());
-    CHECK(ivec.cbegin() == ivec.cend());
-    CHECK(ivec.empty());
-
-    ivec.push_back(5);
-    CHECK(ivec.size() == 1);
-    CHECK(ivec[0] == 5);
-    auto it = ivec.begin();
-    CHECK(it == ivec.data());
-    CHECK(it == ivec.cbegin());
-    CHECK(*it == 5);
-    ++it;
-    CHECK(it == ivec.end());
-    CHECK(it == ivec.cend());
-
-    ivec.emplace_back(3);
-    CHECK(ivec.size() == 2);
-    auto rit = ivec.rbegin();
-    CHECK(*rit == 3);
-    ++rit;
-    *rit = 12;
-    ++rit;
-    CHECK(rit == ivec.rend());
-    CHECK(rit == ivec.crend());
-    CHECK(ivec.front() == 12);
-    CHECK(ivec.back() == 3);
-
-    ivec.insert(ivec.begin(), 53);
-    ivec.insert(ivec.begin() + 2, 90);
-    ivec.insert(ivec.begin() + 4, 17);
-    ivec.insert(ivec.end(), 6);
-
-    int ints[] = { 53, 12, 90, 3, 17, 6 };
-    CHECK(ivec.size() == 6);
-    CHECK(memcmp(ivec.data(), ints, sizeof(ints)) == 0);
-
-    ivec.pop_back();
-    CHECK(ivec.size() == 5);
-    CHECK(memcmp(ivec.data(), ints, sizeof(ints) - sizeof(int)) == 0);
-
-    ivec.resize(6);
-    CHECK(ivec.size() == 6);
-    ints[5] = 0;
-    CHECK(memcmp(ivec.data(), ints, sizeof(ints)) == 0);
-
-    const static_vector<int, 5> ivec2 = { 1, 2, 3, 4 };
-    CHECK(ivec2.size() == 4);
-    CHECK(*ivec2.begin() == 1);
-    CHECK(ivec2[1] == 2);
-    CHECK(ivec2.at(2) == 3);
-    CHECK(*ivec2.rbegin() == 4);
-
-    ivec.erase(ivec.begin());
-    CHECK(ivec.size() == 5);
-    CHECK(ivec.front() == 12);
-    CHECK(memcmp(ivec.data(), ints + 1, ivec.size() * sizeof(int)) == 0);
-
-    ivec.erase(ivec.begin() + 2);
-    CHECK(ivec.size() == 4);
-    CHECK(ivec[2] == 17);
-
-    static_vector<string, 11> svec = { "as", "df" };
-    CHECK(svec.size() == 2);
-    string s1 = "the quick brown fox jumped over the lazy dog 1234567890";
-    svec.emplace_back(s1);
-    CHECK(svec.back() == s1);
-
-    auto svec1 = svec;
-    static_assert(sizeof(svec1) == sizeof(string) * 11 + sizeof(size_t), "static_vector must have size of N*t + size_t");
-    CHECK(svec1 == svec);
-
-    const void* cstr = svec.back().c_str();
-    auto svec2 = std::move(svec);
-    CHECK(svec2.size() == 3);
-    CHECK(svec2.back() == s1);
-
-    CHECK(svec.empty());
-    CHECK(svec2.back().c_str() == cstr);
-
-    svec = std::move(svec2);
-    CHECK(svec2.empty());
-    CHECK(svec.back().c_str() == cstr);
-
-    svec2 = svec;
-    CHECK(svec2.back() == s1);
-    CHECK(svec.back() == s1);
-    CHECK(svec == svec2);
-
-    svec.insert(svec.begin(), s1);
-    CHECK(svec.size() == 4);
-    CHECK(svec.back().c_str() == cstr);
-    CHECK(svec.front() == svec.back());
-
-    cstr = s1.c_str();
-    svec.emplace(svec.begin() + 2, std::move(s1));
-    CHECK(svec.size() == 5);
-    CHECK(svec.front() == svec[2]);
-    CHECK(svec[2].c_str() == cstr);
-
-    svec.clear();
-    CHECK(svec.empty());
-    svec2.clear();
-    CHECK(svec2.empty());
-    CHECK(svec == svec2);
-
-    svec.resize(svec.capacity());
-    CHECK(svec.size() == svec.capacity());
-
-    for (auto& s : svec)
-    {
-        CHECK(s.empty());
-    }
-
-#if !defined(__EMSCRIPTEN__) || !defined(NDEBUG) // emscripten allows exceptions with -O0
-    CHECK_THROWS_AS(svec.push_back("asd"), std::out_of_range);
-    CHECK(svec.size() == svec.capacity());
-    CHECK_THROWS_AS(svec.resize(55), std::out_of_range);
-    CHECK(svec.size() == svec.capacity());
-    CHECK_THROWS_AS(svec.insert(svec.begin(), "55"), std::out_of_range);
-    CHECK(svec.size() == svec.capacity());
-    CHECK_THROWS_AS(svec.emplace(svec.begin(), "55"), std::out_of_range);
-    CHECK(svec.size() == svec.capacity());
-#endif
-
-    // self usurp
-    svec = svec;
-    CHECK(svec.size() == svec.capacity());
-
-    // swap
-    svec = { "1", "2", "3" };
-    svec2 = { "4", "5", "6", "7" };
-
-    svec.swap(svec2);
-
-    CHECK(svec.size() == 4);
-    CHECK(svec2.size() == 3);
-    CHECK(svec2.front() == "1");
-    CHECK(svec.back() == "7");
-
-    svec = { "a", "b", "c" };
-    svec2.swap(svec);
-
-    CHECK(svec2.size() == svec.size());
-    CHECK(svec2.back() == "c");
-    CHECK(svec.front() == "1");
-}
-
-#endif
-

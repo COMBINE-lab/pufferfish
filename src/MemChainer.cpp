@@ -1,6 +1,6 @@
 #include <numeric>
 #include "MemChainer.hpp"
-#include "chobo/small_vector.hpp"
+#include "itlib/small_vector.hpp"
 
 // from "fastapprox"
 // https://github.com/romeric/fastapprox/blob/master/fastapprox/src/fastlog.h
@@ -344,7 +344,7 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
     maxChainScore = std::max(bestScore, maxChainScore);
 
     // Do backtracking
-    chobo::small_vector<uint8_t> seen(f.size(), 0);
+    itlib::small_vector<uint8_t> seen(f.size(), 0);
     for (auto bestChainEnd : bestChainEndList) {
       if (bestChainEnd >= 0) {
         bool shouldBeAdded = true;
