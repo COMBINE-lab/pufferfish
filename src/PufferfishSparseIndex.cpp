@@ -193,13 +193,15 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
-      // the index of this contig
-      auto rank = rankSelDict.rank(pos);
+      uint64_t rank = 0;
+      uint64_t sp = 0;
+      uint64_t contigEnd = 0;
+
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
       auto rankInterval =
           (didWalk) ? contigBoundary_.get_int(pos, (k_ - 1)) : 0;
-      // auto rankEnd = contigRank_(pos + k_ - 1);
+
       if (rankInterval > 0) {
         return {std::numeric_limits<uint32_t>::max(),
                 std::numeric_limits<uint64_t>::max(),
@@ -209,21 +211,26 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
                 k_,
                 core::range<IterT>{}};
       }
-      // the reference information in the contig table
-      auto contigIterRange = contigRange(rank);
-      // start position of this contig
-      uint64_t sp = 0;
-      uint64_t contigEnd = 0;
-      if (rank == qc.prevRank) {
+
+      // check if the current position is on the same contig
+      // as the cached contig or not.
+      const bool same_contig = ((qc.contigStart <= pos) and (pos <= qc.contigEnd));
+      if (same_contig) {
+        rank = qc.prevRank;
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
+        // the index of this contig
+        rank = rankSelDict.rank(pos);//contigRank_(pos);
         sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
         contigEnd = rankSelDict.select(rank);
         qc.prevRank = rank;
         qc.contigStart = sp;
         qc.contigEnd = contigEnd;
       }
+
+      // the reference information in the contig table
+      auto contigIterRange = contigRange(rank);
 
       // relative offset of this k-mer in the contig
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
@@ -276,8 +283,6 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
-      // the index of this contig
-      auto rank = rankSelDict.rank(pos);
       // make sure that the rank vector, from the 0th through k-1st position
       // of this k-mer is all 0s
       auto rankInterval =
@@ -292,6 +297,9 @@ auto PufferfishSparseIndex::getRefPosHelper_(CanonicalKmer& mer, uint64_t pos,
                 k_,
                 core::range<IterT>{}};
       }
+
+      // the index of this contig
+      auto rank = rankSelDict.rank(pos);
 
       // the reference information in the contig table
       auto contigIterRange = contigRange(rank);

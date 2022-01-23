@@ -183,23 +183,28 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache
     // identity, twin (i.e. rev-comp), or no match
     auto keq = mer.isEquivalent(fk);
     if (keq != KmerMatchType::NO_MATCH) {
-      // the index of this contig
-      auto rank = rankSelDict.rank(pos);//contigRank_(pos);
-      // the reference information in the contig table
-      auto contigIterRange = contigRange(rank);
-      // start position of this contig
+      uint64_t rank = 0;
       uint64_t sp = 0;
       uint64_t contigEnd = 0;
-      if (rank == qc.prevRank) {
+
+      // check if the current position is on the same contig
+      // as the cached contig or not.
+      const bool same_contig = ((qc.contigStart <= pos) and (pos <= qc.contigEnd));
+      if (same_contig) {
+        rank = qc.prevRank;
         sp = qc.contigStart;
         contigEnd = qc.contigEnd;
       } else {
+        // the index of this contig
+        rank = rankSelDict.rank(pos);
         sp = (rank == 0) ? 0 : static_cast<uint64_t>(rankSelDict.select(rank - 1)) + 1;
         contigEnd = rankSelDict.select(rank);
         qc.prevRank = rank;
         qc.contigStart = sp;
         qc.contigEnd = contigEnd;
       }
+      // the reference information in the contig table
+      auto contigIterRange = contigRange(rank);
 
       // relative offset of this k-mer in the contig
       uint32_t relPos = static_cast<uint32_t>(pos - sp);
