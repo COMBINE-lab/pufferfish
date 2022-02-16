@@ -5,7 +5,6 @@
 #include <fstream>
 #include <stdexcept>
 #include <algorithm>
-#include <tbb/mutex.h>
 #include <iostream>
 #include <memory>
 
@@ -71,6 +70,7 @@ namespace TwoPaCo
 		GenomeReader(size_t overlapSize) : pieceId_(0), start_(0), seqId_(0), overlapSize_(overlapSize), in_("parsed.txt")
 		{
 
+
 		}
 
 		bool Read(NewTask & task)
@@ -102,6 +102,7 @@ namespace TwoPaCo
 				task.start = start_;
 				
 				task.piece = pieceId_++;
+
 				std::copy(task.buffer + task.read - overlapSize_, task.buffer + task.read, std::back_inserter(overlapBuffer_));
 				if (task.read == NewTask::TASK_SIZE)
 				{
@@ -130,8 +131,10 @@ namespace TwoPaCo
 	private:
 		size_t seqId_;
 		size_t start_;
+
 		size_t pieceId_;
-		tbb::mutex mutex_;
+
+    std::mutex mutex_;
 		size_t overlapSize_;
 		std::ifstream in_;
 		std::string overlapBuffer_;

@@ -3,8 +3,13 @@ cmake_minimum_required(VERSION 3.9)
 
 set(CMAKE_PROJECT_NAME twopaco)
 
+
+get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+message("TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
+
 include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIRS} "../common")
-link_directories(${TBB_LIB_DIR})
+
+#link_directories(${TBB_LIB_DIR})
 add_library(twopaco STATIC ../common/dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp ../common/streamfastaparser.cpp test.cpp vertexenumerator.cpp ../common/spooky/SpookyV2.cpp common.cpp)
 #add_executable(twopaco ../common/dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp ../common/streamfastaparser.cpp test.cpp vertexenumerator.cpp ../common/spooky/SpookyV2.cpp common.cpp)
 #target_link_libraries(twopaco  "tbb")

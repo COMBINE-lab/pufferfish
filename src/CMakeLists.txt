@@ -1,4 +1,5 @@
 
+
 ####
 # Deprecated
 ####
@@ -69,6 +70,7 @@ endif()
 set(pufferfish_lib_srcs 
     PufferfishIndexer.cpp 
     PufferfishBaseIndex.cpp
+
     PufferfishIndex.cpp 
     PufferfishSparseIndex.cpp 
     PufferfishLossyIndex.cpp
@@ -117,7 +119,7 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLA
 #if (BUILD_PUFF_FOR_SALMON)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
-target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ksw2pp ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ksw2pp ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS} TBB::tbb TBB::tbbmalloc TBB::tbbmalloc_proxy)
 
 if (FETCHED_TBB)
     add_dependencies(pufferfish libtbb)
@@ -155,6 +157,7 @@ target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_F
 
 
 add_executable(cedar cedar/TargetGroup.cpp cedar/Cedar.cpp cedar/Taxa.cpp)
+
 target_include_directories(cedar PRIVATE
     ${GAT_SOURCE_DIR}/external/install/include
     ${GAT_SOURCE_DIR}/external/install/include/htslib

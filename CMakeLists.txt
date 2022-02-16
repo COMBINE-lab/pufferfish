@@ -73,6 +73,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CXXSTDFLAG "-std=c++14")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+
 find_package(Threads REQUIRED)
 
 if (BUILD_PUFF_FOR_SALMON) 
@@ -129,6 +131,8 @@ set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
 
+
+
 set(OPT_FLAGS "-DHAVE_SIMDE;-D__STDC_FORMAT_MACROS;-DSTX_NO_STD_STRING_VIEW;-O3;-fPIC;-DNDEBUG;-funroll-loops;-ftree-vectorize;-fno-strict-aliasing")
 set(DEBUG_FLAGS "-DHAVE_SIMDE;-D__STDC_FORMAT_MACROS;-DSTX_NO_STD_STRING_VIEW;-pg;-g;-gstabs")
 
@@ -143,7 +147,9 @@ if(APPLE)
     # In order to "think different", we also have to use non-standard suffixes
     # for our shared libraries
     set(SHARED_LIB_EXTENSION "dylib")
+
 	message("SHARED_LIB_EXT = ${SHARED_LIB_EXTENSION}")
+
 else()
     # We're in sane linux world
     set(SHARED_LIB_EXTENSION "so")
@@ -194,14 +200,18 @@ endif()
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 ## Try and find TBB first
-find_package(TBB 2018.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
+find_package(TBB 2021.4 
+  HINTS ${TBB_ROOT_SEARCH}
+  COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 
 ##
+
 #
+
 # Fetch and build Intel's Threading Building Blocks library.
 #
 ##
-if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
+if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
 
     set(TBB_WILL_RECONFIGURE TRUE)
     # Set the appropriate compiler
@@ -212,9 +222,13 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
     endif()
 
     message("Build system will fetch and build Intel Threading Building Blocks")
+
+
+
     message("==================================================================")
     # These are useful for the custom install step we'll do later
     set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/oneTBB-2020.1)
+
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
 
     if(NO_RTM)
@@ -260,12 +274,15 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2018.0)))
             )
 	
     set(FETCHED_TBB TRUE)
+endif()
 
 
 
 find_package(LibLZMA)
 if(NOT LIBLZMA_FOUND)
+
   message("Will attempt to fetch and build liblzma")
+
   message("=======================================")
   externalproject_add(liblzma
   DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
@@ -279,13 +296,17 @@ if(NOT LIBLZMA_FOUND)
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2
   INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
   BUILD_IN_SOURCE TRUE
+
   CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2/configure --prefix=<INSTALL_DIR> CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} CPPFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} LDFLAGS=${EXTRA_CMAKE_LIBRARY_FLAGS}
+
   BUILD_COMMAND make ${QUIET_MAKE}
   INSTALL_COMMAND make ${QUIET_MAKE} install
 )
 
+
 	# Tell cmake that the external project generated a library so we can
 	# add dependencies here instead of later
+
 	set(LIBLZMA_LIBRARIES ${GAT_SOURCE_DIR}/external/install/lib/liblzma.a)
 	set(LIBSTADEN_LDFLAGS "-L${GAT_SOURCE_DIR}/external/install/lib")
 	set(LIBSTADEN_CFLAGS "-I${GAT_SOURCE_DIR}/external/install/include")
@@ -326,7 +347,8 @@ externalproject_add(libbz2
   endif()
 
 
-endif()
+
+  #endif()
 
 ##
 # If we're fetching tbb, we need to have dummy paths for these variables
@@ -347,18 +369,23 @@ if(TBB_WILL_RECONFIGURE)
 endif()
 
 ##
+
 #  The libtbb reconfigure should force this code
 #  to be run on the second configuration pass, where it should appropriately set the
 #  TBB_INSTALL_DIR variable.
 ##
+
+
 if(TBB_RECONFIGURE)
     unset(TBB_FOUND CACHE)
     unset(TBB_INSTALL_DIR CACHE)
     unset(CMAKE_PREFIX_PATH CACHE)
+
     set(CMAKE_PREFIX_PATH ${GAT_SOURCE_DIR}/external/install)
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
+
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
-    find_package(TBB 2018.0 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
+    find_package(TBB 2021.4 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
 
@@ -390,10 +417,6 @@ if(NOT BZIP2_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build bz2)
 endif()
 
-
-
-
-
 ExternalProject_Add(libSetCover
         GIT_REPOSITORY https://github.com/martin-steinegger/setcover.git
         GIT_TAG        master
@@ -412,7 +435,9 @@ ExternalProject_Add(libSetCover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
-endif() # end of BUILD_PUFF_FOR_SALMON
+
+
+endif() # end of NOT BUILD_PUFF_FOR_SALMON
 
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS}")
