@@ -120,16 +120,12 @@ target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLA
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
 
-if(${TBB_FOUND})
+if(TBB_FOUND)
   target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ksw2pp ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS} TBB::tbb TBB::tbbmalloc TBB::tbbmalloc_proxy)
 endif()
 
 if (FETCHED_TBB)
-    add_dependencies(pufferfish libtbb)
-endif()
-
-if (FETCHED_TBB)
-    add_dependencies(pufferfish libtbb)
+    add_dependencies(pufferfish libtbb_rescan)
 endif()
 
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
@@ -194,6 +190,9 @@ add_executable(rank_test rank_test.cpp rank9b.cpp rank9sel.cpp)
 target_compile_options(rank_test PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(rank_test PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 target_link_libraries(rank_test)
+
+
+
 ]]
 
 add_executable(getLineage constructLineage.cpp)

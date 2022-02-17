@@ -203,6 +203,7 @@ else()
   set(QUIET_MAKE "")
 endif()
 
+
 if (NOT BUILD_PUFF_FOR_SALMON)
 ## Try and find TBB first
 find_package(TBB 2021.4 
@@ -268,7 +269,7 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
             )
 	
     set(FETCHED_TBB TRUE)
-    add_custom_target(libtbb_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libtbb_rescan)
+    add_custom_target(libtbb_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libtbb)
 
 else()
     set(TBB_TARGET_EXISTED TRUE)
