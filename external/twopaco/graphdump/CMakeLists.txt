@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.9)
 set(CMAKE_PROJECT_NAME graphdump)
 
 if(${TBB_FOUND})
-get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIRS} "../common" "./" )
