@@ -210,9 +210,22 @@ find_package(TBB 2021.4
   HINTS ${TBB_ROOT_SEARCH}
   COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 
+
+if (${TBB_FOUND})
+  if (${TBB_VERSION} VERSION_GREATER_EQUAL 2021.4)
+  message("FOUND SUITABLE TBB VERSION : ${TBB_VERSION}")
+  set(TBB_TARGET_EXISTED TRUE)
+  else()
+    set(TBB_TARGET_EXISTED FALSE)
+  endif()
+else()
+  set(TBB_TARGET_EXISTED FALSE)
+endif()
+
 ##
 
 #
+
 
 # Fetch and build Intel's Threading Building Blocks library.
 #
@@ -225,6 +238,7 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
     if(CLANG)
         set(TBB_COMPILER "clang")
     else()
+
         set(TBB_COMPILER "gcc")
     endif()
 
@@ -272,7 +286,6 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
     add_custom_target(libtbb_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libtbb)
 
 else()
-    set(TBB_TARGET_EXISTED TRUE)
     add_custom_target(libtbb_rescan)
 endif()
 
@@ -294,6 +307,7 @@ if(NOT LIBLZMA_FOUND)
   #URL_HASH SHA1=14663612422ab61386673be78fbb2556f50a1f08
   ##
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2
+
   INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
   BUILD_IN_SOURCE TRUE
 
