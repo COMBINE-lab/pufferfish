@@ -1,3 +1,4 @@
+
 #include "FastxParser.hpp"
 #include <cmath>
 #include <iostream>
@@ -30,6 +31,7 @@ uint8_t reverseBits(uint8_t b) {
 
 /*
 enum class Direction : bool { FORWARD = 0, BACKWORD = 1 };
+
 struct extension{
   char c;
   Direction dir ;
@@ -61,14 +63,23 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, pufferfish::util::QueryCache& qc, 
   }
 
   if (chits.refRange.size() < 0) {
+
     std::cerr << "There was a row in the contig table with an invalid range (size = " << chits.refRange.size() << "). "
                  "this means there is something wrong with the stored index.  Please report this issue on GitHub.\n";
     std::exit(1);
   }
 
+  bool verbose = (kb.to_str() == "TGATATGATTTTTCTTCCTTTTTAAAATCTA");
+
   bool foundKmer{false};
   for (auto& rpos : chits.refRange) {
     auto refInfo = chits.decodeHit(rpos);
+    if (verbose) {
+    std::cout << "kmer : " << kb.to_str() << "\n";
+    std::cout << "hit at ref : " << rpos.transcript_id() << " (name : " 
+      << pi.getFullRefNames()[rpos.transcript_id()]
+      << "), pos : " << refInfo.pos << "\n";
+    }
     if (rpos.transcript_id() == rn) {
       if (refInfo.pos == posWithinRef) {
         if (refInfo.isFW) {
@@ -95,6 +106,7 @@ bool checkKmer(IndexT& pi, CanonicalKmer& kb, pufferfish::util::QueryCache& qc, 
 /**
  * Check for internal consistency of the index
  **/
+
 template <typename IndexT>
 int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   (void)(validateOpts);
@@ -128,6 +140,7 @@ int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& valida
     kb.fromNum(kbi);
     pufferfish::util::QueryCache qc;
 
+
     auto foundKmer = checkKmer(pi, kb, qc, kbi, rn, posWithinRef);
     if (!foundKmer) {
       console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), posWithinRef, rn, gpos);
@@ -143,6 +156,7 @@ int doPufferfishInternalValidate(IndexT& pi, pufferfish::ValidateOptions& valida
 
       auto foundKmer = checkKmer(pi, kb, qc, kbi, rn, posWithinRef);
       if (!foundKmer) {
+
         console->error("Could not find k-mer ({}) occurring at position {} of reference {}, which is global position {}.", kb.to_str(), posWithinRef, rn, gpos);
         //return -1;
       }
