@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.9)
 #cmake_policy(SET CMP0069 NEW)
 
@@ -43,6 +44,7 @@ set(ver_patch ${CMAKE_MATCH_1})
 
 set(CPACK_PACKAGE_VERSION_MAJOR ${ver_major})
 set(CPACK_PACKAGE_VERSION_MINOR ${ver_minor})
+
 set(CPACK_PACKAGE_VERSION_PATCH ${ver_patch})
 
 set(CPACK_PACKAGE_VERSION "${ver_major}.${ver_minor}.${ver_patch}")
@@ -88,6 +90,7 @@ endif()
 if (NOT GAT_SOURCE_DIR)
     message("Top-level source directory variable not set externally; setting it to ${CMAKE_CURRENT_SOURCE_DIR}")
     set(GAT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 endif()
 
 set(KSW_FLAGS "-DHAVE_KALLOC")
@@ -127,6 +130,7 @@ endif()
 # Sanitizers END
 ###
 
+
 set(WARN_ALL_THINGS "-fdiagnostics-color=always;-Wall;-Wcast-align;-Wcast-qual;-Wconversion;-Wctor-dtor-privacy;-Wdisabled-optimization;-Wdouble-promotion;-Wextra;-Wformat=2;-Winit-self;-Wlogical-op;-Wmissing-declarations;-Wmissing-include-dirs;-Wno-sign-conversion;-Wnoexcept;-Wold-style-cast;-Woverloaded-virtual;-Wpedantic;-Wredundant-decls;-Wshadow;-Wstrict-aliasing=1;-Wstrict-null-sentinel;-Wstrict-overflow=5;-Wswitch-default;-Wundef;-Wno-unknown-pragmas;-Wuseless-cast;-Wno-unused-parameter")
 
 #set(WARN_ALL_THINGS "-fdiagnostics-color=always -Wall -Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wno-sign-conversion -Wnoexcept -Wnull-dereference -Wold-style-cast -Woverloaded-virtual -Wpedantic -Wredundant-decls -Wrestrict -Wshadow -Wstrict-aliasing=1 -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unknown-pragmas -Wuseless-cast") 
@@ -165,6 +169,7 @@ endif()
 # check if numeric_limits<__int128_t> is defined
 ###
 if(HAVE_INT128_NUMERIC_LIMITS)
+
   message("setting -DHAVE_NUMERIC_LIMITS128")
   list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
 else()
@@ -210,6 +215,7 @@ find_package(TBB 2021.4
 
 # Fetch and build Intel's Threading Building Blocks library.
 #
+
 ##
 if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
 
@@ -227,7 +233,7 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
 
     message("==================================================================")
     # These are useful for the custom install step we'll do later
-    set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/oneTBB-2020.1)
+    set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/oneTBB-2021.5.0)
 
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
 
@@ -245,26 +251,14 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
 
     ExternalProject_Add(libtbb
             DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
-            DOWNLOAD_COMMAND curl -k -L https://github.com/oneapi-src/oneTBB/archive/v2020.1.tar.gz -o v2020.1.tar.gz &&
-            ${SHASUM} 7c96a150ed22bc3c6628bc3fef9ed475c00887b26d37bca61518d76a56510971 v2020.1.tar.gz &&
-            tar -xzvf v2020.1.tar.gz
-            ##
-            #URL https://github.com/01org/tbb/archive/2018_U3.tar.gz
-            #DOWNLOAD_NAME 2018_U3.tar.gz
-            #URL_HASH SHA1=d6cf16a42ece60aad6a722b369e1a2aa753347b4
-            #TLS_VERIFY FALSE
-            ##
+            DOWNLOAD_COMMAND curl -k -L https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.5.0.tar.gz -o v2021.5.tar.gz &&
+            ${SHASUM} e5b57537c741400cf6134b428fc1689a649d7d38d9bb9c1b6d64f092ea28178a v2021.5.tar.gz &&
+            tar -xzvf v2021.5.tar.gz
             SOURCE_DIR ${TBB_SOURCE_DIR}
             INSTALL_DIR ${TBB_INSTALL_DIR}
             PATCH_COMMAND "${TBB_PATCH_STEP}"
-            CONFIGURE_COMMAND ""
-	    BUILD_COMMAND make ${QUIET_MAKE} CXXFLAGS=${TBB_CXXFLAGS} lambdas=1 compiler=${TBB_COMPILER} cfg=release tbb_build_prefix=LIBS
-            INSTALL_COMMAND sh -c "mkdir -p ${TBB_INSTALL_DIR}/include && mkdir -p ${TBB_INSTALL_DIR}/lib && cp ${TBB_SOURCE_DIR}/build/LIBS_release/*.${SHARED_LIB_EXTENSION}* ${TBB_INSTALL_DIR}/lib && cp -r ${TBB_SOURCE_DIR}/include/* ${TBB_INSTALL_DIR}/include"
+	    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release
             BUILD_IN_SOURCE TRUE
-	    #LOG_DOWNLOAD TRUE
-	    #LOG_BUILD TRUE
-	    #LOG_INSTALL TRUE
-	    #LOG_DIR ${GAT_SOURCE_DIR}/external/log
             )
 
     set(RECONFIG_FLAGS ${RECONFIG_FLAGS} -DTBB_WILL_RECONFIGURE=FALSE -DTBB_RECONFIGURE=TRUE)
@@ -274,6 +268,11 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
             )
 	
     set(FETCHED_TBB TRUE)
+    add_custom_target(libtbb_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libtbb_rescan)
+
+else()
+    set(TBB_TARGET_EXISTED TRUE)
+    add_custom_target(libtbb_rescan)
 endif()
 
 
