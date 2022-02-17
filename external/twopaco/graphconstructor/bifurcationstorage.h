@@ -2,9 +2,11 @@
 #define _BIFURCATION_STORAGE_H_
 
 #include "common.h"
+
+
 #include "compressedstring.h"
 
-#include <oneapi/tbb/task_arena.h>
+#include "oneapi/tbb/task_arena.h"
 
 
 namespace TwoPaCo
@@ -71,6 +73,7 @@ namespace TwoPaCo
 			    oneapi::tbb::parallel_sort(this->bifurcationKey_.begin(), this->bifurcationKey_.end(), DnaString::Less);
       });
 		}
+
 
 		int64_t GetId(std::string::const_iterator pos) const
 		{

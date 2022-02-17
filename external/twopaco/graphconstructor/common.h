@@ -11,7 +11,7 @@
 #include <functional>
 
 #include <dnachar.h>
-#include <oneapi/tbb/concurrent_queue.h>
+#include "oneapi/tbb/concurrent_queue.h"
 
 namespace TwoPaCo
 {

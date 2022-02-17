@@ -8,14 +8,14 @@
 #include <numeric>
 #include <sstream>
 #include <unordered_map>
+#include <mutex>
 
-#include <tbb/tbb.h>
-#include <oneapi/tbb/mutex.h>
-#include <oneapi/tbb/spin_rw_mutex.h>
-#include <oneapi/tbb/blocked_range.h>
-#include <oneapi/tbb/parallel_sort.h>
-#include <oneapi/tbb/parallel_reduce.h>
-#include <oneapi/tbb/concurrent_unordered_set.h>
+#include "tbb/tbb.h"
+#include "oneapi/tbb/spin_rw_mutex.h"
+#include "oneapi/tbb/blocked_range.h"
+#include "oneapi/tbb/parallel_sort.h"
+#include "oneapi/tbb/parallel_reduce.h"
+#include "oneapi/tbb/concurrent_unordered_set.h"
 
 #include "junctionapi/junctionapi.h"
 
@@ -78,6 +78,7 @@ namespace TwoPaCo
 		{
 		public:
 			uint64_t operator()(const DnaString & dnaString) const
+
 			{
 				return dnaString.Hash();
 			}
@@ -149,6 +150,7 @@ namespace TwoPaCo
 			for (const std::string & fn : fileName)
 			{
 				logStream << fn << std::endl;
+
 			}
 #ifdef LOGGING
 			std::ofstream logFile((tmpDirName + "/log.txt").c_str());
@@ -220,6 +222,7 @@ namespace TwoPaCo
 			uint64_t high = realSize;
 			uint64_t lowBoundary = 0;
 			uint64_t totalFpCount = 0;
+
 			uint64_t verticesCount = 0;
 			std::ofstream bifurcationTempWrite((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
 			if (!bifurcationTempWrite)
@@ -291,6 +294,7 @@ namespace TwoPaCo
 					std::mutex maskStorageMutex;
 					std::ofstream maskStorage(CandidateMaskFileName(tmpDirName, round).c_str(), ios::binary);
 					if (!maskStorage)
+
 					{
 						throw std::runtime_error("Can't open a temporary file");
 					}
@@ -361,6 +365,7 @@ namespace TwoPaCo
 
 						workerThread[i].reset(new std::thread(worker));
 					}
+
 
 					DistributeTasks(fileName, vertexLength + 1, taskQueue, error, errorMutex, logFile, offset, offsetFill);
 					for (size_t i = 0; i < taskQueue.size(); i++)
@@ -433,6 +438,7 @@ namespace TwoPaCo
 						currentStubVertexMutex,
 						tmpDirName,
 						inMaskStorage,
+
 						inMaskStorageMutex,
 						error,
 						errorMutex);
@@ -504,6 +510,7 @@ namespace TwoPaCo
 		public:
 			InitialFilterFillerWorker(uint64_t binSize,
 				const VertexRollingHashSeed & hashFunction,
+
 				ConcurrentBitVector & filter,
 				size_t vertexLength,
 				TaskQueue & taskQueue,
@@ -575,6 +582,7 @@ namespace TwoPaCo
 		private:
 			uint64_t binSize;
 			const VertexRollingHashSeed & hashFunction;
+
 			ConcurrentBitVector & filter;
 			size_t vertexLength;
 			TaskQueue & taskQueue;
@@ -645,6 +653,7 @@ namespace TwoPaCo
 										{
 											++inCount;
 										}
+
 
 										if (nextCh == posExtend || IsOutgoingEdgeInBloomFilter(hash, bitVector, nextCh))
 										{
@@ -717,6 +726,7 @@ namespace TwoPaCo
 				std::ifstream & maskStorage,
 				std::mutex & maskStorageMutex,
 				std::unique_ptr<std::runtime_error> & error,
+
 				std::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
 				mutex(mutex), tmpDirectory(tmpDirectory), round(round), maskStorage(maskStorage), maskStorageMutex(maskStorageMutex), error(error), errorMutex(errorMutex)
 			{
@@ -789,6 +799,7 @@ namespace TwoPaCo
 									}
 								}
 
+
 								if (pos + edgeLength < task.str.size())
 								{
 									char posPrev = task.str[pos];
@@ -859,6 +870,7 @@ namespace TwoPaCo
 				std::vector<std::ifstream*> & inMaskStorage,
 				std::mutex & inMaskStorageMutex,
 				std::unique_ptr<std::runtime_error> & error,
+
 				std::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
 				writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
 				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), 
