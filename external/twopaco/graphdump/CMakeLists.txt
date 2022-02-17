@@ -5,6 +5,7 @@ set(CMAKE_PROJECT_NAME graphdump)
 
 if(${TBB_FOUND})
   get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  message("in pufferfish::twopaco::graphdump, TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
 endif()
 
 include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIRS} "../common" "./" )
