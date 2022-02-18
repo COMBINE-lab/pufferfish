@@ -120,6 +120,9 @@ add_dependencies(pufferfish libtbb)
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
+  TBB::tbb
+  TBB::tbbmalloc
+  TBB::tbbmalloc_proxy
     ksw2pp
     puffer 
     Threads::Threads 
