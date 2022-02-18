@@ -91,7 +91,13 @@ target_compile_options(puffer PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
 if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()
+if (FETCHED_TBB)
 add_dependencies(puffer libtbb)
+else()
+add_dependencies(puffer TBB::tbb)
+add_dependencies(puffer TBB::tbbmalloc)
+add_dependencies(puffer TBB::tbbmalloc_proxy)
+endif()
 #set_target_properties(puffer PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
 
 
@@ -103,7 +109,15 @@ message("Building extra components")
 add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
+
+if (FETCHED_TBB)
 add_dependencies(pufferfish libtbb)
+else()
+add_dependencies(pufferfish TBB::tbb)
+add_dependencies(pufferfish TBB::tbbmalloc)
+add_dependencies(pufferfish TBB::tbbmalloc_proxy)
+endif()
+
 
 
 #if (BUILD_PUFF_FOR_SALMON)
@@ -120,7 +134,6 @@ add_dependencies(pufferfish libtbb)
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
-  ${TBB_LIBRARIES}
     ksw2pp
     puffer 
     Threads::Threads 
@@ -131,13 +144,12 @@ if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
     ${LIBRT} 
     ${ASAN_LIB} 
     ${JEMALLOC_LIBRARIES} 
-    ${TBB_LIBRARIES}
     #TBB::tbb
     #TBB::tbbmalloc
     #TBB::tbbmalloc_proxy
-    ${CMAKE_DL_LIBS} 
     ksw2pp
     puffer 
+    ${CMAKE_DL_LIBS} 
     ${TBB_LIBRARIES}
   )
 endif()

@@ -266,7 +266,7 @@ if(NOT ${TBB_TARGET_EXISTED})
             tar -xzvf v2021.5.tar.gz
             SOURCE_DIR ${TBB_SOURCE_DIR}
             INSTALL_DIR ${TBB_INSTALL_DIR}
-	          CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}
             BUILD_IN_SOURCE TRUE
             )
 
@@ -395,9 +395,9 @@ if(TBB_RECONFIGURE)
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
     find_package(TBB 2021.4 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
     set(TBB_LIBRARIES 
-		${TBB_INSTALL_DIR}/lib64/libtbbmalloc.${SHARED_LIB_EXTENSION}
-		${TBB_INSTALL_DIR}/lib64/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
-    ${TBB_INSTALL_DIR}/lib64/libtbb.${SHARED_LIB_EXTENSION}
+		${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
+		${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
+    ${TBB_INSTALL_DIR}/lib/libtbb.${SHARED_LIB_EXTENSION}
 	   )
 endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
@@ -419,7 +419,10 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r json <INSTALL_DIR>/include &&
                   cp -r htslib <INSTALL_DIR>/include
 )
+
+if (FETCHED_TBB)
 add_dependencies(libseqlib libtbb)
+endif()
 
 if(NOT LIBLZMA_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build liblzma)
@@ -447,7 +450,9 @@ ExternalProject_Add(libsetcover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
+if(FETCHED_TBB)
 add_dependencies(libsetcover libtbb)
+endif()
 
 endif() # end of NOT BUILD_PUFF_FOR_SALMON
 
@@ -462,7 +467,9 @@ if (NOT BUILD_PUFF_FOR_SALMON)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
 
   if (NOT TBB_TARGET_EXISTED)
-    add_dependencies(Async++ libtbb)
+    if (FETCHED_TBB)
+    add_dependencieos(Async++ libtbb)
+  endif()
   endif()
 
 endif()

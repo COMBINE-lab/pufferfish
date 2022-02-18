@@ -7,7 +7,7 @@ add_subdirectory(graphconstructor)
 include(CPack)
 
 if (${TBB_TARGET_EXISTED})
-add_dependencies(graphdump TBB:tbb)
+add_dependencies(graphdump TBB::tbb)
 add_dependencies(twopaco TBB::tbb)
 else ()
 message("adding externally-fetched tbb as dependency of twopaco")
