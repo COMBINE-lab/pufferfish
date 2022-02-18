@@ -101,6 +101,7 @@ endif()
 #set_target_properties(puffer PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
 
 
+
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
 
@@ -134,6 +135,9 @@ endif()
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
+    TBB::tbbmalloc
+    TBB::tbb
+    TBB::tbbmalloc_proxy
     ksw2pp
     puffer 
     Threads::Threads 
@@ -150,9 +154,6 @@ if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
     ksw2pp
     puffer 
     ${CMAKE_DL_LIBS} 
-    TBB::tbbmalloc
-    TBB::tbb
-    TBB::tbbmalloc_proxy
   )
 endif()
 
@@ -165,6 +166,7 @@ target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEAS
 #target_compile_options(edgedensity PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 #add_dependencies(edgedensity puffer)
 #
+
 #add_executable(edgedensity2 EdgeDensityCustom.cpp)
 #target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 #target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
@@ -197,6 +199,7 @@ target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover ${ASAN_LIB})
 
+
 add_dependencies(cedar libseqlib)
 add_dependencies(cedar libsetcover)
 #add_dependencies(ceder Async++)
@@ -228,7 +231,9 @@ target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
 
 #if (${TBB_TARGET_EXISTED})
 #target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
+
 #target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
+
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z ${ASAN_LIB})
 add_dependencies(filtersam libseqlib)
 #endif()
