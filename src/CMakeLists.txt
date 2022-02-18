@@ -120,6 +120,7 @@ add_dependencies(pufferfish libtbb)
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
+  ${TBB_LIBRARIES}
     ksw2pp
     puffer 
     Threads::Threads 
@@ -137,6 +138,7 @@ if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
     ${CMAKE_DL_LIBS} 
     ksw2pp
     puffer 
+    ${TBB_LIBRARIES}
   )
 endif()
 

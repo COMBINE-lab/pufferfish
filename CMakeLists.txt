@@ -396,7 +396,7 @@ if(TBB_RECONFIGURE)
     find_package(TBB 2021.4 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
     set(TBB_LIBRARIES 
 		${TBB_INSTALL_DIR}/lib64/libtbbmalloc.${SHARED_LIB_EXTENSION}
-		#${TBB_INSTALL_DIR}/lib64/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
+		${TBB_INSTALL_DIR}/lib64/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
     ${TBB_INSTALL_DIR}/lib64/libtbb.${SHARED_LIB_EXTENSION}
 	   )
 endif()
