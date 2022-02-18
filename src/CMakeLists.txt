@@ -121,9 +121,9 @@ get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
     ${ASAN_LIB} 
     ${JEMALLOC_LIBRARIES} 
     #${TBB_LIBRARIES} 
-    tbb
-    tbbmalloc
-    tbbmalloc_proxy
+    ${TBB_INSTALL_DIR}/lib/libtbb.so
+    ${TBB_INSTALL_DIR}/lib/libtbbmalloc.so
+    ${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.so
     ${CMAKE_DL_LIBS} 
     puffer 
     twopaco 
