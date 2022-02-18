@@ -100,6 +100,8 @@ add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
 add_dependencies(pufferfish libtbb)
+get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
+message("\n\n\n***PUFF RELEASE FLAGS = ${pufferfish_compile_opts}***\n\n\n")
 
 #add_dependencies(pufferfish puffer)
 #add_dependencies(pufferfish ksw2pp)

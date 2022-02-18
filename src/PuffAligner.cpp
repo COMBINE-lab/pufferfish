@@ -404,7 +404,7 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
                                 refWindowLength, refSeqBuffer_);
 
         if (refSeqBuffer_.length() > 0) {
-          auto readWindow = readView.substr(0, firstMemStart_read).to_string();
+          auto readWindow = std::string(readView.substr(0, firstMemStart_read));
           std::reverse(readWindow.begin(), readWindow.end());
           SPDLOG_DEBUG(logger_,
                        "PRE:\nreadStartPosOnRef : {}\nrefWindowStart : {}",
