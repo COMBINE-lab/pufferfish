@@ -223,13 +223,9 @@ else()
 endif()
 
 ##
-
 #
-
-
 # Fetch and build Intel's Threading Building Blocks library.
 #
-
 ##
 if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
 
@@ -388,8 +384,6 @@ endif()
 #  to be run on the second configuration pass, where it should appropriately set the
 #  TBB_INSTALL_DIR variable.
 ##
-
-
 if(TBB_RECONFIGURE)
     unset(TBB_FOUND CACHE)
     unset(TBB_INSTALL_DIR CACHE)
@@ -402,8 +396,6 @@ if(TBB_RECONFIGURE)
     find_package(TBB 2021.4 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
 endif()
 message("TBB_LIBRARIES = ${TBB_LIBRARIES}")
-
-
 
 ExternalProject_Add(libseqlib
 GIT_REPOSITORY https://github.com/COMBINE-lab/SeqLib.git
@@ -422,6 +414,7 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r json <INSTALL_DIR>/include &&
                   cp -r htslib <INSTALL_DIR>/include
 )
+add_custom_target(libseqlib_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libseqlib)
 
 if(NOT LIBLZMA_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build liblzma)
@@ -449,7 +442,7 @@ ExternalProject_Add(libSetCover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
-
+add_custom_target(libsetcover_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libSetCover)
 
 endif() # end of NOT BUILD_PUFF_FOR_SALMON
 
