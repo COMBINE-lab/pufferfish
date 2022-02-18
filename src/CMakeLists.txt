@@ -52,6 +52,8 @@ if(HAS_IPO)
   #set_property(TARGET ksw2pp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
 
+#set_target_properties(ksw2pp PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
+
 set(pufferfish_lib_srcs 
     PufferfishIndexer.cpp 
     PufferfishBaseIndex.cpp
@@ -90,6 +92,8 @@ if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()
 add_dependencies(puffer libtbb)
+#set_target_properties(puffer PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
+
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
@@ -100,36 +104,38 @@ add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
 add_dependencies(pufferfish libtbb)
-get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
+
 
 #if (BUILD_PUFF_FOR_SALMON)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
 
 
-  add_dependencies(pufferfish libtbb)
   add_dependencies(pufferfish puffer)
-  add_dependencies(pufferfish twopaco)
-  add_dependencies(pufferfish graphdump)
-  add_dependencies(pufferfish ntcard)
-  add_dependencies(pufferfish ksw2pp)
-if(${TBB_TARGET_EXISTED})
+  #add_dependencies(pufferfish twopaco)
+  #add_dependencies(pufferfish graphdump)
+  #add_dependencies(pufferfish ntcard)
+  #add_dependencies(pufferfish ksw2pp)
+if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
+    ksw2pp
+    puffer 
     Threads::Threads 
     z 
+    twopaco 
+    graphdump 
+    ntcard 
     ${LIBRT} 
     ${ASAN_LIB} 
     ${JEMALLOC_LIBRARIES} 
+    #${TBB_LIBRARIES}
     TBB::tbb
     TBB::tbbmalloc
     TBB::tbbmalloc_proxy
     ${CMAKE_DL_LIBS} 
-    puffer 
-    twopaco 
-    graphdump 
-    ntcard 
     ksw2pp
+    puffer 
   )
 endif()
 
