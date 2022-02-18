@@ -108,7 +108,7 @@ add_dependencies(pufferfish ksw2pp)
 #endif()
 
 if(TBB_TARGET_EXISTED)
-  target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ksw2pp ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS} TBB::tbb TBB::tbbmalloc TBB::tbbmalloc_proxy)
+  target_link_libraries(pufferfish Threads::Threads z twopaco graphdump ntcard ksw2pp ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS} TBB::tbb TBB::tbbmalloc TBB::tbbmalloc_proxy puffer)
 endif()
 
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
