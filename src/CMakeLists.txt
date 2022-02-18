@@ -112,6 +112,7 @@ add_dependencies(pufferfish libtbb)
 
 
   add_dependencies(pufferfish puffer)
+  add_dependencies(pufferfish ksw2pp) 
   #add_dependencies(pufferfish twopaco)
   #add_dependencies(pufferfish graphdump)
   #add_dependencies(pufferfish ntcard)
