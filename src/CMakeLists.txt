@@ -101,10 +101,6 @@ target_compile_options(pufferfish PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
 add_dependencies(pufferfish libtbb)
 get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
-message("\n\n\n***PUFF RELEASE FLAGS = ${pufferfish_compile_opts}***\n\n\n")
-
-#add_dependencies(pufferfish puffer)
-#add_dependencies(pufferfish ksw2pp)
 
 #if (BUILD_PUFF_FOR_SALMON)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
@@ -117,6 +113,7 @@ message("\n\n\n***PUFF RELEASE FLAGS = ${pufferfish_compile_opts}***\n\n\n")
   #add_dependencies(pufferfish graphdump)
   #add_dependencies(pufferfish ntcard)
   #add_dependencies(pufferfish ksw2pp)
+  message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish Threads::Threads z ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS} ${TBB_LIBRARIES} puffer twopaco graphdump ntcard ksw2pp)
 #endif()
 
