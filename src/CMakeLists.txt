@@ -106,13 +106,14 @@ get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
 
-#if(${TBB_TARGET_EXISTED})
+
   add_dependencies(pufferfish libtbb)
   #add_dependencies(pufferfish puffer)
   #add_dependencies(pufferfish twopaco)
   #add_dependencies(pufferfish graphdump)
   #add_dependencies(pufferfish ntcard)
   #add_dependencies(pufferfish ksw2pp)
+if(${TBB_TARGET_EXISTED})
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
     Threads::Threads 
@@ -120,7 +121,9 @@ get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
     ${LIBRT} 
     ${ASAN_LIB} 
     ${JEMALLOC_LIBRARIES} 
-    ${TBB_LIBRARIES} 
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
     ${CMAKE_DL_LIBS} 
     puffer 
     twopaco 
@@ -128,7 +131,7 @@ get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
     ntcard 
     ksw2pp
   )
-#endif()
+endif()
 
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
