@@ -23,3 +23,7 @@ target_compile_options(ntcard PRIVATE -O3)
 
 install(TARGETS ntcard DESTINATION lib EXPORT ntcard-targets)
 install(EXPORT ntcard-targets DESTINATION lib/ntcard)
+
+if (NOT TBB_TARGET_EXISTED)
+  add_dependencies(ntcard libtbb)
+endif()

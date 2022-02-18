@@ -68,14 +68,13 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # We require C++14
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #SET(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -static-libgcc -static-libstdc++")
 #set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
-set(CXXSTDFLAG "-std=c++17")
+set(CXXSTDFLAG "-std=c++14")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-
 
 find_package(Threads REQUIRED)
 
@@ -278,10 +277,10 @@ if(NOT ${TBB_TARGET_EXISTED})
     DEPENDEES install 
     )
     set(FETCHED_TBB TRUE)
-    ExternalProject_Add_StepTargets(libtbb install)
+    #ExternalProject_Add_StepTargets(libtbb install)
     #add_custom_target(libtbb_rescan DEPENDS libtbb)
-    message("CMAKE_COMMAND = ${CMAKE_COMMAND}")
-    message("added dependency libtbb_rescan <- libtbb")
+    #message("CMAKE_COMMAND = ${CMAKE_COMMAND}")
+    #message("added dependency libtbb_rescan <- libtbb")
 else()
     set(TBB_ROOT_SEARCH ${CMAKE_SOURCE_DIR}/external/install)
     add_custom_target(libtbb_rescan)
@@ -416,7 +415,7 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r json <INSTALL_DIR>/include &&
                   cp -r htslib <INSTALL_DIR>/include
 )
-add_dependencies(libseqlib libtbb-install)
+add_dependencies(libseqlib libtbb)
 
 if(NOT LIBLZMA_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build liblzma)
@@ -444,7 +443,7 @@ ExternalProject_Add(libsetcover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
-add_dependencies(libsetcover libtbb-install)
+add_dependencies(libsetcover libtbb)
 
 endif() # end of NOT BUILD_PUFF_FOR_SALMON
 
@@ -457,6 +456,11 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
 
 if (NOT BUILD_PUFF_FOR_SALMON) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
+
+  if (NOT TBB_TARGET_EXISTED)
+    add_dependencies(Async++ libtbb)
+  endif()
+
 endif()
 
 include(CPack)
