@@ -113,10 +113,10 @@ add_dependencies(pufferfish libtbb)
 
   add_dependencies(pufferfish puffer)
   add_dependencies(pufferfish ksw2pp) 
-  #add_dependencies(pufferfish twopaco)
-  #add_dependencies(pufferfish graphdump)
-  #add_dependencies(pufferfish ntcard)
-  #add_dependencies(pufferfish ksw2pp)
+  add_dependencies(pufferfish twopaco)
+  add_dependencies(pufferfish graphdump)
+  add_dependencies(pufferfish ntcard)
+
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
