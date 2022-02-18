@@ -213,8 +213,9 @@ find_package(TBB 2021.4
 
 if (${TBB_FOUND})
   if (${TBB_VERSION} VERSION_GREATER_EQUAL 2021.4)
-  message("FOUND SUITABLE TBB VERSION : ${TBB_VERSION}")
-  set(TBB_TARGET_EXISTED TRUE)
+    message("FOUND SUITABLE TBB VERSION : ${TBB_VERSION}")
+    set(TBB_TARGET_EXISTED TRUE)
+    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
   else()
     set(TBB_TARGET_EXISTED FALSE)
   endif()
@@ -227,7 +228,7 @@ endif()
 # Fetch and build Intel's Threading Building Blocks library.
 #
 ##
-if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
+if(NOT ${TBB_TARGET_EXISTED})
 
     set(TBB_WILL_RECONFIGURE TRUE)
     # Set the appropriate compiler
@@ -267,21 +268,23 @@ if((NOT TBB_FOUND) OR (TBB_FOUND AND (TBB_VERSION VERSION_LESS 2021.4)))
             tar -xzvf v2021.5.tar.gz
             SOURCE_DIR ${TBB_SOURCE_DIR}
             INSTALL_DIR ${TBB_INSTALL_DIR}
-            PATCH_COMMAND "${TBB_PATCH_STEP}"
-	    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release
+	          CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release
             BUILD_IN_SOURCE TRUE
+            INSTALL_COMMAND make install
             )
 
     set(RECONFIG_FLAGS ${RECONFIG_FLAGS} -DTBB_WILL_RECONFIGURE=FALSE -DTBB_RECONFIGURE=TRUE)
     ExternalProject_Add_Step(libtbb reconfigure
-            COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR} ${RECONFIG_FLAGS}
-            DEPENDEES install
-            )
-	
+    COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR} ${RECONFIG_FLAGS}
+    DEPENDEES install 
+    )
     set(FETCHED_TBB TRUE)
-    add_custom_target(libtbb_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libtbb)
-
+    #ExternalProject_Add_StepTargets(libtbb install reconfigure)
+    add_custom_target(libtbb_rescan DEPENDS libtbb)
+    message("CMAKE_COMMAND = ${CMAKE_COMMAND}")
+    message("added dependency libtbb_rescan <- libtbb")
 else()
+    set(TBB_ROOT_SEARCH ${CMAKE_SOURCE_DIR}/external/install)
     add_custom_target(libtbb_rescan)
 endif()
 
@@ -414,7 +417,7 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r json <INSTALL_DIR>/include &&
                   cp -r htslib <INSTALL_DIR>/include
 )
-add_custom_target(libseqlib_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libseqlib)
+add_custom_target(libseqlib_rescan COMMAND ${CMAKE_COMMAND} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} DEPENDS libseqlib)
 
 if(NOT LIBLZMA_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build liblzma)
@@ -442,7 +445,7 @@ ExternalProject_Add(libSetCover
         cp SetElement.h <INSTALL_DIR>/include &&
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
-add_custom_target(libsetcover_rescan ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS libSetCover)
+add_custom_target(libsetcover_rescan COMMAND ${CMAKE_COMMAND} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} DEPENDS libSetCover)
 
 endif() # end of NOT BUILD_PUFF_FOR_SALMON
 
