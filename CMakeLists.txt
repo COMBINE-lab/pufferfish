@@ -468,7 +468,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
 
   if (NOT TBB_TARGET_EXISTED)
     if (FETCHED_TBB)
-    add_dependencieos(Async++ libtbb)
+    add_dependencies(Async++ libtbb)
   endif()
   endif()
 
