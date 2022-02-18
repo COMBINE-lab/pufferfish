@@ -21,4 +21,4 @@ set(CPACK_PACKAGE_VERSION_MAJOR "0")
 set(CPACK_PACKAGE_VERSION_MINOR "9")
 set(CPACK_PACKAGE_VERSION_PATCH "3")
 
-add_dependencies(graphdump libtbb)
+add_dependencies(graphdump libtbb-install)

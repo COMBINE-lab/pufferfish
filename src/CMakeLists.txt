@@ -63,12 +63,11 @@ set(pufferfish_lib_srcs
 		rank9sel.cpp
     rank9b.cpp
     PufferfishValidate.cpp
-	PufferfishStats.cpp
+	  PufferfishStats.cpp
     PufferfishTestLookup.cpp 
     PufferfishExamine.cpp
     FastxParser.cpp 
-#    PufferfishGFAReader.cpp
-	PufferfishBinaryGFAReader.cpp
+	  PufferfishBinaryGFAReader.cpp
     PufferFS.cpp
     xxhash.c
     FixFasta.cpp
@@ -101,6 +100,7 @@ add_executable(pufferfish Pufferfish.cpp)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
 target_compile_options(pufferfish PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
 add_dependencies(pufferfish libtbb)
+
 #add_dependencies(pufferfish puffer)
 #add_dependencies(pufferfish ksw2pp)
 
@@ -139,7 +139,7 @@ target_include_directories(filtersam PRIVATE
     )
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-add_dependencies(filtersam libseqlib_rescan)
+add_dependencies(filtersam libseqlib)
 #add_dependencies(filtersam puffer)
 
 #add_executable(krakmap KrakMap.cpp cedar/Taxa.cpp)
@@ -159,8 +159,8 @@ target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover ${ASAN_LIB})
 
-add_dependencies(cedar libseqlib_rescan)
-add_dependencies(cedar libsetcover_rescan)
+add_dependencies(cedar libseqlib)
+add_dependencies(cedar libsetcover)
 #add_dependencies(ceder Async++)
 #add_dependencies(ceder seqlib)
 
@@ -192,7 +192,7 @@ target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
 #target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
 #target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z ${ASAN_LIB})
-add_dependencies(filtersam libseqlib_rescan)
+add_dependencies(filtersam libseqlib)
 #endif()
 
 
