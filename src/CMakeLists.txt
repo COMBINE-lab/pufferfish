@@ -150,7 +150,9 @@ if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
     ksw2pp
     puffer 
     ${CMAKE_DL_LIBS} 
-    ${TBB_LIBRARIES}
+    TBB::tbbmalloc
+    TBB::tbb
+    TBB::tbbmalloc_proxy
   )
 endif()
 
