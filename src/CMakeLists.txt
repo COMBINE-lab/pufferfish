@@ -100,11 +100,13 @@ if (BUILD_PUFF_FOR_SALMON)
 endif()
 
 
+if(TBB_TARGET_EXISTED)
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 target_compile_options(puffer PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(puffer PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
+endif()
 endif()
 
 
