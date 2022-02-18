@@ -114,7 +114,20 @@ get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
   #add_dependencies(pufferfish ntcard)
   #add_dependencies(pufferfish ksw2pp)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
-  target_link_libraries(pufferfish Threads::Threads z ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS} puffer twopaco graphdump ntcard ksw2pp)
+  target_link_libraries(pufferfish 
+    Threads::Threads 
+    z 
+    ${LIBRT} 
+    ${ASAN_LIB} 
+    ${JEMALLOC_LIBRARIES} 
+    ${TBB_LIBRARIES} 
+    ${CMAKE_DL_LIBS} 
+    puffer 
+    twopaco 
+    graphdump 
+    ntcard 
+    ksw2pp
+  )
 #endif()
 
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
