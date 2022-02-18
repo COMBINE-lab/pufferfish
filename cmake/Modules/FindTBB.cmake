@@ -86,5 +86,4 @@ list(REMOVE_DUPLICATES TBB_IMPORTED_TARGETS)
 
 find_package_handle_standard_args(TBB
                                   REQUIRED_VARS TBB_IMPORTED_TARGETS
-
                                   HANDLE_COMPONENTS)
