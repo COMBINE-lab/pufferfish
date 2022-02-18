@@ -17,3 +17,5 @@ install(EXPORT twopaco-targets DESTINATION lib/twopaco)
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
 set(CPACK_PACKAGE_VERSION_MINOR "9")
 set(CPACK_PACKAGE_VERSION_PATCH "3")
+
+add_dependencies(twopaco libtbb_rescan)
