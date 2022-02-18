@@ -120,7 +120,10 @@ get_target_property(pufferfish_compile_opts pufferfish COMPILE_OPTIONS)
     ${LIBRT} 
     ${ASAN_LIB} 
     ${JEMALLOC_LIBRARIES} 
-    ${TBB_LIBRARIES} 
+    #${TBB_LIBRARIES} 
+    tbb
+    tbbmalloc
+    tbbmalloc_proxy
     ${CMAKE_DL_LIBS} 
     puffer 
     twopaco 
