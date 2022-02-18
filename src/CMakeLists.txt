@@ -46,7 +46,7 @@ set_target_properties(ksw2pp_sse4 PROPERTIES INCLUDE_DIRECTORIES ${PROJECT_SOURC
 set_target_properties(ksw2pp_sse2 PROPERTIES INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include) 
 
 # Build the ksw2pp library
-add_library(ksw2pp STATIC "$<TARGET_OBJECTS:ksw2pp_sse2>" "$<TARGET_OBJECTS:ksw2pp_sse4>" "$<TARGET_OBJECTS:ksw2pp_basic>")
+add_library(ksw2pp STATIC $<TARGET_OBJECTS:ksw2pp_sse2> $<TARGET_OBJECTS:ksw2pp_sse4> $<TARGET_OBJECTS:ksw2pp_basic>)
 set_target_properties(ksw2pp PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
 if(HAS_IPO)
   #set_property(TARGET ksw2pp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
@@ -89,6 +89,7 @@ target_compile_options(puffer PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>
 if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()
+add_dependencies(puffer ksw2pp)
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
