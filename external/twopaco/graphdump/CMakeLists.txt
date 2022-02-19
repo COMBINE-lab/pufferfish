@@ -23,4 +23,8 @@ set(CPACK_PACKAGE_VERSION_PATCH "3")
 
 if (FETCHED_TBB)
 add_dependencies(graphdump libtbb)
+else()
+add_dependencies(graphdump TBB::tbb)
+add_dependencies(graphdump TBB::tbbmalloc)
+add_dependencies(graphdump TBB::tbbmalloc_proxy)
 endif()
