@@ -1,6 +1,6 @@
  pipeline:
   setup:
-   image: hbb:salmon_build
+   image: hbb:salmon_build_new
    commands:
     - echo "Starting build"
     - ./.drone/build.sh
