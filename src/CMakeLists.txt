@@ -134,7 +134,7 @@ endif()
 
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   get_target_property(TBB_SOURCE_DIR TBB::tbb SOURCE_DIR)
-  link_directories(${TBB_SOURCE_DIR})
+  link_directories(${TBB_SOURCE_DIR}/external/install/lib64)
   message("for building pufferfish; TBB_SOURCE_DIR = ${TBB_SOURCE_DIR}")
 
   target_link_libraries(pufferfish 
