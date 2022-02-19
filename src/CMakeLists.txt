@@ -135,9 +135,6 @@ endif()
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
   target_link_libraries(pufferfish 
-    TBB::tbbmalloc
-    TBB::tbb
-    TBB::tbbmalloc_proxy
     ksw2pp
     puffer 
     Threads::Threads 
@@ -154,6 +151,9 @@ if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
     ksw2pp
     puffer 
     ${CMAKE_DL_LIBS} 
+    TBB::tbbmalloc
+    TBB::tbb
+    TBB::tbbmalloc_proxy
   )
 endif()
 
