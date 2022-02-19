@@ -97,7 +97,7 @@ add_dependencies(puffer libtbb)
 else()
 add_dependencies(puffer TBB::tbb)
 add_dependencies(puffer TBB::tbbmalloc)
-add_dependencies(puffer TBB::tbbmalloc_proxy)
+#add_dependencies(puffer TBB::tbbmalloc_proxy)
 endif()
 #set_target_properties(puffer PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
 
@@ -117,7 +117,7 @@ add_dependencies(pufferfish libtbb)
 else()
 add_dependencies(pufferfish TBB::tbb)
 add_dependencies(pufferfish TBB::tbbmalloc)
-add_dependencies(pufferfish TBB::tbbmalloc_proxy)
+#add_dependencies(pufferfish TBB::tbbmalloc_proxy)
 endif()
 
 

@@ -377,8 +377,7 @@ if(TBB_WILL_RECONFIGURE)
     #set(TBB_LIBRARIES tbb tbbmalloc)
     set(TBB_LIBRARIES ${TBB_INSTALL_DIR}/lib/libtbb.${SHARED_LIB_EXTENSION}
 		${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
-
-		${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
+		#${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
 	   )
     message("TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
     message("TBB_LIBRARY_DIRS = ${TBB_LIBRARY_DIRS}")
