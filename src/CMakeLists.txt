@@ -133,7 +133,10 @@ endif()
   add_dependencies(pufferfish ntcard)
 
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
-  message("for building pufferfish TBB_LIBRARIES = ${TBB_LIBRARIES}")
+  get_target_property(TBB_SOURCE_DIR TBB::tbb SOURCE_DIR)
+  link_directories(${TBB_SOURCE_DIR})
+  message("for building pufferfish; TBB_SOURCE_DIR = ${TBB_SOURCE_DIR}")
+
   target_link_libraries(pufferfish 
     ksw2pp
     puffer 
@@ -151,9 +154,9 @@ if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
     ksw2pp
     puffer 
     ${CMAKE_DL_LIBS} 
-    TBB::tbb
-    TBB::tbbmalloc
-    TBB::tbbmalloc_proxy
+    tbb # TBB::tbb
+    tbbmalloc # TBB::tbbmalloc
+    tbbmalloc_proxy #TBB::tbbmalloc_proxy
   )
 endif()
 
