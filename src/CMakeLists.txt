@@ -4,6 +4,7 @@ check_ipo_supported(RESULT HAS_IPO)
 
 link_directories(
 		${GAT_SOURCE_DIR}/external/install/lib
+    ${GAT_SOURCE_DIR}/external/install/lib64
 #		${TBB_LIBRARIES}
 )
 
@@ -133,10 +134,6 @@ endif()
   add_dependencies(pufferfish ntcard)
 
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
-  get_target_property(TBB_SOURCE_DIR TBB::tbb SOURCE_DIR)
-  link_directories(${TBB_SOURCE_DIR}/external/install/lib64)
-  message("for building pufferfish; TBB_SOURCE_DIR = ${TBB_SOURCE_DIR}")
-
   target_link_libraries(pufferfish 
     ksw2pp
     puffer 
