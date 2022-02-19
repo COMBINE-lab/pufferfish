@@ -266,7 +266,7 @@ if(NOT ${TBB_TARGET_EXISTED})
             tar -xzvf v2021.5.tar.gz
             SOURCE_DIR ${TBB_SOURCE_DIR}
             INSTALL_DIR ${TBB_INSTALL_DIR}
-            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=14
+            CMAKE_ARGS -DTBB_ENABLE_IPO=OFF -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=14
             BUILD_IN_SOURCE TRUE
             )
 
@@ -331,7 +331,11 @@ find_package(BZip2)
 if(NOT BZIP2_FOUND)
   message("Will attempt to fetch and build libbz2")
   message("=======================================")
+
+
+
 externalproject_add(libbz2
+
   DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
   DOWNLOAD_COMMAND curl -k -L https://sourceware.org/pub/bzip2/bzip2-1.0.6.tar.gz -o bzip2-1.0.6.tar.gz &&
     ${SHASUM} a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd bzip2-1.0.6.tar.gz &&
@@ -369,9 +373,11 @@ if(TBB_WILL_RECONFIGURE)
     set(TBB_INCLUDE_DIR ${TBB_INSTALL_DIR}/include)
     set(TBB_LIBRARY_DIRS ${TBB_INSTALL_DIR}/lib)
     set(TBB_LIB_DIR ${TBB_INSTALL_DIR}/lib)
+
     #set(TBB_LIBRARIES tbb tbbmalloc)
     set(TBB_LIBRARIES ${TBB_INSTALL_DIR}/lib/libtbb.${SHARED_LIB_EXTENSION}
 		${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
+
 		${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
 	   )
     message("TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
@@ -428,6 +434,7 @@ if(NOT LIBLZMA_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build liblzma)
 endif()
 
+
 if(NOT BZIP2_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build bz2)
 endif()
@@ -448,6 +455,7 @@ ExternalProject_Add(libsetcover
         cp libSetCover.a <INSTALL_DIR>/lib &&
         cp SetCover.h <INSTALL_DIR>/include &&
         cp SetElement.h <INSTALL_DIR>/include &&
+
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
 if(FETCHED_TBB)

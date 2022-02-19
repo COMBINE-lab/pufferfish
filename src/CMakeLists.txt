@@ -178,6 +178,7 @@ target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAG
 add_dependencies(filtersam libseqlib)
 #add_dependencies(filtersam puffer)
 
+
 #add_executable(krakmap KrakMap.cpp cedar/Taxa.cpp)
 #target_compile_options(krakmap PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 #target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
@@ -198,7 +199,9 @@ target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma 
 
 add_dependencies(cedar libseqlib)
 add_dependencies(cedar libsetcover)
+
 #add_dependencies(ceder Async++)
+
 #add_dependencies(ceder seqlib)
 
 #get_target_property(dirs filtersam INCLUDE_DIRECTORIES)
