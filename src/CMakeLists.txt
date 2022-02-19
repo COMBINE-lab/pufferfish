@@ -136,24 +136,39 @@ endif()
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   target_link_libraries(pufferfish 
     ksw2pp
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
     puffer 
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
     Threads::Threads 
     z 
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
     twopaco 
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
     graphdump 
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
     ntcard 
     ${LIBRT} 
     ${ASAN_LIB} 
     ${JEMALLOC_LIBRARIES} 
-    #TBB::tbb
-    #TBB::tbbmalloc
-    #TBB::tbbmalloc_proxy
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
     ksw2pp
     puffer 
     ${CMAKE_DL_LIBS} 
-    tbb # TBB::tbb
-    tbbmalloc # TBB::tbbmalloc
-    tbbmalloc_proxy #TBB::tbbmalloc_proxy
+    TBB::tbb
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
   )
 endif()
 
