@@ -3,11 +3,6 @@ cmake_minimum_required(VERSION 3.9)
 
 set(CMAKE_PROJECT_NAME twopaco)
 
-#if(${TBB_TARGET_EXISTED})
-#  get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
-#  message("in pufferfish::twopaco::graphconstructor, TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
-#endif()
-
 include_directories(${twopaco_SOURCE_DIR} ${TBB_INCLUDE_DIRS} "../common")
 
 add_library(twopaco STATIC ../common/dnachar.cpp constructor.cpp concurrentbitvector.cpp compressedstring.cpp ../common/streamfastaparser.cpp test.cpp vertexenumerator.cpp ../common/spooky/SpookyV2.cpp common.cpp)
@@ -23,5 +18,4 @@ add_dependencies(graphdump libtbb)
 else()
 add_dependencies(graphdump TBB::tbb)
 add_dependencies(graphdump TBB::tbbmalloc)
-#add_dependencies(graphdump TBB::tbbmalloc_proxy)
 endif()

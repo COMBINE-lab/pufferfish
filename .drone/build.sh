@@ -5,6 +5,9 @@ source /hbb_shlib/activate
 
 set -x
 
+export CFLAGS="-g -O2 -I/hbb_shlib/include"
+export CXXFLAGS="-g -O2 -I/hbb_shlib/include"
+
 CPATH=`pwd`
 echo "[Drone build] current path : ${CPATH}"
 echo "[Drone build] making build directory"

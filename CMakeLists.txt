@@ -233,15 +233,12 @@ if(NOT ${TBB_TARGET_EXISTED})
     if(CLANG)
         set(TBB_COMPILER "clang")
     else()
-
         set(TBB_COMPILER "gcc")
     endif()
 
     message("Build system will fetch and build Intel Threading Building Blocks")
-
-
-
     message("==================================================================")
+
     # These are useful for the custom install step we'll do later
     set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/oneTBB-2021.5.0)
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
@@ -254,7 +251,7 @@ if(NOT ${TBB_TARGET_EXISTED})
     if("${TBB_COMPILER}" STREQUAL "gcc")
         ## Don't know why it's a problem yet, but if we're using
         ## GCC, get rid of the DO_ITT_NOTIFY flag
-        set(TBB_CXXFLAGS "${TBB_CXXFLAGS} -UDO_ITT_NOTIFY")
+        # set(TBB_CXXFLAGS "${TBB_CXXFLAGS} -UDO_ITT_NOTIFY")
     endif()
 
     set(TBB_CXXFLAGS "${TBB_CXXFLAGS} ${CXXSTDFLAG}")
@@ -266,7 +263,7 @@ if(NOT ${TBB_TARGET_EXISTED})
             tar -xzvf v2021.5.tar.gz
             SOURCE_DIR ${TBB_SOURCE_DIR}
             INSTALL_DIR ${TBB_INSTALL_DIR}
-            CMAKE_ARGS -DCMAKE_CXX_FLAGS="-UDO_ITT_NOTIFY" -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=14
+            CMAKE_ARGS -DCMAKE_CXX_FLAGS=${TBB_CXXFLAGS} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=14
             BUILD_IN_SOURCE TRUE
             )
 
@@ -276,16 +273,8 @@ if(NOT ${TBB_TARGET_EXISTED})
     DEPENDEES install 
     )
     set(FETCHED_TBB TRUE)
-    #ExternalProject_Add_StepTargets(libtbb install)
-    #add_custom_target(libtbb_rescan DEPENDS libtbb)
-    #message("CMAKE_COMMAND = ${CMAKE_COMMAND}")
-    #message("added dependency libtbb_rescan <- libtbb")
-else()
-    set(TBB_ROOT_SEARCH ${CMAKE_SOURCE_DIR}/external/install)
-    add_custom_target(libtbb_rescan)
+    set(TBB_ROOT_SEARCH ${CMAKE_SOURCE_DIR}/external/install)    
 endif()
-
-
 
 find_package(LibLZMA)
 if(NOT LIBLZMA_FOUND)
@@ -295,13 +284,9 @@ if(NOT LIBLZMA_FOUND)
   message("=======================================")
   externalproject_add(liblzma
   DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
-  ##
   DOWNLOAD_COMMAND wget http://tukaani.org/xz/xz-5.2.2.tar.gz -o xz-5.2.2.tar.gz &&
     ${SHASUM} 73df4d5d34f0468bd57d09f2d8af363e95ed6cc3a4a86129d2f2c366259902a2 xz-5.2.2.tar.gz &&
     tar -xzvf xz-5.2.2.tar.gz
-  #URL http://tukaani.org/xz/xz-5.2.2.tar.gz
-  #URL_HASH SHA1=14663612422ab61386673be78fbb2556f50a1f08
-  ##
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2
 
   INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
@@ -340,8 +325,6 @@ externalproject_add(libbz2
   DOWNLOAD_COMMAND curl -k -L https://sourceware.org/pub/bzip2/bzip2-1.0.6.tar.gz -o bzip2-1.0.6.tar.gz &&
     ${SHASUM} a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd bzip2-1.0.6.tar.gz &&
     tar -xzvf  bzip2-1.0.6.tar.gz
-  #URL http://www.bzip.org/1.0.6/bzip2-1.0.6.tar.gz
-  #URL_HASH SHA1=3f89f861209ce81a6bab1fd1998c0ef311712002
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/bzip2-1.0.6
   INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
   BUILD_IN_SOURCE TRUE
@@ -377,7 +360,7 @@ if(TBB_WILL_RECONFIGURE)
     #set(TBB_LIBRARIES tbb tbbmalloc)
     set(TBB_LIBRARIES ${TBB_INSTALL_DIR}/lib/libtbb.${SHARED_LIB_EXTENSION}
 		${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
-		#${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
+		${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}
 	   )
     message("TBB_INCLUDE_DIRS = ${TBB_INCLUDE_DIRS}")
     message("TBB_LIBRARY_DIRS = ${TBB_LIBRARY_DIRS}")
@@ -398,7 +381,12 @@ if(TBB_RECONFIGURE)
     set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
 
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
-    find_package(TBB 2021.4 COMPONENTS tbb tbbmalloc tbbmalloc_proxy)
+  
+    find_package(TBB 2021.4 
+      HINTS ${TBB_ROOT_SEARCH}
+      COMPONENTS tbb tbbmalloc tbbmalloc_proxy
+    )
+    
     set(TBB_LIBRARIES 
 		${TBB_INSTALL_DIR}/lib/libtbbmalloc.${SHARED_LIB_EXTENSION}
 		${TBB_INSTALL_DIR}/lib/libtbbmalloc_proxy.${SHARED_LIB_EXTENSION}

@@ -5,7 +5,6 @@ check_ipo_supported(RESULT HAS_IPO)
 link_directories(
 		${GAT_SOURCE_DIR}/external/install/lib
     ${GAT_SOURCE_DIR}/external/install/lib64
-#		${TBB_LIBRARIES}
 )
 
 set (KSW2PP_BASIC_LIB_SRCS
@@ -97,11 +96,7 @@ add_dependencies(puffer libtbb)
 else()
 add_dependencies(puffer TBB::tbb)
 add_dependencies(puffer TBB::tbbmalloc)
-#add_dependencies(puffer TBB::tbbmalloc_proxy)
 endif()
-#set_target_properties(puffer PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
-
-
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
@@ -117,7 +112,6 @@ add_dependencies(pufferfish libtbb)
 else()
 add_dependencies(pufferfish TBB::tbb)
 add_dependencies(pufferfish TBB::tbbmalloc)
-#add_dependencies(pufferfish TBB::tbbmalloc_proxy)
 endif()
 
 
@@ -127,11 +121,11 @@ endif()
 #endif()
 
 
-  add_dependencies(pufferfish puffer)
-  add_dependencies(pufferfish ksw2pp) 
-  add_dependencies(pufferfish twopaco)
-  add_dependencies(pufferfish graphdump)
-  add_dependencies(pufferfish ntcard)
+add_dependencies(pufferfish puffer)
+add_dependencies(pufferfish ksw2pp) 
+add_dependencies(pufferfish twopaco)
+add_dependencies(pufferfish graphdump)
+add_dependencies(pufferfish ntcard)
 
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
   target_link_libraries(pufferfish 
@@ -188,20 +182,13 @@ add_executable(cedar cedar/TargetGroup.cpp cedar/Cedar.cpp cedar/Taxa.cpp)
 target_include_directories(cedar PRIVATE
     ${GAT_SOURCE_DIR}/external/install/include
     ${GAT_SOURCE_DIR}/external/install/include/htslib
-
-	#${PROJECT_SOURCE_DIR}/include
-#    ${TBB_INCLUDE_DIRS}
 )
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover ${ASAN_LIB})
-
-
 add_dependencies(cedar libseqlib)
 add_dependencies(cedar libsetcover)
-
 #add_dependencies(ceder Async++)
-
 #add_dependencies(ceder seqlib)
 
 #get_target_property(dirs filtersam INCLUDE_DIRECTORIES)
@@ -230,9 +217,7 @@ target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
 
 #if (${TBB_TARGET_EXISTED})
 #target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
-
 #target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
-
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z ${ASAN_LIB})
 add_dependencies(filtersam libseqlib)
 #endif()
