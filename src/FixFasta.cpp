@@ -204,7 +204,6 @@ bool fixFasta(single_parser* parser,
         if (clipPolyA) {
           if (readStr.size() > polyAClipLength and
               readStr.substr(readStr.length() - polyAClipLength) == polyA) {
-
             auto newEndPos = readStr.find_last_not_of("Aa");
             // If it was all As
             if (newEndPos == std::string::npos) {
