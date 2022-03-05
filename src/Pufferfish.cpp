@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
                     (option("--keepDuplicates").set(indexOpt.keep_duplicates) % "Retain duplicate references in the input"),
                     (option("-d", "--decoys") & value("decoy_list", indexOpt.decoy_file)) %
                     "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
+                    (option("-n", "--noClip").set(indexOpt.noclip_polya)) % "Don't clip poly-A tails from the ends of target sequences",
                     (option("-f", "--filt-size") & value("filt_size", indexOpt.filt_size)) % "filter size to pass to TwoPaCo when building the reference dBG",
                     (option("--tmpdir") & value("twopaco_tmp_dir", indexOpt.twopaco_tmp_dir)) % "temporary work directory to pass to TwoPaCo when building the reference dBG",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",

@@ -12,7 +12,7 @@
 #include <unordered_map>
 
 #include <tclap/CmdLine.h>
-#include <tbb/parallel_sort.h>
+#include "oneapi/tbb/parallel_sort.h"
 
 #include <dnachar.h>
 #include <streamfastaparser.h>

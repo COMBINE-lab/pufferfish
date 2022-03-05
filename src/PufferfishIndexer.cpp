@@ -419,6 +419,9 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     if (indexOpts.expect_transcriptome) {
       args.push_back("--expectTranscriptome");
     }
+    if (indexOpts.noclip_polya) {
+      args.push_back("--noClip");
+    }
     args.push_back("--klen");
     args.push_back(std::to_string(k));
     args.push_back("--input");

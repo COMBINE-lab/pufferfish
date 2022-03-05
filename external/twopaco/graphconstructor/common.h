@@ -11,7 +11,7 @@
 #include <functional>
 
 #include <dnachar.h>
-#include <tbb/concurrent_queue.h>
+#include "oneapi/tbb/concurrent_queue.h"
 
 namespace TwoPaCo
 {
@@ -45,7 +45,7 @@ namespace TwoPaCo
 			seqId(seqId), start(start), piece(piece), offset(offset), isFinal(isFinal), str(std::move(str)) {}
 	};
 
-	typedef tbb::concurrent_bounded_queue<Task> TaskQueue;
+	typedef oneapi::tbb::concurrent_bounded_queue<Task> TaskQueue;
 	typedef std::unique_ptr<TaskQueue> TaskQueuePtr;
 }
 

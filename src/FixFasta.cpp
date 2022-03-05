@@ -33,7 +33,8 @@ bool fixFasta(single_parser* parser,
               // std::string& outputDir,
               spp::sparse_hash_set<std::string>& decoyNames,
               bool keepDuplicates, uint32_t k,
-              std::string& sepStr, bool expect_transcriptome, std::mutex& iomutex,
+              std::string& sepStr, bool expect_transcriptome, 
+              bool noclip_polya, std::mutex& iomutex,
               std::shared_ptr<spdlog::logger> log, std::string outFile,
               std::vector<uint32_t>& refIdExtensions,
               std::vector<std::pair<std::string, uint16_t>>& shortRefs) {
@@ -82,7 +83,7 @@ bool fixFasta(single_parser* parser,
   //using KmerBinT = uint64_t;
 
   bool haveDecoys = !decoyNames.empty();
-  bool clipPolyA = true;
+  bool clipPolyA = !(noclip_polya);
 
   struct DupInfo {
     uint64_t txId;
@@ -203,7 +204,6 @@ bool fixFasta(single_parser* parser,
         if (clipPolyA) {
           if (readStr.size() > polyAClipLength and
               readStr.substr(readStr.length() - polyAClipLength) == polyA) {
-
             auto newEndPos = readStr.find_last_not_of("Aa");
             // If it was all As
             if (newEndPos == std::string::npos) {
@@ -628,6 +628,7 @@ int fixFastaMain(std::vector<std::string>& args,
   bool keepDuplicates{false};
   bool printHelp{false};
   bool expect_transcriptome{false};
+  bool noclip_polya{false};
   std::string sepStr{" \t"};
 
   auto cli = (
@@ -640,6 +641,7 @@ int fixFastaMain(std::vector<std::string>& args,
               "the first separator (default = space & tab)",
               option("--expectTranscriptome").set(expect_transcriptome) % 
               "expect (non-decoy) sequences to be transcripts rather than genomic contigs",
+              option("--noClip", "-n").set(noclip_polya) % "Don't clip poly-A tails from the ends of target sequences",
               option("--decoys", "-d") & value("decoys", decoyFile) %
               "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
               option("--keepDuplicates").set(keepDuplicates) % "Retain duplicate references in the input",
@@ -682,7 +684,7 @@ int fixFastaMain(std::vector<std::string>& args,
       transcriptParserPtr->start();
       std::mutex iomutex;
       fix_ok = fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, expect_transcriptome, 
-                        iomutex, log, outFile, refIdExtension, shortRefs);
+                        noclip_polya, iomutex, log, outFile, refIdExtension, shortRefs);
       transcriptParserPtr->stop();
     }
 

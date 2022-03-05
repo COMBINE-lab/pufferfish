@@ -1,24 +1,10 @@
-
-####
-# Deprecated
-####
-#INCLUDE_DIRECTORIES(/home/fatemeh/others_projects/SeqLib/ /home/fatemeh/others_projects/SeqLib/htslib/ )
-#SET(SEQLIB_DIR /home/rob/nemo/external/SeqLib/bin)
-#INCLUDE_DIRECTORIES(../external/include/SeqLib/)
-#SET(SEQLIB_DIR ../external_dependencies/SeqLib/bin)
-#set(gfalib_srcs gfakluge.cpp)
-#add_library(gfakluge STATIC ${gfalib_srcs})
-####
-# End Deprecated
-####
-
 # check if we know how to do IPO
 include(CheckIPOSupported)
 check_ipo_supported(RESULT HAS_IPO)
 
 link_directories(
 		${GAT_SOURCE_DIR}/external/install/lib
-#		${TBB_LIBRARIES}
+    ${GAT_SOURCE_DIR}/external/install/lib64
 )
 
 set (KSW2PP_BASIC_LIB_SRCS
@@ -66,6 +52,8 @@ if(HAS_IPO)
   #set_property(TARGET ksw2pp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
 
+#set_target_properties(ksw2pp PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
+
 set(pufferfish_lib_srcs 
     PufferfishIndexer.cpp 
     PufferfishBaseIndex.cpp
@@ -77,12 +65,11 @@ set(pufferfish_lib_srcs
 		rank9sel.cpp
     rank9b.cpp
     PufferfishValidate.cpp
-	PufferfishStats.cpp
+	  PufferfishStats.cpp
     PufferfishTestLookup.cpp 
     PufferfishExamine.cpp
     FastxParser.cpp 
-#    PufferfishGFAReader.cpp
-	PufferfishBinaryGFAReader.cpp
+	  PufferfishBinaryGFAReader.cpp
     PufferFS.cpp
     xxhash.c
     FixFasta.cpp
@@ -97,14 +84,19 @@ if (BUILD_PUFF_FOR_SALMON)
  list(APPEND pufferfish_lib_srcs "${GAT_SOURCE_DIR}/src/LibraryFormat.cpp")
 endif()
 
-
+message("add library puffer : ${pufferfish_lib_srcs}")
 add_library(puffer STATIC ${pufferfish_lib_srcs})
-target_compile_options(puffer PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(puffer PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+target_compile_options(puffer PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
+target_compile_options(puffer PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
 if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()
-
+if (FETCHED_TBB)
+add_dependencies(puffer libtbb)
+else()
+add_dependencies(puffer TBB::tbb)
+add_dependencies(puffer TBB::tbbmalloc)
+endif()
 
 if (NOT BUILD_PUFF_FOR_SALMON)
 message("Building extra components")
@@ -112,59 +104,63 @@ message("Building extra components")
 # The actual executable need not be built for salmon
 # Also, the `-static-libgcc` flag is a problem under OSX/clang.
 add_executable(pufferfish Pufferfish.cpp)
-target_compile_options(pufferfish PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(pufferfish PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+target_compile_options(pufferfish PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
+target_compile_options(pufferfish PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
+
+if (FETCHED_TBB)
+add_dependencies(pufferfish libtbb)
+else()
+add_dependencies(pufferfish TBB::tbb)
+add_dependencies(pufferfish TBB::tbbmalloc)
+endif()
+
+
+
 #if (BUILD_PUFF_FOR_SALMON)
 #   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
 #endif()
-target_link_libraries(pufferfish puffer Threads::Threads z twopaco graphdump ntcard ksw2pp ${LIBRT} ${ASAN_LIB} ${JEMALLOC_LIBRARIES} ${TBB_LIBRARIES} ${CMAKE_DL_LIBS})
 
-if (FETCHED_TBB)
-    add_dependencies(pufferfish libtbb)
-endif()
 
-if (FETCHED_TBB)
-    add_dependencies(pufferfish libtbb)
+add_dependencies(pufferfish puffer)
+add_dependencies(pufferfish ksw2pp) 
+add_dependencies(pufferfish twopaco)
+add_dependencies(pufferfish graphdump)
+add_dependencies(pufferfish ntcard)
+
+if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
+  target_link_libraries(pufferfish 
+    ksw2pp
+    puffer 
+    z 
+    twopaco 
+    graphdump 
+    ntcard 
+    ${LIBRT} 
+    ${ASAN_LIB} 
+    ${JEMALLOC_LIBRARIES} 
+    ksw2pp
+    puffer 
+    ${CMAKE_DL_LIBS} 
+    TBB::tbb
+    TBB::tbbmalloc
+    Threads::Threads 
+  )
 endif()
 
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
-#add_executable(kswcli cli.cpp)
+#add_executable(edgedensity EdgeDensity.cpp)
+#target_compile_options(edgedensity PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
+#target_compile_options(edgedensity PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+#add_dependencies(edgedensity puffer)
+#
 
-## Apparently, CMake has a multi-line comment format.  I didn't know this but
-## CLion did (@fataltes).
-#[[
-#add_executable(fixFasta FixFasta.cpp FastxParser.cpp xxhash.c)
-#target_compile_options(fixFasta PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-#target_compile_options(fixFasta PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-#]]
-
-add_executable(edgedensity EdgeDensity.cpp)
-target_compile_options(edgedensity PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(edgedensity PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-
-add_executable(edgedensity2 EdgeDensityCustom.cpp)
-target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-
-#add_executable(krakmap KrakMap.cpp cedar/Taxa.cpp)
-#target_compile_options(krakmap PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-#target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-
-
-add_executable(cedar cedar/TargetGroup.cpp cedar/Cedar.cpp cedar/Taxa.cpp)
-target_include_directories(cedar PRIVATE
-    ${GAT_SOURCE_DIR}/external/install/include
-    ${GAT_SOURCE_DIR}/external/install/include/htslib
-	#${PROJECT_SOURCE_DIR}/include
-#    ${TBB_INCLUDE_DIRS}
-)
-target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-add_dependencies(cedar libseqlib)
-add_dependencies(cedar libSetCover)
+#add_executable(edgedensity2 EdgeDensityCustom.cpp)
+#target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
+#target_compile_options(edgedensity2 PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+#add_dependencies(edgedensity2 puffer)
 
 add_executable(filtersam testing/SAMFilter.cpp)
 target_include_directories(filtersam PRIVATE
@@ -174,6 +170,26 @@ target_include_directories(filtersam PRIVATE
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 add_dependencies(filtersam libseqlib)
+#add_dependencies(filtersam puffer)
+
+
+#add_executable(krakmap KrakMap.cpp cedar/Taxa.cpp)
+#target_compile_options(krakmap PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
+#target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+
+add_executable(cedar cedar/TargetGroup.cpp cedar/Cedar.cpp cedar/Taxa.cpp)
+
+target_include_directories(cedar PRIVATE
+    ${GAT_SOURCE_DIR}/external/install/include
+    ${GAT_SOURCE_DIR}/external/install/include/htslib
+)
+target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
+target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover ${ASAN_LIB})
+add_dependencies(cedar libseqlib)
+add_dependencies(cedar libsetcover)
+#add_dependencies(ceder Async++)
+#add_dependencies(ceder seqlib)
 
 #get_target_property(dirs filtersam INCLUDE_DIRECTORIES)
 #foreach(dir ${dirs})
@@ -184,22 +200,27 @@ add_dependencies(filtersam libseqlib)
 
 
 #[[
-add_executable(rank_test rank_test.cpp rank9b.cpp rank9sel.cpp)
-target_compile_options(rank_test PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(rank_test PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
-target_link_libraries(rank_test)
-]]
+#add_executable(rank_test rank_test.cpp rank9b.cpp rank9sel.cpp)
+#target_compile_options(rank_test PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
+#target_compile_options(rank_test PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+#target_link_libraries(rank_test)
+#]]
 
 add_executable(getLineage constructLineage.cpp)
-target_compile_options(getLineage PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(getLineage PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+target_compile_options(getLineage PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
+target_compile_options(getLineage PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
 
 
 target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
 #target_link_libraries(fixFasta Threads::Threads z)
-target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
-target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
-#target_link_libraries(krakmap Threads::Threads puffer ${ASAN_LIB})
-target_link_libraries(cedar Async++ Threads::Threads seqlib hts puffer bz2 lzma z SetCover ${ASAN_LIB})
+
+
+#if (${TBB_TARGET_EXISTED})
+#target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
+#target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
 target_link_libraries(filtersam Threads::Threads seqlib hts puffer bz2 lzma z ${ASAN_LIB})
+add_dependencies(filtersam libseqlib)
+#endif()
+
+
 endif()

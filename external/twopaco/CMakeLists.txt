@@ -6,14 +6,13 @@ add_subdirectory(graphdump)
 add_subdirectory(graphconstructor)
 include(CPack)
 
-if (BUILD_PUFF_FOR_SALMON)
 if (${TBB_TARGET_EXISTED})
-add_dependencies(graphdump tbb)
-add_dependencies(twopaco tbb)
+add_dependencies(graphdump TBB::tbb)
+add_dependencies(twopaco TBB::tbb)
 else ()
+message("adding externally-fetched tbb as dependency of twopaco")
 add_dependencies(graphdump libtbb)
 add_dependencies(twopaco libtbb)
-endif()
 endif()
 
 #install(
