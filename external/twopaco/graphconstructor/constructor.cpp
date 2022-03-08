@@ -197,7 +197,21 @@ int buildGraphMain(std::vector<std::string>& args)
 		return 1;
 	}
   
-  void* salloc = scalable_malloc(1024*1024);
+  // NOTE: why do this here?  Well, this is to 
+  // fix the OSX build under [bioconda](https://bioconda.github.io).
+  // Specifically, when the `scalable_allocation_command` is called 
+  // it can result in a segmentation fault if no prior allocation had 
+  // been made because of the invalid state of the underlying pointer 
+  // examined by `scalable_allocation_command`.  In reality, this shouldn't
+  // happen because of the static initalization of that pointer, but it 
+  // does (on older OSX platforms).  So, here we will allocate a small 
+  // amount of memory (1k), which will force the scalable allocator 
+  // to initalize itself properly.  Then, we will immediately free 
+  // this memory.  Then we will make the call to `scalable_allocation_command`.
+  // This ensures (for the cost of one extra allocation call) that the 
+  // call to `scalable_allocation_command` works across all platforms on 
+  // which we need to build.
+  void* salloc = scalable_malloc(1024);
   
   if (salloc == nullptr) {
     std::cerr << "TwoPaCo::buildGraphMain:: couldn't allocate using scalable_malloc!" << std::endl; 
