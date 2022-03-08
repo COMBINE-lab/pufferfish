@@ -172,6 +172,7 @@ int buildGraphMain(std::vector<std::string>& args)
 			hashFunctions.getValue(),
 			rounds.getValue(),
 			threads.getValue(),
+
 			abundance.getValue(),
 			tmpDirName.getValue(),
 			outFileName.getValue(),
@@ -195,15 +196,18 @@ int buildGraphMain(std::vector<std::string>& args)
 		std::cerr << std::endl << "Error: " << e.what() << std::endl;
 		return 1;
 	}
+  
+  void* salloc = scalable_malloc(1024*1024);
+  
+  if (salloc == nullptr) {
+    std::cerr << "TwoPaCo::buildGraphMain:: couldn't allocate using scalable_malloc!" << std::endl; 
+  } else {
+    std::cerr << "TwoPaCo::buildGraphMain:: allocated with scalable_malloc; freeing." << std::endl;
+    scalable_free(salloc);
 
-
-	std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);" << std::endl;
-	scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
-	//std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);" << std::endl;
-
-	//scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);
-	std::cerr << "TwoPaCo::buildGraphMain:: returning" << std::endl;
-
+    std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);" << std::endl;
+    scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
+  }
 
 	return 0;
 }
