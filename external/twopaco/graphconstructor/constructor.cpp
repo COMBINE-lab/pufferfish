@@ -197,11 +197,13 @@ int buildGraphMain(std::vector<std::string>& args)
 	}
 
 
-  std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);\n";
-  scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
-  std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);\n";
-	scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);
-  std::cerr << "TwoPaCo::buildGraphMain:: returning\n";
+	std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);" << std::endl;
+	scalable_allocation_command(TBBMALLOC_CLEAN_ALL_BUFFERS, 0);
+	//std::cerr << "TwoPaCo::buildGraphMain:: Calling scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);" << std::endl;
+
+	//scalable_allocation_command(TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);
+	std::cerr << "TwoPaCo::buildGraphMain:: returning" << std::endl;
+
 
 	return 0;
 }
