@@ -36,13 +36,12 @@
 
 int pufferfishIndex(pufferfish::IndexOptions& indexOpts); // int argc, char* argv[]);
 int pufferfishTest(pufferfish::TestOptions& testOpts);    // int argc, char* argv[]);
-int pufferfishValidate(
-                       pufferfish::ValidateOptions& validateOpts); // int argc, char* argv[]);
-int pufferfishTestLookup(
-                         pufferfish::ValidateOptions& lookupOpts); // int argc, char* argv[]);
+int pufferfishValidate(pufferfish::ValidateOptions& validateOpts); // int argc, char* argv[]);
+int pufferfishTestLookup(pufferfish::ValidateOptions& lookupOpts); // int argc, char* argv[]);
 int pufferfishAligner(pufferfish::AlignmentOpts& alignmentOpts) ;
 int pufferfishExamine(pufferfish::ExamineOptions& examineOpts);
 int pufferfishStats(pufferfish::StatsOptions& statsOpts);
+int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts);
 
 int main(int argc, char* argv[]) {
   using namespace clipp;
@@ -50,14 +49,15 @@ int main(int argc, char* argv[]) {
   std::setlocale(LC_ALL, "en_US.UTF-8");
 
 
-  enum class mode {help, index, validate, lookup, align, examine, stat};
+  enum class mode {help, index, validate, lookup, kquery, align, examine, stat};
   mode selected = mode::help;
 
   std::map<std::string, clipp::parameter> cmd_map = {
     {"align", command("align").set(selected, mode::align)},
     {"index", command("index").set(selected, mode::index)},
     {"validate", command("validate").set(selected, mode::validate)},
-    {"lookup", command("align").set(selected, mode::align)},
+    {"lookup", command("lookup").set(selected, mode::lookup)},
+    {"kquery", command("kquery").set(selected, mode::kquery)},
     {"examine", command("examine").set(selected, mode::examine)},
     {"stat", command("stat").set(selected, mode::stat)}
   };
@@ -67,6 +67,7 @@ int main(int argc, char* argv[]) {
   //TestOptions testOpt;
   pufferfish::ValidateOptions validateOpt;
   pufferfish::ValidateOptions lookupOpt;
+  pufferfish::KmerQueryOptions kmerQueryOpt;
   pufferfish::ExamineOptions examineOpt;
   pufferfish::StatsOptions statOpt;
 
@@ -188,6 +189,14 @@ int main(int argc, char* argv[]) {
                      (required("-i", "--index") & value("index", lookupOpt.indexDir)) % "directory where the pufferfish index is stored",
                      (required("-r", "--ref") & value("ref", lookupOpt.refFile)) % "fasta file with reference sequences"
                      );
+  
+  auto kmerQueryMode = (
+                      command("kquery").set(selected, mode::kquery),
+                     (required("-i", "--index") & value("index", kmerQueryOpt.indexDir)) % "directory where the pufferfish index is stored",
+                     (option("-p", "--threads") & value("threads", kmerQueryOpt.num_threads))  % "total number of threads to use for mapping k-mers",
+                     (required("-q", "--query") & values("ref", kmerQueryOpt.queryFiles)) % "fasta file with reference sequences" 
+                      );
+
   std::string statType = "ctab";
   auto statMode = (
                     command("stat").set(selected, mode::stat),
@@ -285,7 +294,7 @@ int main(int argc, char* argv[]) {
   );
 
   auto cli = (
-              (indexMode | validateMode | lookupMode | alignMode | examineMode | statMode | command("help").set(selected,mode::help) ),
+              (indexMode | validateMode | lookupMode | kmerQueryMode | alignMode | examineMode | statMode | command("help").set(selected,mode::help) ),
               option("-v", "--version").call([]{std::cout << "version " << pufferfish::version << "\n"; std::exit(0);}).doc("show version"));
 
   decltype(parse(argc, argv, cli)) res;
@@ -304,6 +313,7 @@ int main(int argc, char* argv[]) {
     case mode::index: pufferfishIndex(indexOpt);  break;
     case mode::validate: pufferfishValidate(validateOpt);  break;
     case mode::lookup: pufferfishTestLookup(lookupOpt); break;
+    case mode::kquery: pufferfishKmerQuery(kmerQueryOpt); break;
     case mode::align: pufferfishAligner(alignmentOpt); break;
     case mode::examine: pufferfishExamine(examineOpt); break;
     case mode::stat: pufferfishStats(statOpt); break;

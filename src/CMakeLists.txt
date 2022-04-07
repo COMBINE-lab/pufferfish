@@ -68,6 +68,7 @@ set(pufferfish_lib_srcs
 	  PufferfishStats.cpp
     PufferfishTestLookup.cpp 
     PufferfishExamine.cpp
+    PufferfishKmerQuery.cpp
     FastxParser.cpp 
 	  PufferfishBinaryGFAReader.cpp
     PufferFS.cpp

@@ -51,6 +51,13 @@ public:
     std::string indexDir;
 };
 
+class KmerQueryOptions {
+  public:
+  std::string indexDir;
+  std::vector<std::string> queryFiles;
+  uint32_t num_threads{16};
+};
+
 class ValidateOptions {
 public:
   std::string indexDir;
