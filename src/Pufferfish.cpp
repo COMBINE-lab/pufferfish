@@ -193,8 +193,8 @@ int main(int argc, char* argv[]) {
   auto kmerQueryMode = (
                       command("kquery").set(selected, mode::kquery),
                      (required("-i", "--index") & value("index", kmerQueryOpt.indexDir)) % "directory where the pufferfish index is stored",
-                     (option("-p", "--threads") & value("threads", kmerQueryOpt.num_threads))  % "total number of threads to use for mapping k-mers",
-                     (required("-q", "--query") & values("ref", kmerQueryOpt.queryFiles)) % "fasta file with reference sequences" 
+                     (required("-q", "--query") & values("ref", kmerQueryOpt.queryFiles)) % "fasta file with reference sequences",
+                     (option("-p", "--threads") & value("threads", kmerQueryOpt.num_threads))  % "total number of threads to use for mapping k-mers"
                       );
 
   std::string statType = "ctab";
