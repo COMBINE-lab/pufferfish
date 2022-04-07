@@ -152,10 +152,6 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
             doPufferfishKmerQuery(pi, parser, iomut);
         }));
     }
-
-    for (auto& w : workers) {
-        w.join();
-    } 
   }
 
   for (auto& w : workers) {
