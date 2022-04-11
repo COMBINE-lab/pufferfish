@@ -135,7 +135,6 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
     CanonicalKmer::k(pi.k());
     writeSAMHeader(pi, std::cout);
 
-    std::vector<std::thread> workers;
     for (size_t i = 0; i < nthread; ++i) {
         workers.push_back(std::thread([&pi, &parser, &iomut]() {
             doPufferfishKmerQuery(pi, parser, iomut);
@@ -146,7 +145,6 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
     CanonicalKmer::k(pi.k());
     writeSAMHeader(pi, std::cout);
 
-    std::vector<std::thread> workers;
     for (size_t i = 0; i < nthread; ++i) {
         workers.push_back(std::thread([&pi, &parser, &iomut]() {
             doPufferfishKmerQuery(pi, parser, iomut);
