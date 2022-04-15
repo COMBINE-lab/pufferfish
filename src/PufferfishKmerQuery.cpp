@@ -140,6 +140,10 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
             doPufferfishKmerQuery(pi, parser, iomut);
         }));
     }
+
+    for (auto& w : workers) {
+      w.join();
+    } 
   } else if (indexType == "dense") {
     PufferfishIndex pi(kqueryOpts.indexDir);
     CanonicalKmer::k(pi.k());
@@ -150,13 +154,13 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
             doPufferfishKmerQuery(pi, parser, iomut);
         }));
     }
+    
+    for (auto& w : workers) {
+      w.join();
+    } 
   }
 
-  for (auto& w : workers) {
-    w.join();
-  } 
   parser.stop();
-
   return 0;
 }
 
