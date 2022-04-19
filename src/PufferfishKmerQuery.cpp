@@ -84,6 +84,7 @@ int doPufferfishKmerQuery(IndexT& pi,
             std::cout << o;
             iomut.unlock();
             osstream.clear();
+            osstream.str("");
             processed = 0;
         }
         processed += 1;
@@ -98,6 +99,7 @@ int doPufferfishKmerQuery(IndexT& pi,
   std::cout << o;
   iomut.unlock();
   osstream.clear(); 
+  osstream.str("");
 
   iomut.lock();
   std::cerr << "found = " << found << ", not found = " << notFound << "\n";
