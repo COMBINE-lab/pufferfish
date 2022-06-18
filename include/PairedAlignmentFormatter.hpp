@@ -33,7 +33,20 @@ struct PairedAlignmentFormatter {
                                                 read2Temp(1000, 'A'),
                                                 qual2Temp(1000, '~'),
                                                 cigarStr1(buff1, 1000),
-                                                cigarStr2(buff2, 1000) {
+                                                cigarStr2(buff2, 1000),
+                                                use_qualities(false) {
+  }
+
+  bool enable_qualities() {
+    bool prev = use_qualities;
+    use_qualities = true;
+    return prev;
+  }
+
+  bool disable_qualities() {
+    bool prev = use_qualities;
+    use_qualities = true;
+    return prev;
   }
 
   // Data members
@@ -46,6 +59,8 @@ struct PairedAlignmentFormatter {
   char buff2[1000];
   pufferfish::util::FixedWriter cigarStr1;
   pufferfish::util::FixedWriter cigarStr2;
+  bool use_qualities;
+  std::string empty_qual{"*"};
 };
 
 #endif //__PAIR_ALIGNMENT_FORMATTER_HPP__

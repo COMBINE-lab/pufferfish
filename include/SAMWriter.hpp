@@ -1,21 +1,21 @@
 #ifndef SAM_WRITER_HPP
 #define SAM_WRITER_HPP
 
+#include "BinWriter.hpp"
+#include "BulkChunk.hpp"
 #include "PairedAlignmentFormatter.hpp"
-#include "PufferfishIndex.hpp"
 #include "PufferfishConfig.hpp"
+#include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
-#include "BinWriter.hpp"
-#include "parallel_hashmap/phmap.h"
 #include "nonstd/string_view.hpp"
-#include "BulkChunk.hpp"
+#include "parallel_hashmap/phmap.h"
 
 typedef uint16_t rLenType;
 typedef uint32_t refLenType;
 
-
-inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, uint16_t& flags) {
+inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln,
+                        uint16_t& flags) {
   /*
     constexpr uint16_t pairedInSeq = 0x1;
     constexpr uint16_t mappedInProperPair = 0x2;
@@ -50,8 +50,8 @@ inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, uint16_t& 
 // get the sam flags for the quasialignment qaln.
 // peinput is true if the read is paired in *sequencing*; false otherwise
 // the sam flags for mate 1 are written into flags1 and for mate2 into flags2
-inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, bool peInput,
-                        uint16_t& flags1, uint16_t& flags2) {
+inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln,
+                        bool peInput, uint16_t& flags1, uint16_t& flags2) {
   constexpr uint16_t pairedInSeq = 0x1;
   constexpr uint16_t properlyAligned = 0x2;
   constexpr uint16_t unmapped = 0x4;
@@ -70,8 +70,10 @@ inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, bool peInp
   flags1 |= (qaln.isPaired) ? properlyAligned : 0;
   flags2 = flags1;
   // we don't output unmapped yet
-  bool read1Unaligned = qaln.mateStatus == pufferfish::util::MateStatus::PAIRED_END_RIGHT;
-  bool read2Unaligned = qaln.mateStatus == pufferfish::util::MateStatus::PAIRED_END_LEFT;
+  bool read1Unaligned =
+      qaln.mateStatus == pufferfish::util::MateStatus::PAIRED_END_RIGHT;
+  bool read2Unaligned =
+      qaln.mateStatus == pufferfish::util::MateStatus::PAIRED_END_LEFT;
   // If read 1 is unaligned, flags1 gets "unmapped" and flags2 gets "mate
   // unmapped"
   flags1 |= (read1Unaligned) ? unmapped : 0;
@@ -90,7 +92,8 @@ inline void getSamFlags(const pufferfish::util::QuasiAlignment& qaln, bool peInp
 }
 
 template <typename IndexT>
-inline void writeRADHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts) {
+inline void writeRADHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
+                           pufferfish::AlignmentOpts* mopts) {
   writeKrakOutHeader(pfi, out, mopts, true);
   BulkTags bt(!mopts->singleEnd);
   auto bwOut = bt.export2Buffer();
@@ -100,10 +103,10 @@ inline void writeRADHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, puf
   out->info("{}", bwOut);
 }
 
-
-
 template <typename IndexT>
-inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out, pufferfish::AlignmentOpts* mopts, bool isRad=false) {
+inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
+                               pufferfish::AlignmentOpts* mopts,
+                               bool isRad = false) {
   BinWriter bw(100000);
   bw << !mopts->singleEnd; // isPaired (bool)
   auto& txpNames = pfi.getFullRefNames();
@@ -113,16 +116,15 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   bw << static_cast<uint64_t>(numRef); // refCount (size_t)
   std::cerr << "is paired: " << !mopts->singleEnd << "\n";
   std::cerr << "numRef: " << numRef << "\n";
-            
+
   for (size_t i = 0; i < numRef; ++i) {
-    bw << txpNames[i] << txpLens[i]; //txpName (string) , txpLength (size_t)
+    bw << txpNames[i] << txpLens[i]; // txpName (string) , txpLength (size_t)
   }
   if (isRad) { // number of chunks
-      bw << static_cast<uint64_t>(10);
+    bw << static_cast<uint64_t>(10);
   }
-  out->info("{}",bw);
+  out->info("{}", bw);
 }
-
 
 template <typename IndexT>
 inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
@@ -151,7 +153,6 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
   out->info(headerStr);
 }
 
-
 template <typename IndexT>
 inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
   fmt::MemoryWriter hd;
@@ -179,9 +180,9 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
 
 template <typename IndexT>
 inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
-        bool filterGenomics,
-        phmap::flat_hash_set<std::string> gene_names,
-        phmap::flat_hash_set<std::string> rrna_names) {
+                           bool filterGenomics,
+                           phmap::flat_hash_set<std::string> gene_names,
+                           phmap::flat_hash_set<std::string> rrna_names) {
   fmt::MemoryWriter hd;
   hd.write("@HD\tVN:1.0\tSO:unknown\n");
 
@@ -201,9 +202,9 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
     bool isDecoy = pfi.isDecoy(i - numShort);
     char refType = isDecoy ? 'D' : 'T';
     numShort += isShort ? 1 : 0;
-    if (filterGenomics and
-    (gene_names.find(txpNames[i]) != gene_names.end() or rrna_names.find(txpNames[i]) != rrna_names.end()))
-      continue; 
+    if (filterGenomics and (gene_names.find(txpNames[i]) != gene_names.end() or
+                            rrna_names.find(txpNames[i]) != rrna_names.end()))
+      continue;
     hd.write("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i], refType);
   }
   // Eventually output a @PG line
@@ -244,7 +245,8 @@ inline void adjustOverhang(int32_t& pos, uint32_t readLen, uint32_t txpLen,
   }
 }
 
-inline void adjustOverhang(pufferfish::util::QuasiAlignment& qa, uint32_t txpLen,
+inline void adjustOverhang(pufferfish::util::QuasiAlignment& qa,
+                           uint32_t txpLen,
                            pufferfish::util::FixedWriter& cigarStr1,
                            pufferfish::util::FixedWriter& cigarStr2) {
   if (qa.isPaired) { // both mapped
@@ -265,21 +267,20 @@ inline void adjustOverhang(pufferfish::util::QuasiAlignment& qa, uint32_t txpLen
   }
 }
 
-
-
 // Write alignments in RAD format
 // dump paired end read
-template <typename ReadT , typename IndexT >
-inline uint32_t writeAlignmentsToRADSingle(ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, BinWriter& bstream, 
-    bool tidsAlreadyDecoded = false) {
+template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToRADSingle(
+    ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits,
+    BinWriter& bstream, bool tidsAlreadyDecoded = false) {
 
   auto& cigarStr = formatter.cigarStr1;
 
-  auto &readName = r.name;
-  //std::cout << readName << " || ";
-  // If the read name contains multiple space-separated parts,
-  // print only the first
+  auto& readName = r.name;
+  // std::cout << readName << " || ";
+  //  If the read name contains multiple space-separated parts,
+  //  print only the first
   size_t nameLen = readName.length();
   size_t splitPos = readName.find(' ');
   if (splitPos < readName.length()) {
@@ -287,50 +288,49 @@ inline uint32_t writeAlignmentsToRADSingle(ReadT& r, PairedAlignmentFormatter<In
     nameLen = splitPos;
   } else {
     splitPos = readName.length();
-  } 
+  }
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
     nameLen = splitPos - 2;
   }
   bstream << stx::string_view(readName.data(), nameLen)
           << static_cast<uint32_t>(jointHits.size())
-          << static_cast<rLenType>(r.seq.length()); 
+          << static_cast<rLenType>(r.seq.length());
   // auto& fullRefNames = formatter.index->getFullRefNames();
   auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
-    
-    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+
+    uint64_t encodedID =
+        tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
     // auto& refName = fullRefNames[encodedID];
     uint32_t txpLen = fullRefLengths[encodedID];
-    // char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
+    // char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' :
+    // 'T';
 
     // === SAM
     adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr);
-    bstream   << static_cast<uint32_t>(encodedID)
-              << qa.pos + 1
-              << qa.fwd
-              << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar)  
-              << qa.score;
+    bstream << static_cast<uint32_t>(encodedID) << qa.pos + 1 << qa.fwd
+            << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar) << qa.score;
     adjustOverhang(qa.matePos, qa.mateLen, txpLen, cigarStr);
-    bstream   << qa.matePos + 1
-              << qa.mateIsFwd
-              << (qa.mateCigar.empty() ? cigarStr.c_str() : qa.mateCigar)  
-              << qa.mateScore;
+    bstream << qa.matePos + 1 << qa.mateIsFwd
+            << (qa.mateCigar.empty() ? cigarStr.c_str() : qa.mateCigar)
+            << qa.mateScore;
   }
   return 0;
 }
 
 template <typename ReadPairT, typename IndexT>
-inline uint32_t writeAlignmentsToRADPair(ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, BinWriter& bstream, 
-    bool tidsAlreadyDecoded = false) {
+inline uint32_t writeAlignmentsToRADPair(
+    ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits,
+    BinWriter& bstream, bool tidsAlreadyDecoded = false) {
 
   auto& cigarStr = formatter.cigarStr1;
 
-  auto &readName = r.first.name;
-  //std::cout << readName << " || ";
-  // If the read name contains multiple space-separated parts,
-  // print only the first
+  auto& readName = r.first.name;
+  // std::cout << readName << " || ";
+  //  If the read name contains multiple space-separated parts,
+  //  print only the first
   size_t nameLen = readName.length();
   size_t splitPos = readName.find(' ');
   if (splitPos < readName.length()) {
@@ -338,7 +338,7 @@ inline uint32_t writeAlignmentsToRADPair(ReadPairT& r, PairedAlignmentFormatter<
     nameLen = splitPos;
   } else {
     splitPos = readName.length();
-  } 
+  }
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
     nameLen = splitPos - 2;
@@ -346,45 +346,42 @@ inline uint32_t writeAlignmentsToRADPair(ReadPairT& r, PairedAlignmentFormatter<
   bstream << stx::string_view(readName.data(), nameLen)
           << static_cast<uint32_t>(jointHits.size())
           << static_cast<rLenType>(r.first.seq.length())
-          << static_cast<rLenType>(r.second.seq.length()); 
+          << static_cast<rLenType>(r.second.seq.length());
   // auto& fullRefNames = formatter.index->getFullRefNames();
   auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
-    
-    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+
+    uint64_t encodedID =
+        tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
     // auto& refName = fullRefNames[encodedID];
     uint32_t txpLen = fullRefLengths[encodedID];
-    // char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
+    // char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' :
+    // 'T';
 
     // === SAM
     adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr);
-    bstream   << static_cast<uint32_t>(encodedID)
-              << qa.pos + 1
-              << qa.fwd
-              << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar)  
-              << qa.score;
+    bstream << static_cast<uint32_t>(encodedID) << qa.pos + 1 << qa.fwd
+            << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar) << qa.score;
     adjustOverhang(qa.matePos, qa.mateLen, txpLen, cigarStr);
-    bstream   << qa.matePos + 1
-              << qa.mateIsFwd
-              << (qa.mateCigar.empty() ? cigarStr.c_str() : qa.mateCigar)  
-              << qa.mateScore;
+    bstream << qa.matePos + 1 << qa.mateIsFwd
+            << (qa.mateCigar.empty() ? cigarStr.c_str() : qa.mateCigar)
+            << qa.mateScore;
   }
   return 0;
 }
 
 // dump paired end read
-template <typename ReadT , typename IndexT >
-inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
-                                   PairedAlignmentFormatter<IndexT>& formatter,
-                                   std::vector<pufferfish::util::JointMems>& validJointHits,
-                                   BinWriter& bstream,
-                                   bool justMap,
-                                   bool wrtIntervals=true) {
-  if (validJointHits.empty()) return 0;
+template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToKrakenDump(
+    ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<pufferfish::util::JointMems>& validJointHits,
+    BinWriter& bstream, bool justMap, bool wrtIntervals = true) {
+  if (validJointHits.empty())
+    return 0;
   auto& readName = r.first.name;
-  //std::cout << readName << " || ";
-  // If the read name contains multiple space-separated parts,
-  // print only the first
+  // std::cout << readName << " || ";
+  //  If the read name contains multiple space-separated parts,
+  //  print only the first
   size_t nameLen = readName.length();
   size_t splitPos = readName.find(' ');
   if (splitPos < readName.length()) {
@@ -392,22 +389,22 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     nameLen = splitPos;
   } else {
     splitPos = readName.length();
-  } 
-  
+  }
+
   if (splitPos > 2 and readName[splitPos - 2] == '/') {
     readName[splitPos - 2] = '\0';
     nameLen = splitPos - 2;
   }
-  //std::cout << strlen(readName.c_str() << "\n";
-  bstream   << stx::string_view(readName.data(), nameLen) 
-            << static_cast<uint32_t>(validJointHits.size())
-            << static_cast<rLenType>(r.first.seq.length()) 
-            << static_cast<rLenType>(r.second.seq.length());
+  // std::cout << strlen(readName.c_str() << "\n";
+  bstream << stx::string_view(readName.data(), nameLen)
+          << static_cast<uint32_t>(validJointHits.size())
+          << static_cast<rLenType>(r.first.seq.length())
+          << static_cast<rLenType>(r.second.seq.length());
   for (auto& qa : validJointHits) {
 
-      /* auto& refName = formatter.index->refName(qa.tid);
-      uint32_t refLength = formatter.index->refLength(qa.tid);
-       */
+    /* auto& refName = formatter.index->refName(qa.tid);
+    uint32_t refLength = formatter.index->refLength(qa.tid);
+     */
     auto& clustLeft = qa.leftClust;
     auto& clustRight = qa.rightClust;
     size_t leftNumOfIntervals = 0;
@@ -415,68 +412,76 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     refLenType leftRefPos = 0;
     refLenType rightRefPos = 0;
     if (qa.isLeftAvailable()) {
-      uint64_t pos = clustLeft->getTrFirstHitPos() < 0 ? 0 : clustLeft->getTrFirstHitPos();
+      uint64_t pos =
+          clustLeft->getTrFirstHitPos() < 0 ? 0 : clustLeft->getTrFirstHitPos();
       leftNumOfIntervals = clustLeft->mems.size();
-      leftRefPos = pos | (static_cast<refLenType>(clustLeft->isFw) << (sizeof(refLenType)*8-1));
+      leftRefPos = pos | (static_cast<refLenType>(clustLeft->isFw)
+                          << (sizeof(refLenType) * 8 - 1));
     }
     if (qa.isRightAvailable()) {
-      uint64_t pos = clustRight->getTrFirstHitPos() < 0 ? 0 : clustRight->getTrFirstHitPos();
+      uint64_t pos = clustRight->getTrFirstHitPos() < 0
+                         ? 0
+                         : clustRight->getTrFirstHitPos();
       rightNumOfIntervals = clustRight->mems.size();
-      rightRefPos = pos | (static_cast<refLenType>(clustRight->isFw) << (sizeof(refLenType)*8-1));
+      rightRefPos = pos | (static_cast<refLenType>(clustRight->isFw)
+                           << (sizeof(refLenType) * 8 - 1));
     }
     bstream << static_cast<uint32_t>(formatter.index->getRefId(qa.tid));
-      /*std::cerr << "r " << readName << " puffid: " << qa.tid << " lcnt:" << leftNumOfIntervals
-                << " rcnt:" << rightNumOfIntervals;*/
-//	if (wrtIntervals) {
-		bstream << static_cast<rLenType>(leftNumOfIntervals) 
-            	<< static_cast<rLenType>(rightNumOfIntervals);
-//	}
+    /*std::cerr << "r " << readName << " puffid: " << qa.tid << " lcnt:" <<
+       leftNumOfIntervals
+              << " rcnt:" << rightNumOfIntervals;*/
+    //	if (wrtIntervals) {
+    bstream << static_cast<rLenType>(leftNumOfIntervals)
+            << static_cast<rLenType>(rightNumOfIntervals);
+    //	}
 
-      if (qa.isLeftAvailable()) {
-          //std::cerr << " lrefpos: " << leftRefPos;
-        if (justMap) {
-          bstream << qa.alignmentScore;
-        } else {
-          bstream << clustLeft->coverage;
-        }
-        bstream << static_cast<refLenType>(leftRefPos);
-    	if (wrtIntervals) {
-        	for (auto& mem: clustLeft->mems) {
-         	   	bstream << static_cast<rLenType>(mem.rpos) 
-                  		<< static_cast<rLenType>(mem.extendedlen);
-        	}
-      	}
-	  }
-      if (qa.isRightAvailable()) {
-          //std::cerr << " rrefpos: " << rightRefPos;
-          if (justMap) {
-            bstream << qa.mateAlignmentScore;
-          } else {
-            bstream << clustRight->coverage;
-          }
-        bstream << static_cast<refLenType>(rightRefPos);
-    	if (wrtIntervals) {
-        	for (auto& mem: clustRight->mems) {
-          		bstream << static_cast<rLenType>(mem.rpos)
-                  		<< static_cast<rLenType>(mem.extendedlen);
-        	}
-      	}
+    if (qa.isLeftAvailable()) {
+      // std::cerr << " lrefpos: " << leftRefPos;
+      if (justMap) {
+        bstream << qa.alignmentScore;
+      } else {
+        bstream << clustLeft->coverage;
       }
-      //std::cerr << "\n";
+      bstream << static_cast<refLenType>(leftRefPos);
+      if (wrtIntervals) {
+        for (auto& mem : clustLeft->mems) {
+          bstream << static_cast<rLenType>(mem.rpos)
+                  << static_cast<rLenType>(mem.extendedlen);
+        }
+      }
+    }
+    if (qa.isRightAvailable()) {
+      // std::cerr << " rrefpos: " << rightRefPos;
+      if (justMap) {
+        bstream << qa.mateAlignmentScore;
+      } else {
+        bstream << clustRight->coverage;
+      }
+      bstream << static_cast<refLenType>(rightRefPos);
+      if (wrtIntervals) {
+        for (auto& mem : clustRight->mems) {
+          bstream << static_cast<rLenType>(mem.rpos)
+                  << static_cast<rLenType>(mem.extendedlen);
+        }
+      }
+    }
+    // std::cerr << "\n";
   }
   return 0;
 }
 // dump single end read
-template <typename ReadT , typename IndexT >
-inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
-                                   PairedAlignmentFormatter<IndexT>& formatter,
-                                   std::vector<std::pair<uint32_t, std::vector<pufferfish::util::MemCluster>::iterator>>& validHits,
-                                   BinWriter& binStream,
-                                   bool wrtIntervals=true) {
-    if (validHits.empty()) return 0;
+template <typename ReadT, typename IndexT>
+inline uint32_t writeAlignmentsToKrakenDump(
+    ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
+    std::vector<std::pair<uint32_t,
+                          std::vector<pufferfish::util::MemCluster>::iterator>>&
+        validHits,
+    BinWriter& binStream, bool wrtIntervals = true) {
+  if (validHits.empty())
+    return 0;
 
   auto& readName = r.name;
-  //std::cerr << readName  << " -- ";
+  // std::cerr << readName  << " -- ";
   size_t nameLen = readName.length();
 
   // If the read name contains multiple space-separated parts,
@@ -493,136 +498,147 @@ inline uint32_t writeAlignmentsToKrakenDump(ReadT& r,
     readName[splitPos - 2] = '\0';
     nameLen = splitPos - 2;
   }
-    //std::cerr << readName << " " << nameLen << "\n";
-  binStream << stx::string_view(readName.data(), nameLen) 
-            << static_cast<uint32_t>(validHits.size()) 
+  // std::cerr << readName << " " << nameLen << "\n";
+  binStream << stx::string_view(readName.data(), nameLen)
+            << static_cast<uint32_t>(validHits.size())
             << static_cast<rLenType>(r.seq.length());
-  //std::cerr << readName << "\t" << validHits.size() << "\t" << r.seq.length() << "\n";
+  // std::cerr << readName << "\t" << validHits.size() << "\t" << r.seq.length()
+  // << "\n";
   for (auto& qa : validHits) {
     auto& clust = qa.second;
     binStream << static_cast<uint32_t>(formatter.index->getRefId(qa.first));
-//    if (wrtIntervals) {
-      binStream << static_cast<rLenType>(clust->mems.size());
-//    }
-    //std::cerr << qa.first << "\t" << clust->mems.size() << "\n";
+    //    if (wrtIntervals) {
+    binStream << static_cast<rLenType>(clust->mems.size());
+    //    }
+    // std::cerr << qa.first << "\t" << clust->mems.size() << "\n";
     binStream << clust->coverage;
 
-    binStream << static_cast<refLenType>(clust->getTrFirstHitPos() | (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType)*8-1)));
+    binStream << static_cast<refLenType>(
+        clust->getTrFirstHitPos() |
+        (static_cast<refLenType>(clust->isFw) << (sizeof(refLenType) * 8 - 1)));
     if (wrtIntervals) {
-      for (auto& mem: clust->mems){
-        binStream << static_cast<rLenType>(mem.rpos) 
+      for (auto& mem : clust->mems) {
+        binStream << static_cast<rLenType>(mem.rpos)
                   << static_cast<rLenType>(mem.extendedlen);
       }
     }
   }
   return 0;
-
 }
 
 inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
-                                          fmt::MemoryWriter& sstream) {
-        constexpr uint16_t flags1 = 0x1 | 0x4 | 0x8 | 0x40;
-        constexpr uint16_t flags2 = 0x1 | 0x4 | 0x8 | 0x80;
+                                           fmt::MemoryWriter& sstream,
+                                           bool with_qualities = false) {
+  constexpr uint16_t flags1 = 0x1 | 0x4 | 0x8 | 0x40;
+  constexpr uint16_t flags2 = 0x1 | 0x4 | 0x8 | 0x80;
 
-        auto processReadName = [](const std::string& name) -> fmt::StringRef {
-                                 nonstd::string_view readNameView(name);
-                                 // If the read name contains multiple space-separated parts,
-                                 // print only the first
-                                 size_t splitPos = readNameView.find(' ');
-                                 if (splitPos < readNameView.length()) {
-                                   readNameView.remove_suffix(readNameView.length() - splitPos);
-                                 } else {
-                                   splitPos = readNameView.length();
-                                 }
+  auto processReadName = [](const std::string& name) -> fmt::StringRef {
+    nonstd::string_view readNameView(name);
+    // If the read name contains multiple space-separated parts,
+    // print only the first
+    size_t splitPos = readNameView.find(' ');
+    if (splitPos < readNameView.length()) {
+      readNameView.remove_suffix(readNameView.length() - splitPos);
+    } else {
+      splitPos = readNameView.length();
+    }
 
-                                 // trim /1 from the pe read
-                                 if (splitPos > 2 and readNameView[splitPos - 2] == '/') {
-                                   readNameView.remove_suffix(2);
-                                   //readName[splitPos - 2] = '\0';
-                                 }
-                                 return fmt::StringRef(readNameView.data(), readNameView.size());
-                               };
+    // trim /1 from the pe read
+    if (splitPos > 2 and readNameView[splitPos - 2] == '/') {
+      readNameView.remove_suffix(2);
+      // readName[splitPos - 2] = '\0';
+    }
+    return fmt::StringRef(readNameView.data(), readNameView.size());
+  };
 
-        auto readNameView = processReadName(r.first.name);
-        auto mateNameView = processReadName(r.second.name);
-        std::string* readSeq1 = &(r.first.seq);
-        std::string* readSeq2 = &(r.second.seq);
+  auto readNameView = processReadName(r.first.name);
+  auto mateNameView = processReadName(r.second.name);
+  std::string* readSeq1 = &(r.first.seq);
+  std::string* readSeq2 = &(r.second.seq);
+  std::string empty_qual{"*"};
 
-        sstream << readNameView << '\t' // QNAME
-                << flags1 << '\t'       // FLAGS
-                << "*\t"                // RNAME
-                << "0\t"                // POS (1-based)
-                << "255\t"              // MAPQ
-                << "*\t"                // CIGAR
-                << "*\t"                // RNEXT
-                << "0\t"                // PNEXT
-                << "0\t"                // TLEN
-                << *readSeq1 << '\t'    // SEQ
-                << "*\t"                // QUAL
-                << "NH:i:0\t"
-                << "HI:i:0\t"
-                << "XT:A:N\t"
-                << "AS:i:0\n";
+  std::string* readQual1 = with_qualities ? &(r.first.qual) : &(empty_qual);
+  std::string* readQual2 = with_qualities ? &(r.second.qual) : &(empty_qual);
 
-        sstream << mateNameView << '\t' // QNAME
-                << flags2 << '\t'       // FLAGS
-                << "*\t"                // RNAME
-                << "0\t"                // POS (1-based)
-                << "255\t"              // MAPQ
-                << "*\t"                // CIGAR
-                << "*\t"                // RNEXT
-                << "0\t"                // PNEXT
-                << "0\t"                // TLEN
-                << *readSeq2 << '\t'    // SEQ
-                << "*\t"                // QUAL
-                << "NH:i:0\t"
-                << "HI:i:0\t"
-                << "XT:A:N\t"
-                << "AS:i:0\n";
-        return 0;
-      }
+  sstream << readNameView << '\t' // QNAME
+          << flags1 << '\t'       // FLAGS
+          << "*\t"                // RNAME
+          << "0\t"                // POS (1-based)
+          << "255\t"              // MAPQ
+          << "*\t"                // CIGAR
+          << "*\t"                // RNEXT
+          << "0\t"                // PNEXT
+          << "0\t"                // TLEN
+          << *readSeq1 << '\t'    // SEQ
+          << *readQual1 << '\t'   // QUAL
+          << "NH:i:0\t"
+          << "HI:i:0\t"
+          << "XT:A:N\t"
+          << "AS:i:0\n";
+
+  sstream << mateNameView << '\t' // QNAME
+          << flags2 << '\t'       // FLAGS
+          << "*\t"                // RNAME
+          << "0\t"                // POS (1-based)
+          << "255\t"              // MAPQ
+          << "*\t"                // CIGAR
+          << "*\t"                // RNEXT
+          << "0\t"                // PNEXT
+          << "0\t"                // TLEN
+          << *readSeq2 << '\t'    // SEQ
+          << *readQual2 << '\t'   // QUAL
+          << "NH:i:0\t"
+          << "HI:i:0\t"
+          << "XT:A:N\t"
+          << "AS:i:0\n";
+  return 0;
+}
 
 inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
-                                            fmt::MemoryWriter& sstream) {
-        constexpr uint16_t flags = 0x4;
+                                             fmt::MemoryWriter& sstream,
+                                             bool with_qualities = false) {
+  constexpr uint16_t flags = 0x4;
 
-        nonstd::string_view readNameViewSV(r.name);
-        // If the read name contains multiple space-separated parts, print
-        // only the first
-        size_t splitPos = readNameViewSV.find(' ');
-        if (splitPos < readNameViewSV.length()) {
-          readNameViewSV.remove_suffix(readNameViewSV.size() - splitPos);
-        }
-        fmt::StringRef readNameView(readNameViewSV.data(), readNameViewSV.size());
-        std::string* readSeq = &(r.seq);
+  nonstd::string_view readNameViewSV(r.name);
+  // If the read name contains multiple space-separated parts, print
+  // only the first
+  size_t splitPos = readNameViewSV.find(' ');
+  if (splitPos < readNameViewSV.length()) {
+    readNameViewSV.remove_suffix(readNameViewSV.size() - splitPos);
+  }
+  fmt::StringRef readNameView(readNameViewSV.data(), readNameViewSV.size());
+  std::string* readSeq = &(r.seq);
+  std::string empty_qual{"*"};
+  std::string* readQual = with_qualities ? &(r.qual) : &empty_qual;
 
-        sstream << readNameView << '\t' // QNAME
-                << flags << '\t'    // FLAGS
-                << "*\t"            // RNAME
-                << 0 << '\t'        // POS (1-based)
-                << 255 << '\t'      // MAPQ
-                << "*\t"            // CIGAR
-                << "*\t"            // MATE NAME
-                << "0\t"            // MATE POS
-                << "0\t"            // TLEN
-                << *readSeq << '\t' // SEQ
-                << "*\t"            // QSTR
-                << "NH:i:0\t"
-                << "HI:i:0\t"
-                << "XT:A:N\t"
-                << "AS:i:0\n";
-        return 0;
-      }
+  sstream << readNameView << '\t' // QNAME
+          << flags << '\t'        // FLAGS
+          << "*\t"                // RNAME
+          << 0 << '\t'            // POS (1-based)
+          << 255 << '\t'          // MAPQ
+          << "*\t"                // CIGAR
+          << "*\t"                // MATE NAME
+          << "0\t"                // MATE POS
+          << "0\t"                // TLEN
+          << *readSeq << '\t'     // SEQ
+          << *readQual << '\t'    // QSTR
+          << "NH:i:0\t"
+          << "HI:i:0\t"
+          << "XT:A:N\t"
+          << "AS:i:0\n";
+  return 0;
+}
 
 template <typename ReadT, typename IndexT>
 inline uint32_t writeAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream, bool writeOrphans, 
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits,
+    fmt::MemoryWriter& sstream, bool writeOrphans,
     bool tidsAlreadyDecoded = false) {
-  (void) writeOrphans;
-
+  (void)writeOrphans;
 
   auto& readTemp = formatter.read1Temp;
+  auto& qualTemp = formatter.qual1Temp;
   auto& cigarStr = formatter.cigarStr1;
 
   uint16_t flags;
@@ -646,46 +662,55 @@ inline uint32_t writeAlignmentsToStreamSingle(
   auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
     ++i;
-    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+    uint64_t encodedID =
+        tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
     auto& refName = fullRefNames[encodedID];
     uint32_t txpLen = fullRefLengths[encodedID];
     char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
 
     // === SAM
-      getSamFlags(qa, flags);
-      if (alnCtr != 0) {
-        flags |= 0x100;
-      }
+    getSamFlags(qa, flags);
+    if (alnCtr != 0) {
+      flags |= 0x100;
+    }
 
-      // Reverse complement the read and reverse
-      // the quality string if we need to
-      std::string* readSeq = &(r.seq);
-      // std::string* qstr1 = &(r.first.qual);
-      if (!qa.fwd) {
-        if (!haveRev) {
+    // Reverse complement the read and reverse
+    // the quality string if we need to
+    std::string* readSeq = &(r.seq);
+    std::string* readQual =
+        formatter.use_qualities ? &(r.qual) : &(formatter.empty_qual);
+    if (!qa.fwd) {
+      if (!haveRev) {
+        // If we are writing both the read and qualities
+        // then reverse both. Otherwise, just reverse the
+        // read.
+        if (formatter.use_qualities) {
+          pufferfish::util::reverseRead(*readSeq, *readQual, readTemp,
+                                        qualTemp);
+        } else {
           pufferfish::util::reverseRead(*readSeq, readTemp);
-          haveRev = true;
         }
-        readSeq = &(readTemp);
+        haveRev = true;
       }
+      readSeq = &(readTemp);
+      readQual = formatter.use_qualities ? &(qualTemp) : &(formatter.empty_qual);
+    }
 
-      adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr);
+    adjustOverhang(qa.pos, qa.readLen, txpLen, cigarStr);
 
-      sstream << readNameView << '\t' // QNAME
-              << flags << '\t' // FLAGS
-              << refName << '\t' // RNAME
-              << qa.pos + 1 << '\t' // POS (1-based)
-              << 255 << '\t' // MAPQ
-              << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar) << '\t' // CIGAR
-              << '*' << '\t' // MATE NAME
-              << 0 << '\t' // MATE POS
-              << qa.fragLen << '\t' // TLEN
-              << *readSeq << '\t' // SEQ
-              << "*\t" // QSTR
-              << numHitFlag << '\t'
-              << "HI:i:" << i << '\t'
-              << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.score << '\n';
+    sstream << readNameView << '\t' // QNAME
+            << flags << '\t'        // FLAGS
+            << refName << '\t'      // RNAME
+            << qa.pos + 1 << '\t'   // POS (1-based)
+            << 255 << '\t'          // MAPQ
+            << (qa.cigar.empty() ? cigarStr.c_str() : qa.cigar) << '\t' // CIGAR
+            << '*' << '\t'        // MATE NAME
+            << 0 << '\t'          // MATE POS
+            << qa.fragLen << '\t' // TLEN
+            << *readSeq << '\t'   // SEQ
+            << *readQual << '\t'  // QSTR
+            << numHitFlag << '\t' << "HI:i:" << i << '\t' << "XT:A:" << alnType
+            << '\t' << "AS:i:" << qa.score << '\n';
     ++alnCtr;
   }
   return 0;
@@ -694,34 +719,37 @@ inline uint32_t writeAlignmentsToStreamSingle(
 template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
-    std::vector<pufferfish::util::QuasiAlignment>& jointHits, fmt::MemoryWriter& sstream,
-    bool writeOrphans, bool tidsAlreadyDecoded = false, const std::string& extraBAMtags = "") {
+    std::vector<pufferfish::util::QuasiAlignment>& jointHits,
+    fmt::MemoryWriter& sstream, bool writeOrphans,
+    bool tidsAlreadyDecoded = false, const std::string& extraBAMtags = "") {
 
   auto& read1Temp = formatter.read1Temp;
   auto& read2Temp = formatter.read2Temp;
+  auto& qual1Temp = formatter.qual1Temp;
+  auto& qual2Temp = formatter.qual2Temp;
   auto& cigarStr1 = formatter.cigarStr1;
   auto& cigarStr2 = formatter.cigarStr2;
 
   uint16_t flags1, flags2;
 
   auto processReadName = [](const std::string& name) -> fmt::StringRef {
-                           nonstd::string_view readNameView(name);
-                           // If the read name contains multiple space-separated parts,
-                           // print only the first
-                           size_t splitPos = readNameView.find(' ');
-                           if (splitPos < readNameView.length()) {
-                             readNameView.remove_suffix(readNameView.length() - splitPos);
-                           } else {
-                             splitPos = readNameView.length();
-                           }
+    nonstd::string_view readNameView(name);
+    // If the read name contains multiple space-separated parts,
+    // print only the first
+    size_t splitPos = readNameView.find(' ');
+    if (splitPos < readNameView.length()) {
+      readNameView.remove_suffix(readNameView.length() - splitPos);
+    } else {
+      splitPos = readNameView.length();
+    }
 
-                           // trim /1 from the pe read
-                           if (splitPos > 2 and readNameView[splitPos - 2] == '/') {
-                             readNameView.remove_suffix(2);
-                             //readName[splitPos - 2] = '\0';
-                           }
-                           return fmt::StringRef(readNameView.data(), readNameView.size());
-                         };
+    // trim /1 from the pe read
+    if (splitPos > 2 and readNameView[splitPos - 2] == '/') {
+      readNameView.remove_suffix(2);
+      // readName[splitPos - 2] = '\0';
+    }
+    return fmt::StringRef(readNameView.data(), readNameView.size());
+  };
 
   auto readNameView = processReadName(r.first.name);
   auto mateNameView = processReadName(r.second.name);
@@ -744,7 +772,8 @@ inline uint32_t writeAlignmentsToStream(
   auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
     ++i;
-    uint64_t encodedID = tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
+    uint64_t encodedID =
+        tidsAlreadyDecoded ? qa.tid : formatter.index->getRefId(qa.tid);
     auto& refName = fullRefNames[encodedID];
     uint32_t txpLen = fullRefLengths[encodedID];
     char alnType = formatter.index->isDecoyEncodedIndex(encodedID) ? 'D' : 'T';
@@ -761,27 +790,46 @@ inline uint32_t writeAlignmentsToStream(
       // Reverse complement the read and reverse
       // the quality string if we need to
       std::string* readSeq1 = &(r.first.seq);
+      std::string* readQual1 =
+          formatter.use_qualities ? &(r.first.qual) : &(formatter.empty_qual);
       // std::string* qstr1 = &(r.first.qual);
       if (!qa.fwd) {
         if (!haveRev1) {
-          pufferfish::util::reverseRead(*readSeq1, read1Temp);
+          // If we are writing both the read and qualities
+          // then reverse both. Otherwise, just reverse the
+          // read.
+          if (formatter.use_qualities) {
+            pufferfish::util::reverseRead(*readSeq1, *readQual1, read1Temp,
+                                          qual1Temp);
+          } else {
+            pufferfish::util::reverseRead(*readSeq1, read1Temp);
+          }
           haveRev1 = true;
         }
         readSeq1 = &(read1Temp);
-        // qstr1 = &(qual1Temp);
+        readQual1 = formatter.use_qualities ? &(qual1Temp) : &(formatter.empty_qual);
       }
 
       std::string* readSeq2 = &(r.second.seq);
+      std::string* readQual2 =
+          formatter.use_qualities ? &(r.second.qual) : &(formatter.empty_qual);
       // std::string* qstr2 = &(r.second.qual);
       if (!qa.mateIsFwd) {
         if (!haveRev2) {
-          pufferfish::util::reverseRead(*readSeq2, read2Temp);
+          // If we are writing both the read and qualities
+          // then reverse both. Otherwise, just reverse the
+          // read.
+          if (formatter.use_qualities) {
+            pufferfish::util::reverseRead(*readSeq2, *readQual2, read2Temp,
+                                          qual2Temp);
+          } else {
+            pufferfish::util::reverseRead(*readSeq2, read2Temp);
+          }
           haveRev2 = true;
         }
         readSeq2 = &(read2Temp);
-        // qstr2 = &(qual2Temp);
+        readQual2 = formatter.use_qualities ? &(qual2Temp) : &(formatter.empty_qual);
       }
-
 
       // If the fragment overhangs the right end of the transcript
       // adjust fragLen (overhanging the left end is already handled).
@@ -789,97 +837,110 @@ inline uint32_t writeAlignmentsToStream(
       int32_t read2Pos = qa.matePos;
       const bool read1First{read1Pos < read2Pos};
       const int32_t minPos = read1First ? read1Pos : read2Pos;
-      if ((minPos + static_cast<int32_t>(qa.fragLen)) > static_cast<int32_t>(txpLen)) { qa.fragLen = txpLen - minPos; }
+      if ((minPos + static_cast<int32_t>(qa.fragLen)) >
+          static_cast<int32_t>(txpLen)) {
+        qa.fragLen = txpLen - minPos;
+      }
       // get the fragment length as a signed int
       const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
 
       std::stringstream ss;
 
-      sstream << readNameView << '\t'                    // QNAME
-              //<< qa.numHits << '\t'
-              << flags1 << '\t'                              // FLAGS
-              << refName << '\t'                             // RNAME
-              << qa.pos + 1 << '\t'                          // POS (1-based)
-              << 1 << '\t'                                   // MAPQ
-              << (qa.cigar.empty() ? cigarStr1.c_str() : qa.cigar) << '\t'                   // CIGAR
+      sstream << readNameView << '\t' // QNAME
+                                      //<< qa.numHits << '\t'
+              << flags1 << '\t'     // FLAGS
+              << refName << '\t'    // RNAME
+              << qa.pos + 1 << '\t' // POS (1-based)
+              << 1 << '\t'          // MAPQ
+              << (qa.cigar.empty() ? cigarStr1.c_str() : qa.cigar)
+              << '\t' // CIGAR
               //<< "100M" << '\t'
               //<< qa.cigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.matePos + 1 << '\t'                      // PNEXT
               << ((read1First) ? fragLen : -fragLen) << '\t' // TLEN
               << *readSeq1 << '\t'                           // SEQ
-              << "*\t"                                       // QUAL
-              << numHitFlag << '\t'
-              << "HI:i:" << i << '\t'
-              << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.score;
-      if(!extraBAMtags.empty()) {
+              << *readQual1 << '\t'                          // QUAL
+              << numHitFlag << '\t' << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t' << "AS:i:" << qa.score;
+      if (!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
 
-      sstream << mateNameView << '\t'                    // QNAME
-              //<< qa.numHits << '\t'
-              << flags2 << '\t'                              // FLAGS
-              << refName << '\t'                             // RNAME
-              << qa.matePos + 1 << '\t'                      // POS (1-based)
-              << 1 << '\t'                                   // MAPQ
-              << (qa.mateCigar.empty() ? cigarStr2.c_str() : qa.mateCigar) << '\t'                   // CIGAR
+      sstream << mateNameView << '\t' // QNAME
+                                      //<< qa.numHits << '\t'
+              << flags2 << '\t'         // FLAGS
+              << refName << '\t'        // RNAME
+              << qa.matePos + 1 << '\t' // POS (1-based)
+              << 1 << '\t'              // MAPQ
+              << (qa.mateCigar.empty() ? cigarStr2.c_str() : qa.mateCigar)
+              << '\t' // CIGAR
               //<< "100M" << '\t'
               //<< qa.mateCigar << '\t'                   // CIGAR
               << '=' << '\t'                                 // RNEXT
               << qa.pos + 1 << '\t'                          // PNEXT
               << ((read1First) ? -fragLen : fragLen) << '\t' // TLEN
               << *readSeq2 << '\t'                           // SEQ
-              << "*\t"                                       // QUAL
-              << numHitFlag << '\t'
-              << "HI:i:" << i << '\t'
-              << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.mateScore;
-      if(!extraBAMtags.empty()) {
+              << *readQual2 << '\t'                          // QUAL
+              << numHitFlag << '\t' << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t' << "AS:i:" << qa.mateScore;
+      if (!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
-    } else if(writeOrphans) {
-		//added orphan support
-	  //std::cerr<<"orphans here";
+    } else if (writeOrphans) {
+      // The alignment is orphaned
 
       getSamFlags(qa, true, flags1, flags2);
       if (alnCtr != 0) {
         flags1 |= 0x100;
         flags2 |= 0x100;
       }
-      /** NOTE : WHY IS txpLen 100 here --- we should store and read this from the index. **/
+
       adjustOverhang(qa, txpLen, cigarStr1, cigarStr2);
+
       // Reverse complement the read and reverse
       // the quality string if we need to
+      std::string* readSeq{nullptr};
+      std::string* unalignedSeq{nullptr};
+      std::string* readQual{nullptr};
+      std::string* unalignedQual{nullptr};
 
-      std::string* readSeq{nullptr} ;
-      std::string* unalignedSeq{nullptr} ;
-
-      uint32_t flags, unalignedFlags ;
+      uint32_t flags, unalignedFlags;
 
       fmt::StringRef* alignedName{nullptr};
       fmt::StringRef* unalignedName{nullptr};
       std::string* readTemp{nullptr};
+      std::string* qualTemp{nullptr};
 
       auto* cigarStr = &formatter.cigarStr1;
       cigarStr->clear();
       cigarStr->write("{}M", r.first.seq.length());
 
-      //logic for assigning orphans
-      if(qa.mateStatus == pufferfish::util::MateStatus::PAIRED_END_LEFT){ //left read
+      // logic for assigning orphans
+      if (qa.mateStatus ==
+          pufferfish::util::MateStatus::PAIRED_END_LEFT) { // left read
         alignedName = &readNameView;
         unalignedName = &mateNameView;
 
-        readSeq = &(r.first.seq) ;
-        unalignedSeq = &(r.second.seq) ;
+        readSeq = &(r.first.seq);
+        unalignedSeq = &(r.second.seq);
 
-        flags = flags1 ;
-        unalignedFlags = flags2 ;
+        if (formatter.use_qualities) {
+          readQual = &(r.first.qual);
+          unalignedQual = &(r.second.qual);
+        } else {
+          readQual = &(formatter.empty_qual);
+          unalignedQual = &(formatter.empty_qual);
+        }
 
-        haveRev = &haveRev1 ;
-        readTemp = &read1Temp ;
+        flags = flags1;
+        unalignedFlags = flags2;
+
+        haveRev = &haveRev1;
+        readTemp = &read1Temp;
+        qualTemp = &qual1Temp;
       } else {
         alignedName = &mateNameView;
         unalignedName = &readNameView;
@@ -888,68 +949,80 @@ inline uint32_t writeAlignmentsToStream(
         cigarStr->clear();
         cigarStr->write("{}M", r.second.seq.length());
 
-        readSeq = &(r.second.seq) ;
-        unalignedSeq = &(r.first.seq) ;
+        readSeq = &(r.second.seq);
+        unalignedSeq = &(r.first.seq);
 
-        flags = flags2 ;
-        unalignedFlags = flags1 ;
+        if (formatter.use_qualities) {
+          readQual = &(r.second.qual);
+          unalignedQual = &(r.first.qual);
+        } else {
+          readQual = &(formatter.empty_qual);
+          unalignedQual = &(formatter.empty_qual);
+        }
 
-        haveRev = &haveRev2 ;
-        readTemp = &read2Temp ;
+        flags = flags2;
+        unalignedFlags = flags1;
 
+        haveRev = &haveRev2;
+        readTemp = &read2Temp;
+        qualTemp = &qual2Temp;
       }
-
 
       // std::string* qstr1 = &(r.first.qual);
       if (!qa.fwd) {
         if (!*haveRev) {
-          pufferfish::util::reverseRead(*readSeq, *readTemp);
+          // If we are writing both the read and qualities
+          // then reverse both. Otherwise, just reverse the
+          // read.
+          if (formatter.use_qualities) {
+            pufferfish::util::reverseRead(*readSeq, *readQual, *readTemp,
+                                          *qualTemp);
+          } else {
+            pufferfish::util::reverseRead(*readSeq, *readTemp);
+          }
           *haveRev = true;
         }
         readSeq = readTemp;
+        readQual = formatter.use_qualities ? qualTemp : &(formatter.empty_qual);
       }
 
       // If the fragment overhangs the right end of the reference
       // adjust fragLen (overhanging the left end is already handled).
 
-      sstream << *(alignedName) << '\t'                    // QNAME
-              << flags << '\t'                              // FLAGS
-              << refName << '\t'                             // RNAME
-              << qa.pos + 1 << '\t'                          // POS (1-based)
-              << 1 << '\t'                                   // MAPQ
-              << (qa.cigar.empty() ? (*cigarStr).c_str() : qa.cigar) << '\t'                   // CIGAR
-              //<< "100M" << '\t' 
-              << '=' << '\t'                                 // RNEXT
-              << /* qa.matePos */ qa.pos + 1 << '\t'                      // PNEXT
-              << 0 << '\t'                                     // TLEN
-              << *readSeq << '\t'                           // SEQ
-              << "*\t"                                       // QUAL
-              << numHitFlag << '\t'
-              << "HI:i:" << i << '\t'
-              << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.score;
-      if(!extraBAMtags.empty()) {
+      sstream << *(alignedName) << '\t' // QNAME
+              << flags << '\t'          // FLAGS
+              << refName << '\t'        // RNAME
+              << qa.pos + 1 << '\t'     // POS (1-based)
+              << 1 << '\t'              // MAPQ
+              << (qa.cigar.empty() ? (*cigarStr).c_str() : qa.cigar)
+              << '\t' // CIGAR
+              //<< "100M" << '\t'
+              << '=' << '\t'                         // RNEXT
+              << /* qa.matePos */ qa.pos + 1 << '\t' // PNEXT
+              << 0 << '\t'                           // TLEN
+              << *readSeq << '\t'                    // SEQ
+              << *readQual << '\t'                   // QUAL
+              << numHitFlag << '\t' << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t' << "AS:i:" << qa.score;
+      if (!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
 
-
-      sstream << *(unalignedName) << '\t'                    // QNAME
-              << unalignedFlags << '\t'                              // FLAGS
-              << refName << '\t'                             // RNAME
-              << qa.pos + 1 << '\t'                      // POS (1-based)
-              << 0 << '\t'                                   // MAPQ
-              << "*\t"                   // CIGAR
-              << '=' << '\t'                                 // RNEXT
-              << qa.pos + 1 << '\t'                          // PNEXT
-              << 0 << '\t'                                   // TLEN
-              << *unalignedSeq << '\t'                           // SEQ
-              << "*\t"                                       // QUAL
-              << numHitFlag << '\t'
-              << "HI:i:" << i << '\t'
-              << "XT:A:" << alnType << '\t'
-              << "AS:i:" << qa.mateScore;
-      if(!extraBAMtags.empty()) {
+      sstream << *(unalignedName) << '\t' // QNAME
+              << unalignedFlags << '\t'   // FLAGS
+              << refName << '\t'          // RNAME
+              << qa.pos + 1 << '\t'       // POS (1-based)
+              << 0 << '\t'                // MAPQ
+              << "*\t"                    // CIGAR
+              << '=' << '\t'              // RNEXT
+              << qa.pos + 1 << '\t'       // PNEXT
+              << 0 << '\t'                // TLEN
+              << *unalignedSeq << '\t'    // SEQ
+              << *unalignedQual << '\t'   // QUAL
+              << numHitFlag << '\t' << "HI:i:" << i << '\t'
+              << "XT:A:" << alnType << '\t' << "AS:i:" << qa.mateScore;
+      if (!extraBAMtags.empty()) {
         sstream << extraBAMtags;
       }
       sstream << '\n';
