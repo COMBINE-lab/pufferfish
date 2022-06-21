@@ -101,6 +101,7 @@ public:
   bool verbose{false};
   bool validateMappings{true};
   bool bestStrata{false};
+  bool writeQualities{false};
   int32_t gapOpenPenalty{5};
   int32_t gapExtendPenalty{3};
   int32_t matchScore{2};

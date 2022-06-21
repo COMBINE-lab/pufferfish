@@ -258,6 +258,9 @@ namespace pufferfish {
                                 std::string &readWork,
                                 std::string &qualWork) {
 
+            // NOTE: Should we explicitly check here that qual and seq
+            // have the same length? This should have been a parsing 
+            // error upstream, but consider a defensive check here too.
             readWork.resize(seq.length(), 'A');
             qualWork.resize(qual.length(), 'I');
             int32_t end = seq.length() - 1, start = 0;

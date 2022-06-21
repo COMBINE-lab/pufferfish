@@ -111,6 +111,11 @@ void processReadsPair(paired_parser *parser,
     std::vector<pufferfish::util::MemCluster> recoveredHits;
     std::vector<pufferfish::util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
+    if (mopts->writeQualities) {
+        formatter.enable_qualities();
+    } else {
+        formatter.disable_qualities();
+    }
     pufferfish::util::QueryCache qc;
 
     //Initialize aligner ksw
@@ -507,7 +512,7 @@ void processReadsPair(paired_parser *parser,
                 writeAlignmentsToStream(rpair, formatter, jointAlignments, sstream, !mopts->noOrphan);
                 alignmentStreamCount += jointAlignments.size();
               } else if (jointAlignments.size() == 0) {
-                writeUnalignedPairToStream(rpair, sstream);
+                writeUnalignedPairToStream(rpair, formatter, sstream);
                 alignmentStreamCount += 1;
               }
             }
@@ -591,6 +596,11 @@ void processReadsSingle(single_parser *parser,
     pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> leftHits;
     std::vector<pufferfish::util::JointMems> jointHits;
     PairedAlignmentFormatter<PufferfishIndexT *> formatter(&pfi);
+    if (mopts->writeQualities) {
+        formatter.enable_qualities();
+    } else {
+        formatter.disable_qualities();
+    }
     pufferfish::util::QueryCache qc;
     std::vector<pufferfish::util::MemCluster> all;
 
@@ -832,7 +842,7 @@ void processReadsSingle(single_parser *parser,
                 alignmentStreamCount += jointAlignments.size();
             } else if (jointHits.size() == 0 and !mopts->noOutput) {
                 // write sam output for un-mapped reads
-              writeUnalignedSingleToStream(read, sstream);
+              writeUnalignedSingleToStream(read, formatter, sstream);
               alignmentStreamCount += 1;
             }
 

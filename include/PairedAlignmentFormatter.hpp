@@ -45,7 +45,7 @@ struct PairedAlignmentFormatter {
 
   bool disable_qualities() {
     bool prev = use_qualities;
-    use_qualities = true;
+    use_qualities = false;
     return prev;
   }
 

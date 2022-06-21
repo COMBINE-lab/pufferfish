@@ -526,9 +526,11 @@ inline uint32_t writeAlignmentsToKrakenDump(
   return 0;
 }
 
+template <typename IndexT>
 inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
-                                           fmt::MemoryWriter& sstream,
-                                           bool with_qualities = false) {
+                                          PairedAlignmentFormatter<IndexT>& formatter,
+                                          fmt::MemoryWriter& sstream
+                                          ) {
   constexpr uint16_t flags1 = 0x1 | 0x4 | 0x8 | 0x40;
   constexpr uint16_t flags2 = 0x1 | 0x4 | 0x8 | 0x80;
 
@@ -555,10 +557,10 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
   auto mateNameView = processReadName(r.second.name);
   std::string* readSeq1 = &(r.first.seq);
   std::string* readSeq2 = &(r.second.seq);
-  std::string empty_qual{"*"};
 
-  std::string* readQual1 = with_qualities ? &(r.first.qual) : &(empty_qual);
-  std::string* readQual2 = with_qualities ? &(r.second.qual) : &(empty_qual);
+  bool use_qualities = formatter.use_qualities;
+  std::string* readQual1 = use_qualities ? &(r.first.qual) : &(formatter.empty_qual);
+  std::string* readQual2 = use_qualities ? &(r.second.qual) : &(formatter.empty_qual);
 
   sstream << readNameView << '\t' // QNAME
           << flags1 << '\t'       // FLAGS
@@ -594,9 +596,11 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
   return 0;
 }
 
+template <typename IndexT>
 inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
-                                             fmt::MemoryWriter& sstream,
-                                             bool with_qualities = false) {
+                                             PairedAlignmentFormatter<IndexT>& formatter,
+                                             fmt::MemoryWriter& sstream
+                                            ) {
   constexpr uint16_t flags = 0x4;
 
   nonstd::string_view readNameViewSV(r.name);
@@ -608,8 +612,7 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
   }
   fmt::StringRef readNameView(readNameViewSV.data(), readNameViewSV.size());
   std::string* readSeq = &(r.seq);
-  std::string empty_qual{"*"};
-  std::string* readQual = with_qualities ? &(r.qual) : &empty_qual;
+  std::string* readQual = formatter.use_qualities ? &(r.qual) : &(formatter.empty_qual);
 
   sstream << readNameView << '\t' // QNAME
           << flags << '\t'        // FLAGS
@@ -917,6 +920,10 @@ inline uint32_t writeAlignmentsToStream(
       auto* cigarStr = &formatter.cigarStr1;
       cigarStr->clear();
       cigarStr->write("{}M", r.first.seq.length());
+      // set these to empty qual as the default
+      // case and assign them below if need be.
+      readQual = &(formatter.empty_qual);
+      unalignedQual = &(formatter.empty_qual);
 
       // logic for assigning orphans
       if (qa.mateStatus ==
@@ -930,9 +937,6 @@ inline uint32_t writeAlignmentsToStream(
         if (formatter.use_qualities) {
           readQual = &(r.first.qual);
           unalignedQual = &(r.second.qual);
-        } else {
-          readQual = &(formatter.empty_qual);
-          unalignedQual = &(formatter.empty_qual);
         }
 
         flags = flags1;
@@ -955,10 +959,7 @@ inline uint32_t writeAlignmentsToStream(
         if (formatter.use_qualities) {
           readQual = &(r.second.qual);
           unalignedQual = &(r.first.qual);
-        } else {
-          readQual = &(formatter.empty_qual);
-          unalignedQual = &(formatter.empty_qual);
-        }
+        } 
 
         flags = flags2;
         unalignedFlags = flags1;
