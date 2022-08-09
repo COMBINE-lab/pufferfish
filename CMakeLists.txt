@@ -1,5 +1,4 @@
-
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.15)
 #cmake_policy(SET CMP0069 NEW)
 
 if(DEFINED ENV{CC})
@@ -456,6 +455,11 @@ set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS
 set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${DEBUG_FLAGS}")
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/ntcard)
+
+# we will use this property later
+define_property(TARGET PROPERTY COMPACT_VECTOR_DIR INHERITED 
+   BRIEF_DOCS "the path to the directory containing the compact_vector include tree"
+   FULL_DOCS "the path to the directory containing the compact_vector include tree")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
 
 if (NOT BUILD_PUFF_FOR_SALMON) 

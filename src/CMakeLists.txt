@@ -89,6 +89,12 @@ message("add library puffer : ${pufferfish_lib_srcs}")
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 target_compile_options(puffer PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
 target_compile_options(puffer PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
+
+# fetch the directory where compact vector lives
+get_property(COMPACT_VECTOR_INCLUDE_PATH TARGET graphdump PROPERTY COMPACT_VECTOR_DIR)
+message("adding ${COMPACT_VECTOR_INCLUDE_PATH} to include path for libpuffer")
+target_include_directories(puffer PUBLIC ${COMPACT_VECTOR_INCLUDE_PATH})
+
 if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()

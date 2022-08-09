@@ -322,7 +322,7 @@ class common {
 public:
   std::ostream& print(std::ostream& os) const {
     const Derived& self = *static_cast<const Derived*>(this);
-    return os << '<' << (void*)self.ptr << '+' << self.offset << ',' << self.bits << '>';
+    return os << '<' << static_cast<const void*>(self.ptr) << '+' << self.offset << ',' << self.bits << '>';
   }
 
 protected:
