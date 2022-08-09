@@ -95,9 +95,6 @@ get_property(COMPACT_VECTOR_INCLUDE_PATH TARGET graphdump PROPERTY COMPACT_VECTO
 message("adding ${COMPACT_VECTOR_INCLUDE_PATH} to include path for libpuffer")
 target_include_directories(puffer PUBLIC ${COMPACT_VECTOR_INCLUDE_PATH})
 
-message(STATUS "setting COMPACT_VECTOR_DIR for libpuffer to be ${COMPACT_VECTOR_INCLUDE_PATH}")
-set_property(TARGET puffer PROPERTY COMPACT_VECTOR_DIR ${COMPACT_VECTOR_INCLUDE_PATH})
-
 if (BUILD_PUFF_FOR_SALMON)
    target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
 endif()
