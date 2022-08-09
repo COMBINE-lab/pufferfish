@@ -269,11 +269,15 @@ namespace compact {
                 std::memcpy(reinterpret_cast<void*>(&w_capacity),
                             reinterpret_cast<void*>(const_cast<char*>(data)),
                             sizeof(w_capacity));
-                m_capacity = w_capacity;
                 // std::cerr<< "capacity = " << m_capacity << "\n";
                 data += sizeof(w_capacity);
+
+                // first de-allocate what we have
                 m_allocator.deallocate(m_mem,
                                        elements_to_words(m_capacity, bits()));
+                // set the capacity to what we read in
+                m_capacity = w_capacity;
+
                 m_mem = reinterpret_cast<W*>(const_cast<char*>(data));
               } else {
                 // load the vector by reading from file
@@ -293,11 +297,13 @@ namespace compact {
 
                 ifile.read(reinterpret_cast<char*>(&w_capacity),
                            sizeof(w_capacity));
-                m_capacity = w_capacity;
-                // std::cerr<< "capacity = " << m_capacity << "\n";
 
+                // first de-allocate what we have 
                 m_allocator.deallocate(m_mem,
                                        elements_to_words(m_capacity, bits()));
+                // set the capacity to what we read in 
+                m_capacity = w_capacity;
+
                 // m_mem =
                 //     m_allocator.allocate(elements_to_words(m_capacity, bits_per_element));
                 // if (m_mem == nullptr)

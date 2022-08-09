@@ -88,7 +88,7 @@ struct gs {
     static constexpr size_t Wbits  = bitsof<W>::val;
     static constexpr W      ubmask = ~(W)0 >> (Wbits - UB);
     const W                 y      = x;
-    W                       mask   = ((~(W)0 >> (Wbits - BITS)) << o) & ubmask;
+    W                       mask   = ((W)(~(W)0 >> (Wbits - BITS)) << o) & ubmask;
     mask_store<W, TS>::store(p, mask, y << o);
     if(!divides(BITS, UB) && o + BITS > UB) {
       unsigned over = o + BITS - UB;
