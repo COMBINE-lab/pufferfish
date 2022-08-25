@@ -283,15 +283,15 @@ if(NOT LIBLZMA_FOUND)
   message("=======================================")
   externalproject_add(liblzma
   DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external
-  DOWNLOAD_COMMAND wget http://tukaani.org/xz/xz-5.2.2.tar.gz -o xz-5.2.2.tar.gz &&
-    ${SHASUM} 73df4d5d34f0468bd57d09f2d8af363e95ed6cc3a4a86129d2f2c366259902a2 xz-5.2.2.tar.gz &&
-    tar -xzvf xz-5.2.2.tar.gz
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2
+  DOWNLOAD_COMMAND wget https://tukaani.org/xz/xz-5.2.6.tar.gz -o xz-5.2.6.tar.gz &&
+    ${SHASUM} a2105abee17bcd2ebd15ced31b4f5eda6e17efd6b10f921a01cda4a44c91b3a0 xz-5.2.6.tar.gz &&
+    tar -xzvf xz-5.2.6.tar.gz
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.6
 
   INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
   BUILD_IN_SOURCE TRUE
 
-  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.2/configure --prefix=<INSTALL_DIR> CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} CPPFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} LDFLAGS=${EXTRA_CMAKE_LIBRARY_FLAGS}
+  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/external/xz-5.2.6/configure --prefix=<INSTALL_DIR> CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} CPPFLAGS=${EXTRA_CMAKE_INCLUDE_FLAGS} LDFLAGS=${EXTRA_CMAKE_LIBRARY_FLAGS}
 
   BUILD_COMMAND make ${QUIET_MAKE}
   INSTALL_COMMAND make ${QUIET_MAKE} install
