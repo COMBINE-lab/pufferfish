@@ -412,6 +412,9 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
                   cp -r htslib <INSTALL_DIR>/include
 )
 
+set(SEQLIB ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libseqlib.a)
+set(SEQLIB_HTSLIB ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libhts.a)
+
 if (FETCHED_TBB)
 add_dependencies(libseqlib libtbb)
 endif()
@@ -450,7 +453,7 @@ endif()
 
 endif() # end of NOT BUILD_PUFF_FOR_SALMON
 
-set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/lib")
+set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS}")
 set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${DEBUG_FLAGS}")
 
