@@ -508,7 +508,7 @@ public:
   template<bool TS = false>
   void set_bits(W x, unsigned bits) {
     Derived& self  = *static_cast<Derived*>(this);
-    gs<W, BITS, W, UB>::set<TS>(x, self.ptr, bits, self.offset);
+    gs<W, BITS, W, UB>::template set<TS>(x, self.ptr, bits, self.offset);
   }
 };
 
