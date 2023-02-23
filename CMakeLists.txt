@@ -114,7 +114,7 @@ endif()
 ###
 if (ASAN_BUILD)
   list(APPEND PF_CPP_FLAGS "-fsanitize=address")
-  list(APPEND PF_CPP_FLAGS "-fsanitize=memory")
+  #list(APPEND PF_CPP_FLAGS "-fsanitize=memory")
 #list(APPEND PF_CPP_FLAGS "-fsanitize=undefined")
 #set(CMAKE_LINK_FLAGS "-fsanitize=address")
 #list(APPEND CMAKE_LINK_FLAGS "-fsanitize=undefined")
