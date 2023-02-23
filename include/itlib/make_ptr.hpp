@@ -1,10 +1,10 @@
-// itlib-make-ptr v1.00
+// itlib-make-ptr v1.01
 //
 // Helper functions for making std::shared_ptr and std::unique_ptr
 //
 // SPDX-License-Identifier: MIT
 // MIT License:
-// Copyright(c) 2020 Borislav Stanimirov
+// Copyright(c) 2020-2022 Borislav Stanimirov
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files(the
@@ -28,6 +28,7 @@
 //
 //                  VERSION HISTORY
 //
+//  1.01 (2022-13-12) Added make_aliased
 //  1.00 (2020-10-15) Initial release
 //
 //
@@ -48,6 +49,12 @@
 //   It's also written for C++11, so you don't need to enable C++14 to include
 //   this header. However it's not a full substitution for std::make_unique
 //
+// * std::shared_ptr<T> make_aliased(const std::shared_ptr<U>& owner, T* ptr)
+//   *SAFELY* create an aliased shared pointer.
+//   If the use count of owner is zero, it will return null even if ptr is
+//   not null.
+//   https://ibob.bg/blog/2022/12/28/dont-use-shared_ptr-aliasing-ctor/
+//
 // Example:
 //
 // my<complex, template, type> val;
@@ -56,8 +63,8 @@
 // auto ptr = std::make_shared<my<complex, template, type>>(std::move(val));
 //
 // // nice
-// auto p1 = itlib::make_shaerd(val); // copy val into p1
-// auto p2 = itlib::make_shaerd(std::move(val)); // move val into p2
+// auto p1 = itlib::make_shared(val); // copy val into p1
+// auto p2 = itlib::make_shared(std::move(val)); // move val into p2
 //
 //
 //                  TESTS
@@ -84,6 +91,12 @@ auto make_unique(T&& t) -> std::unique_ptr<typename std::remove_reference<T>::ty
 {
     using RRT = typename std::remove_reference<T>::type;
     return  std::unique_ptr<RRT>(new RRT(std::forward<T>(t)));
+}
+
+template <typename U, typename T>
+std::shared_ptr<T> make_aliased(const std::shared_ptr<U>& owner, T* ptr) {
+    if (owner.use_count() == 0) return {};
+    return std::shared_ptr<T>(owner, ptr);
 }
 
 }

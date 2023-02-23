@@ -1,11 +1,11 @@
-// itlib-pod-vector v1.04
+// itlib-pod-vector v1.07
 //
 // A vector of PODs. Similar to std::vector, but doesn't call constructors or
 // destructors and instead uses memcpy and memmove to manage the data
 //
 // SPDX-License-Identifier: MIT
 // MIT License:
-// Copyright(c) 2020-2021 Borislav Stanimirov
+// Copyright(c) 2020-2023 Borislav Stanimirov
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files(the
@@ -29,6 +29,14 @@
 //
 //                  VERSION HISTORY
 //
+//  1.07 (2023-01-18) Use std::copy and std::fill. This does help compilers
+//                    generate better code (expecially MSVC)
+//  1.06 (2022-08-26) Inherit from allocator to make use of EBO
+//  1.05 (2022-06-09) Support for alignment of T.
+//                    Requires aloc_align from allocator implementations!
+//                    Support for expand allocator func
+//                    Requires has_expand from allocator implementations!
+//                    Other minor internal cleanups
 //  1.04 (2021-08-05) Bugfix! Fixed return value of erase
 //  1.03 (2021-06-08) Prevent memcmp calls with nullptr
 //  1.02 (2021-06-08) Noexcept move ctor and move assignment operator
@@ -69,11 +77,19 @@
 // The allocator must provide the following interface:
 // * using size_type = ...; - size type for allocator and vector
 // * void* malloc(size_type size); - allocate memory
-// * void* realloc(void* old, size_type new_size); - allocate/reallocate memory
 // * void free(void* mem); - free memory which was allocated here
 // * size_type max_size(); - max available memory
 // * bool zero_fill_new(); - whether pod_vector should to zerofill new elements
+// * size_type alloc_align() - guaranteed min alignment of malloc and realloc
+//                             MUST BE static constexpr
+// * bool has_expand() - whether to use the expand or realloc interface
+//                       MUST BE static constexpr
+// * void* realloc(void* old, size_type new_size) - allocate/reallocate memory
+//                                                  ONLY IF has_expand is false
 // * size_type realloc_wasteful_copy_size() - when to use reallocate on grows
+//                                            ONLY IF has_expand is false
+// * bool expand(void* ptr, size_type new_size) - try to expand buf
+//                                                ONLY IF has_expand is true
 //
 //                  TESTS
 //
@@ -87,6 +103,8 @@
 #include <cstdlib>
 #include <iterator>
 #include <cstring>
+#include <cstdint>
+#include <algorithm>
 
 namespace itlib
 {
@@ -98,18 +116,31 @@ class pod_allocator
 public:
     using size_type = size_t;
     static void* malloc(size_type size) { return std::malloc(size); }
-    static void* realloc(void* old, size_type new_size) { return std::realloc(old, new_size); }
     static void free(void* mem) { std::free(mem); }
+
     static constexpr size_type max_size() { return ~size_type(0); }
     static constexpr bool zero_fill_new() { return true; }
+    static constexpr size_type alloc_align() { return alignof(max_align_t); }
+
+#if defined(_WIN32)
+    static constexpr bool has_expand() { return true; }
+    static bool expand(void* mem, size_t new_size) { return !!::_expand(mem, new_size); }
+    static void* realloc(void*, size_type) { return nullptr; }
+    static constexpr size_type realloc_wasteful_copy_size() { return max_size(); }
+#else
+    static constexpr bool has_expand() { return false; }
+    static bool expand(void*, size_t) { return false; }
+    static void* realloc(void* old, size_type new_size) { return std::realloc(old, new_size); }
     static constexpr size_type realloc_wasteful_copy_size() { return 4096; }
+#endif
 };
 }
 
 template<typename T, class Alloc = impl::pod_allocator>
-class pod_vector
+class pod_vector : private Alloc
 {
     static_assert(std::is_trivial<T>::value, "itlib::pod_vector with non-trivial type");
+    static_assert(alignof(T) <= 128, "alignment of T is too big"); // max supported alignment
 
     template<typename U, typename A>
     friend class pod_vector; // so we can move between types
@@ -132,8 +163,8 @@ public:
     {}
 
     explicit pod_vector(const Alloc& alloc)
-        : m_capacity(0)
-        , m_alloc(alloc)
+        : Alloc(alloc)
+        , m_capacity(0)
     {
         m_begin = m_end = nullptr;
     }
@@ -174,10 +205,10 @@ public:
     }
 
     pod_vector(pod_vector&& other) noexcept
-        : m_begin(other.m_begin)
+        : Alloc(std::move(other.get_alloc()))
+        , m_begin(other.m_begin)
         , m_end(other.m_end)
         , m_capacity(other.m_capacity)
-        , m_alloc(std::move(other.m_alloc))
     {
         other.m_begin = other.m_end = nullptr;
         other.m_capacity = 0;
@@ -185,7 +216,7 @@ public:
 
     ~pod_vector()
     {
-        m_alloc.free(m_begin);
+        a_free_begin();
     }
 
     pod_vector& operator=(const pod_vector& other)
@@ -200,9 +231,9 @@ public:
     {
         if (this == &other) return *this; // prevent self usurp
 
-        m_alloc.free(m_begin);
+        a_free_begin();
 
-        m_alloc = std::move(other.m_alloc);
+        get_alloc() = std::move(other.get_alloc());
         m_capacity = other.m_capacity;
         m_begin = other.m_begin;
         m_end = other.m_end;
@@ -225,7 +256,9 @@ public:
     template <typename U, typename UAlloc>
     void recast_take_from(pod_vector<U, UAlloc>&& other)
     {
-        m_alloc.free(m_begin);
+        static_assert(allocator_aligned() == pod_vector<U, UAlloc>::allocator_aligned(), "taking buffers can only happen with the same relative allocation alignment");
+
+        a_free_begin();
 
         auto new_size = other.byte_size() / sizeof(T);
         auto cast = reinterpret_cast<T*>(other.data());
@@ -234,7 +267,9 @@ public:
 
         m_capacity = (sizeof(U) * other.capacity()) / sizeof(T);
 
-        m_alloc = std::move(other.m_alloc);
+        // This needs to be a valid op for recasts to work
+        // it this line does not compile, you need to ensure allocator compatibility for it
+        get_alloc() = std::move(other.get_alloc());
 
         other.m_begin = other.m_end = nullptr;
         other.m_capacity = 0;
@@ -256,9 +291,9 @@ public:
         assign_copy(ilist.begin(), ilist.end());
     }
 
-    allocator_type get_allocator() const noexcept
+    const allocator_type& get_allocator() const noexcept
     {
-        return m_alloc;
+        return get_alloc();
     }
 
     const_reference at(size_type i) const
@@ -383,14 +418,14 @@ public:
         return m_end - m_begin;
     }
 
-    size_type max_size() const noexcept
+    size_t max_size() const noexcept
     {
-        return m_alloc.max_size();
+        return Alloc::max_size();
     }
 
     size_t byte_size() const noexcept
     {
-        return sizeof(value_type) * size();
+        return e2b(size());
     }
 
     void reserve(size_t desired_capacity)
@@ -400,23 +435,41 @@ public:
         auto new_cap = get_new_capacity(desired_capacity);
         auto s = size();
 
-        T* new_buf;
-        if (m_capacity - s > m_alloc.realloc_wasteful_copy_size())
-        {
-            // we decided that it would be more wasteful to use realloc and
-            // copy more than needed than it would be to malloc and manually copy
-            new_buf = pointer(m_alloc.malloc(new_cap * sizeof(T)));
+        auto malloc_copy = [&]() {
+            auto new_buf = pointer(a_malloc(new_cap));
             if (s) memcpy(new_buf, m_begin, byte_size());
-            m_alloc.free(m_begin);
+            a_free_begin();
+            m_begin = new_buf;
+            m_capacity = new_cap;
+        };
+
+        if (Alloc::has_expand())
+        {
+            if (!m_begin)
+            {
+                m_begin = pointer(a_malloc(new_cap));
+                m_capacity = new_cap;
+            }
+            else if (!a_expand_begin(new_cap))
+            {
+                malloc_copy();
+            }
         }
         else
         {
-            new_buf = pointer(m_alloc.realloc(m_begin, sizeof(value_type) * new_cap));
+            if (e2b(m_capacity - s) > Alloc::realloc_wasteful_copy_size())
+            {
+                // we decided that it would be more wasteful to use realloc and
+                // copy more than needed than it would be to malloc and manually copy
+                malloc_copy();
+            }
+            else
+            {
+                a_realloc_begin(new_cap);
+            }
         }
 
-        m_begin = new_buf;
-        m_end = new_buf + s;
-        m_capacity = new_cap;
+        m_end = m_begin + s;
     }
 
     size_t capacity() const noexcept
@@ -432,17 +485,30 @@ public:
 
         if (s == 0)
         {
-            m_alloc.free(m_begin);
+            a_free_begin();
             m_capacity = 0;
             m_begin = m_end = nullptr;
             return;
         }
 
-        auto new_buf = pointer(m_alloc.realloc(m_begin, sizeof(value_type) * s));
+        if (Alloc::has_expand())
+        {
+            if (!a_expand_begin(s))
+            {
+                // uh-oh expand-shrink failed?
+                auto new_buf = a_malloc(s);
+                std::memcpy(new_buf, m_begin, e2b(s));
+                a_free_begin();
+                m_begin = pointer(new_buf);
+                m_capacity = s;
+            }
+        }
+        else
+        {
+            a_realloc_begin(s);
+        }
 
-        m_begin = new_buf;
-        m_end = new_buf + s;
-        m_capacity = s;
+        m_end = m_begin + s;
     }
 
     // modifiers
@@ -530,7 +596,10 @@ public:
     void resize(size_type n)
     {
         reserve(n);
-        if (n > size() && m_alloc.zero_fill_new()) zero_fill(m_end, n - size());
+        if (n > size() && Alloc::zero_fill_new())
+        {
+            std::memset(m_end, 0, e2b(n - size()));
+        }
         m_end = m_begin + n;
     }
 
@@ -542,41 +611,22 @@ public:
     }
 
 private:
-    static void zero_fill(T* p, size_type s)
-    {
-        std::memset(p, 0, s * sizeof(T));
-    }
-
     // fill count elements from p with value
     static void fill(T* p, size_type count, const T& value)
     {
-        // we could look for optimizations here
-        // we could use memset if sizeof(T) == 1
-        // however all observed compilers ended up recognizing this
-        // and using memset with optimizations in such a case
-        // that's enough for us
-        for (size_type i=0; i<count; ++i)
-        {
-            *p++ = value;
-        }
+        std::fill(p, p + count, value);
     }
 
     template <typename InputIterator>
     static void copy_not_aliased(T* p, InputIterator begin, InputIterator end)
     {
-        // much like above when InputIterator is const T* or bitwise equivalent to T*
-        // (say int/unsinged)
-        // compilers with optimizations end up recognizing the case and using memcpy
-        for (auto i = begin; i!=end; ++i)
-        {
-            *p++ = *i;
-        }
+        std::copy(begin, end, p);
     }
 
     // still for extra help, we can provide this (alsto it will be faster in debug)
     static void copy_not_aliased(T* p, const T* begin, const T* end)
     {
-        auto s = size_t(end - begin) * sizeof(T);
+        auto s = e2b(size_t(end - begin));
         if (s == 0) return;
         std::memcpy(p, begin, s);
     }
@@ -618,33 +668,52 @@ private:
         }
         else
         {
+            auto make_gap = [&]() {
+                std::memmove(m_begin + offset + num, m_begin + offset, e2b(s - offset));
+            };
+
             if (s + num > m_capacity)
             {
                 auto new_cap = get_new_capacity(s + num);
-                T* new_buf;
-                if (m_capacity - offset > m_alloc.realloc_wasteful_copy_size())
-                {
+
+                auto malloc_copy = [&]() {
                     // we decided that it would be more wasteful to use realloc and
                     // copy more than needed than it would be to malloc and manually copy
-                    new_buf = pointer(m_alloc.malloc(new_cap * sizeof(T)));
-                    if (offset) memcpy(new_buf, m_begin, offset * sizeof(T));
-                    if (m_alloc.zero_fill_new()) zero_fill(new_buf + offset, num);
-                    memcpy(new_buf + offset + num, m_begin + offset, (s - offset) * sizeof(T));
-                    m_alloc.free(m_begin);
+                    auto new_buf = pointer(a_malloc(new_cap));
+                    if (offset) memcpy(new_buf, m_begin, e2b(offset));
+                    memcpy(new_buf + offset + num, m_begin + offset, e2b(s - offset));
+                    a_free_begin();
+                    m_begin = new_buf;
+                    m_capacity = new_cap;
+                };
+
+                if (Alloc::has_expand())
+                {
+                    if (a_expand_begin(new_cap))
+                    {
+                        make_gap();
+                    }
+                    else
+                    {
+                        malloc_copy();
+                    }
                 }
                 else
                 {
-                    new_buf = pointer(m_alloc.realloc(m_begin, sizeof(value_type) * new_cap));
-                    std::memmove(new_buf + offset + num, new_buf + offset, (s - offset) * sizeof(T));
-                    if (m_alloc.zero_fill_new()) zero_fill(new_buf + offset, num);
+                    if (e2b(m_capacity - offset) > Alloc::realloc_wasteful_copy_size())
+                    {
+                        malloc_copy();
+                    }
+                    else
+                    {
+                        a_realloc_begin(new_cap);
+                        make_gap();
+                    }
                 }
-                m_begin = new_buf;
-                m_capacity = new_cap;
             }
             else
             {
-                std::memmove(m_begin + offset + num, m_begin + offset, (s - offset) * sizeof(T));
-                if (m_alloc.zero_fill_new()) zero_fill(m_begin + offset, num);
+                make_gap();
             }
         }
 
@@ -665,7 +734,7 @@ private:
 
         auto position = const_cast<T*>(cp);
 
-        std::memmove(position, position + num, size_t(m_end - position - num) * sizeof(T));
+        std::memmove(position, position + num, e2b(size_t(m_end - position - num)));
 
         m_end -= num;
 
@@ -677,10 +746,10 @@ private:
     {
         if (capacity <= m_capacity) return;
 
-        m_alloc.free(m_begin);
+        a_free_begin();
 
         m_capacity = get_new_capacity(capacity);
-        m_begin = m_end = pointer(m_alloc.malloc(sizeof(value_type) * m_capacity));
+        m_begin = m_end = pointer(a_malloc(m_capacity));
     }
 
     // fill empty vector with given value
@@ -701,12 +770,120 @@ private:
         m_end = m_begin + count;
     }
 
+    // allocator wrappers for aligned allocations
+    static constexpr bool allocator_aligned()
+    {
+        return Alloc::alloc_align() >= alignof(value_type);
+    }
+
+    void* real_addr(void* ptr) const
+    {
+        if (allocator_aligned()) return ptr; // pointer was not changed
+
+        if (!ptr) return nullptr;
+
+        // byte before ptr is offset
+        // (we should use byte here, but we don't have c++17 guaranteed)
+        uint8_t* byte_buf = reinterpret_cast<uint8_t*>(ptr);
+        auto offset = *(byte_buf - 1);
+        return byte_buf - offset;
+    }
+
+    void* align_ptr(void* ptr) const
+    {
+        if (!ptr) return nullptr;
+
+        uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
+        auto offset = alignof(T) - addr % alignof(T);
+
+        uint8_t* fix = reinterpret_cast<uint8_t*>(ptr);
+        fix += offset;
+        *(fix - 1) = uint8_t(offset);
+        return fix;
+    }
+
+    void* a_malloc(size_type num_elements)
+    {
+        if (allocator_aligned())
+        {
+            return Alloc::malloc(e2b(num_elements));
+        }
+
+        // allocate 1 alignment more than needed,
+        // thus we can shift by at least one byte to get the appropriate one
+        // and have 1 byte before the pointer to show us how much we shifted
+        auto buf = Alloc::malloc(e2b(num_elements) + alignof(value_type));
+        return align_ptr(buf);
+    }
+
+    void a_realloc_begin(size_type num_elements)
+    {
+        if (allocator_aligned())
+        {
+            m_begin = pointer(Alloc::realloc(m_begin, e2b(num_elements)));
+        }
+        else
+        {
+            // allocator alignment doesn't match out required one
+            // sadly, we can't use realloc
+            // if it ends up returning a different address it may be such that the data copied by the
+            // allocator's realloc has a different alignment than what's needed
+            // we could memmove if this is the case, but for now we will just malloc-copy
+            // it should be rare anyway
+            auto new_buf = a_malloc(num_elements);
+            if (m_begin)
+            {
+                std::memcpy(new_buf, m_begin, e2b(size()));
+                a_free_begin();
+            }
+            m_begin = pointer(new_buf);
+        }
+
+        m_capacity = num_elements;
+    }
+
+    bool a_expand_begin(size_type num_elements)
+    {
+        if (allocator_aligned())
+        {
+            if (!Alloc::expand(m_begin, e2b(num_elements))) return false;
+        }
+        else
+        {
+            auto ptr = real_addr(m_begin);
+            if (!Alloc::expand(ptr, e2b(num_elements) + alignof(value_type))) return false;
+        }
+
+        m_capacity = num_elements;
+        return true;
+    }
+
+    void a_free_begin()
+    {
+        if (allocator_aligned())
+        {
+            Alloc::free(m_begin);
+        }
+        else
+        {
+            Alloc::free(real_addr(m_begin));
+        }
+    }
+
+
+    static constexpr size_t e2b(size_t num_elements)
+    {
+        return num_elements * sizeof(T);
+    }
+
+    // ref getters for easier usage
+    allocator_type& get_alloc() { return *this; }
+    const allocator_type& get_alloc() const { return *this; }
+
     pointer m_begin;
     pointer m_end;
 
     size_t m_capacity;
-
-    Alloc m_alloc;
 };
 
 template<typename T, class Alloc>

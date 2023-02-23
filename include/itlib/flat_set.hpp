@@ -1,10 +1,10 @@
-// itlib-flat-set v1.02
+// itlib-flat-set v1.07
 //
 // std::set-like class with an underlying vector
 //
 // SPDX-License-Identifier: MIT
 // MIT License:
-// Copyright(c) 2021 Borislav Stanimirov
+// Copyright(c) 2021-2023 Borislav Stanimirov
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files(the
@@ -28,6 +28,13 @@
 //
 //                  VERSION HISTORY
 //
+//  1.07 (2023-01-16) Constructors from iterator ranges
+//  1.06 (2023-01-14) Fixed initialization with custom Compare when equivalence
+//                    is not the same as `==`.
+//                    Inherit from Compare to enable empty base optimization
+//  1.05 (2022-09-17) upper_bound and equal_range
+//  1.04 (2022-06-23) Transparent lookups (C++14 style)
+//  1.03 (2022-04-14) Noxcept move construct and assign
 //  1.02 (2021-09-28) Fixed construction from std::initializer_list which
 //                    allowed duplicate elements to find their wey in the set
 //  1.01 (2021-09-15) Constructors from std::initializer_list
@@ -63,23 +70,8 @@
 // itlib::flat_set<
 //      string,
 //      less<string>,
-//      std::vector<string>, MyAllocator<string>>
+//      std::vector<string, MyAllocator<string>>
 //  > myset
-//
-//
-//                  Configuration
-//
-// itlib::flat_set has a single configurable setting:
-//
-// const char* overloads
-// By default itlib::flat_set provides overloads for the access methods
-// (find, lower_bound, count) for const char* for cases when
-// std::string is the key, so that no allocations happen when accessing with
-// a C-string of a string literal.
-// However if const char* or any other class with implicit conversion from
-// const char* is the key, they won't compile.
-// If you plan on using flat_set with such keys, you'll need to define
-// ITLIB_FLAT_SET_NO_CONST_CHAR_OVERLOADS before including the header
 //
 //
 //                  TESTS
@@ -93,16 +85,27 @@
 #include <algorithm>
 #include <type_traits>
 
-#if !defined(ITLIB_FLAT_SET_NO_CONST_CHAR_OVERLOADS)
-#include <cstring>
-#endif
-
 namespace itlib
 {
 
-template <typename Key, typename Compare = std::less<Key>, typename Container = std::vector<Key>>
-class flat_set
+namespace fsimpl
 {
+struct less // so as not to clash with map_less
+{
+    template <typename T, typename U>
+    auto operator()(const T& t, const U& u) const -> decltype(t < u)
+    {
+        return t < u;
+    }
+};
+}
+
+template <typename Key, typename Compare = fsimpl::less, typename Container = std::vector<Key>>
+class flat_set : private /*EBO*/ Compare
+{
+    Container m_container;
+    Compare& cmp() { return *this; }
+    const Compare& cmp() const { return *this; }
 public:
     using key_type = Key;
     using value_type = Key;
@@ -124,16 +127,18 @@ public:
     {}
 
     explicit flat_set(const key_compare& comp, const allocator_type& alloc = allocator_type())
-        : m_cmp(comp)
+        : Compare(comp)
         , m_container(alloc)
     {}
 
     explicit flat_set(container_type container, const key_compare& comp = key_compare())
-        : m_cmp(comp)
+        : Compare(comp)
         , m_container(std::move(container))
     {
-        std::sort(m_container.begin(), m_container.end(), m_cmp);
-        auto new_end = std::unique(m_container.begin(), m_container.end());
+        std::sort(m_container.begin(), m_container.end(), cmp());
+        auto new_end = std::unique(m_container.begin(), m_container.end(), [this](const value_type& a, const value_type& b) -> bool {
+            return !cmp()(a, b) && !cmp()(b, a);
+        });
         m_container.erase(new_end, m_container.end());
     }
 
@@ -145,11 +150,23 @@ public:
         : flat_set(std::move(init), key_compare(), alloc)
     {}
 
-    flat_set(const flat_set& x) = default;
-    flat_set(flat_set&& x) = default;
+    template <class InputIterator, typename = decltype(*std::declval<InputIterator>())>
+    flat_set(InputIterator begin, InputIterator end, const key_compare& comp, const allocator_type& alloc = allocator_type())
+        : flat_set(container_type(begin, end, alloc), comp)
+    {}
 
+    template <class InputIterator, typename = decltype(*std::declval<InputIterator>())>
+    flat_set(InputIterator begin, InputIterator end, const allocator_type& alloc = allocator_type())
+        : flat_set(begin, end, key_compare(), alloc)
+    {}
+
+    flat_set(const flat_set& x) = default;
     flat_set& operator=(const flat_set& x) = default;
-    flat_set& operator=(flat_set&& x) = default;
+
+    flat_set(flat_set&& x) noexcept = default;
+    flat_set& operator=(flat_set&& x) noexcept = default;
+
+    key_compare key_comp() const { return *this; }
 
     iterator begin() noexcept { return m_container.begin(); }
     const_iterator begin() const noexcept { return m_container.begin(); }
@@ -171,35 +188,64 @@ public:
 
     void clear() noexcept { m_container.clear(); }
 
-    iterator lower_bound(const key_type& k)
+    template <typename F>
+    iterator lower_bound(const F& k)
     {
-        return std::lower_bound(m_container.begin(), m_container.end(), k, m_cmp);
+        return std::lower_bound(m_container.begin(), m_container.end(), k, cmp());
     }
 
-    const_iterator lower_bound(const key_type& k) const
+    template <typename F>
+    const_iterator lower_bound(const F& k) const
     {
-        return std::lower_bound(m_container.begin(), m_container.end(), k, m_cmp);
+        return std::lower_bound(m_container.begin(), m_container.end(), k, cmp());
     }
 
-    iterator find(const key_type& k)
+    template <typename K>
+    iterator upper_bound(const K& k)
+    {
+        return std::upper_bound(m_container.begin(), m_container.end(), k, cmp());
+    }
+
+    template <typename K>
+    const_iterator upper_bound(const K& k) const
+    {
+        return std::upper_bound(m_container.begin(), m_container.end(), k, cmp());
+    }
+
+    template <typename K>
+    std::pair<iterator, iterator> equal_range(const K& k)
+    {
+        return std::equal_range(m_container.begin(), m_container.end(), k, cmp());
+    }
+
+    template <typename K>
+    std::pair<const_iterator, const_iterator> equal_range(const K& k) const
+    {
+        return std::equal_range(m_container.begin(), m_container.end(), k, cmp());
+    }
+
+    template <typename F>
+    iterator find(const F& k)
     {
         auto i = lower_bound(k);
-        if (i != end() && !m_cmp(k, *i))
+        if (i != end() && !cmp()(k, *i))
             return i;
 
         return end();
     }
 
-    const_iterator find(const key_type& k) const
+    template <typename F>
+    const_iterator find(const F& k) const
     {
         auto i = lower_bound(k);
-        if (i != end() && !m_cmp(k, *i))
+        if (i != end() && !cmp()(k, *i))
             return i;
 
         return end();
     }
 
-    size_t count(const key_type& k) const
+    template <typename F>
+    size_t count(const F& k) const
     {
         return find(k) == end() ? 0 : 1;
     }
@@ -208,7 +254,7 @@ public:
     std::pair<iterator, bool> insert(P&& val)
     {
         auto i = lower_bound(val);
-        if (i != end() && !m_cmp(val, *i))
+        if (i != end() && !cmp()(val, *i))
         {
             return { i, false };
         }
@@ -219,7 +265,7 @@ public:
     std::pair<iterator, bool> insert(const value_type& val)
     {
         auto i = lower_bound(val);
-        if (i != end() && !m_cmp(val, *i))
+        if (i != end() && !cmp()(val, *i))
         {
             return { i, false };
         }
@@ -239,7 +285,13 @@ public:
         return m_container.erase(pos);
     }
 
-    size_type erase(const key_type& k)
+    iterator erase(iterator pos)
+    {
+        return erase(const_iterator(pos));
+    }
+
+    template <typename F>
+    size_type erase(const F& k)
     {
         auto i = find(k);
         if (i == end())
@@ -253,7 +305,7 @@ public:
 
     void swap(flat_set& x)
     {
-        std::swap(m_cmp, x.m_cmp);
+        std::swap(cmp(), x.cmp());
         m_container.swap(x.m_container);
     }
 
@@ -267,58 +319,6 @@ public:
     {
         return m_container;
     }
-
-#if !defined(ITLIB_FLAT_SET_NO_CONST_CHAR_OVERLOADS)
-    ///////////////////////////////////////////////////////////////////////////////////
-    // const char* overloads for sets with an std::string key to avoid allocs
-    iterator lower_bound(const char* k)
-    {
-        static_assert(std::is_same<std::string, key_type>::value, "flat_set::lower_bound(const char*) works only for std::strings");
-        static_assert(std::is_same<std::less<std::string>, key_compare>::value, "flat_set::lower_bound(const char*) works only for std::string-s, compared with std::less<std::string>");
-        return std::lower_bound(m_container.begin(), m_container.end(), k, [](const value_type& a, const char* b) -> bool
-        {
-            return strcmp(a.c_str(), b) < 0;
-        });
-    }
-
-    const_iterator lower_bound(const char* k) const
-    {
-        static_assert(std::is_same<std::string, key_type>::value, "flat_set::lower_bound(const char*) works only for std::strings");
-        static_assert(std::is_same<std::less<std::string>, key_compare>::value, "flat_set::lower_bound(const char*) works only for std::string-s, compared with std::less<std::string>");
-        return std::lower_bound(m_container.begin(), m_container.end(), k, [](const value_type& a, const char* b) -> bool
-        {
-            return strcmp(a.c_str(), b) < 0;
-        });
-    }
-
-    iterator find(const char* k)
-    {
-        auto i = lower_bound(k);
-        if (i != end() && *i == k)
-            return i;
-
-        return end();
-    }
-
-    const_iterator find(const char* k) const
-    {
-        auto i = lower_bound(k);
-        if (i != end() && *i == k)
-            return i;
-
-        return end();
-    }
-
-    size_t count(const char* k) const
-    {
-        return find(k) == end() ? 0 : 1;
-    }
-
-#endif // !defined(ITLIB_FLAT_SET_NO_CONST_CHAR_OVERLOADS)
-
-private:
-    key_compare m_cmp;
-    container_type m_container;
 };
 
 template <typename Key, typename Compare, typename Container>

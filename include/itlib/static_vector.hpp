@@ -1,11 +1,11 @@
-// itlib-static-vector v1.04
+// itlib-static-vector v1.06dev
 //
 // std::vector-like class with a fixed capacity
 //
 // SPDX-License-Identifier: MIT
 // MIT License:
 // Copyright(c) 2016-2019 Chobolabs Inc.
-// Copyright(c) 2020-2021 Borislav Stanimirov
+// Copyright(c) 2020-2023 Borislav Stanimirov
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files(the
@@ -29,6 +29,11 @@
 //
 //                  VERSION HISTORY
 //
+//  1.07 (2023-xx-xx) Added resize with initializer
+//  1.06 (2023-01-17) Shim allocator arg to constructors for template code
+//                    All standard overloads of insert
+//                    All standard overloads of erase
+//  1.05 (2022-09-24) Simplified error handling macros: no rescue
 //  1.04 (2021-11-18) Added assign ops
 //  1.03 (2021-10-05) Don't rely on operator!= from T. Use operator== instead
 //  1.02 (2021-08-04) emplace_back() returns a reference as per C++17
@@ -76,13 +81,8 @@
 //      ensue if the error is triggered.
 // * ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW - std::out_of_range is thrown.
 // * ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT - asserions are triggered.
-// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_RESCUE - the error is ignored but
-//      sanity is (somewhat) preserved. Functions which trigger the error will
-//      just bail without changing the vector.
 // * ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW - combines assert and
 //      throw to catch errors more easily in debug mode
-// * ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE - combines assert and
-//      rescue to catch errors in debug mode and silently bail in release mode.
 //
 // To set this setting by editing the file change the line:
 // ```
@@ -120,33 +120,25 @@
 #define ITLIB_STATIC_VECTOR_ERROR_HANDLING_NONE  0
 #define ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW 1
 #define ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT 2
-#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_RESCUE 3
-#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW 4
-#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE 5
+#define ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW 3
 
 #if !defined(ITLIB_STATIC_VECTOR_ERROR_HANDLING)
 #   define ITLIB_STATIC_VECTOR_ERROR_HANDLING ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW
 #endif
 
 #if ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_NONE
-#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return)
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond)
 #elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_THROW
 #   include <stdexcept>
-#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) if (cond) throw std::out_of_range("itlib::static_vector out of range")
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond) if (cond) throw std::out_of_range("itlib::static_vector out of range")
 #elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT
 #   include <cassert>
-#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) assert(!(cond) && "itlib::static_vector out of range")
-#elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_RESCUE
-#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) if (cond) return rescue_return
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond) assert(!(cond) && "itlib::static_vector out of range")
 #elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_THROW
 #   include <stdexcept>
 #   include <cassert>
-#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) \
+#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond) \
     do { if (cond) { assert(false && "itlib::static_vector out of range"); throw std::out_of_range("itlib::static_vector out of range"); } } while(false)
-#elif ITLIB_STATIC_VECTOR_ERROR_HANDLING == ITLIB_STATIC_VECTOR_ERROR_HANDLING_ASSERT_AND_RESCUE
-#   include <cassert>
-#   define I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(cond, rescue_return) \
-    do { if (cond) { assert(false && "itlib::static_vector out of range"); return rescue_return; } } while(false)
 #else
 #error "Unknown ITLIB_STATIC_VECTOR_ERRROR_HANDLING"
 #endif
@@ -154,9 +146,11 @@
 
 #if defined(ITLIB_STATIC_VECTOR_NO_DEBUG_BOUNDS_CHECK)
 #   define I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK(i)
+#   define I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK_ITER(iter)
 #else
 #   include <cassert>
 #   define I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK(i) assert((i) < this->size())
+#   define I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK_ITER(iter) assert((iter) >= this->begin() && (iter) <= this->end())
 #endif
 
 namespace itlib
@@ -188,23 +182,25 @@ public:
 
     static_vector() = default;
 
-    explicit static_vector(size_t count)
+    static_vector(allocator_type) {}
+
+    explicit static_vector(size_t count, allocator_type = {})
     {
         resize(count);
     }
 
-    static_vector(size_t count, const T& value)
+    static_vector(size_t count, const T& value, allocator_type = {})
     {
         assign_impl_val(count, value);
     }
 
     template <class InputIterator, typename = decltype(*std::declval<InputIterator>())>
-    static_vector(InputIterator first, InputIterator last)
+    static_vector(InputIterator first, InputIterator last, allocator_type = {})
     {
         assign_impl_iter(first, last);
     }
 
-    static_vector(std::initializer_list<T> l)
+    static_vector(std::initializer_list<T> l, allocator_type = {})
     {
         assign_impl_ilist(l);
     }
@@ -220,7 +216,7 @@ public:
     template <size_t CapacityB>
     static_vector(const static_vector<T, CapacityB>& v)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(v.size() > Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(v.size() > Capacity);
 
         for (const auto& i : v)
         {
@@ -427,21 +423,21 @@ public:
     // modifiers
     void pop_back()
     {
-        reinterpret_cast<const T*>(m_data + m_size - 1)->~T();
-        --m_size;
+        shrink_at(end() - 1, 1);
     }
 
     void clear() noexcept
     {
-        while (!empty())
-        {
-            pop_back();
+        auto e = end();
+        for (auto p = begin(); p != e; ++p) {
+            p->~T();
         }
+        m_size = 0;
     }
 
     void push_back(const_reference v)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity);
 
         ::new(m_data + m_size) T(v);
         ++m_size;
@@ -449,7 +445,7 @@ public:
 
     void push_back(T&& v)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity);
 
         ::new(m_data + m_size) T(std::move(v));
         ++m_size;
@@ -458,76 +454,82 @@ public:
     template<typename... Args>
     reference emplace_back(Args&&... args)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity);
 
         ::new(m_data + m_size) T(std::forward<Args>(args)...);
         ++m_size;
         return back();
     }
 
-    iterator insert(iterator position, const value_type& val)
+    iterator insert(const_iterator position, const value_type& val)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, position);
+        auto pos = grow_at(position, 1);
+        ::new (pos) T(val);
+        return pos;
+    }
 
-        if (position == end())
+    iterator insert(const_iterator position, value_type&& val)
+    {
+        auto pos = grow_at(position, 1);
+        ::new (pos) T(std::move(val));
+        return pos;
+    }
+
+    iterator insert(const_iterator position, size_type count, const value_type& val)
+    {
+        auto pos = grow_at(position, count);
+        for (size_type i = 0; i < count; ++i)
         {
-            emplace_back(val);
-            return position;
+            ::new (pos + i) T(val);
         }
+        return pos;
+    }
 
-        emplace_back(std::move(back()));
-
-        for (auto i = end() - 2; i != position; --i)
+    template <typename InputIterator, typename = decltype(*std::declval<InputIterator>())>
+    iterator insert(const_iterator position, InputIterator first, InputIterator last)
+    {
+        auto pos = grow_at(position, last - first);
+        auto np = pos;
+        for (auto p = first; p != last; ++p, ++np)
         {
-            *i = std::move(*(i - 1));
+            ::new (np) T(*p);
         }
+        return pos;
+    }
 
-        *position = val;
-
-        return position;
+    iterator insert(const_iterator position, std::initializer_list<T> ilist)
+    {
+        auto pos = grow_at(position, ilist.size());
+        size_type i = 0;
+        for (auto& elem : ilist)
+        {
+            ::new (pos + i) T(std::move(elem));
+            ++i;
+        }
+        return pos;
     }
 
     template<typename... Args>
-    iterator emplace(iterator position, Args&&... args)
+    iterator emplace(const_iterator position, Args&&... args)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() >= Capacity, position);
-
-        if (position == end())
-        {
-            emplace_back(std::forward<Args>(args)...);
-            return position;
-        }
-
-        emplace_back(std::move(back()));
-
-        for (auto i = end() - 2; i != position; --i)
-        {
-            *i = std::move(*(i - 1));
-        }
-
-        position->~T();
-        ::new (position) T(std::forward<Args>(args)...);
-
-        return position;
+        auto pos = grow_at(position, 1);
+        ::new (pos) T(std::forward<Args>(args)...);
+        return pos;
     }
 
     iterator erase(const_iterator position)
     {
-        auto dist = position - begin();
-        position->~T();
+        return shrink_at(position, 1);
+    }
 
-        for (auto i = begin() + dist + 1; i != end(); ++i)
-        {
-            *(i - 1) = std::move(*i);
-        }
-
-        resize(size() - 1);
-        return begin() + dist;
+    iterator erase(const_iterator first, const_iterator last)
+    {
+        return shrink_at(first, last - first);
     }
 
     void resize(size_type n)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(n > Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(n > Capacity);
 
         while (m_size > n)
         {
@@ -537,6 +539,21 @@ public:
         while (n > m_size)
         {
             emplace_back();
+        }
+    }
+
+    void resize(size_type n, const value_type& v)
+    {
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(n > Capacity);
+
+        while (m_size > n)
+        {
+            pop_back();
+        }
+
+        while (n > m_size)
+        {
+            push_back(v);
         }
     }
 
@@ -575,7 +592,7 @@ public:
 private:
     void assign_impl_val(size_t count, const T& value)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(count > Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(count > Capacity);
 
         for (size_t i = 0; i < count; ++i)
         {
@@ -586,7 +603,7 @@ private:
     template <class InputIterator>
     void assign_impl_iter(InputIterator first, InputIterator last)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(long(last - first) > long(Capacity), );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(long(last - first) > long(Capacity));
 
         for (auto i = first; i != last; ++i)
         {
@@ -596,12 +613,60 @@ private:
 
     void assign_impl_ilist(std::initializer_list<T> l)
     {
-        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(l.size() > Capacity, );
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(l.size() > Capacity);
 
         for (auto&& i : l)
         {
             push_back(i);
         }
+    }
+
+    T* grow_at(const T* cp, size_t by) {
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(size() + by > Capacity);
+        I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK_ITER(cp);
+
+        auto position = const_cast<T*>(cp);
+        if (by == 0) return position;
+
+        for (auto p = end() - 1; p >= position; --p)
+        {
+            ::new (p + by) T(std::move(*p));
+            p->~T();
+        }
+        m_size += by;
+
+        return position;
+    }
+
+    T* shrink_at(const T* cp, size_t num)
+    {
+        I_ITLIB_STATIC_VECTOR_OUT_OF_RANGE_IF(num > size());
+        I_ITLIB_STATIC_VECTOR_BOUNDS_CHECK_ITER(cp);
+
+        auto position = const_cast<T*>(cp);
+
+        const auto s = size();
+        if (s - num == 0)
+        {
+            clear();
+            return begin();
+        }
+
+        const auto myend = end();
+        for (auto p = position, np = position + num; np != myend; ++p, ++np)
+        {
+            p->~T();
+            ::new (p) T(std::move(*np));
+        }
+
+        for (auto p = myend - num; p != myend; ++p)
+        {
+            p->~T();
+        }
+
+        m_size -= num;
+
+        return position;
     }
 
     typename std::aligned_storage<sizeof(T), std::alignment_of<T>::value>::type m_data[Capacity];
