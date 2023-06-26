@@ -250,6 +250,8 @@ if(NOT ${TBB_TARGET_EXISTED})
     if("${TBB_COMPILER}" STREQUAL "gcc")
         ## Don't know why it's a problem yet, but if we're using
         ## GCC, get rid of the DO_ITT_NOTIFY flag
+        ## This seems not to be essential anymore; consider 
+        ## deleting in the next release.
         # set(TBB_CXXFLAGS "${TBB_CXXFLAGS} -UDO_ITT_NOTIFY")
     endif()
 
