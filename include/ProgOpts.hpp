@@ -123,8 +123,13 @@ public:
   bool recoverOrphans{false};
   bool mimicBt2Default{false};
   bool mimicBt2Strict{false};
-  bool allowOverhangSoftclip{false};
   bool allowSoftclip{false};
+  bool computeCIGAR{false};
+  bool debug{false};
+  bool end2end{true};
+  double maxSoftclipFractionGeneral{0.2};
+  double maxSoftclipFractionOverhang{0.2};
+  uint32_t endBonus{5};
   bool useAlignmentCache{true};
   uint32_t alignmentStreamLimit{10000};
   double preMergeChainSubThresh{0.9};

@@ -17,12 +17,12 @@
 
 #ifdef KSW_CPU_DISPATCH
 #ifdef __SSE4_1__
-void ksw_extz2_sse41(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff)
+void ksw_extz2_sse41(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff, int max_sc_len)
 #else
-void ksw_extz2_sse2(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff)
+void ksw_extz2_sse2(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff, int max_sc_len)
 #endif
 #else
-void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff)
+void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uint8_t *target, int8_t m, const int8_t *mat, int8_t q, int8_t e, int w, int zdrop, int end_bonus, int flag, ksw_extz_t *ez, int cutoff, int max_sc_len)
 #endif // ~KSW_CPU_DISPATCH
 {
 #define __dp_code_block1 \
@@ -267,8 +267,8 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 				simde_mm_storeu_si128((simde__m128i*)mm, max_achievable_score_);
 				for (i = 0; i < 4; ++i) {
 					if (max_H < HH[i]) max_H = HH[i], max_t = tt[i] + i;
-                                        if (max_achievable_score < mm[i]) max_achievable_score = mm[i];
-                                }
+                    if (max_achievable_score < mm[i]) max_achievable_score = mm[i];
+                }
 				for (; t < en0; ++t) { // for the rest of values that haven't been computed with SSE
 					H[t] += (int32_t)v8[t] - qe;
 					if (H[t] > max_H)
@@ -287,7 +287,18 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 				ez->score = H[tlen - 1];
 			// check if the score is achievable
 			int max = max_achievable_score > max_achievable_score_prev ? max_achievable_score : max_achievable_score_prev;
-			if (r>1 && max < cutoff ) { ez->stopped = 1; break; }
+			if (r>1 && max < cutoff ) { 
+				int permit_sc = (max_sc_len >= qlen - (ez->max_q + 1)) ? 1 : 0;
+				// Hossein: give it another chance if ez->max is above the cutoff threshold and the soft-clipping is permitted
+				// we won't have any score higher than ez->max when we get here so if soft-clipping from max is valid and 
+				// above the cutoff, we still break the loop. Reason:
+				// ez->max >= cutoff > max_achievable_score > any_upcomming_value_in_the_dp_table
+				// qlen * match_score is common in all the cutoff and score calculations so it is deducted from cutoff and 
+				// max_achievable_score at all times. That's why we have the subtraction below
+				if (!(permit_sc && ((ez->max - qlen * match_score) >= cutoff)))
+					ez->stopped = 1; 
+				break; 
+			}
 			max_achievable_score_prev = max_achievable_score;
 		} else { // find approximate max; Z-drop might be inaccurate, too.
 			if (r > 0) {
@@ -315,7 +326,7 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 		int rev_cigar = !!(flag & KSW_EZ_REV_CIGAR);
 		if (!ez->zdropped && !(flag&KSW_EZ_EXTZ_ONLY)) {
 			ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, tlen-1, qlen-1, &ez->m_cigar, &ez->n_cigar, &ez->cigar);
-		} else if (!ez->zdropped && (flag&KSW_EZ_EXTZ_ONLY) && ez->mqe + end_bonus > (int)ez->max) {
+		} else if (!ez->zdropped && (flag&KSW_EZ_EXTZ_ONLY) && ((ez->mqe + end_bonus > (int)ez->max) || (qlen - (ez->max_q + 1) > max_sc_len))) {
 			ez->reach_end = 1;
 			ksw_backtrack(km, 1, rev_cigar, 0, (uint8_t*)p, off, off_end, n_col_*16, ez->mqe_t, qlen-1, &ez->m_cigar, &ez->n_cigar, &ez->cigar);
 		} else if (ez->max_t >= 0 && ez->max_q >= 0) {
