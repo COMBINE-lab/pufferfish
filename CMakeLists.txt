@@ -1,3 +1,5 @@
+project(pufferfish LANGUAGES CXX C)
+
 cmake_minimum_required(VERSION 3.15)
 #cmake_policy(SET CMP0069 NEW)
 
@@ -24,7 +26,6 @@ if(NOT DEFINED USE_ARM)
   endif()
 endif()
 
-project(pufferfish LANGUAGES CXX C)
 include(ExternalProject)
 
 
