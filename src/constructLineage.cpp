@@ -6,6 +6,7 @@
 #include <vector>
 #include <queue>
 #include <sstream>
+#include <cstdint>
 
 constexpr uint64_t noRank = 1;
 
