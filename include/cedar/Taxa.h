@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <set> // std::set
+#include <cstdint>
 #include "iostream"
 
 #define NO_PARENT -1
