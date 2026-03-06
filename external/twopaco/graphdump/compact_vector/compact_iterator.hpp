@@ -334,7 +334,7 @@ protected:
                 "The size of integral type IDX must be less than the word type W");
 
 public:
-  typedef typename std::iterator<std::random_access_iterator_tag, IDX>::difference_type difference_type;
+  typedef std::ptrdiff_t difference_type;
   static constexpr unsigned used_bits = UB;
 
   Derived& operator=(const Derived& rhs) {
@@ -345,7 +345,7 @@ public:
     return self;
   }
 
-  Derived& operator=(std::nullptr_t p) {
+  Derived& operator=(std::nullptr_t) {
     Derived& self = *static_cast<Derived*>(this);
     self.ptr      = nullptr;
     self.offset   = 0;
@@ -364,11 +364,11 @@ public:
     return !(*this == rhs);
   }
 
-  bool operator==(std::nullptr_t p) {
+  bool operator==(std::nullptr_t) {
     const Derived& self = *static_cast<const Derived*>(this);
     return self.m_ptr == nullptr && self.m_offset == 0;
   }
-  bool operator!=(std::nullptr_t p) {
+  bool operator!=(std::nullptr_t) {
     return !(*this == nullptr);
   }
 
@@ -579,7 +579,7 @@ bool lexicographical_compare_n(Iterator first1, const size_t len1,
 }
 
 template<typename D, typename I, unsigned B, typename W, unsigned U>
-bool operator==(std::nullptr_t lfs, const common<D, I, B, W, U>& rhs) {
+bool operator==(std::nullptr_t, const common<D, I, B, W, U>& rhs) {
   return rhs == nullptr;
 }
 
@@ -629,6 +629,7 @@ class lhs_setter<IDX, 0, W, TS, UB>
 
 public:
   lhs_setter(W* p, int b, int o) : super(p, o), m_bits(b) { }
+  lhs_setter(const lhs_setter&) = default;
   lhs_setter& operator=(const IDX x) {
     gs<IDX, 0, W, UB>::template set<TS>(x, super::ptr, m_bits, super::offset);
     return *this;
@@ -650,6 +651,7 @@ class lhs_setter
 public:
   lhs_setter(W* p, int o) : super(p, o) { }
   lhs_setter(W* p, unsigned bits, int o) : super(p, o) { (void)(bits); }
+  lhs_setter(const lhs_setter&) = default;
   lhs_setter& operator=(const IDX x) {
     gs<IDX, BITS, W, UB>::template set<TS>(x, super::ptr, super::offset);
     return *this;
@@ -674,7 +676,6 @@ void swap(lhs_setter<I, BITS, W, TS, UB> x, lhs_setter<I, BITS, W, TS, UB> y) {
 // Specialization with BITS=0 (dynamic/runtime number of bits used)
 template<typename IDX, typename W, bool TS, unsigned UB>
 class iterator<IDX, 0, W, TS, UB> :
-    public std::iterator<std::random_access_iterator_tag, IDX>,
     public iterator_imp::common<iterator<IDX, 0, W, TS, UB>, IDX, 0, W, UB>
 {
   W*       m_ptr;
@@ -686,10 +687,12 @@ class iterator<IDX, 0, W, TS, UB> :
   friend class iterator_imp::common<iterator<IDX, 0, W, TS, UB>, IDX, 0, W, UB>;
   friend class iterator_imp::common<const_iterator<IDX, 0, W, UB>, IDX, 0, W, UB>;
 
-  typedef std::iterator<std::random_access_iterator_tag, IDX> super;
 public:
-  typedef typename super::value_type                  value_type;
-  typedef typename super::difference_type             difference_type;
+  typedef IDX                                         value_type;
+  typedef std::ptrdiff_t                              difference_type;
+  typedef IDX*                                        pointer;
+  typedef IDX&                                        reference;
+  typedef std::random_access_iterator_tag             iterator_category;
   typedef IDX                                         idx_type;
   typedef W                                           word_type;
   typedef iterator_imp::lhs_setter<IDX, 0, W, TS, UB> lhs_setter_type;
@@ -721,7 +724,6 @@ protected:
 
 template<typename IDX, typename W, unsigned UB>
 class const_iterator<IDX, 0, W, UB> :
-  public std::iterator<std::random_access_iterator_tag, const IDX>,
   public iterator_imp::common<const_iterator<IDX, 0, W, UB>, IDX, 0, W, UB>
 {
   const W* m_ptr;
@@ -733,10 +735,12 @@ class const_iterator<IDX, 0, W, UB> :
   friend class iterator_imp::common<iterator<IDX, 0, W, false, UB>, IDX, 0, W, UB>;
   friend class iterator_imp::common<const_iterator<IDX, 0, W, UB>, IDX, 0, W, UB>;
 
-  typedef std::iterator<std::random_access_iterator_tag, IDX> super;
 public:
-  typedef typename super::value_type      value_type;
-  typedef typename super::difference_type difference_type;
+  typedef IDX                             value_type;
+  typedef std::ptrdiff_t                  difference_type;
+  typedef const IDX*                      pointer;
+  typedef const IDX&                      reference;
+  typedef std::random_access_iterator_tag iterator_category;
   typedef IDX idx_type;
   typedef W   word_type;
 
@@ -760,7 +764,6 @@ public:
 // No specialization. Static number of bits used.
 template<typename IDX, unsigned BITS, typename W, bool TS, unsigned UB>
 class iterator :
-    public std::iterator<std::random_access_iterator_tag, IDX>,
     public iterator_imp::common<iterator<IDX, BITS, W, TS, UB>, IDX, BITS, W, UB>
 {
   W*       m_ptr;
@@ -771,10 +774,12 @@ class iterator :
   friend class iterator_imp::common<iterator<IDX, BITS, W, TS, UB>, IDX, BITS, W, UB>;
   friend class iterator_imp::common<const_iterator<IDX, BITS, W, UB>, IDX, BITS, W, UB>;
 
-  typedef std::iterator<std::random_access_iterator_tag, IDX> super;
 public:
-  typedef typename super::value_type                  value_type;
-  typedef typename super::difference_type             difference_type;
+  typedef IDX                                         value_type;
+  typedef std::ptrdiff_t                              difference_type;
+  typedef IDX*                                        pointer;
+  typedef IDX&                                        reference;
+  typedef std::random_access_iterator_tag             iterator_category;
   typedef IDX                                         idx_type;
   typedef W                                           word_type;
   typedef iterator_imp::lhs_setter<IDX, BITS, W, TS, UB> lhs_setter_type;
@@ -782,7 +787,7 @@ public:
   iterator() = default;
   iterator(W* p, unsigned o)
     : m_ptr(p), m_offset(o) { }
-  iterator(W* p, unsigned b, unsigned o)
+  iterator(W* p, unsigned, unsigned o)
     : m_ptr(p), m_offset(o) { } // XXX Should we assert that BITS == b?
   template<bool TTS>
   iterator(const iterator<IDX, BITS, W, TTS>& rhs)
@@ -803,12 +808,11 @@ public:
 
   constexpr unsigned bits() const { return BITS; }
 protected:
-  void bits(unsigned b) { } // NOOP
+  void bits(unsigned) { } // NOOP
 };
 
 template<typename IDX, unsigned BITS, typename W, unsigned UB>
 class const_iterator :
-  public std::iterator<std::random_access_iterator_tag, const IDX>,
   public iterator_imp::common<const_iterator<IDX, BITS, W, UB>, IDX, BITS, W, UB>
 {
   const W* m_ptr;
@@ -819,10 +823,12 @@ class const_iterator :
   friend class iterator_imp::common<iterator<IDX, BITS, W, false, UB>, IDX, BITS, W, UB>;
   friend class iterator_imp::common<const_iterator<IDX, BITS, W, UB>, IDX, BITS, W, UB>;
 
-  typedef std::iterator<std::random_access_iterator_tag, IDX> super;
 public:
-  typedef typename super::value_type      value_type;
-  typedef typename super::difference_type difference_type;
+  typedef IDX                             value_type;
+  typedef std::ptrdiff_t                  difference_type;
+  typedef const IDX*                      pointer;
+  typedef const IDX&                      reference;
+  typedef std::random_access_iterator_tag iterator_category;
   typedef IDX idx_type;
   typedef W   word_type;
 
@@ -842,7 +848,7 @@ public:
 
   constexpr unsigned bits() const { return BITS; }
 protected:
-  void bits(unsigned b) { } // NOOP
+  void bits(unsigned) { } // NOOP
 };
 
 template<typename I, unsigned BITS, typename W, bool TS, unsigned UB>
