@@ -1,7 +1,9 @@
 // BooPHF library
 // intended to be a minimal perfect hash function with fast and low memory construction, at the cost of (slightly) higher bits/elem than other state of the art libraries once built.
 // should work with arbitray large number of elements, based on a cascade of  "collision-free" bit arrays
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 #ifndef _BOOPHF_H_
 #define _BOOPHF_H_
 #pragma once
@@ -1028,10 +1030,11 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 			uint64_t totalsize =  totalsizeBitset +  _final_hash.size()*42*8 ;  // unordered map takes approx 42B per elem [personal test] (42B with uint64_t key, would be larger for other type of elem)
 
-			printf("Bitarray    %12lu  bits (%.2f %%)   (array + ranks )\n",
+			printf("Bitarray    %12" PRIu64 "  bits (%.2f %%)   (array + ranks )\n",
 				   totalsizeBitset, 100*(float)totalsizeBitset/totalsize);
-			printf("final hash  %12lu  bits (%.2f %%) (nb in final hash %lu)\n",
-				   _final_hash.size()*42*8, 100*(float)(_final_hash.size()*42*8)/totalsize,
+			printf("final hash  %12" PRIu64 "  bits (%.2f %%) (nb in final hash %zu)\n",
+				   static_cast<uint64_t>(_final_hash.size())*42ULL*8ULL,
+				   100*(float)(static_cast<uint64_t>(_final_hash.size())*42ULL*8ULL)/totalsize,
 				   _final_hash.size() );
 			return totalsize;
 		}
@@ -1380,13 +1383,13 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 			std::string dir= _outdir+"/temp_p%i_level_%i";
 			char fname_old[1000];
-			sprintf(fname_old,dir.c_str(),_pid,i-2);
+			snprintf(fname_old, sizeof(fname_old), dir.c_str(), _pid, i-2);
 			
 			char fname_curr[1000];
-			sprintf(fname_curr,dir.c_str(),_pid,i);
+			snprintf(fname_curr, sizeof(fname_curr), dir.c_str(), _pid, i);
 			
 			char fname_prev[1000];
-			sprintf(fname_prev,dir.c_str(),_pid,i-1);
+			snprintf(fname_prev, sizeof(fname_prev), dir.c_str(), _pid, i-1);
 			
 			if(_writeEachLevel)
 			{
@@ -1572,4 +1575,3 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 }
 
 #endif // _BOOPHF_H_
-
