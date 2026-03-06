@@ -23,6 +23,7 @@
 namespace kmers = combinelib::kmers;
 
 std::vector<CanonicalKmer> get_kmers(const std::string& fasta_file, uint32_t k) {
+  (void)k;
 
   std::vector <CanonicalKmer> kmers;
   std::vector<std::string> read_file = {fasta_file};

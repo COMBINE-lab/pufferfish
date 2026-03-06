@@ -83,8 +83,8 @@ public:
 		main.squeeze(hash, hs);
 	}
 
-	inline void transform(const unsigned char* data, uint64_t num_blks, size_t reallen)
-	{
+		inline void transform(const unsigned char* data, uint64_t num_blks, size_t /*reallen*/)
+		{
 		for (uint64_t blk = 0; blk < num_blks; blk++)
 		{
 			if (!chunk)
@@ -134,5 +134,4 @@ private:
 } // namespace digestpp
 
 #endif // DIGESTPP_PROVIDERS_K12M14_HPP
-
 

@@ -924,7 +924,6 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     while(kb1 != ke1){
       sampledInds.clear();
       auto clen = contigLengths[contigId];
-      auto thisContigLength = clen;
       computeSampledPositions(clen, k, sampleSize, sampledInds) ;
       contigId++ ;
 

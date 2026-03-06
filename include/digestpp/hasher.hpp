@@ -129,24 +129,21 @@ class hasher : public Mixin<HashProvider>
 	 * @endcode
 	 */
 	template<typename T, typename std::enable_if<detail::is_byte<T>::value>::type* = nullptr>
-	inline hasher& absorb(std::basic_istream<T>& istr)
-	{
-		const int tmp_buffer_size = 10000;
-		unsigned char buffer[tmp_buffer_size];
-		size_t len = 0;
-		while (istr.read(reinterpret_cast<T*>(buffer), sizeof(buffer)))
+		inline hasher& absorb(std::basic_istream<T>& istr)
 		{
-			provider.update(buffer, sizeof(buffer));
-			len += sizeof(buffer);
+			const int tmp_buffer_size = 10000;
+			unsigned char buffer[tmp_buffer_size];
+			while (istr.read(reinterpret_cast<T*>(buffer), sizeof(buffer)))
+			{
+				provider.update(buffer, sizeof(buffer));
+			}
+			size_t gcount = istr.gcount();
+			if (gcount)
+			{
+				provider.update(buffer, gcount);
+			}
+			return *this;
 		}
-		size_t gcount = istr.gcount();
-		if (gcount)
-		{
-			provider.update(buffer, gcount);
-			len += gcount;
-		}
-		return *this;
-	}
 
 	/**
 	 * \brief Absorbs bytes from an iterator sequence
@@ -345,4 +342,3 @@ private:
 } // namespace digestpp
 
 #endif // DIGESTPP_HASHER_HPP
-
