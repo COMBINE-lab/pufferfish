@@ -1,6 +1,6 @@
 #include "FastxParser.hpp"
 #include "jellyfish/mer_dna.hpp"
-#include "clipp.h"
+#include "CLI11.hpp"
 #include "sparsepp/spp.h"
 #include "spdlog/spdlog.h"
 #include "xxhash.h"
@@ -619,41 +619,45 @@ int fixFastaMain(std::vector<std::string>& args,
         std::vector<std::pair<std::string, uint16_t>>& shortRefs,
         std::shared_ptr<spdlog::logger> log,
         bool hasFeatures) {
-  using namespace clipp;
-
   uint32_t k{31};
   std::vector<std::string> refFiles;
   std::string outFile;
   std::string decoyFile;
   bool keepDuplicates{false};
-  bool printHelp{false};
   bool expect_transcriptome{false};
   bool noclip_polya{false};
   std::string sepStr{" \t"};
 
-  auto cli = (
-              option("--help", "-h").set(printHelp, true) % "show usage",
-              required("--input", "-i") & values("input", refFiles) % "input FASTA file",
-              required("--output", "-o") & value("output", outFile) % "output FASTA file",
-              option("--headerSep", "-s") & value("sep_strs", sepStr) %
-              "Instead of a space or tab, break the header at the first "
-              "occurrence of this string, and name the transcript as the token before "
-              "the first separator (default = space & tab)",
-              option("--expectTranscriptome").set(expect_transcriptome) % 
-              "expect (non-decoy) sequences to be transcripts rather than genomic contigs",
-              option("--noClip", "-n").set(noclip_polya) % "Don't clip poly-A tails from the ends of target sequences",
-              option("--decoys", "-d") & value("decoys", decoyFile) %
-              "Treat these sequences as decoys that may be sequence-similar to some known indexed reference",
-              option("--keepDuplicates").set(keepDuplicates) % "Retain duplicate references in the input",
-              option("--klen", "-k") & value("k-mer length", k) % "length of the k-mer used to build the cDBG (default = 31)"
-              );
+  CLI::App app{"fixFasta"};
+  app.set_help_flag("-h,--help", "show usage");
+  app.add_option("-i,--input", refFiles, "input FASTA file")->required();
+  app.add_option("-o,--output", outFile, "output FASTA file")->required();
+  app.add_option("-s,--headerSep", sepStr,
+                 "Instead of a space or tab, break the header at the first "
+                 "occurrence of this string, and name the transcript as the token before "
+                 "the first separator (default = space & tab)");
+  app.add_flag("--expectTranscriptome", expect_transcriptome,
+               "expect (non-decoy) sequences to be transcripts rather than genomic contigs");
+  app.add_flag("-n,--noClip", noclip_polya,
+               "Don't clip poly-A tails from the ends of target sequences");
+  app.add_option("-d,--decoys", decoyFile,
+                 "Treat these sequences as decoys that may be sequence-similar to some known indexed reference");
+  app.add_flag("--keepDuplicates", keepDuplicates, "Retain duplicate references in the input");
+  app.add_option("-k,--klen", k, "length of the k-mer used to build the cDBG (default = 31)");
 
-  //  if (parse(argc, argv, cli)) {
-  if (parse(args, cli)) {
-    if (printHelp) {
-      std::cout << make_man_page(cli, "fixFasta");
-      return 0;
-    }
+  std::vector<std::string> argvStorage;
+  argvStorage.reserve(args.size() + 1);
+  argvStorage.emplace_back("fixFasta");
+  argvStorage.insert(argvStorage.end(), args.begin(), args.end());
+
+  try {
+    app.parse(argvStorage);
+  } catch (const CLI::CallForHelp&) {
+    std::cout << app.help() << '\n';
+    return 0;
+  } catch (const CLI::ParseError& e) {
+    return app.exit(e);
+  }
 
     //auto console = spdlog::stderr_color_mt("ff::console");
 
@@ -688,9 +692,5 @@ int fixFastaMain(std::vector<std::string>& args,
       transcriptParserPtr->stop();
     }
 
-    return fix_ok ? 0 : 1;
-  } else {
-    std::cout << usage_lines(cli, "fixFasta") << '\n';
-    return 1;
-  }
+  return fix_ok ? 0 : 1;
 }
