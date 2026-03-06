@@ -58,7 +58,6 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 
     // for filtering concordant chain pairs *on the same target*
     const double thresh = mpol.post_merge_chain_sub_thresh;
-    const double ithresh = mpol.inv_post_merge_chain_sub_thresh;
     // for filtering orphan chains with respect to the *best chain for each read*
     const double orphan_chain_sub_thresh = mpol.orphan_chain_sub_thresh;
 
@@ -213,7 +212,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                   std::remove_if(
                     jointMemsList.begin() + index_for_current_transcript,
                     jointMemsList.end(),
-                    [best_pair_in_target, thresh](const decltype(*jointMemsList.begin())& jm) -> bool {
+                    [best_pair_in_target, thresh](decltype(*jointMemsList.begin()) jm) -> bool {
                                    return jm.coverage() < thresh * best_pair_in_target;
                     }),
                     jointMemsList.end());
@@ -236,7 +235,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     bool noPairedMappings = (sameTxpCount == 0);
     bool leftOrphan = false; bool rightOrphan = false;
     if (!noOrphans and noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
-        auto orphanFiller = [&jointMemsList, &maxCoverage, &coverageRatio, &maxLeftOrRight, &leftOrphan, &rightOrphan, thresh, ithresh, orphan_chain_sub_thresh]
+        auto orphanFiller = [&jointMemsList, &maxCoverage, &maxLeftOrRight, &leftOrphan, &rightOrphan, orphan_chain_sub_thresh]
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {
             
@@ -251,8 +250,8 @@ pufferfish::util::MergeResult joinReadsAndFilter(
              * this global threshold, so we don't worry about allowing sub-optimality here.
              **/
             decltype(coverageRatio) orphanCoverageRatio = orphan_chain_sub_thresh;
-            constexpr const decltype(thresh) orphanThresh = 1.0;
-            constexpr const decltype(thresh) invOrphanThresh = 1.0;
+            constexpr double orphanThresh = 1.0;
+            constexpr double invOrphanThresh = 1.0;
 
             // fragmentLen is set to 0
             for (auto &clustItr : memClusters) {

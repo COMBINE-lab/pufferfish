@@ -57,8 +57,9 @@ class PuffAligner {
 public:
   PuffAligner(compact::vector<uint64_t, 2>& ar, std::vector<uint64_t>& ral, uint32_t k_, 
               pufferfish::util::AlignmentConfig& m, ksw2pp::KSW2Aligner& a) : 
-    allRefSeq(ar), refAccumLengths(ral), k(k_) ,
+    allRefSeq(ar), refAccumLengths(ral),
     mopts(m), aligner(a), scoreStatus_(m.matchScore, m.minScoreFraction, m.bestStrata, m.decoyPresent) {
+    (void)k_;
 
     ksw_reset_extz(&ez);
     alnCacheLeft.reserve(32);
@@ -99,7 +100,6 @@ public:
 private:
   compact::vector<uint64_t, 2>& allRefSeq;
   std::vector<uint64_t>& refAccumLengths;
-  uint32_t k;
   uint32_t minLengthGapRequired;
   pufferfish::util::AlignmentConfig mopts;
   ksw2pp::KSW2Aligner& aligner;

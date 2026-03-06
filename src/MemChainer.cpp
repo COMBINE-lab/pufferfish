@@ -92,7 +92,6 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
     // Maybe we want to change the interface (make these members public or provide accessors)?
     auto &refs = projHits.refRange;
     if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit_) {
-      uint32_t mappings{0};
       memCollection.emplace_back(projHits.contigIdx_, projHits.contigOrientation_,
                                  readPos, projHits.k_, projHits.contigPos_,
                                  projHits.globalPos_ - projHits.contigPos_, projHits.contigLen_, pufferfish::util::ReadEnd::LEFT);
@@ -106,7 +105,6 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
         refHits.emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
         auto nh = refHits.size();
         maxNonDecoyHits = (tid < firstDecoyIndex) ? std::max(nh, maxNonDecoyHits) : maxNonDecoyHits;
-        mappings++;
       //}
       }
     }

@@ -1022,25 +1022,48 @@ Compile-time selection between list-like and map-like printing.
             uint32_t numHits = 0;
         };
 
-// from https://github.com/cppformat/cppformat/issues/105
-        class FixedBuffer : public fmt::Buffer<char> {
+        class FixedWriter {
         public:
-            FixedBuffer(char *array, std::size_t size)
-                    : fmt::Buffer<char>(array, size) {}
-
-        protected:
-            void grow(std::size_t size) {
-                (void) size;
-                throw std::runtime_error("buffer overflow");
+            FixedWriter(char* array, std::size_t size)
+                : array_(array), size_(size), used_(0) {
+                clear();
             }
-        };
 
-        class FixedWriter : public fmt::Writer {
+            void clear() {
+                used_ = 0;
+                if (size_ > 0) {
+                    array_[0] = '\0';
+                }
+            }
+
+            template <typename... Args>
+            void write(fmt::format_string<Args...> fmtStr, Args&&... args) {
+                auto remaining = remainingCapacity_();
+                auto result = fmt::format_to_n(
+                    array_ + used_, remaining, fmtStr, std::forward<Args>(args)...);
+                if (result.size > remaining) {
+                    throw std::runtime_error("buffer overflow");
+                }
+                used_ += result.size;
+                terminate_();
+            }
+
+            const char* c_str() const { return array_; }
+
         private:
-            FixedBuffer buffer_;
-        public:
-            FixedWriter(char *array, std::size_t size)
-                    : fmt::Writer(buffer_), buffer_(array, size) {}
+            std::size_t remainingCapacity_() const {
+                return (size_ > used_ + 1) ? (size_ - used_ - 1) : 0;
+            }
+
+            void terminate_() {
+                if (size_ > 0) {
+                    array_[used_] = '\0';
+                }
+            }
+
+            char* array_;
+            std::size_t size_;
+            std::size_t used_;
         };
 
 

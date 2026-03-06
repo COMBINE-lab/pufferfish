@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
 #cmake_policy(SET CMP0069 NEW)
 
+project(pufferfish LANGUAGES CXX C)
+
 if(DEFINED ENV{CC})
   set(CC $ENV{CC})
 else()
@@ -13,18 +15,6 @@ if(${CC} MATCHES ^gcc-)
   string(REGEX REPLACE "gcc-" "" CC_VERSION ${CC})
 endif()
 message("CC version: ${CC_VERSION}")
-
-if(NOT DEFINED USE_ARM)
-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)")
-    message("Detected 64-bit ARM host. Setting USE_ARM to true.")
-    set(USE_ARM TRUE)
-  else()
-    message("Detected non-ARM host. Setting USE_ARM to false.")
-    set(USE_ARM FALSE)
-  endif()
-endif()
-
-project(pufferfish LANGUAGES CXX C)
 include(ExternalProject)
 
 option(PUFFERFISH_EMBEDDED "Build pufferfish for embedding in a parent project" OFF)
@@ -35,6 +25,17 @@ if(DEFINED BUILD_PUFF_FOR_SALMON)
 endif()
 set(BUILD_PUFF_FOR_SALMON ${PUFFERFISH_EMBEDDED})
 set(PUFFERFISH_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(NOT DEFINED USE_ARM)
+  if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)"
+     OR CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)")
+    message("Detected 64-bit ARM host. Setting USE_ARM to true.")
+    set(USE_ARM TRUE)
+  else()
+    message("Detected non-ARM host. Setting USE_ARM to false.")
+    set(USE_ARM FALSE)
+  endif()
+endif()
 
 
 # auto-populate version:
@@ -69,7 +70,7 @@ set(CPACK_PACKAGE_NAME
 set(CPACK_SOURCE_PACKAGE_FILE_NAME
   "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-Source")
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 
 if (NOT CMAKE_BUILD_TYPE)
    set (CMAKE_BUILD_TYPE "Release")
@@ -78,8 +79,6 @@ endif()
 # We require C++14
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#SET(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -static-libgcc -static-libstdc++")
-#set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 set(CXXSTDFLAG "-std=c++14")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -98,19 +97,8 @@ set(KSW_FLAGS "-DHAVE_KALLOC")
 #set(PF_CPP_FLAGS "-msse4;-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
 set(PF_CPP_FLAGS "-W;-Wall;-Wextra;-Wpointer-arith;-Wunused;-Wwrite-strings;-Wno-unknown-pragmas;-Wno-unused-function")
 
-if (USE_ARM)
-    list(APPEND PF_CPP_FLAGS "-fsigned-char")
-    add_compile_options(-fsigned-char)
-endif()
-
 if (PUFFERFISH_EMBEDDED)
-    #list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
-    #list(APPEND PF_CPP_FLAGS "-Wno-unused-variable") 
-    list(APPEND PF_CPP_FLAGS "-Wno-reorder") 
-    #list(APPEND PF_CPP_FLAGS "-g")
-    #list(APPEND PF_CPP_FLAGS "-Wno-sign-compare") 
-    #list(APPEND PF_CPP_FLAGS "-Wno-sequence-point")
-   list(APPEND PF_CPP_FLAGS "-DPUFFERFISH_SALMON_SUPPORT")
+    list(APPEND PF_CPP_FLAGS "-Wno-reorder")
 endif()
 
 ###
@@ -172,7 +160,6 @@ endif()
 if(HAVE_INT128_NUMERIC_LIMITS)
 
   message("setting -DHAVE_NUMERIC_LIMITS128")
-  list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
 else()
   try_compile(HAVE_INT128_NUMERIC_LIMITS ${CMAKE_BINARY_DIR} 
               SOURCES ${PUFFERFISH_ROOT_DIR}/tests/compile_tests/int128_numeric_limits.cpp
@@ -181,7 +168,6 @@ else()
               )
   if(HAVE_INT128_NUMERIC_LIMITS)
     message("setting -DHAVE_NUMERIC_LIMITS128")
-    list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
   else()
     message("not setting -DHAVE_NUMERIC_LIMITS128")
   endif()
@@ -200,8 +186,11 @@ if(NOT PUFFERFISH_EMBEDDED)
   endif()
 endif()
 
-if(PUFFERFISH_EMBEDDED AND NOT TARGET TBB::tbb)
-  find_package(TBB 2021.4 REQUIRED COMPONENTS tbb tbbmalloc)
+if(PUFFERFISH_EMBEDDED)
+  if(NOT TARGET TBB::tbb OR NOT TARGET TBB::tbbmalloc)
+    message(FATAL_ERROR
+      "Embedded pufferfish requires parent-provided TBB::tbb and TBB::tbbmalloc targets.")
+  endif()
 endif()
 if(TARGET TBB::tbb)
   set(TBB_TARGET_EXISTED TRUE)
@@ -470,8 +459,37 @@ endif()
 endif() # end of NOT PUFFERFISH_EMBEDDED
 
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib")
-set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS}")
-set(PUFF_DEBUG_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${DEBUG_FLAGS}")
+set(PUFFERFISH_COMMON_COMPILE_OPTIONS ${PF_CPP_FLAGS})
+list(APPEND PUFFERFISH_COMMON_COMPILE_OPTIONS "$<$<CONFIG:Debug>:${DEBUG_FLAGS}>")
+list(APPEND PUFFERFISH_COMMON_COMPILE_OPTIONS "$<$<CONFIG:Release>:${OPT_FLAGS}>")
+
+set(PUFFERFISH_COMMON_COMPILE_DEFINITIONS HAVE_KALLOC HAVE_SIMDE __STDC_FORMAT_MACROS STX_NO_STD_STRING_VIEW)
+if(USE_ARM)
+  list(APPEND PUFFERFISH_COMMON_COMPILE_OPTIONS "-fsigned-char")
+  list(APPEND PUFFERFISH_COMMON_COMPILE_DEFINITIONS KSW_USE_ARM)
+endif()
+if(PUFFERFISH_EMBEDDED)
+  list(APPEND PUFFERFISH_COMMON_COMPILE_DEFINITIONS PUFFERFISH_SALMON_SUPPORT)
+endif()
+if(HAVE_INT128_NUMERIC_LIMITS)
+  list(APPEND PUFFERFISH_COMMON_COMPILE_DEFINITIONS HAVE_NUMERIC_LIMITS128)
+endif()
+
+add_library(pufferfish_project_options INTERFACE)
+target_compile_features(pufferfish_project_options INTERFACE cxx_std_14)
+target_compile_options(pufferfish_project_options INTERFACE ${PUFFERFISH_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(pufferfish_project_options INTERFACE ${PUFFERFISH_COMMON_COMPILE_DEFINITIONS})
+if(ASAN_BUILD)
+  target_link_options(pufferfish_project_options INTERFACE -fsanitize=address)
+endif()
+
+add_library(pufferfish_repo_headers INTERFACE)
+target_include_directories(pufferfish_repo_headers INTERFACE ${PUFFERFISH_ROOT_DIR}/include)
+
+add_library(pufferfish_external_link_dirs INTERFACE)
+target_link_directories(pufferfish_external_link_dirs INTERFACE
+  ${PUFFERFISH_ROOT_DIR}/external/install/lib
+  ${PUFFERFISH_ROOT_DIR}/external/install/lib64)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/ntcard)
 
@@ -494,6 +512,4 @@ endif()
 
 include(CPack)
 
-include_directories(include)
-link_directories(lib)
 add_subdirectory(src)

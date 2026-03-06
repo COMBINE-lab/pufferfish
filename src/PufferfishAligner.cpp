@@ -33,7 +33,9 @@
 #include "parallel_hashmap/phmap.h"
 
 #include "spdlog/spdlog.h"
+#include "spdlog/async.h"
 #include "spdlog/sinks/ostream_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/stdout_sinks.h"
 #include "spdlog/sinks/ansicolor_sink.h"
 #include "spdlog/fmt/ostr.h"
@@ -96,7 +98,7 @@ void processReadsPair(paired_parser *parser,
     memCollector.setChainSubOptThresh(mopts->preMergeChainSubThresh);
 
     auto logger = spdlog::get("console");
-    fmt::MemoryWriter sstream;
+    std::ostringstream sstream;
     BinWriter bstream;
 
     //size_t batchSize{2500} ;
@@ -539,17 +541,17 @@ void processReadsPair(paired_parser *parser,
                     if (bstream.getBytes() != 0) {
                         BinWriter sbw(sizeof(uint64_t));
                         sbw << bstream.getBytes();
-                        outQueue->info("{}{}", sbw, bstream);
+                        outQueue->info("{}{}", fmt::streamed(sbw), fmt::streamed(bstream));
                     }
                 } else if (mopts->radOut) {
                     if (bstream.getBytes() != 0) {
                         BinWriter sbw(sizeof(uint64_t));
                         sbw << bstream.getBytes() << chunkReads;
-                        outQueue->info("{}{}", sbw, bstream);
+                        outQueue->info("{}{}", fmt::streamed(sbw), fmt::streamed(bstream));
                         chunkReads = 0;
                     } 
                 } else if (mopts->krakOut) {
-                    outQueue->info("{}", bstream);
+                    outQueue->info("{}", fmt::streamed(bstream));
                 } else {
                     std::string outStr(sstream.str());
                     if (!outStr.empty()) {
@@ -586,7 +588,7 @@ void processReadsSingle(single_parser *parser,
     phmap::flat_hash_map<uint32_t, std::pair<int32_t, int32_t>> bestScorePerTranscript;
 
     auto logger = spdlog::get("console");
-    fmt::MemoryWriter sstream;
+    std::ostringstream sstream;
     BinWriter bstream;
     //size_t batchSize{2500} ;
     uint32_t readLen{0};
@@ -870,19 +872,19 @@ void processReadsSingle(single_parser *parser,
                     if (mopts->salmonOut && bstream.getBytes() > 0) {
                         BinWriter sbw(64);
                         sbw << bstream.getBytes();
-                        outQueue->info("{}{}", sbw, bstream);
+                        outQueue->info("{}{}", fmt::streamed(sbw), fmt::streamed(bstream));
                     } else if (mopts->krakOut) {
-                        outQueue->info("{}", bstream);
+                        outQueue->info("{}", fmt::streamed(bstream));
                     }
                     bstream.clear();
                 } else if (mopts->radOut) {
                     if (mopts->salmonOut && bstream.getBytes() > 0) {
                         BinWriter sbw(64);
                         sbw << bstream.getBytes() << chunkReads;
-                        outQueue->info("{}{}", sbw, bstream);
+                        outQueue->info("{}{}", fmt::streamed(sbw), fmt::streamed(bstream));
                         chunkReads = 0;
                     } else if (mopts->krakOut) {
-                        outQueue->info("{}", bstream);
+                        outQueue->info("{}", fmt::streamed(bstream));
                     }
                     bstream.clear();
                 } else {
@@ -970,27 +972,42 @@ void printAlignmentSummary(HitCounters &hctrs, std::shared_ptr<spdlog::logger> c
     consoleLog->info("Done mapping reads.");
     consoleLog->info("\n\n");
     consoleLog->info("=====");
-    consoleLog->info("Observed {} reads", hctrs.numReads);
-    consoleLog->info("Number of reads totally discarded for being smaller than k: {} read", hctrs.tooShortReads);
-    consoleLog->info("Rate of Fragments with at least one found k-mer: {:03.2f}%",
-                     (100.0 * static_cast<float>(hctrs.numMappedAtLeastAKmer)) / hctrs.numReads);
-    consoleLog->info("Discordant Rate: {:03.2f}%",
-                     (100.0 * static_cast<float>(hctrs.numOfOrphans)) / hctrs.numReads);
-    consoleLog->info("Total reads Mapped: {}", (hctrs.numMapped));
-    consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(hctrs.numMapped)) / hctrs.numReads);
-    consoleLog->info("Average # hits per read : {}", hctrs.totAlignment / static_cast<float>(hctrs.numReads));
-    consoleLog->info("Total # of alignments : {}", hctrs.totAlignment);
-    consoleLog->info("Total # of orphans : {}", hctrs.numOfOrphans);
-    consoleLog->info("Total # of pe hits : {}", hctrs.peHits);
-    consoleLog->info("Total # of total Hits : {}", hctrs.totHits);
-    //consoleLog->info("Total # of valid hits : {}", hctrs.validHits);
-    consoleLog->info("Max multimapping group : {}", hctrs.maxMultimapping);
-    consoleLog->info("Total number of alignment attempts : {}", hctrs.totalAlignmentAttempts);
-    consoleLog->info("Number of skipped alignments because of cache hits : {}", hctrs.skippedAlignments_byCache);
-    consoleLog->info("Number of skipped alignments because of perfect chains : {}", hctrs.skippedAlignments_byCov);
-    consoleLog->info("Number of alignments calculations skipped by non-alignable: {}", hctrs.skippedAlignments_notAlignable);
+    const auto numReads = hctrs.numReads.load();
+    const auto tooShortReads = hctrs.tooShortReads.load();
+    const auto numMappedAtLeastAKmer = hctrs.numMappedAtLeastAKmer.load();
+    const auto numOfOrphans = hctrs.numOfOrphans.load();
+    const auto numMapped = hctrs.numMapped.load();
+    const auto totAlignment = hctrs.totAlignment.load();
+    const auto peHits = hctrs.peHits.load();
+    const auto totHits = hctrs.totHits.load();
+    const auto maxMultimapping = hctrs.maxMultimapping.load();
+    const auto totalAlignmentAttempts = hctrs.totalAlignmentAttempts.load();
+    const auto skippedAlignmentsByCache = hctrs.skippedAlignments_byCache.load();
+    const auto skippedAlignmentsByCoverage = hctrs.skippedAlignments_byCov.load();
+    const auto skippedAlignmentsNotAlignable = hctrs.skippedAlignments_notAlignable.load();
+    const auto cigarFixedCount = hctrs.cigar_fixed_count.load();
 
-    consoleLog->info("Number of cigar strings which are fixed: {}", hctrs.cigar_fixed_count);
+    consoleLog->info("Observed {} reads", numReads);
+    consoleLog->info("Number of reads totally discarded for being smaller than k: {} read", tooShortReads);
+    consoleLog->info("Rate of Fragments with at least one found k-mer: {:03.2f}%",
+                     (100.0 * static_cast<float>(numMappedAtLeastAKmer)) / numReads);
+    consoleLog->info("Discordant Rate: {:03.2f}%",
+                     (100.0 * static_cast<float>(numOfOrphans)) / numReads);
+    consoleLog->info("Total reads Mapped: {}", numMapped);
+    consoleLog->info("Mapping rate : {:03.2f}%", (100.0 * static_cast<float>(numMapped)) / numReads);
+    consoleLog->info("Average # hits per read : {}", totAlignment / static_cast<float>(numReads));
+    consoleLog->info("Total # of alignments : {}", totAlignment);
+    consoleLog->info("Total # of orphans : {}", numOfOrphans);
+    consoleLog->info("Total # of pe hits : {}", peHits);
+    consoleLog->info("Total # of total Hits : {}", totHits);
+    //consoleLog->info("Total # of valid hits : {}", hctrs.validHits);
+    consoleLog->info("Max multimapping group : {}", maxMultimapping);
+    consoleLog->info("Total number of alignment attempts : {}", totalAlignmentAttempts);
+    consoleLog->info("Number of skipped alignments because of cache hits : {}", skippedAlignmentsByCache);
+    consoleLog->info("Number of skipped alignments because of perfect chains : {}", skippedAlignmentsByCoverage);
+    consoleLog->info("Number of alignments calculations skipped by non-alignable: {}", skippedAlignmentsNotAlignable);
+
+    consoleLog->info("Number of cigar strings which are fixed: {}", cigarFixedCount);
     consoleLog->info("=====");
 }
 
@@ -1061,15 +1078,23 @@ bool alignReads(
         }
         // the async queue size must be a power of 2
         size_t queueSize{2*mopts->numThreads};
-        spdlog::set_async_mode(queueSize);
+        spdlog::init_thread_pool(queueSize, 1);
 
         if (mopts->krakOut || mopts->salmonOut || mopts->radOut) {
             auto outputSink = std::make_shared<ostream_bin_sink_mt>(*outStream);
-            outLog = std::make_shared<spdlog::logger>("puffer::outLog", outputSink);
+            outLog = std::make_shared<spdlog::async_logger>(
+                "puffer::outLog",
+                outputSink,
+                spdlog::thread_pool(),
+                spdlog::async_overflow_policy::block);
             outLog->set_pattern("");
         } else {
             auto outputSink = std::make_shared<spdlog::sinks::ostream_sink_mt>(*outStream);
-            outLog = std::make_shared<spdlog::logger>("puffer::outLog", outputSink);
+            outLog = std::make_shared<spdlog::async_logger>(
+                "puffer::outLog",
+                outputSink,
+                spdlog::thread_pool(),
+                spdlog::async_overflow_policy::block);
             outLog->set_pattern("%v");
         }
         // write the SAM Header

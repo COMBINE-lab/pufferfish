@@ -14,6 +14,7 @@
 #include "clipp.h"
 #include "CLI/Timer.hpp"
 #include "PufferFS.hpp"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "cereal/archives/binary.hpp"
 #include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
@@ -1163,4 +1164,3 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 }
-

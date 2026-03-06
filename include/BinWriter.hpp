@@ -5,6 +5,7 @@
 #include <ostream>
 #include <mutex>
 #include <iterator>
+#include <utility>
 
 #pragma once
 
@@ -28,7 +29,7 @@ class BinWriter
         //copy bin data to this record
         BinWriter(const std::vector<char>& bin_data) :_bin_data(bin_data) {};
         //or just move if possible
-        BinWriter(std::vector<char>&& bin_data) :_bin_data(move(bin_data)) {};
+        BinWriter(std::vector<char>&& bin_data) :_bin_data(std::move(bin_data)) {};
 
         void clear() {
             _bin_data.clear();
@@ -122,7 +123,7 @@ class BinWriter
 
 
 template<class Mutex>
-class ostream_bin_sink: public spdlog::sinks::base_sink<std::mutex> {
+class ostream_bin_sink: public spdlog::sinks::base_sink<Mutex> {
 public:
     explicit ostream_bin_sink(std::ostream& os, bool force_flush=false) :_ostream(os), _force_flush(force_flush) {}
     ostream_bin_sink(const ostream_bin_sink&) = delete;
@@ -130,18 +131,14 @@ public:
     virtual ~ostream_bin_sink() = default;
 
 protected:
-    void _sink_it(const spdlog::details::log_msg& msg) override
+    void sink_it_(const spdlog::details::log_msg& msg) override
     {
-        //const char* bin_data = msg.raw.data();
-        //size_t bin_size = msg.raw.size();
-        //std::cerr << "msg.size " << msg.raw.size() << " ";
-        _ostream.write(msg.raw.data(), msg.raw.size());
-        //_ostream.write(msg.formatted.data(), msg.formatted.size());
+        _ostream.write(msg.payload.data(), static_cast<std::streamsize>(msg.payload.size()));
         if (_force_flush)
             _ostream.flush();
     }
 
-    void _flush() override
+    void flush_() override
     {
         _ostream.flush();
     }

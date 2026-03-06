@@ -133,7 +133,7 @@ bool fixFasta(single_parser* parser,
   // transcripts)
   std::vector<uint32_t> completeLengths;
   // the stream of transcript sequence
-  fmt::MemoryWriter txpSeqStream;
+  std::string txpSeqStream;
   {
     // ScopedTimer timer;
     // Get the read group by which this thread will
@@ -332,7 +332,7 @@ bool fixFasta(single_parser* parser,
                 {txpIndex, currIndex, readLen});
           }
 
-          txpSeqStream << readStr;
+          txpSeqStream.append(readStr);
           currIndex += readLen;
           onePos.push_back(currIndex);
         } else {
@@ -405,7 +405,7 @@ bool fixFasta(single_parser* parser,
   log->info("Clipped poly-A tails from {:n} transcripts", numPolyAsClipped);
 
   // Put the concatenated text in a string
-  std::string concatText = txpSeqStream.str();
+  std::string concatText = txpSeqStream;
   stx::string_view concatTextView(concatText);
   // And clear the stream
   txpSeqStream.clear();

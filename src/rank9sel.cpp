@@ -101,7 +101,7 @@ rank9sel::rank9sel( compact::vector<uint64_t, 1>* bits_, uint64_t num_bits ) {
 	assert( c == d );
 	inventory[ inventory_size ] = ( ( num_words + 3 ) & ~3ULL ) * 64;
 
-	fprintf( stderr, "Inventory entries filled: %ld\n", d / ONES_PER_INVENTORY + 1 );
+	fprintf( stderr, "Inventory entries filled: %" PRIu64 "\n", d / ONES_PER_INVENTORY + 1 );
 
 #ifdef DEBUG
 	printf( "First inventories: %lld %lld %lld %lld\n", inventory[ 0 ], inventory[ 1 ], inventory[ 2 ], inventory[ 3 ] );

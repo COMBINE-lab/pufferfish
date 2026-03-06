@@ -160,7 +160,6 @@ KSW2Aligner::transformSequenceKSW2(const char* const queryOriginal, const int qu
   // all the calculations later.
   queryTransformed.resize(queryLength, 0);
 
-  int i = 0;
   for (int i = 0; i < queryLength; i++) {
     uint8_t c = static_cast<uint8_t>(queryOriginal[i]);
     queryTransformed[i] = seq_nt4_table_loc[c];

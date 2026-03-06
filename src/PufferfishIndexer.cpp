@@ -27,6 +27,8 @@
 #include "jellyfish/mer_dna.hpp"
 #include "rank9b.hpp"
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "Kmer.hpp" // currently requires k <= 32
 #include "compact_vector/compact_vector.hpp"
 
@@ -386,13 +388,17 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   }
 
   std::string logPath = outdir + "/ref_indexing.log";
-  auto fileSink = std::make_shared<spdlog::sinks::simple_file_sink_st>(logPath);
-  auto consoleSink = std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>();
+  auto fileSink = std::make_shared<spdlog::sinks::basic_file_sink_st>(logPath);
+  auto consoleSink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
   consoleSink->set_color(spdlog::level::warn, consoleSink->magenta);
-  auto consoleLog = spdlog::create("puff::index::stderrLog", {consoleSink});
-  auto fileLog = spdlog::create("puff::index::fileLog", {fileSink});
+  auto consoleLog = std::make_shared<spdlog::logger>("puff::index::stderrLog", consoleSink);
+  spdlog::register_or_replace(consoleLog);
+  auto fileLog = std::make_shared<spdlog::logger>("puff::index::fileLog", fileSink);
+  spdlog::register_or_replace(fileLog);
   std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
-  auto jointLog = spdlog::create("puff::index::jointLog", std::begin(sinks), std::end(sinks));
+  auto jointLog = std::make_shared<spdlog::logger>(
+      "puff::index::jointLog", std::begin(sinks), std::end(sinks));
+  spdlog::register_or_replace(jointLog);
 
   /*if (puffer::fs::MakePath(outdir.c_str()) != 0) {
       std::cerr << "\nyup that's it\n";
@@ -914,16 +920,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
 
     size_t contigId{0} ;
     //size_t coveredKeys{0} ;
-    size_t totalKmersIshouldSee{0} ;
-
     // For every valid k-mer (i.e. every contig)
     while(kb1 != ke1){
       sampledInds.clear();
       auto clen = contigLengths[contigId];
       auto thisContigLength = clen;
       computeSampledPositions(clen, k, sampleSize, sampledInds) ;
-      totalKmersIshouldSee += (thisContigLength - k + 1);
-
       contigId++ ;
 
       //size_t skip = 0 ;
@@ -1071,14 +1073,11 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
       ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
       size_t contigId{0};
-      int loopCounter = 0;
       while(kb1 != ke1){
         sampledInds.clear();
         auto clen = contigLengths[contigId];
         computeSampledPositionsLossy(clen, k, sampleSize, sampledInds) ;
         contigId++;
-        loopCounter++ ;
-
         my_mer r;
         auto zeroPos = kb1.pos();
         auto skipLen = kb1.pos() - zeroPos;

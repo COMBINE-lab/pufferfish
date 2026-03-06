@@ -54,10 +54,7 @@ std::vector<CanonicalKmer> get_kmers(const std::string& fasta_file, uint32_t k) 
 template <typename IndexT>
 int doPufferfishTestLookup(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   CanonicalKmer::k(pi.k());
-  int k = pi.k();
-
-
-  auto kmers = get_kmers(validateOpts.refFile, k);
+  auto kmers = get_kmers(validateOpts.refFile, pi.k());
 
   size_t found = 0;
   size_t notFound = 0;
@@ -196,4 +193,3 @@ int pufferfishTestLookup(pufferfish::ValidateOptions& validateOpts) {
   }
   return 0;
 }
-

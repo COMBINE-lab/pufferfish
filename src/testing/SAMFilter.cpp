@@ -3,6 +3,7 @@
 #include <string>
 
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 
 #include "SeqLib/BamReader.h"
 #include "SeqLib/BamWriter.h"

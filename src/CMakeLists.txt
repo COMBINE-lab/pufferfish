@@ -2,10 +2,21 @@
 include(CheckIPOSupported)
 check_ipo_supported(RESULT HAS_IPO)
 
-link_directories(
-		${PUFFERFISH_ROOT_DIR}/external/install/lib
-    ${PUFFERFISH_ROOT_DIR}/external/install/lib64
-)
+function(pufferfish_configure_target target_name)
+  target_link_libraries(${target_name}
+    PRIVATE
+      pufferfish_project_options
+      pufferfish_repo_headers
+  )
+endfunction()
+
+function(pufferfish_configure_standalone_target target_name)
+  pufferfish_configure_target(${target_name})
+  target_link_libraries(${target_name}
+    PRIVATE
+      pufferfish_external_link_dirs
+  )
+endfunction()
 
 set (KSW2PP_BASIC_LIB_SRCS
 ksw2pp/kalloc.c
@@ -28,26 +39,30 @@ add_library(ksw2pp_sse4 OBJECT ${KSW2PP_ADVANCED_LIB_SRCS})
 add_library(ksw2pp_basic OBJECT ${KSW2PP_BASIC_LIB_SRCS})
 
 if (USE_ARM)
-    set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_FLAGS "-O3")
-    set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_DEFINITIONS "__SSE2__;KSW_CPU_DISPATCH;KSW_USE_ARM;KSW_SSE2_ONLY;HAVE_KALLOC")
-    set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_FLAGS "-O3")
-    set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_DEFINITIONS "__SSE2__;__SSE4_1__;KSW_CPU_DISPATCH;KSW_USE_ARM;HAVE_KALLOC")
-    set_target_properties(ksw2pp_basic PROPERTIES COMPILE_DEFINITIONS "__SSE2__;KSW_CPU_DISPATCH;KSW_USE_ARM;HAVE_KALLOC")
+    target_compile_options(ksw2pp_sse2 PRIVATE -O3)
+    target_compile_definitions(ksw2pp_sse2 PRIVATE __SSE2__ KSW_CPU_DISPATCH KSW_USE_ARM KSW_SSE2_ONLY HAVE_KALLOC)
+    target_compile_options(ksw2pp_sse4 PRIVATE -O3)
+    target_compile_definitions(ksw2pp_sse4 PRIVATE __SSE2__ __SSE4_1__ KSW_CPU_DISPATCH KSW_USE_ARM HAVE_KALLOC)
+    target_compile_definitions(ksw2pp_basic PRIVATE __SSE2__ KSW_CPU_DISPATCH KSW_USE_ARM HAVE_KALLOC)
 else()
-    set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_FLAGS "-O3 -msse -msse2 -mno-sse4.1")
-    set_target_properties(ksw2pp_sse2 PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;KSW_SSE2_ONLY;HAVE_KALLOC")
-    set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_FLAGS "-O3 -msse -msse2 -msse3 -mssse3 -msse4 -msse4.1")
-    set_target_properties(ksw2pp_sse4 PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
-    set_target_properties(ksw2pp_basic PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
+    target_compile_options(ksw2pp_sse2 PRIVATE -O3 -msse -msse2 -mno-sse4.1)
+    target_compile_definitions(ksw2pp_sse2 PRIVATE KSW_CPU_DISPATCH KSW_SSE2_ONLY HAVE_KALLOC)
+    target_compile_options(ksw2pp_sse4 PRIVATE -O3 -msse -msse2 -msse3 -mssse3 -msse4 -msse4.1)
+    target_compile_definitions(ksw2pp_sse4 PRIVATE KSW_CPU_DISPATCH HAVE_KALLOC)
+    target_compile_definitions(ksw2pp_basic PRIVATE KSW_CPU_DISPATCH HAVE_KALLOC)
 endif()
 
+foreach(ksw_target IN ITEMS ksw2pp_sse2 ksw2pp_sse4 ksw2pp_basic)
+  pufferfish_configure_target(${ksw_target})
+endforeach()
 target_include_directories(ksw2pp_basic PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
 target_include_directories(ksw2pp_sse4 PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
 target_include_directories(ksw2pp_sse2 PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
 
 # Build the ksw2pp library
 add_library(ksw2pp STATIC $<TARGET_OBJECTS:ksw2pp_sse2> $<TARGET_OBJECTS:ksw2pp_sse4> $<TARGET_OBJECTS:ksw2pp_basic>)
-set_target_properties(ksw2pp PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
+pufferfish_configure_target(ksw2pp)
+target_compile_definitions(ksw2pp PRIVATE KSW_CPU_DISPATCH HAVE_KALLOC)
 if(HAS_IPO)
   #set_property(TARGET ksw2pp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
@@ -84,8 +99,7 @@ set(pufferfish_lib_srcs
 
 message("add library puffer : ${pufferfish_lib_srcs}")
 add_library(puffer STATIC ${pufferfish_lib_srcs})
-target_compile_options(puffer PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
-target_compile_options(puffer PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
+pufferfish_configure_target(puffer)
 target_include_directories(puffer
   PUBLIC
     ${PUFFERFISH_ROOT_DIR}/include
@@ -117,8 +131,7 @@ message("Building extra components")
 # The actual executable need not be built for salmon
 # Also, the `-static-libgcc` flag is a problem under OSX/clang.
 add_executable(pufferfish Pufferfish.cpp)
-target_compile_options(pufferfish PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
-target_compile_options(pufferfish PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
+pufferfish_configure_standalone_target(pufferfish)
 
 if (FETCHED_TBB)
 add_dependencies(pufferfish libtbb)
@@ -161,8 +174,7 @@ if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
 endif()
 
 add_executable(bcalm_pufferize BCALMPufferizer.cpp FastxParser.cpp)
-target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
+pufferfish_configure_standalone_target(bcalm_pufferize)
 
 #add_executable(edgedensity EdgeDensity.cpp)
 #target_compile_options(edgedensity PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
@@ -176,12 +188,11 @@ target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEAS
 #add_dependencies(edgedensity2 puffer)
 
 add_executable(filtersam testing/SAMFilter.cpp)
+pufferfish_configure_standalone_target(filtersam)
 target_include_directories(filtersam PRIVATE
     ${PUFFERFISH_ROOT_DIR}/external/install/include
     ${PUFFERFISH_ROOT_DIR}/external/install/include/htslib
     )
-target_compile_options(filtersam PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 add_dependencies(filtersam libseqlib)
 #add_dependencies(filtersam puffer)
 
@@ -191,13 +202,12 @@ add_dependencies(filtersam libseqlib)
 #target_compile_options(krakmap PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 
 add_executable(cedar cedar/TargetGroup.cpp cedar/Cedar.cpp cedar/Taxa.cpp)
+pufferfish_configure_standalone_target(cedar)
 
 target_include_directories(cedar PRIVATE
     ${PUFFERFISH_ROOT_DIR}/external/install/include
     ${PUFFERFISH_ROOT_DIR}/external/install/include/htslib
 )
-target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
-target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
 target_link_libraries(cedar Async++ Threads::Threads ${SEQLIB} ${SEQLIB_HTSLIB} puffer bz2 lzma z SetCover ${ASAN_LIB})
 add_dependencies(cedar libseqlib)
 add_dependencies(cedar libsetcover)
@@ -220,8 +230,7 @@ add_dependencies(cedar libsetcover)
 #]]
 
 add_executable(getLineage constructLineage.cpp)
-target_compile_options(getLineage PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
-target_compile_options(getLineage PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
+pufferfish_configure_standalone_target(getLineage)
 
 
 target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})

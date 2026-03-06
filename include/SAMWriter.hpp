@@ -11,6 +11,9 @@
 #include "nonstd/string_view.hpp"
 #include "parallel_hashmap/phmap.h"
 
+#include <sstream>
+#include <spdlog/fmt/ostr.h>
+
 typedef uint16_t rLenType;
 typedef uint32_t refLenType;
 
@@ -100,7 +103,7 @@ inline void writeRADHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   // bwOut << !mopts->noOrphan;
   // bwOut << !mopts->noDiscordant;
   // bwOut << !mopts->noDovetail;
-  out->info("{}", bwOut);
+  out->info("{}", fmt::streamed(bwOut));
 }
 
 template <typename IndexT>
@@ -123,13 +126,13 @@ inline void writeKrakOutHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
   if (isRad) { // number of chunks
     bw << static_cast<uint64_t>(10);
   }
-  out->info("{}", bw);
+  out->info("{}", fmt::streamed(bw));
 }
 
 template <typename IndexT>
 inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
-  fmt::MemoryWriter hd;
-  hd.write("@HD\tVN:1.0\tSO:unknown\n");
+  std::ostringstream hd;
+  hd << "@HD\tVN:1.0\tSO:unknown\n";
 
   auto& txpNames = pfi.getFullRefNames();
   auto& txpLens = pfi.getFullRefLengthsComplete();
@@ -142,11 +145,13 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
     bool isShort = txpLensTrimmed[i] <= k;
     bool isDecoy = pfi.isDecoy(i - numShort);
     char refType = isDecoy ? 'D' : 'T';
-    hd.write("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i], refType);
+    hd << fmt::format("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i],
+                      refType);
     numShort += isShort ? 1 : 0;
   }
   // Eventually output a @PG line
-  hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
+  hd << fmt::format("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n",
+                    pufferfish::version);
   std::string headerStr(hd.str());
   // Don't include the last '\n', since the logger will do it for us.
   headerStr.pop_back();
@@ -155,8 +160,8 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out) {
 
 template <typename IndexT>
 inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
-  fmt::MemoryWriter hd;
-  hd.write("@HD\tVN:1.0\tSO:unknown\n");
+  std::ostringstream hd;
+  hd << "@HD\tVN:1.0\tSO:unknown\n";
 
   auto& txpNames = pfi.getFullRefNames();
   auto& txpLens = pfi.getFullRefLengthsComplete();
@@ -169,12 +174,14 @@ inline void writeSAMHeader(IndexT& pfi, std::ostream& outStream) {
     bool isShort = txpLensTrimmed[i] <= k;
     bool isDecoy = pfi.isDecoy(i - numShort);
     char refType = isDecoy ? 'D' : 'T';
-    hd.write("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i], refType);
+    hd << fmt::format("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i],
+                      refType);
     numShort += isShort ? 1 : 0;
   }
 
   // Eventually output a @PG line
-  hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
+  hd << fmt::format("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n",
+                    pufferfish::version);
   outStream << hd.str();
 }
 
@@ -183,8 +190,8 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
                            bool filterGenomics,
                            phmap::flat_hash_set<std::string> gene_names,
                            phmap::flat_hash_set<std::string> rrna_names) {
-  fmt::MemoryWriter hd;
-  hd.write("@HD\tVN:1.0\tSO:unknown\n");
+  std::ostringstream hd;
+  hd << "@HD\tVN:1.0\tSO:unknown\n";
 
   auto& txpNames = pfi.getFullRefNames();
   auto& txpLens = pfi.getFullRefLengthsComplete();
@@ -205,13 +212,15 @@ inline void writeSAMHeader(IndexT& pfi, std::shared_ptr<spdlog::logger> out,
     if (filterGenomics and (gene_names.find(txpNames[i]) != gene_names.end() or
                             rrna_names.find(txpNames[i]) != rrna_names.end()))
       continue;
-    hd.write("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i], refType);
+    hd << fmt::format("@SQ\tSN:{}\tLN:{:d}\tDS:{}\n", txpNames[i], txpLens[i],
+                      refType);
   }
   // Eventually output a @PG line
   // some other version number for now,
   // will think about it later
   std::string version = "1.0.0";
-  hd.write("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n", pufferfish::version);
+  hd << fmt::format("@PG\tID:pufferfish\tPN:pufferfish\tVN:{}\n",
+                    pufferfish::version);
   std::string headerStr(hd.str());
   // Don't include the last '\n', since the logger will do it for us.
   headerStr.pop_back();
@@ -529,12 +538,12 @@ inline uint32_t writeAlignmentsToKrakenDump(
 template <typename IndexT>
 inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
                                           PairedAlignmentFormatter<IndexT>& formatter,
-                                          fmt::MemoryWriter& sstream
+                                          std::ostringstream& sstream
                                           ) {
   constexpr uint16_t flags1 = 0x1 | 0x4 | 0x8 | 0x40;
   constexpr uint16_t flags2 = 0x1 | 0x4 | 0x8 | 0x80;
 
-  auto processReadName = [](const std::string& name) -> fmt::StringRef {
+  auto processReadName = [](const std::string& name) -> std::string {
     nonstd::string_view readNameView(name);
     // If the read name contains multiple space-separated parts,
     // print only the first
@@ -550,7 +559,7 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
       readNameView.remove_suffix(2);
       // readName[splitPos - 2] = '\0';
     }
-    return fmt::StringRef(readNameView.data(), readNameView.size());
+    return std::string(readNameView.data(), readNameView.size());
   };
 
   auto readNameView = processReadName(r.first.name);
@@ -599,7 +608,7 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
 template <typename IndexT>
 inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                                              PairedAlignmentFormatter<IndexT>& formatter,
-                                             fmt::MemoryWriter& sstream
+                                             std::ostringstream& sstream
                                             ) {
   constexpr uint16_t flags = 0x4;
 
@@ -610,7 +619,7 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
   if (splitPos < readNameViewSV.length()) {
     readNameViewSV.remove_suffix(readNameViewSV.size() - splitPos);
   }
-  fmt::StringRef readNameView(readNameViewSV.data(), readNameViewSV.size());
+  std::string readNameView(readNameViewSV.data(), readNameViewSV.size());
   std::string* readSeq = &(r.seq);
   std::string* readQual = formatter.use_qualities ? &(r.qual) : &(formatter.empty_qual);
 
@@ -636,7 +645,7 @@ template <typename ReadT, typename IndexT>
 inline uint32_t writeAlignmentsToStreamSingle(
     ReadT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits,
-    fmt::MemoryWriter& sstream, bool writeOrphans,
+    std::ostringstream& sstream, bool writeOrphans,
     bool tidsAlreadyDecoded = false) {
   (void)writeOrphans;
 
@@ -654,7 +663,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
   if (splitPos < readNameViewSV.length()) {
     readNameViewSV.remove_suffix(readNameViewSV.size() - splitPos);
   }
-  fmt::StringRef readNameView(readNameViewSV.data(), readNameViewSV.size());
+  std::string readNameView(readNameViewSV.data(), readNameViewSV.size());
 
   std::string numHitFlag = fmt::format("NH:i:{}", jointHits.size());
   uint32_t alnCtr{0};
@@ -723,7 +732,7 @@ template <typename ReadPairT, typename IndexT>
 inline uint32_t writeAlignmentsToStream(
     ReadPairT& r, PairedAlignmentFormatter<IndexT>& formatter,
     std::vector<pufferfish::util::QuasiAlignment>& jointHits,
-    fmt::MemoryWriter& sstream, bool writeOrphans,
+    std::ostringstream& sstream, bool writeOrphans,
     bool tidsAlreadyDecoded = false, const std::string& extraBAMtags = "") {
 
   auto& read1Temp = formatter.read1Temp;
@@ -735,7 +744,7 @@ inline uint32_t writeAlignmentsToStream(
 
   uint16_t flags1, flags2;
 
-  auto processReadName = [](const std::string& name) -> fmt::StringRef {
+  auto processReadName = [](const std::string& name) -> std::string {
     nonstd::string_view readNameView(name);
     // If the read name contains multiple space-separated parts,
     // print only the first
@@ -751,7 +760,7 @@ inline uint32_t writeAlignmentsToStream(
       readNameView.remove_suffix(2);
       // readName[splitPos - 2] = '\0';
     }
-    return fmt::StringRef(readNameView.data(), readNameView.size());
+    return std::string(readNameView.data(), readNameView.size());
   };
 
   auto readNameView = processReadName(r.first.name);
@@ -912,8 +921,8 @@ inline uint32_t writeAlignmentsToStream(
 
       uint32_t flags, unalignedFlags;
 
-      fmt::StringRef* alignedName{nullptr};
-      fmt::StringRef* unalignedName{nullptr};
+      const std::string* alignedName{nullptr};
+      const std::string* unalignedName{nullptr};
       std::string* readTemp{nullptr};
       std::string* qualTemp{nullptr};
 

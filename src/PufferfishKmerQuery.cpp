@@ -41,7 +41,6 @@ int doPufferfishKmerQuery(IndexT& pi,
   {
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
-    size_t rn{0};
     pufferfish::util::QueryCache qc;
 
     CanonicalKmer km;
@@ -58,7 +57,6 @@ int doPufferfishKmerQuery(IndexT& pi,
                     << ", total hits = " << totalHits << "\n";
         }
         */
-        ++rn;
         auto& r1 = rp.seq;
 
         km.fromStr(r1.data());
@@ -165,4 +163,3 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
   parser.stop();
   return 0;
 }
-

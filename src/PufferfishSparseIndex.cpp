@@ -381,8 +381,6 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, pufferfish::util::Quer
   } else {
     didWalk = true;
     int signedShift{0};
-    int inLoop = 0;
-
     /*
     do{
             if(inLoop >= 1){
@@ -434,7 +432,6 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern, pufferfish::util::Quer
     //currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
     currRank = presenceRank_.rank(idx);
 
-    inLoop++;
     auto sampledPos = sampledPos_[currRank];
     pos = sampledPos + signedShift;
   }
@@ -477,8 +474,6 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern)
   } else {
     didWalk = true;
     int signedShift{0};
-    int inLoop = 0;
-
     /*
     do{
             if(inLoop >= 1){
@@ -524,8 +519,6 @@ auto PufferfishSparseIndex::getRefPos(CanonicalKmer mern)
     }
 
     currRank = (idx == 0) ? 0 : presenceRank_.rank(idx);
-    inLoop++;
-
     /*
       }while(presenceVec_[idx] != 1) ;
     */

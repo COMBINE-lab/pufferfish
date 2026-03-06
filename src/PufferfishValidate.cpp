@@ -15,6 +15,7 @@
 #include "Util.hpp"
 #include "jellyfish/mer_dna.hpp"
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 
 #include "PufferfishIndex.hpp"
 #include "PufferfishSparseIndex.hpp"
@@ -485,5 +486,4 @@ int pufferfishValidate(pufferfish::ValidateOptions& validateOpts) {
     }
     return 0;
 }
-
 
