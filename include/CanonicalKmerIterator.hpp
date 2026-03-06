@@ -13,8 +13,7 @@ namespace pufferfish {
   namespace kmers = combinelib::kmers;
 // class CanonicalKmerIterator : public std::iterator<std::input_iterator_tag,
 // std::pair<CanonicalKmer, int>, int> {
-class CanonicalKmerIterator
-  : public std::iterator<std::input_iterator_tag, std::pair<CanonicalKmer, int>, int> {
+class CanonicalKmerIterator {
   stx::string_view s_;
   std::pair<CanonicalKmer, int> p_;
   //CanonicalKmer km_;
@@ -24,11 +23,11 @@ class CanonicalKmerIterator
   int k_;
 
 public:
-  typedef std::pair<CanonicalKmer,int> value_type;
-  typedef value_type& reference;
-  typedef value_type* pointer;
-  typedef std::input_iterator_tag iterator_category;
-  typedef int64_t difference_type;
+  using value_type = std::pair<CanonicalKmer, int>;
+  using reference = value_type&;
+  using pointer = value_type*;
+  using iterator_category = std::input_iterator_tag;
+  using difference_type = std::ptrdiff_t;
   CanonicalKmerIterator()
     : s_(), p_(), /*km_(), pos_(),*/ invalid_(true), lastinvalid_(-1),
         k_(CanonicalKmer::k()) {}

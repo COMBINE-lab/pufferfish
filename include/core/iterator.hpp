@@ -128,17 +128,16 @@ template <
   class DelimT,
   class CharT=char,
   class Traits=::std::char_traits<CharT>
-> struct ostream_joiner final : ::std::iterator<
-  ::std::output_iterator_tag,
-  void,
-  void,
-  void,
-  void
-> {
+> struct ostream_joiner final {
   using delimiter_type = DelimT;
   using ostream_type = ::std::basic_ostream<CharT, Traits>;
   using traits_type = Traits;
   using char_type = CharT;
+  using iterator_category = ::std::output_iterator_tag;
+  using value_type = void;
+  using difference_type = ::std::ptrdiff_t;
+  using pointer = void;
+  using reference = void;
 
   ostream_joiner (ostream_type& stream, delimiter_type const& delimiter) :
     stream(stream),
