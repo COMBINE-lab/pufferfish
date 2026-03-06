@@ -644,7 +644,7 @@ public:
   }
   mer_base_static(const mer_base_static& rhs) : super(rhs) { }
 
-  mer_base_static(unsigned int k, const char* s) : super(k_) {
+  mer_base_static(unsigned int /*k*/, const char* s) : super(k_) {
     super::from_chars(s);
   }
   explicit mer_base_static(const char* s) : super(k_) {
