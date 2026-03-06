@@ -3,8 +3,8 @@ include(CheckIPOSupported)
 check_ipo_supported(RESULT HAS_IPO)
 
 link_directories(
-		${GAT_SOURCE_DIR}/external/install/lib
-    ${GAT_SOURCE_DIR}/external/install/lib64
+		${PUFFERFISH_ROOT_DIR}/external/install/lib
+    ${PUFFERFISH_ROOT_DIR}/external/install/lib64
 )
 
 set (KSW2PP_BASIC_LIB_SRCS
@@ -41,9 +41,9 @@ else()
     set_target_properties(ksw2pp_basic PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HAVE_KALLOC")
 endif()
 
-set_target_properties(ksw2pp_basic PROPERTIES INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include)
-set_target_properties(ksw2pp_sse4 PROPERTIES INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include) 
-set_target_properties(ksw2pp_sse2 PROPERTIES INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include) 
+target_include_directories(ksw2pp_basic PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
+target_include_directories(ksw2pp_sse4 PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
+target_include_directories(ksw2pp_sse2 PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
 
 # Build the ksw2pp library
 add_library(ksw2pp STATIC $<TARGET_OBJECTS:ksw2pp_sse2> $<TARGET_OBJECTS:ksw2pp_sse4> $<TARGET_OBJECTS:ksw2pp_basic>)
@@ -51,8 +51,8 @@ set_target_properties(ksw2pp PROPERTIES COMPILE_DEFINITIONS "KSW_CPU_DISPATCH;HA
 if(HAS_IPO)
   #set_property(TARGET ksw2pp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
-
-#set_target_properties(ksw2pp PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${GAT_SOURCE_DIR}/external/install/lib)
+target_include_directories(ksw2pp PUBLIC ${PUFFERFISH_ROOT_DIR}/include)
+add_library(pufferfish::ksw2pp ALIAS ksw2pp)
 
 set(pufferfish_lib_srcs 
     PufferfishIndexer.cpp 
@@ -76,28 +76,27 @@ set(pufferfish_lib_srcs
     FixFasta.cpp
     MemCollector.cpp
 	  MemChainer.cpp
-		PuffAligner.cpp
+	  PuffAligner.cpp
 	  PufferfishAligner.cpp
 	  RefSeqConstructor.cpp
 	  metro/metrohash64.cpp
 )
-if (BUILD_PUFF_FOR_SALMON)
- list(APPEND pufferfish_lib_srcs "${GAT_SOURCE_DIR}/src/LibraryFormat.cpp")
-endif()
 
 message("add library puffer : ${pufferfish_lib_srcs}")
 add_library(puffer STATIC ${pufferfish_lib_srcs})
 target_compile_options(puffer PUBLIC $<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>)
 target_compile_options(puffer PUBLIC $<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>)
+target_include_directories(puffer
+  PUBLIC
+    ${PUFFERFISH_ROOT_DIR}/include
+)
+add_library(pufferfish::puffer ALIAS puffer)
 
 # fetch the directory where compact vector lives
 get_property(COMPACT_VECTOR_INCLUDE_PATH TARGET graphdump PROPERTY COMPACT_VECTOR_DIR)
 message("adding ${COMPACT_VECTOR_INCLUDE_PATH} to include path for libpuffer")
 target_include_directories(puffer PUBLIC ${COMPACT_VECTOR_INCLUDE_PATH})
 
-if (BUILD_PUFF_FOR_SALMON)
-   target_include_directories(puffer PUBLIC "${GAT_SOURCE_DIR}/include")
-endif()
 if (FETCHED_TBB)
 add_dependencies(puffer libtbb)
 else()
@@ -105,7 +104,7 @@ add_dependencies(puffer TBB::tbb)
 add_dependencies(puffer TBB::tbbmalloc)
 endif()
 
-if (NOT BUILD_PUFF_FOR_SALMON)
+if (NOT PUFFERFISH_EMBEDDED)
 message("Building extra components")
 
 # The actual executable need not be built for salmon
@@ -123,8 +122,8 @@ endif()
 
 
 
-#if (BUILD_PUFF_FOR_SALMON)
-#   target_include_directories(pufferfish PUBLIC "${GAT_SOURCE_DIR}/include")
+#if (PUFFERFISH_EMBEDDED)
+#   target_include_directories(pufferfish PUBLIC "${PUFFERFISH_ROOT_DIR}/include")
 #endif()
 
 
@@ -171,8 +170,8 @@ target_compile_options(bcalm_pufferize PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEAS
 
 add_executable(filtersam testing/SAMFilter.cpp)
 target_include_directories(filtersam PRIVATE
-    ${GAT_SOURCE_DIR}/external/install/include
-    ${GAT_SOURCE_DIR}/external/install/include/htslib
+    ${PUFFERFISH_ROOT_DIR}/external/install/include
+    ${PUFFERFISH_ROOT_DIR}/external/install/include/htslib
     )
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(filtersam PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")
@@ -187,8 +186,8 @@ add_dependencies(filtersam libseqlib)
 add_executable(cedar cedar/TargetGroup.cpp cedar/Cedar.cpp cedar/Taxa.cpp)
 
 target_include_directories(cedar PRIVATE
-    ${GAT_SOURCE_DIR}/external/install/include
-    ${GAT_SOURCE_DIR}/external/install/include/htslib
+    ${PUFFERFISH_ROOT_DIR}/external/install/include
+    ${PUFFERFISH_ROOT_DIR}/external/install/include/htslib
 )
 target_compile_options(cedar PUBLIC "$<$<CONFIG:DEBUG>:${PUFF_DEBUG_FLAGS}>")
 target_compile_options(cedar PUBLIC "$<$<CONFIG:RELEASE>:${PUFF_RELEASE_FLAGS}>")

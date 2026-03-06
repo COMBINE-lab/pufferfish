@@ -22,6 +22,7 @@ namespace ksw2pp {
 
 #ifdef KSW_USE_ARM
 #else
+#if defined(__i386__) || defined(__x86_64__)
 #ifndef _MSC_VER
 // adapted from https://github.com/01org/linux-sgx/blob/master/common/inc/internal/linux/cpuid_gnu.h
 void __cpuidex(int cpuid[4], int func_id, int subfunc_id)
@@ -59,6 +60,12 @@ int x86_simd(void)
 	}
 	return flag;
 }
+#else
+int x86_simd(void)
+{
+	return 0;
+}
+#endif
 #endif // KSW_USE_ARM
 // end of ksw2_dispatch.c here
 

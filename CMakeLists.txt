@@ -27,6 +27,15 @@ endif()
 project(pufferfish LANGUAGES CXX C)
 include(ExternalProject)
 
+option(PUFFERFISH_EMBEDDED "Build pufferfish for embedding in a parent project" OFF)
+if(DEFINED BUILD_PUFF_FOR_SALMON)
+  if(BUILD_PUFF_FOR_SALMON)
+    set(PUFFERFISH_EMBEDDED ON)
+  endif()
+endif()
+set(BUILD_PUFF_FOR_SALMON ${PUFFERFISH_EMBEDDED})
+set(PUFFERFISH_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 
 # auto-populate version:
 # from https://stackoverflow.com/questions/47066115/cmake-get-version-from-multi-line-text-file
@@ -77,17 +86,12 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 find_package(Threads REQUIRED)
 
-if (BUILD_PUFF_FOR_SALMON) 
-    message("Building basic pufferfish components for salmon")
+if (PUFFERFISH_EMBEDDED)
+    message("Building pufferfish in embedded mode")
 else()
   if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Clang|AppleClang)$")
   	set(CLANG TRUE)
   endif()
-endif()
-
-if (NOT GAT_SOURCE_DIR)
-    message("Top-level source directory variable not set externally; setting it to ${CMAKE_CURRENT_SOURCE_DIR}")
-    set(GAT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 set(KSW_FLAGS "-DHAVE_KALLOC")
@@ -99,7 +103,7 @@ if (USE_ARM)
     add_compile_options(-fsigned-char)
 endif()
 
-if (BUILD_PUFF_FOR_SALMON)
+if (PUFFERFISH_EMBEDDED)
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-parameter") 
     #list(APPEND PF_CPP_FLAGS "-Wno-unused-variable") 
     list(APPEND PF_CPP_FLAGS "-Wno-reorder") 
@@ -171,7 +175,7 @@ if(HAVE_INT128_NUMERIC_LIMITS)
   list(APPEND PF_CPP_FLAGS "-DHAVE_NUMERIC_LIMITS128")
 else()
   try_compile(HAVE_INT128_NUMERIC_LIMITS ${CMAKE_BINARY_DIR} 
-              SOURCES ${GAT_SOURCE_DIR}/tests/compile_tests/int128_numeric_limits.cpp
+              SOURCES ${PUFFERFISH_ROOT_DIR}/tests/compile_tests/int128_numeric_limits.cpp
               CXX_STANDARD 14
               CXX_STANDARD_REQUIRED ON
               )
@@ -189,9 +193,19 @@ endif()
 set(SHASUM ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_shasum.sh)
 
 
-find_package(Jemalloc)
-if(JEMALLOC_FOUND)
-  include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIRS})
+if(NOT PUFFERFISH_EMBEDDED)
+  find_package(Jemalloc)
+  if(JEMALLOC_FOUND)
+    include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIRS})
+  endif()
+endif()
+
+if(PUFFERFISH_EMBEDDED AND NOT TARGET TBB::tbb)
+  find_package(TBB 2021.4 REQUIRED COMPONENTS tbb tbbmalloc)
+endif()
+if(TARGET TBB::tbb)
+  set(TBB_TARGET_EXISTED TRUE)
+  get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 if(DO_QUIET_MAKE)
@@ -201,7 +215,7 @@ else()
 endif()
 
 
-if (NOT BUILD_PUFF_FOR_SALMON)
+if (NOT PUFFERFISH_EMBEDDED)
 ## Try and find TBB first
 find_package(TBB 2021.4 
   HINTS ${TBB_ROOT_SEARCH}
@@ -239,8 +253,8 @@ if(NOT ${TBB_TARGET_EXISTED})
     message("==================================================================")
 
     # These are useful for the custom install step we'll do later
-    set(TBB_SOURCE_DIR ${GAT_SOURCE_DIR}/external/oneTBB-2021.5.0)
-    set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
+    set(TBB_SOURCE_DIR ${PUFFERFISH_ROOT_DIR}/external/oneTBB-2021.5.0)
+    set(TBB_INSTALL_DIR ${PUFFERFISH_ROOT_DIR}/external/install)
     message("fetching oneAPI::TBB : TBB_SOURCE_DIR = ${TBB_SOURCE_DIR}, TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
 
     if(NO_RTM)
@@ -274,7 +288,7 @@ if(NOT ${TBB_TARGET_EXISTED})
     DEPENDEES install 
     )
     set(FETCHED_TBB TRUE)
-    set(TBB_ROOT_SEARCH ${CMAKE_SOURCE_DIR}/external/install)    
+    set(TBB_ROOT_SEARCH ${PUFFERFISH_ROOT_DIR}/external/install)    
 endif()
 
 find_package(LibLZMA)
@@ -303,9 +317,9 @@ if(NOT LIBLZMA_FOUND)
 	# Tell cmake that the external project generated a library so we can
 	# add dependencies here instead of later
 
-	set(LIBLZMA_LIBRARIES ${GAT_SOURCE_DIR}/external/install/lib/liblzma.a)
-	set(LIBSTADEN_LDFLAGS "-L${GAT_SOURCE_DIR}/external/install/lib")
-	set(LIBSTADEN_CFLAGS "-I${GAT_SOURCE_DIR}/external/install/include")
+	set(LIBLZMA_LIBRARIES ${PUFFERFISH_ROOT_DIR}/external/install/lib/liblzma.a)
+	set(LIBSTADEN_LDFLAGS "-L${PUFFERFISH_ROOT_DIR}/external/install/lib")
+	set(LIBSTADEN_CFLAGS "-I${PUFFERFISH_ROOT_DIR}/external/install/include")
 	set(FETCHED_LIBLZMA TRUE)
   else()
   	message("Found liblzma library: ${LIBLZMA_LIBRARIES}")
@@ -335,9 +349,9 @@ externalproject_add(libbz2
 )
 	# Tell cmake that the external project generated a library so we can
 	# add dependencies here instead of later
-	set(BZIP2_LIBRARIES ${GAT_SOURCE_DIR}/external/install/lib/libbz2.a)
-	set(LIBSTADEN_LDFLAGS "-L${GAT_SOURCE_DIR}/external/install/lib -I${GAT_SOURCE_DIR}/external/install/include")
-	set(LIBSTADEN_CFLAGS "-I${GAT_SOURCE_DIR}/external/install/include")
+	set(BZIP2_LIBRARIES ${PUFFERFISH_ROOT_DIR}/external/install/lib/libbz2.a)
+	set(LIBSTADEN_LDFLAGS "-L${PUFFERFISH_ROOT_DIR}/external/install/lib -I${PUFFERFISH_ROOT_DIR}/external/install/include")
+	set(LIBSTADEN_CFLAGS "-I${PUFFERFISH_ROOT_DIR}/external/install/include")
 	set(FETCHED_LIBBZ2 TRUE)
   else()
   	message("Found libbz2 library: ${BZIP2_LIBRARIES}")
@@ -378,8 +392,8 @@ if(TBB_RECONFIGURE)
     unset(TBB_INSTALL_DIR CACHE)
     unset(CMAKE_PREFIX_PATH CACHE)
 
-    set(CMAKE_PREFIX_PATH ${GAT_SOURCE_DIR}/external/install)
-    set(TBB_INSTALL_DIR ${GAT_SOURCE_DIR}/external/install)
+    set(CMAKE_PREFIX_PATH ${PUFFERFISH_ROOT_DIR}/external/install)
+    set(TBB_INSTALL_DIR ${PUFFERFISH_ROOT_DIR}/external/install)
 
     message("TBB_INSTALL_DIR = ${TBB_INSTALL_DIR}")
   
@@ -453,7 +467,7 @@ if(FETCHED_TBB)
 add_dependencies(libsetcover libtbb)
 endif()
 
-endif() # end of NOT BUILD_PUFF_FOR_SALMON
+endif() # end of NOT PUFFERFISH_EMBEDDED
 
 set(LIB_FLAGS "-L ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib")
 set(PUFF_RELEASE_FLAGS "${DEFINE_FLAGS};${KSW_FLAGS};${PF_CPP_FLAGS};${OPT_FLAGS}")
@@ -467,7 +481,7 @@ define_property(TARGET PROPERTY COMPACT_VECTOR_DIR INHERITED
    FULL_DOCS "the path to the directory containing the compact_vector include tree")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
 
-if (NOT BUILD_PUFF_FOR_SALMON) 
+if (NOT PUFFERFISH_EMBEDDED) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
 
   if (NOT TBB_TARGET_EXISTED)
