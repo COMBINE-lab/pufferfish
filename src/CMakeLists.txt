@@ -90,6 +90,16 @@ target_include_directories(puffer
   PUBLIC
     ${PUFFERFISH_ROOT_DIR}/include
 )
+target_link_libraries(puffer
+  PUBLIC
+    ksw2pp
+    twopaco
+    graphdump
+    ntcard
+    Threads::Threads
+    TBB::tbb
+    TBB::tbbmalloc
+)
 add_library(pufferfish::puffer ALIAS puffer)
 
 # fetch the directory where compact vector lives
@@ -98,10 +108,7 @@ message("adding ${COMPACT_VECTOR_INCLUDE_PATH} to include path for libpuffer")
 target_include_directories(puffer PUBLIC ${COMPACT_VECTOR_INCLUDE_PATH})
 
 if (FETCHED_TBB)
-add_dependencies(puffer libtbb)
-else()
-add_dependencies(puffer TBB::tbb)
-add_dependencies(puffer TBB::tbbmalloc)
+  add_dependencies(puffer libtbb)
 endif()
 
 if (NOT PUFFERFISH_EMBEDDED)
