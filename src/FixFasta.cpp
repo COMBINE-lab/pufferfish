@@ -652,7 +652,7 @@ int fixFastaMain(std::vector<std::string>& args,
   std::vector<char*> argv;
   argv.reserve(argvStorage.size());
   for (auto& arg : argvStorage) {
-    argv.push_back(arg.data());
+    argv.push_back(const_cast<char*>(arg.c_str()));
   }
 
   try {
