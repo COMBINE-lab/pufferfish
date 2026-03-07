@@ -649,9 +649,14 @@ int fixFastaMain(std::vector<std::string>& args,
   argvStorage.reserve(args.size() + 1);
   argvStorage.emplace_back("fixFasta");
   argvStorage.insert(argvStorage.end(), args.begin(), args.end());
+  std::vector<char*> argv;
+  argv.reserve(argvStorage.size());
+  for (auto& arg : argvStorage) {
+    argv.push_back(arg.data());
+  }
 
   try {
-    app.parse(argvStorage);
+    app.parse(static_cast<int>(argv.size()), argv.data());
   } catch (const CLI::CallForHelp&) {
     std::cout << app.help() << '\n';
     return 0;
