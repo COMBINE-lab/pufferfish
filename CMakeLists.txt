@@ -76,10 +76,10 @@ if (NOT CMAKE_BUILD_TYPE)
    set (CMAKE_BUILD_TYPE "Release")
 endif()
 
-# We require C++14
-set(CMAKE_CXX_STANDARD 14)
+# We require C++17 (needed for SSHash)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CXXSTDFLAG "-std=c++14")
+set(CXXSTDFLAG "-std=c++17")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
@@ -163,7 +163,7 @@ if(HAVE_INT128_NUMERIC_LIMITS)
 else()
   try_compile(HAVE_INT128_NUMERIC_LIMITS ${CMAKE_BINARY_DIR} 
               SOURCES ${PUFFERFISH_ROOT_DIR}/tests/compile_tests/int128_numeric_limits.cpp
-              CXX_STANDARD 14
+              CXX_STANDARD 17
               CXX_STANDARD_REQUIRED ON
               )
   if(HAVE_INT128_NUMERIC_LIMITS)
@@ -283,7 +283,7 @@ if(NOT ${TBB_TARGET_EXISTED})
             tar -xzvf v2021.5.tar.gz
             SOURCE_DIR ${TBB_SOURCE_DIR}
             INSTALL_DIR ${TBB_INSTALL_DIR}
-            CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_FLAGS=${TBB_CXXFLAGS} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=14
+            CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_FLAGS=${TBB_CXXFLAGS} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
             BUILD_IN_SOURCE TRUE
             )
 
@@ -425,7 +425,7 @@ DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/seqlib
 INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/install
 CONFIGURE_COMMAND ./configure 
-BUILD_COMMAND     make CXXFLAGS='-std=c++14' ${LIBSTADEN_LDFLAGS} ${LIBSTADEN_CFLAGS}
+BUILD_COMMAND     make CXXFLAGS='-std=c++17' ${LIBSTADEN_LDFLAGS} ${LIBSTADEN_CFLAGS}
 INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include && cp src/libseqlib.a <INSTALL_DIR>/lib && 
                   cp htslib/libhts.a <INSTALL_DIR>/lib &&
                   cp -r SeqLib <INSTALL_DIR>/include &&
@@ -488,7 +488,7 @@ if(HAVE_INT128_NUMERIC_LIMITS)
 endif()
 
 add_library(pufferfish_project_options INTERFACE)
-target_compile_features(pufferfish_project_options INTERFACE cxx_std_14)
+target_compile_features(pufferfish_project_options INTERFACE cxx_std_17)
 target_compile_options(pufferfish_project_options INTERFACE ${PUFFERFISH_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(pufferfish_project_options INTERFACE ${PUFFERFISH_COMMON_COMPILE_DEFINITIONS})
 if(ASAN_BUILD)
@@ -502,6 +502,64 @@ add_library(pufferfish_external_link_dirs INTERFACE)
 target_link_directories(pufferfish_external_link_dirs INTERFACE
   ${PUFFERFISH_ROOT_DIR}/external/install/lib
   ${PUFFERFISH_ROOT_DIR}/external/install/lib64)
+
+###
+# zlib-ng (faster drop-in replacement for zlib)
+# Guard against duplicate target when embedded in salmon (which also fetches zlib-ng)
+###
+if(NOT TARGET zlibstatic)
+  include(FetchContent)
+  FetchContent_Declare(
+    zlib-ng
+    GIT_REPOSITORY https://github.com/zlib-ng/zlib-ng.git
+    GIT_TAG        2.2.4
+  )
+  set(ZLIB_COMPAT ON CACHE BOOL "Enable zlib-compat mode" FORCE)
+  set(ZLIB_ENABLE_TESTS OFF CACHE BOOL "Disable zlib-ng tests" FORCE)
+  set(ZLIBNG_ENABLE_TESTS OFF CACHE BOOL "Disable zlib-ng tests" FORCE)
+  set(WITH_GTEST OFF CACHE BOOL "Disable gtest for zlib-ng" FORCE)
+  FetchContent_MakeAvailable(zlib-ng)
+endif()
+
+###
+# SSHash k-mer dictionary
+###
+set(SSHASH_ROOT ${PUFFERFISH_ROOT_DIR}/external/sshash)
+
+set(SSHASH_Z_LIB_SOURCES
+  ${SSHASH_ROOT}/external/gz/zip_stream.cpp
+)
+set(SSHASH_CITYHASH_SOURCES
+  ${SSHASH_ROOT}/external/cityhash/cityhash.cpp
+)
+set(SSHASH_SOURCES
+  ${SSHASH_ROOT}/src/build.cpp
+  ${SSHASH_ROOT}/src/query.cpp
+  ${SSHASH_ROOT}/src/instantiate.cpp
+)
+add_library(sshash_static STATIC
+  ${SSHASH_Z_LIB_SOURCES}
+  ${SSHASH_CITYHASH_SOURCES}
+  ${SSHASH_SOURCES}
+)
+target_include_directories(sshash_static PUBLIC
+  ${SSHASH_ROOT}/external/pthash/include
+  ${SSHASH_ROOT}/external/pthash/external/bits/include
+  ${SSHASH_ROOT}/external/pthash/external/fastmod
+  ${SSHASH_ROOT}/external/pthash/external/bits/external/essentials/include
+  ${SSHASH_ROOT}/external/pthash/external/xxHash
+  ${SSHASH_ROOT}/external/pthash/external/mm_file/include
+  ${SSHASH_ROOT}
+  ${SSHASH_ROOT}/include
+)
+target_compile_definitions(sshash_static PUBLIC SSHASH_USE_TRADITIONAL_NUCLEOTIDE_ENCODING)
+target_compile_features(sshash_static PUBLIC cxx_std_17)
+if(NOT USE_ARM)
+  target_compile_options(sshash_static PRIVATE -mbmi2 -msse4.2)
+endif()
+# Link zlib-ng instead of system zlib
+target_link_libraries(sshash_static PUBLIC zlibstatic)
+add_library(pufferfish::sshash ALIAS sshash_static)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/ntcard)
 

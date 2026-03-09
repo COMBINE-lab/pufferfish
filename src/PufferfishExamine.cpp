@@ -6,8 +6,6 @@
 #include "PuffAligner.hpp"
 #include "ProgOpts.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
-#include "PufferfishLossyIndex.hpp"
 #include "Kmer.hpp"
 #include "Util.hpp"
 #include "SpinLock.hpp"
@@ -94,24 +92,8 @@ int pufferfishExamine(pufferfish::ExamineOptions& opts) {
     infoStream.close();
   }
   bool s{false};
-  if (indexType == "sparse") {
-    PufferfishSparseIndex pi(opts.index_dir);
-    if (dump_fasta) {
-      s = dump_index_fasta(pi, opts.fasta_out);
-    }
-    if (kmer_freq) {
-      s = dump_kmer_freq(pi, opts.kmer_freq_out);
-    }
-  } else if (indexType == "dense") {
+  {
     PufferfishIndex pi(opts.index_dir);
-    if (dump_fasta) {
-      s = dump_index_fasta(pi, opts.fasta_out);
-    }
-    if (kmer_freq) {
-      s = dump_kmer_freq(pi, opts.kmer_freq_out);
-    }
-  } else if (indexType == "lossy") {
-    PufferfishLossyIndex pi(opts.index_dir);
     if (dump_fasta) {
       s = dump_index_fasta(pi, opts.fasta_out);
     }

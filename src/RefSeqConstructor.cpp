@@ -1,7 +1,5 @@
 #include "RefSeqConstructor.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
-#include "PufferfishLossyIndex.hpp"
 
 #include <sparsepp/spp.h>
 
@@ -464,5 +462,3 @@ std::vector<nextCompatibleStruct> RefSeqConstructor<PufferfishIndexT>::fetchPred
 }
 
 template class RefSeqConstructor<PufferfishIndex>;
-template class RefSeqConstructor<PufferfishSparseIndex>;
-template class RefSeqConstructor<PufferfishLossyIndex>;

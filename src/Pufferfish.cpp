@@ -113,20 +113,15 @@ int main(int argc, char* argv[]) {
           cereal::JSONInputArchive infoArchive(infoStream);
           infoArchive(cereal::make_nvp("sampling_type", indexType));
           infoStream.close();
-          if (indexType == "dense") {
+          if (indexType == "sshash") {
+              if (!ghc::filesystem::exists(s+"/sshash.bin")) {
+                  std::string e = "Index is incomplete. Missing file sshash.bin";
+                  throw std::runtime_error{e};
+              }
+          } else if (indexType == "dense") {
               if (!ghc::filesystem::exists(s+"/"+pufferfish::util::POS)) {
                   std::string e = "Index is incomplete. Missing file " + std::string(pufferfish::util::POS);
                   throw std::runtime_error{e};
-              }
-          } else if (indexType == "sparse") {
-              for (auto & elem : {pufferfish::util::EXTENSION,
-                                  pufferfish::util::EXTENSIONSIZE,
-                                  pufferfish::util::SAMPLEPOS}) {
-                  if (!ghc::filesystem::exists(s+"/"+elem)) {
-                      std::string e = "Index is incomplete. Missing file ";
-                      e+=elem;
-                      throw std::runtime_error{e};
-                  }
               }
           }
       }
@@ -156,11 +151,9 @@ int main(int argc, char* argv[]) {
                     (option("--tmpdir") & value("twopaco_tmp_dir", indexOpt.twopaco_tmp_dir)) % "temporary work directory to pass to TwoPaCo when building the reference dBG",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
                     (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
+                    (option("--no-sshash").set(indexOpt.noSSHash, true) % "use legacy dense (BooPHF) index instead of SSHash (default = false)"),
                     (option("-l", "--build-edges").set(indexOpt.buildEdgeVec, true) % "build and record explicit edge table for the contaigs of the ccdBG (default = false)"),
-                    (option("-q", "--build-eqclses").set(indexOpt.buildEqCls, true) % "build and record equivalence classes (default = false)"),
-                    (((option("-s", "--sparse").set(indexOpt.isSparse, true)) % "use the sparse pufferfish index (less space, but slower lookup)",
-                     ((option("-e", "--extension") & value("extension_size", indexOpt.extensionSize)) % "length of the extension to store in the sparse index (default = 4)")) |
-                     ((option("-x", "--lossy-rate").set(indexOpt.lossySampling, true)) & value("lossy_rate", indexOpt.lossy_rate) % "use the lossy sampling index with a sampling rate of x (less space and fast, but lower sensitivity)"))
+                    (option("-q", "--build-eqclses").set(indexOpt.buildEqCls, true) % "build and record equivalence classes (default = false)")
                     );
 
   // Examine properties of the index

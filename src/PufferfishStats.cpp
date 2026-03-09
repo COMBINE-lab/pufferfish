@@ -18,7 +18,6 @@
 #include "spdlog/spdlog.h"
 
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 #include "PufferfishBinaryGFAReader.hpp"
 
@@ -118,10 +117,8 @@ void doFindMotifs(std::string &indexDir) {
 }
 
 void doCtabStats(std::string &indexDir) {
-    compact::vector<uint64_t> contigOffsets_{16};
     std::vector<std::string> refNames_;
     std::vector<uint32_t> refExt_;
-    std::vector<pufferfish::util::Position> contigTable_;
     std::ifstream contigTableStream(indexDir + "/" + pufferfish::util::CTABLE);
     cereal::BinaryInputArchive contigTableArchive(contigTableStream);
     contigTableArchive(refNames_);
@@ -131,32 +128,36 @@ void doCtabStats(std::string &indexDir) {
     refExt_.clear();
     refExt_.shrink_to_fit();
 
-    contigTableArchive(contigTable_);
+    std::vector<pufferfish::util::Position> rawContigTable;
+    contigTableArchive(rawContigTable);
     contigTableStream.close();
     std::string pfile = indexDir + "/" + pufferfish::util::CONTIG_OFFSETS;
-    auto bits_per_element = compact::get_bits_per_element(pfile);
-    contigOffsets_.set_m_bits(bits_per_element);
-    contigOffsets_.deserialize(pfile, false);
-    std::cerr << "contigTable size: " << contigTable_.size()
-              << " contigOffsets size: " << contigOffsets_.size() << ", bpe: " << bits_per_element << " , total elements in the contig table: " << contigOffsets_[contigOffsets_.size()-1] << "\n";
+    compact::vector<uint64_t> rawOffsets{16};
+    rawOffsets.deserialize(pfile, false);
+    std::vector<uint64_t> offsets(rawOffsets.size());
+    for (size_t i = 0; i < rawOffsets.size(); ++i) {
+      offsets[i] = rawOffsets[i];
+    }
+    pufferfish::ContigTable contigTable;
+    contigTable.build(std::move(rawContigTable), offsets);
+    std::cerr << "contigTable size: " << contigTable.numPositions()
+              << " numContigs: " << contigTable.numContigs() << "\n";
     std::vector<std::string> txps;
-    for (uint64_t i = 0; i < contigOffsets_.size() - 1; i++) {
-        uint32_t idx = contigOffsets_[i];
-        auto txp = contigTable_[idx].transcript_id();
+    for (uint64_t i = 0; i < contigTable.numContigs(); i++) {
+        auto range = contigTable.contigRange(i);
+        auto it = range.begin();
+        auto txp = it->transcript_id();
         std::string txpstr = std::to_string(txp);
-        idx++;
-        while (idx < contigOffsets_[i + 1]) {
-            if (contigTable_[idx].transcript_id() != txp) {
-                txp = contigTable_[idx].transcript_id();
+        ++it;
+        while (it != range.end()) {
+            if (it->transcript_id() != txp) {
+                txp = it->transcript_id();
                 txpstr += ("-" + std::to_string(txp));
             }
-            idx++;
+            ++it;
         }
         txps.push_back(txpstr);
     }
-    contigTable_.clear();
-    contigTable_.shrink_to_fit();
-    contigOffsets_.clear();
     std::sort(txps.begin(), txps.end());
     auto prevt = txps[0];
     std::vector<PrefixTree> tree;

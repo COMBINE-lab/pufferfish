@@ -1,7 +1,5 @@
 #include "PufferfishBaseIndex.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
-#include "PufferfishLossyIndex.hpp"
 
 // from : https://www.fluentcpp.com/2017/05/19/crtp-helper/
 template <typename T>
@@ -273,7 +271,7 @@ uint64_t PufferfishBaseIndex<T>::numContigs() const {
  * Return the position list (ref_id, pos) corresponding to a contig.
  */
 template <typename T>
-const core::range<std::vector<pufferfish::util::Position>::iterator>
+const core::range<const pufferfish::util::Position*>
 PufferfishBaseIndex<T>::refList(uint64_t contigRank) {
   return contigRange(contigRank);
 }
@@ -341,5 +339,3 @@ template <typename T>
 uint64_t PufferfishBaseIndex<T>::firstDecoyEncodedIndex() const { return underlying().firstDecoyEncodedIndex_ ;}
 
 template class  PufferfishBaseIndex<PufferfishIndex>;
-template class  PufferfishBaseIndex<PufferfishSparseIndex>;
-template class  PufferfishBaseIndex<PufferfishLossyIndex>;

@@ -6,8 +6,6 @@
 #define PUFFERFISH_CHAINFINDER_H
 
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
-#include "PufferfishLossyIndex.hpp"
 #include "CommonTypes.hpp"
 #include "Util.hpp"
 

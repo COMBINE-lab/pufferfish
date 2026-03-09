@@ -48,8 +48,6 @@
 #include "PuffAligner.hpp"
 #include "ProgOpts.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
-#include "PufferfishLossyIndex.hpp"
 #include "Kmer.hpp"
 #include "ScopedTimer.hpp"
 #include "Util.hpp"
@@ -1246,14 +1244,8 @@ int pufferfishAligner(pufferfish::AlignmentOpts &alnargs) {
         infoStream.close();
     }
 
-    if (indexType == "dense") {
+    {
         PufferfishIndex pfi(indexDir);
-        success = alignReadsWrapper(pfi, consoleLog, &alnargs);
-    } else if (indexType == "sparse") {
-        PufferfishSparseIndex pfi(indexDir);
-        success = alignReadsWrapper(pfi, consoleLog, &alnargs);
-    } else if (indexType == "lossy") {
-        PufferfishLossyIndex pfi(indexDir);
         success = alignReadsWrapper(pfi, consoleLog, &alnargs);
     }
 

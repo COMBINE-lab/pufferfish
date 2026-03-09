@@ -18,7 +18,6 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 #include "PufferfishBinaryGFAReader.hpp"
 
@@ -475,15 +474,7 @@ int pufferfishValidate(pufferfish::ValidateOptions& validateOpts) {
     std::cerr << "\n";
     std::exit(3);
 */
-    if (indexType == "sparse") { 
-      PufferfishSparseIndex pi(validateOpts.indexDir);
-      return doPufferfishInternalValidate(pi, validateOpts);
-      //return doPufferfishValidate(pi, validateOpts);
-    } else if (indexType == "dense") {
-      PufferfishIndex pi(validateOpts.indexDir);
-      return doPufferfishInternalValidate(pi, validateOpts);
-      //return doPufferfishValidate(pi, validateOpts);
-    }
-    return 0;
+    PufferfishIndex pi(validateOpts.indexDir);
+    return doPufferfishInternalValidate(pi, validateOpts);
 }
 

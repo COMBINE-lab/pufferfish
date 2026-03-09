@@ -4,8 +4,6 @@
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
-#include "PufferfishLossyIndex.hpp"
 #include "Util.hpp"
 #include "edlib.h"
 // #include "jellyfish/mer_dna.hpp"

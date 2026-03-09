@@ -1098,11 +1098,11 @@ Compile-time selection between list-like and map-like printing.
                 }
             }
 
-            inline uint32_t transcript_id() { return transcript_id_; }
+            inline uint32_t transcript_id() const { return transcript_id_; }
 
-            inline uint32_t pos() { return (pos_ & 0x7FFFFFFF); }
+            inline uint32_t pos() const { return (pos_ & 0x7FFFFFFF); }
 
-            inline bool orientation() { return (pos_ & 0x80000000); }
+            inline bool orientation() const { return (pos_ & 0x80000000); }
 
             template<class Archive>
             void serialize(Archive &ar) {
@@ -1312,14 +1312,14 @@ Compile-time selection between list-like and map-like printing.
             bool contigOrientation_;
             uint32_t contigLen_;
             uint32_t k_;
-            core::range<std::vector<pufferfish::util::Position>::iterator> refRange;
+            core::range<const pufferfish::util::Position*> refRange;
 
             inline bool empty() { return refRange.empty(); }
 
             inline uint32_t contigID() const { return contigIdx_; }
 
             //inline uint64_t getGlobalPos() const { return globalPos_; }
-            inline RefPos decodeHit(pufferfish::util::Position &p) {
+            inline RefPos decodeHit(const pufferfish::util::Position &p) {
                 // true if the contig is fowrard on the reference
                 bool contigFW = p.orientation();
                 // we are forward with respect to the reference if :

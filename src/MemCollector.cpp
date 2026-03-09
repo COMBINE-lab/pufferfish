@@ -28,7 +28,6 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(pufferfish::util::Proj
                        pufferfish::CanonicalKmerIterator& kit, 
                        ExpansionTerminationType& et) {
 
-  auto& allContigs = pfi_->getSeq();
   // startPos points to the next kmer in contig (which can be the left or
   // right based on the orientation of match)
   size_t cStartPos =
@@ -51,13 +50,13 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(pufferfish::util::Proj
   while (stillMatch and
      (cCurrPos < cEndPos) and
      (cCurrPos > cStartPos) and
-     readSeqOffset < readSeqLen) { 
+     readSeqOffset < readSeqLen) {
 
     if (hit.contigOrientation_) { // if fw match, compare read last base with
                   // contig first base and move fw in the
                   // contig
       auto baseCnt = k < cEndPos - cCurrPos ? k : cEndPos - cCurrPos;
-      uint64_t fk = allContigs.get_int(2*cCurrPos, 2*baseCnt);
+      uint64_t fk = pfi_->getSeqBits(2*cCurrPos, 2*baseCnt);
       cCurrPos += baseCnt;
       for (size_t i = 0; i < baseCnt && readSeqOffset < readSeqLen; i++) {
         // be dirty and peek into the underlying read
@@ -76,7 +75,7 @@ size_t MemCollector<PufferfishIndexT>::expandHitEfficient(pufferfish::util::Proj
     } else { // if rc match, compare read last base with contig last base and
        // move backward in the contig
       auto baseCnt = k < cCurrPos - cStartPos ? k : cCurrPos - cStartPos;
-      uint64_t fk = allContigs.get_int(2*(cCurrPos - baseCnt), 2*baseCnt);
+      uint64_t fk = pfi_->getSeqBits(2*(cCurrPos - baseCnt), 2*baseCnt);
       cCurrPos -= baseCnt;
       for (int i = baseCnt - 1; i >= 0 && readSeqOffset < readSeqLen; i--) {
         // be dirty and peek into the underlying read
@@ -408,33 +407,18 @@ struct SkipContext {
       // set ourselves up for a fast check in case we see 
       // what we expect to see.
       if (expected_skip and (expected_cid != invalid_cid) and (kit1 != kit_end)) {
-        auto& allContigs = pfi->getSeq();
-        if (phits.contigOrientation_) { 
+        if (phits.contigOrientation_) {
           // if match is fw, go to the next k-mer in the contig
           cCurrPos += skip;
-          /*
-          if (cCurrPos + k > cEndPos) {
-            std::cerr << cCurrPos << " + " << k << " > " << cEndPos << " : shouldn't happen!\n"; 
-            fast_hit.valid(false);
-          } else {
-          */
           fast_hit.valid(true);
           fast_hit.offset = skip;
-          fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
-          //}
+          fast_hit.ref_kmer = pfi->getSeqBits(2*cCurrPos, 2*k);
           return;
         } else {
           cCurrPos -= skip;
-          /*
-          if (cCurrPos < cStartPos ) {
-            std::cerr << cCurrPos << " - " << k << " < " << cStartPos << " : shouldn't happen!\n"; 
-            fast_hit.valid(false);
-          } else {
-          */
           fast_hit.valid(true);
           fast_hit.offset = -skip;
-          fast_hit.ref_kmer = allContigs.get_int(2*cCurrPos, 2*k);
-          //}
+          fast_hit.ref_kmer = pfi->getSeqBits(2*cCurrPos, 2*k);
           return;
         }
       }
@@ -497,8 +481,7 @@ struct SkipContext {
             // in the most recent round of search, then 
             // reset the fast_hit offset.
             if (miss_it == 0) { fast_hit.offset = 0; }
-            
-            auto& allContigs = pfi->getSeq();
+
             if (phits.contigOrientation_) {
               fast_hit.offset += actual_skip;
               global_contig_pos += actual_skip;
@@ -507,7 +490,7 @@ struct SkipContext {
               global_contig_pos -= actual_skip;
             }
             fast_hit.valid(true);
-            fast_hit.ref_kmer = allContigs.get_int(2*global_contig_pos, 2*k);
+            fast_hit.ref_kmer = pfi->getSeqBits(2*global_contig_pos, 2*k);
           }
           // if we pass the read target position, then 
           // we no longer have an expectation of what 
@@ -706,9 +689,6 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
                   bool isLeft,
                   bool verbose) {
 
-  // currently unused:
-  // uint32_t readLen = static_cast<uint32_t>(read.length()) ;
-  pufferfish::util::ProjectedHits phits;
   auto& rawHits = isLeft ? left_rawHits : right_rawHits;
 
   CanonicalKmer::k(k);
@@ -735,8 +715,44 @@ bool MemCollector<PufferfishIndexT>::operator()(std::string &read,
   int32_t basesSinceLastHit{signedK};
   ExpansionTerminationType et {ExpansionTerminationType::MISMATCH};
 
+  // Use SSHash streaming query when available (PufferfishIndex with SSHash backend).
+  // This avoids recomputing minimizers for consecutive k-mers and can extend
+  // along SSHash strings without a full dictionary lookup.
+  // Track previous read position to detect non-consecutive k-mer access
+  [[maybe_unused]] int32_t prevReadPos = -2;
+
+  // Conditionally create the streaming query object (only for PufferfishIndex + SSHash)
+  auto makeStreamingQuery = [this]() ->
+      std::unique_ptr<PufferfishIndex::sshash_streaming_query_t> {
+    if constexpr (std::is_same_v<PufferfishIndexT, PufferfishIndex>) {
+      if (pfi_->isSSHashBacked()) {
+        return std::make_unique<PufferfishIndex::sshash_streaming_query_t>(
+            pfi_->createStreamingQuery());
+      }
+    }
+    return nullptr;
+  };
+  auto sq_ptr = makeStreamingQuery();
+
   while (kit1 != kit_end) {
-    auto phits = pfi_->getRefPos(kit1->first, qc);
+    pufferfish::util::ProjectedHits phits;
+
+    if constexpr (std::is_same_v<PufferfishIndexT, PufferfishIndex>) {
+      if (sq_ptr) {
+        int32_t curReadPos = kit1->second;
+        // Reset streaming query if k-mers are not consecutive
+        if (curReadPos != prevReadPos + 1) {
+          sq_ptr->reset();
+        }
+        prevReadPos = curReadPos;
+        phits = pfi_->getRefPos(kit1->first, qc, *sq_ptr, read.c_str() + curReadPos);
+      } else {
+        phits = pfi_->getRefPos(kit1->first, qc);
+      }
+    } else {
+      phits = pfi_->getRefPos(kit1->first, qc);
+    }
+
     skip = (basesSinceLastHit >= signedK) ? 1 : altSkip;
     if (!phits.empty()) {
       // kit1 gets updated inside expandHitEfficient function
@@ -851,7 +867,3 @@ void MemCollector<PufferfishIndexT>::clear() {
 }
 
 template class MemCollector<PufferfishIndex>;
-
-template class MemCollector<PufferfishSparseIndex>;
-
-template class MemCollector<PufferfishLossyIndex>;

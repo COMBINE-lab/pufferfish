@@ -16,18 +16,14 @@ public:
   std::string decoy_file{""};
   std::string header_sep{""};
   bool noclip_polya{false};
-  bool isSparse{false};
-  uint32_t extensionSize{4};
-  uint32_t sampleSize{9};
-  bool lossySampling{false};
   bool keep_fixed_fasta{false};
   bool keep_duplicates{false};
-  uint32_t lossy_rate{5};
   int32_t filt_size{-1};
   bool buildEdgeVec{false};
   bool buildEqCls{false};
   bool featuresRef{false};
   bool expect_transcriptome{false};
+  bool noSSHash{false};
   std::string twopaco_tmp_dir{""};
 };
 

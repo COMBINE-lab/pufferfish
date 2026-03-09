@@ -17,7 +17,6 @@
 
 #include "ProgOpts.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 
 namespace kmers = combinelib::kmers;
@@ -55,34 +54,162 @@ std::vector<CanonicalKmer> get_kmers(const std::string& fasta_file, uint32_t k) 
 template <typename IndexT>
 int doPufferfishTestLookup(IndexT& pi, pufferfish::ValidateOptions& validateOpts) {
   CanonicalKmer::k(pi.k());
-  auto kmers = get_kmers(validateOpts.refFile, pi.k());
-
+  uint32_t k = pi.k();
   size_t found = 0;
   size_t notFound = 0;
   size_t totalHits = 0;
-  pufferfish::util::QueryCache qc;
-  auto start = std::chrono::high_resolution_clock::now();
-  for (auto& km : kmers) {
-    auto phits = pi.getRefPos(km, qc);
+  size_t totalKmers = 0;
+  size_t posErrors = 0;
+  size_t contigPosErrors = 0;
+  size_t contigLenErrors = 0;
+  size_t refPosErrors = 0;
+  size_t orientationErrors = 0;
 
-    if (phits.empty()) {
-      ++notFound;
-    } else if (phits.refRange.size() <= 200) {
-      ++found;
-      totalHits += phits.refRange.size();
+  std::vector<std::string> read_file = {validateOpts.refFile};
+  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
+  parser.start();
+  pufferfish::util::QueryCache qc;
+  pufferfish::CanonicalKmerIterator kit_end;
+
+  // Conditionally create SSHash streaming query
+  std::unique_ptr<PufferfishIndex::sshash_streaming_query_t> sq_ptr;
+  if constexpr (std::is_same_v<IndexT, PufferfishIndex>) {
+    if (pi.isSSHashBacked()) {
+      sq_ptr = std::make_unique<PufferfishIndex::sshash_streaming_query_t>(
+          pi.createStreamingQuery());
     }
   }
 
+  auto start = std::chrono::high_resolution_clock::now();
+  auto rg = parser.getReadGroup();
+  while (parser.refill(rg)) {
+    for (auto& rp : rg) {
+      auto& r1 = rp.seq;
+      pufferfish::CanonicalKmerIterator kit1(r1);
+      int32_t prevPos = -2;
+
+      if constexpr (std::is_same_v<IndexT, PufferfishIndex>) {
+        if (sq_ptr) { sq_ptr->reset(); }
+      }
+
+      for (; kit1 != kit_end; ++kit1) {
+        pufferfish::util::ProjectedHits phits;
+        ++totalKmers;
+
+        if constexpr (std::is_same_v<IndexT, PufferfishIndex>) {
+          if (sq_ptr) {
+            int32_t curPos = kit1->second;
+            if (curPos != prevPos + 1) { sq_ptr->reset(); }
+            prevPos = curPos;
+            phits = pi.getRefPos(kit1->first, qc, *sq_ptr, r1.c_str() + curPos);
+          } else {
+            phits = pi.getRefPos(kit1->first, qc);
+          }
+        } else {
+          phits = pi.getRefPos(kit1->first, qc);
+        }
+
+        if (phits.empty()) {
+          ++notFound;
+        } else if (phits.refRange.size() <= 200) {
+          ++found;
+          totalHits += phits.refRange.size();
+
+          // --- Positional correctness checks ---
+          auto& mer = kit1->first;
+
+          // 1. Verify k-mer at globalPos matches the query k-mer
+          uint64_t fk = pi.getSeqBits(2 * phits.globalPos_, 2 * k);
+          auto keq = mer.isEquivalent(fk);
+          if (keq == KmerMatchType::NO_MATCH) {
+            if (posErrors < 10) {
+              std::cerr << "POS ERROR: kmer=" << mer.to_str()
+                        << " globalPos=" << phits.globalPos_
+                        << " contigIdx=" << phits.contigIdx_
+                        << " fk=0x" << std::hex << fk << std::dec << "\n";
+            }
+            ++posErrors;
+          } else {
+            // 2. Verify orientation consistency
+            bool expectedFW = (keq == KmerMatchType::IDENTITY_MATCH);
+            if (expectedFW != phits.contigOrientation_) {
+              ++orientationErrors;
+            }
+          }
+
+          // 3. Verify contigPos < contigLen
+          if (phits.contigPos_ >= phits.contigLen_) {
+            if (contigPosErrors < 10) {
+              std::cerr << "CONTIG_POS ERROR: contigPos=" << phits.contigPos_
+                        << " >= contigLen=" << phits.contigLen_
+                        << " contigIdx=" << phits.contigIdx_ << "\n";
+            }
+            ++contigPosErrors;
+          }
+
+          // 4. Verify contigLen >= k
+          if (phits.contigLen_ < k) {
+            if (contigLenErrors < 10) {
+              std::cerr << "CONTIG_LEN ERROR: contigLen=" << phits.contigLen_
+                        << " < k=" << k << " contigIdx=" << phits.contigIdx_ << "\n";
+            }
+            ++contigLenErrors;
+          }
+
+          // 5. For each reference hit, verify decoded position is within reference bounds
+          for (auto& rpos : phits.refRange) {
+            auto decoded = phits.decodeHit(rpos);
+            uint32_t tid = rpos.transcript_id();
+            uint32_t refLen = pi.refLength(tid);
+            if (decoded.pos + k > refLen) {
+              if (refPosErrors < 10) {
+                std::cerr << "REF_POS ERROR: tid=" << tid
+                          << " decoded.pos=" << decoded.pos
+                          << " + k=" << k << " > refLen=" << refLen << "\n";
+              }
+              ++refPosErrors;
+            }
+          }
+        }
+      }
+    }
+  }
+  parser.stop();
 
   auto finish = std::chrono::high_resolution_clock::now();
-  auto time_in_nanoseconds =  std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count();
-
-
-  double ns_per_kmer = time_in_nanoseconds / (static_cast<double>(kmers.size()));
+  auto time_in_nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count();
+  double ns_per_kmer = time_in_nanoseconds / (static_cast<double>(totalKmers));
 
   std::cerr << "found = " << found << ", not found = " << notFound << "\n";
   std::cerr << "total hits = " << totalHits << "\n";
   std::cerr << "average query time is " << ns_per_kmer << " ns / query\n";
+
+  // Report validation results
+  std::cerr << "\n=== Positional Validation ===\n";
+  std::cerr << "globalPos k-mer mismatches: " << posErrors << " / " << found << "\n";
+  std::cerr << "orientation mismatches:     " << orientationErrors << " / " << found << "\n";
+  std::cerr << "contigPos >= contigLen:     " << contigPosErrors << " / " << found << "\n";
+  std::cerr << "contigLen < k:              " << contigLenErrors << " / " << found << "\n";
+  std::cerr << "ref pos out of bounds:      " << refPosErrors << " / " << totalHits << "\n";
+
+  if (posErrors == 0 && orientationErrors == 0 && contigPosErrors == 0 &&
+      contigLenErrors == 0 && refPosErrors == 0) {
+    std::cerr << "ALL POSITIONAL CHECKS PASSED\n";
+  } else {
+    std::cerr << "VALIDATION ERRORS DETECTED\n";
+  }
+
+  if constexpr (std::is_same_v<IndexT, PufferfishIndex>) {
+    if (sq_ptr) {
+      std::cerr << "\nstreaming query stats: "
+                << sq_ptr->num_searches() << " full searches, "
+                << sq_ptr->num_extensions() << " extensions ("
+                << (100.0 * sq_ptr->num_extensions() /
+                    (sq_ptr->num_searches() + sq_ptr->num_extensions() + sq_ptr->num_negative_lookups() + sq_ptr->num_invalid_lookups()))
+                << "% extended)\n";
+    }
+  }
+
   return 0;
 }
 
@@ -184,13 +311,6 @@ int pufferfishTestLookup(pufferfish::ValidateOptions& validateOpts) {
     infoStream.close();
   }
 
-  if (indexType == "sparse") { 
-    PufferfishSparseIndex pi(validateOpts.indexDir);
-    return doPufferfishTestLookup(pi, validateOpts);
-  } else if (indexType == "dense") {
-
-    PufferfishIndex pi(validateOpts.indexDir);
-    return doPufferfishTestLookup(pi, validateOpts);
-  }
-  return 0;
+  PufferfishIndex pi(validateOpts.indexDir);
+  return doPufferfishTestLookup(pi, validateOpts);
 }

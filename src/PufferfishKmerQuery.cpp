@@ -15,7 +15,6 @@
 
 #include "ProgOpts.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 #include "SAMWriter.hpp"
 
@@ -130,21 +129,7 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
 
   std::vector<std::thread> workers;
 
-  if (indexType == "sparse") { 
-    PufferfishSparseIndex pi(kqueryOpts.indexDir);
-    CanonicalKmer::k(pi.k());
-    writeSAMHeader(pi, std::cout);
-
-    for (size_t i = 0; i < nthread; ++i) {
-        workers.push_back(std::thread([&pi, &parser, &iomut]() {
-            doPufferfishKmerQuery(pi, parser, iomut);
-        }));
-    }
-
-    for (auto& w : workers) {
-      w.join();
-    } 
-  } else if (indexType == "dense") {
+  {
     PufferfishIndex pi(kqueryOpts.indexDir);
     CanonicalKmer::k(pi.k());
     writeSAMHeader(pi, std::cout);
@@ -154,10 +139,10 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
             doPufferfishKmerQuery(pi, parser, iomut);
         }));
     }
-    
+
     for (auto& w : workers) {
       w.join();
-    } 
+    }
   }
 
   parser.stop();

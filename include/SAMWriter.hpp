@@ -6,7 +6,6 @@
 #include "PairedAlignmentFormatter.hpp"
 #include "PufferfishConfig.hpp"
 #include "PufferfishIndex.hpp"
-#include "PufferfishSparseIndex.hpp"
 #include "Util.hpp"
 #include "nonstd/string_view.hpp"
 #include "parallel_hashmap/phmap.h"

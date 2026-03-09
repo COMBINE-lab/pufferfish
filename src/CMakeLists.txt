@@ -69,16 +69,14 @@ endif()
 target_include_directories(ksw2pp PUBLIC ${PUFFERFISH_ROOT_DIR}/include)
 add_library(pufferfish::ksw2pp ALIAS ksw2pp)
 
-set(pufferfish_lib_srcs 
-    PufferfishIndexer.cpp 
+set(pufferfish_lib_srcs
+    PufferfishIndexer.cpp
     PufferfishBaseIndex.cpp
-    PufferfishIndex.cpp 
-    PufferfishSparseIndex.cpp 
-    PufferfishLossyIndex.cpp
+    PufferfishIndex.cpp
+    rank9sel.cpp
+    rank9b.cpp
     edlib.cpp
     Util.cpp
-		rank9sel.cpp
-    rank9b.cpp
     PufferfishValidate.cpp
 	  PufferfishStats.cpp
     PufferfishTestLookup.cpp 
@@ -110,6 +108,7 @@ target_link_libraries(puffer
     twopaco
     graphdump
     ntcard
+    sshash_static
     Threads::Threads
     TBB::tbb
     TBB::tbbmalloc
@@ -147,22 +146,23 @@ add_dependencies(pufferfish graphdump)
 add_dependencies(pufferfish ntcard)
 
 if(TBB_RECONFIGURE OR TBB_TARGET_EXISTED)
-  target_link_libraries(pufferfish 
+  target_link_libraries(pufferfish
+    PRIVATE
     ksw2pp
-    puffer 
-    z 
-    twopaco 
-    graphdump 
-    ntcard 
-    ${LIBRT} 
-    ${ASAN_LIB} 
-    ${JEMALLOC_LIBRARIES} 
+    puffer
+    zlibstatic
+    twopaco
+    graphdump
+    ntcard
+    ${LIBRT}
+    ${ASAN_LIB}
+    ${JEMALLOC_LIBRARIES}
     ksw2pp
-    puffer 
-    ${CMAKE_DL_LIBS} 
+    puffer
+    ${CMAKE_DL_LIBS}
     TBB::tbb
     TBB::tbbmalloc
-    Threads::Threads 
+    Threads::Threads
   )
 endif()
 
@@ -201,7 +201,7 @@ target_include_directories(cedar PRIVATE
     ${PUFFERFISH_ROOT_DIR}/external/install/include
     ${PUFFERFISH_ROOT_DIR}/external/install/include/htslib
 )
-target_link_libraries(cedar Async++ Threads::Threads ${SEQLIB} ${SEQLIB_HTSLIB} puffer bz2 lzma z SetCover ${ASAN_LIB})
+target_link_libraries(cedar PRIVATE Async++ Threads::Threads ${SEQLIB} ${SEQLIB_HTSLIB} puffer bz2 lzma zlibstatic SetCover ${ASAN_LIB})
 add_dependencies(cedar libseqlib)
 add_dependencies(cedar libsetcover)
 #add_dependencies(ceder Async++)
@@ -226,14 +226,14 @@ add_executable(getLineage constructLineage.cpp)
 pufferfish_configure_standalone_target(getLineage)
 
 
-target_link_libraries(bcalm_pufferize Threads::Threads z ${ASAN_LIB})
+target_link_libraries(bcalm_pufferize PRIVATE Threads::Threads zlibstatic ${ASAN_LIB})
 #target_link_libraries(fixFasta Threads::Threads z)
 
 
 #if (${TBB_TARGET_EXISTED})
-#target_link_libraries(edgedensity Threads::Threads z puffer ${ASAN_LIB})
-#target_link_libraries(edgedensity2 Threads::Threads z puffer ${ASAN_LIB})
-target_link_libraries(filtersam Threads::Threads ${SEQLIB} ${SEQLIB_HTSLIB} puffer bz2 lzma z ${ASAN_LIB})
+#target_link_libraries(edgedensity Threads::Threads zlibstaticpuffer ${ASAN_LIB})
+#target_link_libraries(edgedensity2 Threads::Threads zlibstaticpuffer ${ASAN_LIB})
+target_link_libraries(filtersam PRIVATE Threads::Threads ${SEQLIB} ${SEQLIB_HTSLIB} puffer bz2 lzma zlibstatic ${ASAN_LIB})
 add_dependencies(filtersam libseqlib)
 #endif()
 

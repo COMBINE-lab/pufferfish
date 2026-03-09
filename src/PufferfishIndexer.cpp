@@ -25,7 +25,8 @@
 #include "PufferfishConfig.hpp"
 #include "cereal/archives/json.hpp"
 #include "jellyfish/mer_dna.hpp"
-#include "rank9b.hpp"
+#include "dictionary_types.hpp"
+#include "essentials.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
@@ -213,81 +214,6 @@ int pufferfishTest(pufferfish::TestOptions& testOpts) {
   (void)testOpts;
   std::cerr << "this command is not yet implemented\n";
   return 1;
-}
-
-void computeSampledPositionsLossy(size_t tlen, uint32_t k, int32_t sampleSize, std::vector<size_t>& sampledInds){
-  // Let's start out simple, we always keep the first & last k-mers in a unipath.
-  // If the unipath is longer than sampleSize, we keep intermediate samples as well.
-  sampledInds.clear();
-  auto numOfKmers = tlen - k;
-  size_t lastSampled = 0;
-  while (lastSampled < numOfKmers) {
-    sampledInds.push_back(lastSampled) ;
-    auto next_samp = std::min(lastSampled + sampleSize, numOfKmers) ;
-    lastSampled = next_samp;
-  }
-  if (lastSampled ==  numOfKmers) {
-    sampledInds.push_back(numOfKmers);
-  }
-}
-
-void computeSampledPositions(size_t tlen, uint32_t k, int sampleSize, std::vector<size_t>& sampledInds){
-  sampledInds.clear() ;
-  auto numOfKmers = tlen - k;
-  size_t lastCovered = 0 ;
-  for(size_t j = 0 ; j <= numOfKmers; j++){
-    if(j > lastCovered){
-      auto next_samp = std::min(j + sampleSize/2 - 1 ,numOfKmers) ;
-      sampledInds.push_back(next_samp) ;
-      lastCovered = next_samp + sampleSize/2 + 1;
-    }
-  }
-  if(lastCovered == numOfKmers)
-    sampledInds.push_back(lastCovered) ;
-}
-
-std::string packedToString(compact::vector<uint64_t, 2>& seqVec, uint64_t offset, uint32_t len) {
-  std::stringstream s;
-  for (size_t i = offset; i < offset + len; ++i) {
-    auto c = seqVec[i];
-    s << kmers::charForCode(c);
-  }
-  auto st = s.str();
-  return st;
-}
-
-enum class NextSampleDirection : uint8_t { FORWARD = 0, REVERSE=1 };
-
-uint32_t getEncodedExtension(compact::vector<uint64_t, 2>& seqVec, uint64_t firstSampPos, uint64_t distToSamplePos,
-                             uint32_t maxExt, NextSampleDirection dir) {
-  uint32_t encodedNucs{0};
-  uint32_t bitsPerCode{2};
-  std::vector<uint32_t> charsToExtend;
-  size_t i = 0;
-  for (; i < distToSamplePos; ++i) {
-    if ( firstSampPos + i >= seqVec.size() ) {
-      std::cerr << "seqVec.size() " << seqVec.size() << ", looking for index " << firstSampPos + i << "\n";
-      std::cerr << "dist to sample is " << distToSamplePos << ", i = " << i << "\n";
-    }
-    auto c = seqVec[firstSampPos + i];
-    charsToExtend.push_back(c);
-  }
-  if (dir == NextSampleDirection::REVERSE) {
-    std::reverse(charsToExtend.begin(), charsToExtend.end());
-  }
-
-  for (size_t j = 0; j < charsToExtend.size(); ++j) {
-    auto c = charsToExtend[j];
-    encodedNucs |= (c << (bitsPerCode  * (maxExt - j - 1)));
-  }
-  return encodedNucs;
-}
-
-template <typename VecT>
-void dumpCompactToFile(VecT& v, std::string fname) {
-  std::ofstream bfile(fname, std::ios::binary);
-  v.serialize(bfile);
-  bfile.close();
 }
 
 int fixFastaMain(std::vector<std::string>& args,
@@ -646,24 +572,30 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   jointLog->info("edgeVecSize = {:n}", edgeVec.size());
 
   jointLog->info("num keys = {:n}", nkeys);
-  ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
-  ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
 
-#ifdef PUFFER_DEBUG
-  auto ks = kb;
-  size_t nkeyIt{0};
-  for (; ks < ke; ++ks) {
-    nkeyIt++;
-  }
-  jointLog->info("num keys (iterator)= {:n}", nkeyIt);
-#endif // PUFFER_DEBUG
- 
+  // BooPHF is only needed for the legacy dense index path (--no-sshash)
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
   typedef boomphf::mphf<uint64_t, hasher_t> boophf_t;
+  std::unique_ptr<boophf_t> bphf{nullptr};
 
-  auto keyIt = boomphf::range(kb, ke);
-  std::unique_ptr<boophf_t> bphf = std::make_unique<boophf_t>(outdir, nkeys, keyIt, indexOpts.p, 3.5); // keys.size(), keys, 16);
-  jointLog->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
+  bool buildSSHash = !indexOpts.noSSHash;
+  if (!buildSSHash) {
+    ContigKmerIterator kb(&seqVec, &rankVec, k, 0);
+    ContigKmerIterator ke(&seqVec, &rankVec, k, seqVec.size() - k + 1);
+
+#ifdef PUFFER_DEBUG
+    auto ks = kb;
+    size_t nkeyIt{0};
+    for (; ks < ke; ++ks) {
+      nkeyIt++;
+    }
+    jointLog->info("num keys (iterator)= {:n}", nkeyIt);
+#endif // PUFFER_DEBUG
+
+    auto keyIt = boomphf::range(kb, ke);
+    bphf = std::make_unique<boophf_t>(outdir, nkeys, keyIt, indexOpts.p, 3.5);
+    jointLog->info("mphf size = {} MB", (bphf->totalBitSize() / 8) / std::pow(2, 20));
+  }
 
 /*  std::ofstream seqFile(outdir + "/seq.bin", std::ios::binary);
   seqVec.serialize(seqFile);
@@ -682,22 +614,103 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
 
   // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
   //uint32_t hashBits = 4;
-  if (!indexOpts.isSparse and !indexOpts.lossySampling) {  
-    // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
+  if (buildSSHash) {
+    // ---- SSHash-based index construction ----
+    // Step 1: Write contig sequences to a temporary FASTA file for SSHash input
+    std::string contigFastaFile = outdir + "/contigs_for_sshash.fa";
+    {
+      jointLog->info("Writing contig sequences to temporary FASTA for SSHash ...");
+      std::ofstream fastaOut(contigFastaFile);
+      if (!fastaOut.good()) {
+        jointLog->error("Could not open {} for writing.", contigFastaFile);
+        std::exit(1);
+      }
+      auto& cnmap = pf.getContigNameMap();
+      static const char decode[] = {'A', 'C', 'G', 'T'};
+      for (uint64_t cid = 0; cid < numContigs; ++cid) {
+        auto cinfo = cnmap[cid];
+        fastaOut << ">contig_" << cid << "\n";
+        // Decode 2-bit packed sequence from seqVec
+        for (uint32_t i = 0; i < cinfo.length; ++i) {
+          fastaOut << decode[seqVec[cinfo.offset + i]];
+        }
+        fastaOut << "\n";
+      }
+      fastaOut.close();
+      jointLog->info("Wrote {:n} contigs to temporary FASTA.", numContigs);
+    }
+
+    // Step 2: Build SSHash dictionary
+    jointLog->info("Building SSHash dictionary ...");
+    sshash::dictionary_type dict;
+    {
+      sshash::build_configuration build_config;
+      build_config.k = k;
+      build_config.m = std::min(static_cast<uint64_t>(20), static_cast<uint64_t>(k));
+      build_config.canonical = true;
+      build_config.num_threads = indexOpts.p;
+      build_config.tmp_dirname = outdir;
+      build_config.verbose = true;
+      dict.build(contigFastaFile, build_config);
+    }
+    jointLog->info("SSHash dictionary built: {:n} kmers, {:n} strings",
+                   dict.num_kmers(), dict.num_strings());
+
+    // Verify k-mer count matches
+    if (dict.num_kmers() != nkeys) {
+      jointLog->warn("SSHash reports {:n} kmers, expected {:n}. "
+                     "This may indicate duplicate canonical kmers across contigs.",
+                     dict.num_kmers(), nkeys);
+    }
+
+    // Step 3: Save SSHash dictionary
+    std::string sshashFile = outdir + "/sshash.bin";
+    jointLog->info("Saving SSHash dictionary to {} ...", sshashFile);
+    essentials::save(dict, sshashFile.c_str());
+
+    // Clean up temporary FASTA
+    if (ghc::filesystem::exists(contigFastaFile)) {
+      ghc::filesystem::remove(contigFastaFile);
+    }
+
+    // Step 4: Write info.json
+    jointLog->info("writing index components");
+    std::ofstream descStream(outdir + "/info.json");
+    {
+      cereal::JSONOutputArchive indexDesc(descStream);
+      std::string sampStr = "sshash";
+      std::vector<std::string> refGFA{outdir};
+      indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
+      indexDesc(cereal::make_nvp("reference_gfa", refGFA));
+      indexDesc(cereal::make_nvp("sampling_type", sampStr));
+      indexDesc(cereal::make_nvp("k", k));
+      indexDesc(cereal::make_nvp("num_kmers", nkeys));
+      indexDesc(cereal::make_nvp("num_contigs", numContigs));
+      indexDesc(cereal::make_nvp("seq_length", tlen));
+      indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
+      indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
+
+      std::ifstream sigStream(outdir + "/ref_sigs.json");
+      cereal::JSONInputArchive sigArch(sigStream);
+      copySigArchive(sigArch, indexDesc);
+      sigStream.close();
+    }
+    descStream.close();
+
+    jointLog->info("finished writing SSHash pufferfish index");
+
+  } else {
+    // Legacy dense (BooPHF) index construction
     compact::ts_vector<uint64_t> posVec(w, nkeys);
     posVec.clear_mem();
     {
-
       struct ContigVecChunk {
         uint64_t s;
         uint64_t e;
       };
 
-      // Build position table in parallel. We have up to indexOpts.p threads
-      // so divide the contig array into even chunks.
       auto nthread = indexOpts.p;
       double chunkSizeFrac = seqVec.size() / static_cast<double>(nthread);
-      // reduce the number of threads until chunks are big enough;
       while (chunkSizeFrac < 8192 and nthread > 1) {
         nthread /= 2;
         chunkSizeFrac = seqVec.size() / static_cast<double>(nthread);
@@ -726,32 +739,17 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       }
 
       auto fillPos = [&seqVec, &rankVec, k, &bphf, &jointLog, &posVec](ContigVecChunk chunk) -> void {
-
         ContigKmerIterator kb1(&seqVec, &rankVec, k, chunk.s);
         ContigKmerIterator ke1(&seqVec, &rankVec, k, chunk.e);
         for (; kb1 < ke1; ++kb1) {
-          auto idx = bphf->lookup(*kb1); // fkm.word(0));
+          auto idx = bphf->lookup(*kb1);
           if (idx >= posVec.size()) {
             std::cerr<<*kb1<<"\n";
             jointLog->info("seq size = {:n}, idx = {:n}, pos size = {:n}",
                           seqVec.size(), idx, posVec.size());
             std::cerr<<*kb1<<"\n";
           }
-          // ContigKmerIterator::value_type mer = *kb1;
-          // if using quasi-dictionary idea (https://arxiv.org/pdf/1703.00667.pdf)
-          //posVec[idx] = (kb1.pos() << hashBits) | (mer & 0xF);
           posVec[idx] = kb1.pos();
-          // validate
-#ifdef PUFFER_DEBUG
-          uint64_t kn = seqVec.get_int(2*kb1.pos(), 2*k);
-          CanonicalKmer sk;
-          sk.fromNum(kn);
-          if (sk.isEquivalent(*kb1) == KmerMatchType::NO_MATCH) {
-            my_mer r;
-            r.word__(0) = *kb1;
-            jointLog->error("I thought I saw {}, but I saw {} --- pos {}", sk.to_str(), r.toStr(), kb1.pos());
-          }
-#endif
         }
       };
 
@@ -764,14 +762,9 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
         w.join();
       }
       jointLog->info("finished populating pos vector");
-
     }
 
     jointLog->info("writing index components");
-    /** Write the index **/
-
-
-
     std::ofstream descStream(outdir + "/info.json");
     {
       cereal::JSONOutputArchive indexDesc(descStream);
@@ -801,385 +794,6 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     bphf->save(hstream);
     hstream.close();
     jointLog->info("finished writing dense pufferfish index");
-
-  } else if (indexOpts.isSparse) { // sparse index; it's GO time!
-    int extensionSize = indexOpts.extensionSize;
-    int sampleSize = 2 * extensionSize + 1;
-
-
-    // Note: the compact_vector constructor does not
-    // init mem to 0, so we do that with the clear_mem() function.
-    compact::vector<uint64_t, 1> presenceVec(nkeys);
-    presenceVec.clear_mem();
-
-    size_t sampledKmers{0};
-    std::vector<size_t> sampledInds;
-    std::vector<size_t> contigLengths;
-    //fill up optimal positions
-    {
-      auto& cnmap = pf.getContigNameMap() ;
-      size_t ncontig = cnmap.size();
-      std::vector<size_t> sampledInds ;
-      for(size_t i = 0; i < ncontig; ++i) {//}auto& kv : cnmap){
-        const auto& r1 = cnmap[i];
-        sampledInds.clear();
-        computeSampledPositions(r1.length, k, sampleSize, sampledInds) ;
-        sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(r1.length) ;
-      }
-      jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
-      jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
-    }
-
-    //fill up the vectors
-    uint32_t extSymbolWidth = 2;
-    uint32_t extWidth = std::log2(extensionSize);
-    jointLog->info("extWidth = {}", extWidth);
-
-    compact::vector<uint64_t> auxInfo(extSymbolWidth*extensionSize, (numKmers-sampledKmers));
-    auxInfo.clear_mem();
-
-    compact::vector<uint64_t> extSize(extWidth, (numKmers-sampledKmers));
-    extSize.clear_mem();
-
-    compact::vector<uint64_t, 1> direction(numKmers - sampledKmers) ;
-    direction.clear_mem();
-
-    compact::vector<uint64_t, 1> canonicalNess(numKmers - sampledKmers);
-    canonicalNess.clear_mem();
-
-    compact::vector<uint64_t> samplePosVec(w, sampledKmers);
-    samplePosVec.clear_mem();
-
-  // new presence Vec
-    size_t i = 0 ;
-    std::unordered_set<uint64_t> indices;
-  {
-    jointLog->info("\nFilling presence Vector");
-
-    ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
-    ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
-    size_t contigId{0};
-
-    //debug flags
-    int loopCounter = 0;
-
-    // walk over the entire contig array:
-    // compute the sampled positions for each contig
-    // fill in the corresponding values in presenceVec
-    while(kb1 != ke1){
-        sampledInds.clear();
-        auto clen = contigLengths[contigId];
-        computeSampledPositions(clen, k, sampleSize, sampledInds) ;
-        contigId++;
-        loopCounter++ ;
-
-        my_mer r;
-        auto zeroPos = kb1.pos();
-        auto skipLen = kb1.pos() - zeroPos;
-        auto nextSampIter = sampledInds.begin();
-        //auto prevSamp = *nextSampIter;
-        //bool didSample = false;
-        bool done = false;
-
-        for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
-          skipLen = kb1.pos() - zeroPos;
-          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
-            auto idx = bphf->lookup(*kb1);
-            presenceVec[idx] = 1 ;
-            indices.insert(idx);
-            i++ ;
-            //didSample = true;
-            //prevSamp = *nextSampIter;
-            ++nextSampIter;
-            if (nextSampIter == sampledInds.end()) {
-              done = true;
-            }
-          }
-          //didSample = false;
-        }
-        if (nextSampIter != sampledInds.end()) {
-          jointLog->info("I didn't sample {}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          jointLog->info("last sample is {}" , sampledInds.back());
-          jointLog->info("contig length is {}" , contigLengths[contigId-1]);
-        }
-    }
-
-    jointLog->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
-                  i, sampledKmers, loopCounter, contigLengths.size());
-  }
-
-  rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
-  jointLog->info("num ones in presenceVec = {:n}, i = {:n}, indices.size() = {:n}", realPresenceRank.rank(presenceVec.size()-1), i, indices.size());
-
-  //bidirectional sampling
-  {
-
-    ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
-    ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
-
-    size_t contigId{0} ;
-    //size_t coveredKeys{0} ;
-    // For every valid k-mer (i.e. every contig)
-    while(kb1 != ke1){
-      sampledInds.clear();
-      auto clen = contigLengths[contigId];
-      computeSampledPositions(clen, k, sampleSize, sampledInds) ;
-      contigId++ ;
-
-      //size_t skip = 0 ;
-
-      my_mer r;
-
-      auto zeroPos = kb1.pos();
-      auto nextSampIter = sampledInds.begin();
-      auto prevSampIter = sampledInds.end();
-      auto skipLen = kb1.pos() - zeroPos;
-      NextSampleDirection sampDir = NextSampleDirection::FORWARD;
-      bool done = false;
-      for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
-          int64_t nextSampPos = (nextSampIter != sampledInds.end()) ? *nextSampIter : -1;
-          int64_t prevSampPos = (prevSampIter != sampledInds.end()) ? *prevSampIter : -1;
-          uint64_t distToNext = (nextSampPos >= 0) ? nextSampPos - j : std::numeric_limits<uint64_t>::max();
-          uint64_t distToPrev = (prevSampPos >= 0) ? j - prevSampPos : std::numeric_limits<uint64_t>::max();
-
-          if (distToNext == std::numeric_limits<uint64_t>::max() and
-              distToPrev == std::numeric_limits<uint64_t>::max()) {
-            jointLog->error("Could not find valid sample position, should not happen!");
-            std::exit(1);
-          }
-
-          sampDir = (distToNext < distToPrev) ? NextSampleDirection::FORWARD : NextSampleDirection::REVERSE;
-          skipLen = kb1.pos() - zeroPos;
-          // If this is a sampled position
-          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
-            prevSampIter = nextSampIter;
-            ++nextSampIter;
-            if (nextSampIter == sampledInds.end()) {
-              done = true;
-            }
-            auto idx = bphf->lookup(*kb1);
-            auto rank = (idx == 0) ? 0 : realPresenceRank.rank(idx);
-            samplePosVec[rank] = kb1.pos();
-          } else { // not a sampled position
-            uint32_t ext = 0;
-            size_t firstSampPos = 0;
-            uint32_t extensionDist = 0;
-            if (sampDir == NextSampleDirection::FORWARD) {
-              firstSampPos = zeroPos + j + k;
-              extensionDist = distToNext - 1;
-              ext = getEncodedExtension(seqVec, firstSampPos, distToNext, extensionSize, sampDir);
-            } else if (sampDir == NextSampleDirection::REVERSE) {
-              firstSampPos = zeroPos + prevSampPos;
-              extensionDist = distToPrev - 1;
-              ext = getEncodedExtension(seqVec, firstSampPos, distToPrev, extensionSize, sampDir);
-            } else {
-              std::cerr << "Error during extension encoding, should not happen!\n";
-              std::exit(1);
-            }
-            auto idx = bphf->lookup(*kb1);
-            auto rank = (idx == 0) ? 0 : realPresenceRank.rank(idx);
-
-            int64_t target_idx = (idx - rank);
-            if ( target_idx > static_cast<int64_t>(canonicalNess.size())) { jointLog->warn("target_idx = {}, but canonicalNess.size = {}", target_idx, canonicalNess.size()); }
-            canonicalNess[idx - rank] = kb1.isCanonical();
-
-            if ( target_idx > static_cast<int64_t>(extSize.size())) { jointLog->warn("target_idx = {}, but extSize.size = {}", target_idx, extSize.size()); }
-            extSize[idx - rank] = extensionDist;
-
-            if ( target_idx > static_cast<int64_t>(auxInfo.size())) { jointLog->warn("target_idx = {}, but auxInfo.size = {}", target_idx, auxInfo.size()); }
-            auxInfo[idx - rank] = ext;
-
-            if ( target_idx > static_cast<int64_t>(direction.size())) { jointLog->warn("target_idx = {}, but direction.size = {}", target_idx, direction.size()); }
-            direction[idx - rank] = (sampDir == NextSampleDirection::FORWARD) ? 1 : 0;
-          }
-        }
-    }
-
-
-  }
-
-
-  /** Write the index **/
-  std::ofstream descStream(outdir + "/info.json");
-  {
-    cereal::JSONOutputArchive indexDesc(descStream);
-    std::string sampStr = "sparse";
-    std::vector<std::string> refGFA{outdir};
-    indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
-    indexDesc(cereal::make_nvp("reference_gfa", refGFA));
-    indexDesc(cereal::make_nvp("sampling_type", sampStr));
-    indexDesc(cereal::make_nvp("sample_size", sampleSize));
-    indexDesc(cereal::make_nvp("extension_size", extensionSize));
-    indexDesc(cereal::make_nvp("k", k));
-    indexDesc(cereal::make_nvp("num_kmers", nkeys));
-    indexDesc(cereal::make_nvp("num_sampled_kmers",sampledKmers));
-    indexDesc(cereal::make_nvp("num_contigs", numContigs));
-    indexDesc(cereal::make_nvp("seq_length", tlen));
-    indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
-    indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
-
-    std::ifstream sigStream(outdir + "/ref_sigs.json");
-    cereal::JSONInputArchive sigArch(sigStream);
-    copySigArchive(sigArch, indexDesc);
-    sigStream.close();
-  }
-  descStream.close();
-
-  std::ofstream hstream(outdir + "/mphf.bin");
-  dumpCompactToFile(presenceVec, outdir+"/presence.bin");
-  dumpCompactToFile(samplePosVec, outdir + "/sample_pos.bin");
-  dumpCompactToFile(auxInfo, outdir + "/extension.bin");
-  dumpCompactToFile(extSize, outdir + "/extensionSize.bin");
-  dumpCompactToFile(canonicalNess, outdir + "/canonical.bin");
-  dumpCompactToFile(direction, outdir + "/direction.bin");
-  bphf->save(hstream);
-  hstream.close();
-
-  } else { // lossy sampling index
-    int32_t sampleSize = static_cast<int32_t>(indexOpts.lossy_rate);
-    compact::vector<uint64_t, 1> presenceVec(nkeys);
-    presenceVec.clear_mem();
-
-    size_t sampledKmers{0};
-    std::vector<size_t> sampledInds;
-    std::vector<size_t> contigLengths;
-    //fill up optimal positions
-    {
-      auto& cnmap = pf.getContigNameMap() ;
-      std::vector<size_t> sampledInds ;
-      for(auto& kv : cnmap){
-        auto& r1 = kv.second ;
-        sampledInds.clear();
-        computeSampledPositionsLossy(r1.length, k, sampleSize, sampledInds) ;
-        sampledKmers += sampledInds.size() ;
-        contigLengths.push_back(r1.length) ;
-      }
-      jointLog->info("# sampled kmers = {:n}", sampledKmers) ;
-      jointLog->info("# skipped kmers = {:n}", numKmers - sampledKmers) ;
-    }
-
-    compact::vector<uint64_t> samplePosVec(w, sampledKmers);
-    samplePosVec.clear_mem();
-
-
-
-    // new presence Vec
-    {
-      {
-      jointLog->info("\nFilling presence vector");
-      size_t i = 0 ;
-      ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
-      ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
-      size_t contigId{0};
-      while(kb1 != ke1){
-        sampledInds.clear();
-        auto clen = contigLengths[contigId];
-        computeSampledPositionsLossy(clen, k, sampleSize, sampledInds) ;
-        contigId++;
-        my_mer r;
-        auto zeroPos = kb1.pos();
-        auto skipLen = kb1.pos() - zeroPos;
-        auto nextSampIter = sampledInds.begin();
-        bool done = false;
-        
-        for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
-          skipLen = kb1.pos() - zeroPos;
-          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
-            auto idx = bphf->lookup(*kb1);
-            presenceVec[idx] = 1 ;
-            samplePosVec[i] = kb1.pos();
-            i++;
-            ++nextSampIter;
-            if (nextSampIter == sampledInds.end()) {
-              done = true;
-            }
-          }
-        }
-        if (nextSampIter != sampledInds.end()) {
-          jointLog->info("I didn't sample {:n}, samples for contig {:n}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          jointLog->info("last sample is {:n}", sampledInds.back());
-          jointLog->info("contig length is {:n}", contigLengths[contigId-1]);
-        }
-      }
-      }
-
-      {
-        jointLog->info("\nFilling sampled position vector");
-      size_t i = 0 ;
-      ContigKmerIterator kb1(&seqVec, &rankVec, k, 0);
-      ContigKmerIterator ke1(&seqVec, &rankVec, k, seqVec.size() - k + 1);
-      size_t contigId{0};
-      int loopCounter = 0;
-      rank9b realPresenceRank(presenceVec.get(), presenceVec.size());
-      while(kb1 != ke1){
-        sampledInds.clear();
-        auto clen = contigLengths[contigId];
-        computeSampledPositionsLossy(clen, k, sampleSize, sampledInds) ;
-        contigId++;
-        loopCounter++ ;
-
-        my_mer r;
-        auto zeroPos = kb1.pos();
-        auto skipLen = kb1.pos() - zeroPos;
-        auto nextSampIter = sampledInds.begin();
-        bool done = false;
-        
-        for (size_t j = 0; j < clen - k + 1; ++kb1, ++j) {
-          skipLen = kb1.pos() - zeroPos;
-          if (!done and skipLen == static_cast<decltype(skipLen)>(*nextSampIter)) {
-            auto idx = bphf->lookup(*kb1);
-            auto rank = (idx == 0) ? 0 : realPresenceRank.rank(idx);
-            samplePosVec[rank] = kb1.pos();
-            ++i;
-            ++nextSampIter;
-            if (nextSampIter == sampledInds.end()) {
-              done = true;
-            }
-          }
-        }
-        if (nextSampIter != sampledInds.end()) {
-          jointLog->info("I didn't sample {:n}, samples for contig {}", std::distance(nextSampIter, sampledInds.end()), contigId - 1);
-          jointLog->info("last sample is {:n}", sampledInds.back());
-          jointLog->info("contig length is {:n}", contigLengths[contigId-1]);
-        }
-      }
-      jointLog->info("i = {:n}, sampled kmers = {:n}, loops = {:n}, contig array = {:n}",
-                    i, sampledKmers, loopCounter, contigLengths.size());
-
-    }
-    }
-
-    /** Write the index **/
-    std::ofstream descStream(outdir + "/info.json");
-    {
-      cereal::JSONOutputArchive indexDesc(descStream);
-      std::string sampStr = "lossy";
-      std::vector<std::string> refGFA{outdir};
-      indexDesc(cereal::make_nvp("index_version", pufferfish::indexVersion));
-      indexDesc(cereal::make_nvp("reference_gfa", refGFA));
-      indexDesc(cereal::make_nvp("sampling_type", sampStr));
-      indexDesc(cereal::make_nvp("sample_size", sampleSize));
-      indexDesc(cereal::make_nvp("k", k));
-      indexDesc(cereal::make_nvp("num_kmers", nkeys));
-      indexDesc(cereal::make_nvp("num_sampled_kmers",sampledKmers));
-      indexDesc(cereal::make_nvp("num_contigs", numContigs));
-      indexDesc(cereal::make_nvp("seq_length", tlen));
-      indexDesc(cereal::make_nvp("have_ref_seq", keepRef));
-      indexDesc(cereal::make_nvp("have_edge_vec", haveEdgeVec));
-
-      std::ifstream sigStream(outdir + "/ref_sigs.json");
-      cereal::JSONInputArchive sigArch(sigStream);
-      copySigArchive(sigArch, indexDesc);
-      sigStream.close();
-    }
-    descStream.close();
-
-    std::ofstream hstream(outdir + "/" + pufferfish::util::MPH);
-    dumpCompactToFile(presenceVec, outdir + "/presence.bin");
-    dumpCompactToFile(samplePosVec, outdir + "/sample_pos.bin");
-    bphf->save(hstream);
-    hstream.close();
   }
 
   // cleanup the fixed.fa file
