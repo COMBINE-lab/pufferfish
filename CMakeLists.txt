@@ -197,6 +197,22 @@ if(TARGET TBB::tbb)
   get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
+function(pufferfish_add_tbb_build_dependency target_name)
+  if(NOT TARGET "${target_name}")
+    return()
+  endif()
+  if(TARGET tbb)
+    get_target_property(_pf_tbb_imported tbb IMPORTED)
+    if(NOT _pf_tbb_imported)
+      add_dependencies("${target_name}" tbb)
+      return()
+    endif()
+  endif()
+  if(TARGET libtbb)
+    add_dependencies("${target_name}" libtbb)
+  endif()
+endfunction()
+
 if(DO_QUIET_MAKE)
   set(QUIET_MAKE "--silent")
 else()
@@ -420,9 +436,7 @@ INSTALL_COMMAND   mkdir -p <INSTALL_DIR>/lib && mkdir -p <INSTALL_DIR>/include &
 set(SEQLIB ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libseqlib.a)
 set(SEQLIB_HTSLIB ${CMAKE_CURRENT_SOURCE_DIR}/external/install/lib/libhts.a)
 
-if (FETCHED_TBB)
-add_dependencies(libseqlib libtbb)
-endif()
+pufferfish_add_tbb_build_dependency(libseqlib)
 
 if(NOT LIBLZMA_FOUND)
   ExternalProject_Add_StepDependencies(libseqlib build liblzma)
@@ -452,9 +466,7 @@ ExternalProject_Add(libsetcover
 
         cp LinearMultiArray.h <INSTALL_DIR>/include
         )
-if(FETCHED_TBB)
-add_dependencies(libsetcover libtbb)
-endif()
+pufferfish_add_tbb_build_dependency(libsetcover)
 
 endif() # end of NOT PUFFERFISH_EMBEDDED
 
@@ -502,11 +514,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/twopaco)
 if (NOT PUFFERFISH_EMBEDDED) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/asyncplusplus)
 
-  if (NOT TBB_TARGET_EXISTED)
-    if (FETCHED_TBB)
-    add_dependencies(Async++ libtbb)
-  endif()
-  endif()
+  pufferfish_add_tbb_build_dependency(Async++)
 
 endif()
 

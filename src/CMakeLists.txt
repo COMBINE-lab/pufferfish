@@ -121,9 +121,7 @@ get_property(COMPACT_VECTOR_INCLUDE_PATH TARGET graphdump PROPERTY COMPACT_VECTO
 message("adding ${COMPACT_VECTOR_INCLUDE_PATH} to include path for libpuffer")
 target_include_directories(puffer PUBLIC ${COMPACT_VECTOR_INCLUDE_PATH})
 
-if (FETCHED_TBB)
-  add_dependencies(puffer libtbb)
-endif()
+pufferfish_add_tbb_build_dependency(puffer)
 
 if (NOT PUFFERFISH_EMBEDDED)
 message("Building extra components")
@@ -133,12 +131,7 @@ message("Building extra components")
 add_executable(pufferfish Pufferfish.cpp)
 pufferfish_configure_standalone_target(pufferfish)
 
-if (FETCHED_TBB)
-add_dependencies(pufferfish libtbb)
-else()
-add_dependencies(pufferfish TBB::tbb)
-add_dependencies(pufferfish TBB::tbbmalloc)
-endif()
+pufferfish_add_tbb_build_dependency(pufferfish)
 
 
 
