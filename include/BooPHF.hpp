@@ -1032,9 +1032,11 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 			printf("Bitarray    %12" PRIu64 "  bits (%.2f %%)   (array + ranks )\n",
 				   totalsizeBitset, 100*(float)totalsizeBitset/totalsize);
+			const uint64_t final_hash_bits =
+				static_cast<uint64_t>(_final_hash.size()) * UINT64_C(42) * UINT64_C(8);
 			printf("final hash  %12" PRIu64 "  bits (%.2f %%) (nb in final hash %zu)\n",
-				   static_cast<uint64_t>(_final_hash.size())*42ULL*8ULL,
-				   100*(float)(static_cast<uint64_t>(_final_hash.size())*42ULL*8ULL)/totalsize,
+				   final_hash_bits,
+				   100 * static_cast<float>(final_hash_bits) / totalsize,
 				   _final_hash.size() );
 			return totalsize;
 		}
