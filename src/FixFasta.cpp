@@ -401,8 +401,8 @@ bool fixFasta(single_parser* parser,
   dupClusterStream.close();
   */
 
-  log->info("Replaced {:n} non-ATCG nucleotides", numNucleotidesReplaced);
-  log->info("Clipped poly-A tails from {:n} transcripts", numPolyAsClipped);
+  log->info("Replaced {:L} non-ATCG nucleotides", numNucleotidesReplaced);
+  log->info("Clipped poly-A tails from {:L} transcripts", numPolyAsClipped);
 
   // Put the concatenated text in a string
   std::string concatText = txpSeqStream;

@@ -481,8 +481,8 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       numKmers += r1.length - k + 1;
       ++nread;
     }
-    jointLog->info("# segments = {:n}", nread);
-    jointLog->info("total length = {:n}", tlen);
+    jointLog->info("# segments = {:L}", nread);
+    jointLog->info("total length = {:L}", tlen);
   }
 
   // parse the reference list and store the strings in a 2bit-encoded vector
@@ -551,7 +551,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
 
   // now we know the size we need --- create our bitvectors and pack!
   size_t w = std::log2(tlen) + 1;
-  jointLog->info("positional integer width = {:n}", w);
+  jointLog->info("positional integer width = {:L}", w);
 
   auto& seqVec = pf.getContigSeqVec();
   auto& rankVec = pf.getRankVec();
@@ -566,12 +566,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   size_t nkeys{numKmers};
   size_t numContigs{pf.getContigNameMap().size()};
 
-  jointLog->info("seqSize = {:n}", seqVec.size());
-  jointLog->info("rankSize = {:n}", rankVec.size());
+  jointLog->info("seqSize = {:L}", seqVec.size());
+  jointLog->info("rankSize = {:L}", rankVec.size());
 
-  jointLog->info("edgeVecSize = {:n}", edgeVec.size());
+  jointLog->info("edgeVecSize = {:L}", edgeVec.size());
 
-  jointLog->info("num keys = {:n}", nkeys);
+  jointLog->info("num keys = {:L}", nkeys);
 
   // BooPHF is only needed for the legacy dense index path (--no-sshash)
   typedef boomphf::SingleHashFunctor<uint64_t> hasher_t;
@@ -589,7 +589,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     for (; ks < ke; ++ks) {
       nkeyIt++;
     }
-    jointLog->info("num keys (iterator)= {:n}", nkeyIt);
+    jointLog->info("num keys (iterator)= {:L}", nkeyIt);
 #endif // PUFFER_DEBUG
 
     auto keyIt = boomphf::range(kb, ke);
@@ -637,7 +637,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
         fastaOut << "\n";
       }
       fastaOut.close();
-      jointLog->info("Wrote {:n} contigs to temporary FASTA.", numContigs);
+      jointLog->info("Wrote {:L} contigs to temporary FASTA.", numContigs);
     }
 
     // Step 2: Build SSHash dictionary
@@ -653,12 +653,12 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       build_config.verbose = true;
       dict.build(contigFastaFile, build_config);
     }
-    jointLog->info("SSHash dictionary built: {:n} kmers, {:n} strings",
+    jointLog->info("SSHash dictionary built: {:L} kmers, {:L} strings",
                    dict.num_kmers(), dict.num_strings());
 
     // Verify k-mer count matches
     if (dict.num_kmers() != nkeys) {
-      jointLog->warn("SSHash reports {:n} kmers, expected {:n}. "
+      jointLog->warn("SSHash reports {:L} kmers, expected {:L}. "
                      "This may indicate duplicate canonical kmers across contigs.",
                      dict.num_kmers(), nkeys);
     }
@@ -671,6 +671,15 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     // Clean up temporary FASTA
     if (ghc::filesystem::exists(contigFastaFile)) {
       ghc::filesystem::remove(contigFastaFile);
+    }
+
+    // Clean up seq.bin and rank.bin — SSHash stores sequences internally,
+    // so these graph-dumper artifacts are no longer needed in the index.
+    for (auto& obsolete : {"seq.bin", "rank.bin"}) {
+      auto p = ghc::filesystem::path(outdir) / obsolete;
+      if (ghc::filesystem::exists(p)) {
+        ghc::filesystem::remove(p);
+      }
     }
 
     // Step 4: Write info.json
@@ -717,7 +726,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
       }
 
       auto chunkSize = static_cast<uint64_t>(std::ceil(chunkSizeFrac));
-      jointLog->info("chunk size = {:n}", chunkSize);
+      jointLog->info("chunk size = {:L}", chunkSize);
 
       std::vector<ContigVecChunk> chunks;
       chunks.reserve(nthread);
@@ -735,7 +744,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
         endIt.advanceToValid();
         uint64_t e = endIt.pos();
         chunks.push_back({s,e});
-        jointLog->info("chunk {} = [{:n}, {:n})", i, s, e);
+        jointLog->info("chunk {} = [{:L}, {:L})", i, s, e);
       }
 
       auto fillPos = [&seqVec, &rankVec, k, &bphf, &jointLog, &posVec](ContigVecChunk chunk) -> void {
@@ -745,7 +754,7 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
           auto idx = bphf->lookup(*kb1);
           if (idx >= posVec.size()) {
             std::cerr<<*kb1<<"\n";
-            jointLog->info("seq size = {:n}, idx = {:n}, pos size = {:n}",
+            jointLog->info("seq size = {:L}, idx = {:L}, pos size = {:L}",
                           seqVec.size(), idx, posVec.size());
             std::cerr<<*kb1<<"\n";
           }

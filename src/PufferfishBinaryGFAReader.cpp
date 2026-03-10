@@ -139,7 +139,7 @@ namespace pufferfish {
             prevPos = nextPos;
             contigCntr++;
         }
-        logger_->info("contig count for validation: {:n}", contigCntr);
+        logger_->info("contig count for validation: {:L}", contigCntr);
 
         // start and end kmer-hash over the contigs
         // might get deprecated later
@@ -169,7 +169,7 @@ namespace pufferfish {
                 uint64_t contigId = abs(contigIdAndOri)-1;
                 if (contigId >= contigid2seq.size()) {
                     logger_->error("Should never ever happen. "
-                                   "Found a contigId in a path that was greater than the max contigId: {}, {}",
+                                   "Found a contigId in a path that was greater than the max contigId: {:L}, {:L}",
                                    contigId, contigid2seq.size());
                     std::exit(3);
                 }
@@ -254,8 +254,8 @@ namespace pufferfish {
             }
         }
         k = k - 1;
-        logger_->info("Total # of Contigs : {:n}", contigCntr);
-        logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
+        logger_->info("Total # of Contigs : {:L}", contigCntr);
+        logger_->info("Total # of numerical Contigs : {:L}", contigid2seq.size());
     }
 
 
@@ -284,9 +284,9 @@ namespace pufferfish {
         for (uint64_t i = 0; i < cposOffsetvec.size() - 1; i++) {
             cposOffsetvec[i+1] = cposOffsetvec[i]+cposOffsetvec[i+1];
         }
-        logger_->info("Total # of contig vec entries: {:n}", totalPosCnt);
+        logger_->info("Total # of contig vec entries: {:L}", totalPosCnt);
         auto w = static_cast<uint32_t >(std::ceil(std::log2(totalPosCnt+1)));
-        logger_->info("bits per offset entry {:n}", w);
+        logger_->info("bits per offset entry {:L}", w);
 
         contig2pos.resize(totalPosCnt);
         for (auto const &ent : path) {
@@ -313,7 +313,7 @@ namespace pufferfish {
         }
         cposOffsetvec.clear();
         cposOffsetvec.shrink_to_fit();
-        logger_->info("Done constructing the contig vector. {}", cpos_offsets->size());
+        logger_->info("Done constructing the contig vector. {:L}", cpos_offsets->size());
     }
 
     void BinaryGFAReader::clearContigTable() {
@@ -417,7 +417,7 @@ namespace pufferfish {
                     }
                     eqIDs.push_back(eqID);
                 }
-                logger_->info("there were {:n}  equivalence classes", eqMap.size());
+                logger_->info("there were {:L}  equivalence classes", eqMap.size());
                 eqAr(eqIDs);
                 eqIDs.clear();
                 eqIDs.shrink_to_fit();

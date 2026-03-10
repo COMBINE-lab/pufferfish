@@ -199,9 +199,9 @@ void GFAReader::parseFile() {
   auto startTime = std::chrono::system_clock::now();
   size_t total_len = fillContigInfoMap_();
   auto now = std::chrono::system_clock::now();
-  logger_->info("filling the contig map tool {:n} seconds.", std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count());
+  logger_->info("filling the contig map tool {} seconds.", std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count());
   file.reset(new zstr::ifstream(filename_));
-  logger_->info("total contig length = {:n} ", total_len);
+  logger_->info("total contig length = {} ", total_len);
   logger_->info("packing contigs into contig vector");
   seqVec_.resize(total_len);
 
@@ -329,8 +329,8 @@ void GFAReader::parseFile() {
     }
   }
   k = k - 1;
-  logger_->info("Total # of Contigs : {:n}", contig_cnt);
-  logger_->info("Total # of numerical Contigs : {:n}", contigid2seq.size());
+  logger_->info("Total # of Contigs : {:L}", contig_cnt);
+  logger_->info("Total # of numerical Contigs : {:L}", contigid2seq.size());
 }
 
 // spp::sparse_hash_map<uint64_t, std::string>& GFAReader::getContigNameMap() {
@@ -410,7 +410,7 @@ void GFAReader::mapContig2Pos() {
           .push_back(pufferfish::util::Position(tr, pos, contigs[i].second));
     }
   }
-  logger_->info("\nTotal # of segments we have position for : {:n}", total_output_lines);
+  logger_->info("\nTotal # of segments we have position for : {:L}", total_output_lines);
 }
 
 void GFAReader::clearContigTable() {
@@ -476,14 +476,14 @@ void GFAReader::serializeContigTable(const std::string& odir) {
       contigVecSize += contig2pos[kv.first].size();
     }
 
-    logger_->info("total contig vec entries {:n}", contigVecSize);
+    logger_->info("total contig vec entries {:L}", contigVecSize);
     std::vector<pufferfish::util::Position> cpos;
     cpos.reserve(contigVecSize);
 
     // We need the +1 here because we store the last entry that is 1 greater than the last offset
     // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
     size_t w = std::ceil(std::log2(contigVecSize+1));
-    logger_->info("bits per offset entry {:n}", w);
+    logger_->info("bits per offset entry {:L}", w);
     compact::vector<uint64_t> cpos_offsets(w, contigOffsetSize);
 
     //std::vector<uint64_t> cpos_offsets;
@@ -522,7 +522,7 @@ void GFAReader::serializeContigTable(const std::string& odir) {
       ct << '\n';
       */
     }
-    logger_->info("there were {:n}  equivalence classes", eqMap.size());
+    logger_->info("there were {}  equivalence classes", eqMap.size());
     eqAr(eqIDs);
     eqIDs.clear();
     eqIDs.shrink_to_fit();
