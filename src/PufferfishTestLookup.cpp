@@ -26,7 +26,13 @@ std::vector<CanonicalKmer> get_kmers(const std::string& fasta_file, uint32_t k) 
 
   std::vector <CanonicalKmer> kmers;
   std::vector<std::string> read_file = {fasta_file};
-  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
+  auto cfg = fastx_parser::ParserConfigBuilder{}
+                 .with_consumers(1)
+                 .with_parsers(1)
+                 .with_chunk_size(1000)
+                 .within_set_parallelism(false)
+                 .build();
+  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(cfg, read_file);
   parser.start();
 
   CLI::AutoTimer timer{"parsing kmers", CLI::Timer::Big};
@@ -39,7 +45,7 @@ std::vector<CanonicalKmer> get_kmers(const std::string& fasta_file, uint32_t k) 
 
     for (auto& rp : rg) {
       // kmer_pos = 0;
-      auto& r1 = rp.seq;
+      auto& r1 = rp.first().seq;
       pufferfish::CanonicalKmerIterator kit1(r1);
       for (; kit1 != kit_end; ++kit1) {
         kmers.push_back(kit1->first);
@@ -66,7 +72,13 @@ int doPufferfishTestLookup(IndexT& pi, pufferfish::ValidateOptions& validateOpts
   size_t orientationErrors = 0;
 
   std::vector<std::string> read_file = {validateOpts.refFile};
-  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
+  auto cfg = fastx_parser::ParserConfigBuilder{}
+                 .with_consumers(1)
+                 .with_parsers(1)
+                 .with_chunk_size(1000)
+                 .within_set_parallelism(false)
+                 .build();
+  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(cfg, read_file);
   parser.start();
   pufferfish::util::QueryCache qc;
   pufferfish::CanonicalKmerIterator kit_end;
@@ -84,7 +96,7 @@ int doPufferfishTestLookup(IndexT& pi, pufferfish::ValidateOptions& validateOpts
   auto rg = parser.getReadGroup();
   while (parser.refill(rg)) {
     for (auto& rp : rg) {
-      auto& r1 = rp.seq;
+      auto& r1 = rp.first().seq;
       pufferfish::CanonicalKmerIterator kit1(r1);
       int32_t prevPos = -2;
 
@@ -228,7 +240,13 @@ int doPufferfishTestLookupStreamingParse(IndexT& pi, pufferfish::ValidateOptions
     CLI::AutoTimer timer{"searching kmers", CLI::Timer::Big};
 
     std::vector<std::string> read_file = {validateOpts.refFile};
-    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
+    auto cfg = fastx_parser::ParserConfigBuilder{}
+                   .with_consumers(1)
+                   .with_parsers(1)
+                   .with_chunk_size(1000)
+                   .within_set_parallelism(false)
+                   .build();
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(cfg, read_file);
     parser.start();
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
@@ -249,7 +267,7 @@ int doPufferfishTestLookupStreamingParse(IndexT& pi, pufferfish::ValidateOptions
                     << ", total hits = " << totalHits << "\n";
         }
         ++rn;
-        auto& r1 = rp.seq;
+        auto& r1 = rp.first().seq;
         /*
         CanonicalKmer mer;
         bool valid = true;

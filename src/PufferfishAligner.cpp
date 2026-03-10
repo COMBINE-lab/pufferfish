@@ -185,8 +185,8 @@ void processReadsPair(paired_parser *parser,
     while (parser->refill(rg)) {
         for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
             auto& rpair = *read_it;
-            readLen = static_cast<uint32_t >(rpair.first.seq.length());
-            mateLen = static_cast<uint32_t >(rpair.second.seq.length());
+            readLen = static_cast<uint32_t >(rpair.first().seq.length());
+            mateLen = static_cast<uint32_t >(rpair.second().seq.length());
             totLen = readLen + mateLen;
             bool tooShortRead = readLen < pfi.k();
             bool tooShortMate = mateLen < pfi.k();
@@ -201,32 +201,32 @@ void processReadsPair(paired_parser *parser,
             jointAlignments.clear();
 
             // There is no way to revocer the following case other than aligning indels
-            //verbose = rpair.first.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
-            //          rpair.second.seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT";
+            //verbose = rpair.first().seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT" or
+            //          rpair.second().seq == "CAGTGAGCCAAGATGGCGCCACTGCACTCCAGCCTGGGCAAAAAGAAACTCCATCTAAAAAAAAAAAAAAAAAAAAAAAAAAGAGAAAACCCTGGTCCCT";
 
             // The only way to get it right is with non-heuristic chaining
-            // verbose = rpair.first.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
-            //           rpair.second.seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
+            // verbose = rpair.first().seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA" or
+            //           rpair.second().seq == "AGCAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGTGGTGGGGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTGGTAGAGAGGCACCAGCA";
 
-            //verbose = rpair.first.name == "mason_sample5_primary_1M_random.fasta.000050010/1";
+            //verbose = rpair.first().name == "mason_sample5_primary_1M_random.fasta.000050010/1";
             bool lh = tooShortRead ? false :
-              memCollector(rpair.first.seq,
+              memCollector(rpair.first().seq,
                            qc,
                            true, // isLeft
                            verbose);
             bool rh = tooShortMate ? false :
-              memCollector(rpair.second.seq,
+              memCollector(rpair.second().seq,
                            qc,
                            false, // isLeft
                            verbose);
-            memCollector.findChains(rpair.first.seq,
+            memCollector.findChains(rpair.first().seq,
                                    leftHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_LEFT,
                                    mopts->heuristicChaining,
                                    true, // isLeft
                                    verbose);
-            memCollector.findChains(rpair.second.seq,
+            memCollector.findChains(rpair.second().seq,
                                    rightHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::PAIRED_END_RIGHT,
@@ -240,7 +240,7 @@ void processReadsPair(paired_parser *parser,
             //otherwise orphan
 
             // We also handle orphans inside this function
-            /*if (rpair.first.name == "SRR3192367.14734") {
+            /*if (rpair.first().name == "SRR3192367.14734") {
                 std::stringstream ss;
                 ss << "\n\nBefore joining:\n";
                 for (auto &kv: leftHits) {
@@ -269,7 +269,7 @@ void processReadsPair(paired_parser *parser,
 
               if (mopts->recoverOrphans and mergeStatusOR and !tooShortRead and !tooShortMate) {
                 // TODO NOTE : do futher testing
-                bool recoveredAny = selective_alignment::utils::recoverOrphans(rpair.first.seq, rpair.second.seq, recoveredHits, jointHits, puffaligner, verbose);
+                bool recoveredAny = selective_alignment::utils::recoverOrphans(rpair.first().seq, rpair.second().seq, recoveredHits, jointHits, puffaligner, verbose);
                 (void)recoveredAny;
               }
 
@@ -290,19 +290,19 @@ void processReadsPair(paired_parser *parser,
                 bestHitRefType = BestHitReferenceType::UNKNOWN;
                 hitRefType = BestHitReferenceType::UNKNOWN;
                 bool isMultimapping = (jointHits.size() > 1);
-//                if (rpair.first.name == "SRR3192367.14734") {
+//                if (rpair.first().name == "SRR3192367.14734") {
 //                    verbose = true;
 //                }
 //                std::stringstream ss;
 //                if (verbose)
-//                   ss << "\n\n found the read:\n" << rpair.first.name << " " << jointHits.size() <<"\n";
+//                   ss << "\n\n found the read:\n" << rpair.first().name << " " << jointHits.size() <<"\n";
                 puffaligner.getScoreStatus().reset();
                 for (auto &&jointHit : jointHits) {
-                    auto hitScore = puffaligner.calculateAlignments(rpair.first.seq, rpair.second.seq, jointHit, hctr, isMultimapping, verbose);
+                    auto hitScore = puffaligner.calculateAlignments(rpair.first().seq, rpair.second().seq, jointHit, hctr, isMultimapping, verbose);
                     if (mopts->bestStrata and hitScore != invalidScore)
-                        puffaligner.getScoreStatus().updateBest(hitScore - mopts->matchScore * std::max(rpair.first.seq.length(), rpair.second.seq.length()));
+                        puffaligner.getScoreStatus().updateBest(hitScore - mopts->matchScore * std::max(rpair.first().seq.length(), rpair.second().seq.length()));
                     if ( (mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore) and hitScore != invalidScore)
-                        puffaligner.getScoreStatus().updateDecoy(hitScore - mopts->matchScore * std::max(rpair.first.seq.length(), rpair.second.seq.length()));
+                        puffaligner.getScoreStatus().updateDecoy(hitScore - mopts->matchScore * std::max(rpair.first().seq.length(), rpair.second().seq.length()));
                     scores[idx] = hitScore;
 //                    if (verbose)
 //                        ss << txpNames[jointHit.tid] << " " << jointHit.alignmentScore << " " << scores[idx] << "\n";
@@ -646,11 +646,11 @@ void processReadsSingle(single_parser *parser,
     while (parser->refill(rg)) {
         for (auto read_it = rg.begin(); read_it != rg.end(); ++read_it) {
             auto& read = *read_it;
-            readLen = static_cast<uint32_t >(read.seq.length());
+            readLen = static_cast<uint32_t >(read.first().seq.length());
             bool tooShortRead = readLen < pfi.k();
             auto totLen = readLen;
             bool verbose = false;
-            //if (verbose) std::cerr << read.name << "\n";
+            //if (verbose) std::cerr << read.first().name << "\n";
             ++hctr.numReads;
 
             jointHits.clear();
@@ -662,11 +662,11 @@ void processReadsSingle(single_parser *parser,
             bool filterMicrobiom = mopts->filterMicrobiom;
 
             bool lh = tooShortRead? false :
-              memCollector(read.seq,
+              memCollector(read.first().seq,
                            qc,
                            true, // isLeft
                            verbose);
-            memCollector.findChains(read.seq,
+            memCollector.findChains(read.first().seq,
                                    leftHits,
                                    mopts->maxSpliceGap,
                                    MateStatus::SINGLE_END,
@@ -702,7 +702,7 @@ void processReadsSingle(single_parser *parser,
                 bool isMultimapping = (jointHits.size() > 1);
                 puffaligner.getScoreStatus().reset();
                 for (auto &jointHit : jointHits) {
-                    int32_t hitScore = puffaligner.calculateAlignments(read.seq, jointHit, hctr, isMultimapping, verbose);
+                    int32_t hitScore = puffaligner.calculateAlignments(read.first().seq, jointHit, hctr, isMultimapping, verbose);
                     if (mopts->bestStrata) puffaligner.getScoreStatus().updateBest(hitScore);
                     if (mopts->filterGenomics or mopts->filterMicrobiom or mopts->filterMicrobiomBestScore) puffaligner.getScoreStatus().updateDecoy(hitScore);
                     scores[idx] = hitScore;
@@ -1130,7 +1130,13 @@ bool alignReads(
         }
 
         uint32_t nprod = (read1Vec.size() > 1) ? 2 : 1;
-        pairParserPtr.reset(new paired_parser(read1Vec, read2Vec, nthread, nprod, chunkSize));
+        auto parserCfg = fastx_parser::ParserConfigBuilder{}
+                             .with_consumers(nthread)
+                             .with_parsers(nprod)
+                             .with_chunk_size(static_cast<uint32_t>(chunkSize))
+                             .within_set_parallelism(true)
+                             .build();
+        pairParserPtr.reset(new paired_parser(parserCfg, read1Vec, read2Vec));
         pairParserPtr->start();
         spawnProcessReadsThreads(nthread, pairParserPtr.get(), pfi, iomutex,
                                  outLog, hctrs, gene_names, rrna_names, mopts);
@@ -1145,7 +1151,13 @@ bool alignReads(
         std::vector<std::string> readVec = pufferfish::util::tokenize(mopts->unmatedReads, ',');
 
         uint32_t nprod = (readVec.size() > 1) ? 2 : 1;
-        singleParserPtr.reset(new single_parser(readVec, nthread, nprod, chunkSize));
+        auto parserCfg = fastx_parser::ParserConfigBuilder{}
+                             .with_consumers(nthread)
+                             .with_parsers(nprod)
+                             .with_chunk_size(static_cast<uint32_t>(chunkSize))
+                             .within_set_parallelism(false)
+                             .build();
+        singleParserPtr.reset(new single_parser(parserCfg, readVec));
         singleParserPtr->start();
 
         spawnProcessReadsThreads(nthread, singleParserPtr.get(), pfi, iomutex,

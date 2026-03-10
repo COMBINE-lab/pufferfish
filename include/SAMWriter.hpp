@@ -285,7 +285,7 @@ inline uint32_t writeAlignmentsToRADSingle(
 
   auto& cigarStr = formatter.cigarStr1;
 
-  auto& readName = r.name;
+  auto& readName = r.first().name;
   // std::cout << readName << " || ";
   //  If the read name contains multiple space-separated parts,
   //  print only the first
@@ -303,7 +303,7 @@ inline uint32_t writeAlignmentsToRADSingle(
   }
   bstream << stx::string_view(readName.data(), nameLen)
           << static_cast<uint32_t>(jointHits.size())
-          << static_cast<rLenType>(r.seq.length());
+          << static_cast<rLenType>(r.first().seq.length());
   // auto& fullRefNames = formatter.index->getFullRefNames();
   auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
@@ -335,7 +335,7 @@ inline uint32_t writeAlignmentsToRADPair(
 
   auto& cigarStr = formatter.cigarStr1;
 
-  auto& readName = r.first.name;
+  auto& readName = r.first().name;
   // std::cout << readName << " || ";
   //  If the read name contains multiple space-separated parts,
   //  print only the first
@@ -353,8 +353,8 @@ inline uint32_t writeAlignmentsToRADPair(
   }
   bstream << stx::string_view(readName.data(), nameLen)
           << static_cast<uint32_t>(jointHits.size())
-          << static_cast<rLenType>(r.first.seq.length())
-          << static_cast<rLenType>(r.second.seq.length());
+          << static_cast<rLenType>(r.first().seq.length())
+          << static_cast<rLenType>(r.second().seq.length());
   // auto& fullRefNames = formatter.index->getFullRefNames();
   auto& fullRefLengths = formatter.index->getFullRefLengths();
   for (auto& qa : jointHits) {
@@ -386,7 +386,7 @@ inline uint32_t writeAlignmentsToKrakenDump(
     BinWriter& bstream, bool justMap, bool wrtIntervals = true) {
   if (validJointHits.empty())
     return 0;
-  auto& readName = r.first.name;
+  auto& readName = r.first().name;
   // std::cout << readName << " || ";
   //  If the read name contains multiple space-separated parts,
   //  print only the first
@@ -406,8 +406,8 @@ inline uint32_t writeAlignmentsToKrakenDump(
   // std::cout << strlen(readName.c_str() << "\n";
   bstream << stx::string_view(readName.data(), nameLen)
           << static_cast<uint32_t>(validJointHits.size())
-          << static_cast<rLenType>(r.first.seq.length())
-          << static_cast<rLenType>(r.second.seq.length());
+          << static_cast<rLenType>(r.first().seq.length())
+          << static_cast<rLenType>(r.second().seq.length());
   for (auto& qa : validJointHits) {
 
     /* auto& refName = formatter.index->refName(qa.tid);
@@ -488,7 +488,7 @@ inline uint32_t writeAlignmentsToKrakenDump(
   if (validHits.empty())
     return 0;
 
-  auto& readName = r.name;
+  auto& readName = r.first().name;
   // std::cerr << readName  << " -- ";
   size_t nameLen = readName.length();
 
@@ -509,8 +509,8 @@ inline uint32_t writeAlignmentsToKrakenDump(
   // std::cerr << readName << " " << nameLen << "\n";
   binStream << stx::string_view(readName.data(), nameLen)
             << static_cast<uint32_t>(validHits.size())
-            << static_cast<rLenType>(r.seq.length());
-  // std::cerr << readName << "\t" << validHits.size() << "\t" << r.seq.length()
+            << static_cast<rLenType>(r.first().seq.length());
+  // std::cerr << readName << "\t" << validHits.size() << "\t" << r.first().seq.length()
   // << "\n";
   for (auto& qa : validHits) {
     auto& clust = qa.second;
@@ -561,14 +561,14 @@ inline uint32_t writeUnalignedPairToStream(fastx_parser::ReadPair& r,
     return std::string(readNameView.data(), readNameView.size());
   };
 
-  auto readNameView = processReadName(r.first.name);
-  auto mateNameView = processReadName(r.second.name);
-  std::string* readSeq1 = &(r.first.seq);
-  std::string* readSeq2 = &(r.second.seq);
+  auto readNameView = processReadName(r.first().name);
+  auto mateNameView = processReadName(r.second().name);
+  std::string* readSeq1 = &(r.first().seq);
+  std::string* readSeq2 = &(r.second().seq);
 
   bool use_qualities = formatter.use_qualities;
-  std::string* readQual1 = use_qualities ? &(r.first.qual) : &(formatter.empty_qual);
-  std::string* readQual2 = use_qualities ? &(r.second.qual) : &(formatter.empty_qual);
+  std::string* readQual1 = use_qualities ? &(r.first().qual) : &(formatter.empty_qual);
+  std::string* readQual2 = use_qualities ? &(r.second().qual) : &(formatter.empty_qual);
 
   sstream << readNameView << '\t' // QNAME
           << flags1 << '\t'       // FLAGS
@@ -611,7 +611,7 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                                             ) {
   constexpr uint16_t flags = 0x4;
 
-  nonstd::string_view readNameViewSV(r.name);
+  nonstd::string_view readNameViewSV(r.first().name);
   // If the read name contains multiple space-separated parts, print
   // only the first
   size_t splitPos = readNameViewSV.find(' ');
@@ -619,8 +619,8 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
     readNameViewSV.remove_suffix(readNameViewSV.size() - splitPos);
   }
   std::string readNameView(readNameViewSV.data(), readNameViewSV.size());
-  std::string* readSeq = &(r.seq);
-  std::string* readQual = formatter.use_qualities ? &(r.qual) : &(formatter.empty_qual);
+  std::string* readSeq = &(r.first().seq);
+  std::string* readQual = formatter.use_qualities ? &(r.first().qual) : &(formatter.empty_qual);
 
   sstream << readNameView << '\t' // QNAME
           << flags << '\t'        // FLAGS
@@ -654,7 +654,7 @@ inline uint32_t writeAlignmentsToStreamSingle(
 
   uint16_t flags;
 
-  nonstd::string_view readNameViewSV(r.name);
+  nonstd::string_view readNameViewSV(r.first().name);
 
   // If the read name contains multiple space-separated parts, print
   // only the first
@@ -687,9 +687,9 @@ inline uint32_t writeAlignmentsToStreamSingle(
 
     // Reverse complement the read and reverse
     // the quality string if we need to
-    std::string* readSeq = &(r.seq);
+    std::string* readSeq = &(r.first().seq);
     std::string* readQual =
-        formatter.use_qualities ? &(r.qual) : &(formatter.empty_qual);
+        formatter.use_qualities ? &(r.first().qual) : &(formatter.empty_qual);
     if (!qa.fwd) {
       if (!haveRev) {
         // If we are writing both the read and qualities
@@ -762,13 +762,13 @@ inline uint32_t writeAlignmentsToStream(
     return std::string(readNameView.data(), readNameView.size());
   };
 
-  auto readNameView = processReadName(r.first.name);
-  auto mateNameView = processReadName(r.second.name);
+  auto readNameView = processReadName(r.first().name);
+  auto mateNameView = processReadName(r.second().name);
 
   cigarStr1.clear();
   cigarStr2.clear();
-  cigarStr1.write("{}M", r.first.seq.length());
-  cigarStr2.write("{}M", r.second.seq.length());
+  cigarStr1.write("{}M", r.first().seq.length());
+  cigarStr2.write("{}M", r.second().seq.length());
 
   std::string numHitFlag = fmt::format("NH:i:{}", jointHits.size());
   uint32_t alnCtr{0};
@@ -800,10 +800,10 @@ inline uint32_t writeAlignmentsToStream(
       adjustOverhang(qa, txpLen, cigarStr1, cigarStr2);
       // Reverse complement the read and reverse
       // the quality string if we need to
-      std::string* readSeq1 = &(r.first.seq);
+      std::string* readSeq1 = &(r.first().seq);
       std::string* readQual1 =
-          formatter.use_qualities ? &(r.first.qual) : &(formatter.empty_qual);
-      // std::string* qstr1 = &(r.first.qual);
+          formatter.use_qualities ? &(r.first().qual) : &(formatter.empty_qual);
+      // std::string* qstr1 = &(r.first().qual);
       if (!qa.fwd) {
         if (!haveRev1) {
           // If we are writing both the read and qualities
@@ -821,10 +821,10 @@ inline uint32_t writeAlignmentsToStream(
         readQual1 = formatter.use_qualities ? &(qual1Temp) : &(formatter.empty_qual);
       }
 
-      std::string* readSeq2 = &(r.second.seq);
+      std::string* readSeq2 = &(r.second().seq);
       std::string* readQual2 =
-          formatter.use_qualities ? &(r.second.qual) : &(formatter.empty_qual);
-      // std::string* qstr2 = &(r.second.qual);
+          formatter.use_qualities ? &(r.second().qual) : &(formatter.empty_qual);
+      // std::string* qstr2 = &(r.second().qual);
       if (!qa.mateIsFwd) {
         if (!haveRev2) {
           // If we are writing both the read and qualities
@@ -927,7 +927,7 @@ inline uint32_t writeAlignmentsToStream(
 
       auto* cigarStr = &formatter.cigarStr1;
       cigarStr->clear();
-      cigarStr->write("{}M", r.first.seq.length());
+      cigarStr->write("{}M", r.first().seq.length());
       // set these to empty qual as the default
       // case and assign them below if need be.
       readQual = &(formatter.empty_qual);
@@ -939,12 +939,12 @@ inline uint32_t writeAlignmentsToStream(
         alignedName = &readNameView;
         unalignedName = &mateNameView;
 
-        readSeq = &(r.first.seq);
-        unalignedSeq = &(r.second.seq);
+        readSeq = &(r.first().seq);
+        unalignedSeq = &(r.second().seq);
 
         if (formatter.use_qualities) {
-          readQual = &(r.first.qual);
-          unalignedQual = &(r.second.qual);
+          readQual = &(r.first().qual);
+          unalignedQual = &(r.second().qual);
         }
 
         flags = flags1;
@@ -959,14 +959,14 @@ inline uint32_t writeAlignmentsToStream(
 
         cigarStr = &formatter.cigarStr2;
         cigarStr->clear();
-        cigarStr->write("{}M", r.second.seq.length());
+        cigarStr->write("{}M", r.second().seq.length());
 
-        readSeq = &(r.second.seq);
-        unalignedSeq = &(r.first.seq);
+        readSeq = &(r.second().seq);
+        unalignedSeq = &(r.first().seq);
 
         if (formatter.use_qualities) {
-          readQual = &(r.second.qual);
-          unalignedQual = &(r.first.qual);
+          readQual = &(r.second().qual);
+          unalignedQual = &(r.first().qual);
         } 
 
         flags = flags2;
@@ -977,7 +977,7 @@ inline uint32_t writeAlignmentsToStream(
         qualTemp = &qual2Temp;
       }
 
-      // std::string* qstr1 = &(r.first.qual);
+      // std::string* qstr1 = &(r.first().qual);
       if (!qa.fwd) {
         if (!*haveRev) {
           // If we are writing both the read and qualities

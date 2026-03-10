@@ -46,7 +46,13 @@ int main(int argc, char* argv[]) {
 
   std::cout << "\n starting .. dodo\n";
   {
-    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
+    auto cfg = fastx_parser::ParserConfigBuilder{}
+                   .with_consumers(1)
+                   .with_parsers(1)
+                   .with_chunk_size(1000)
+                   .within_set_parallelism(false)
+                   .build();
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(cfg, read_file);
     parser.start();
     auto rg = parser.getReadGroup();
     uint32_t rn = 0;
@@ -59,8 +65,8 @@ int main(int argc, char* argv[]) {
         }
         ++rn;
 
-        auto& r1 = rp.seq;
-        fastaMap[rp.name] = r1;
+        auto& r1 = rp.first().seq;
+        fastaMap[rp.first().name] = r1;
       }
     }
   }

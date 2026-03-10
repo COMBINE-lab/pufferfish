@@ -514,15 +514,21 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     // go over all the reference files
     jointLog->info("Reading the reference files ...");
     std::vector<std::string> ref_files = {rfile};
-    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(ref_files, 1, 1);
+    auto cfg = fastx_parser::ParserConfigBuilder{}
+                   .with_consumers(1)
+                   .with_parsers(1)
+                   .with_chunk_size(1000)
+                   .within_set_parallelism(false)
+                   .build();
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(cfg, ref_files);
     parser.start();
     auto rg = parser.getReadGroup();
     // read the reference sequences and encode them into the refseq int_vector
 
     while (parser.refill(rg)) {
       for (auto &rp : rg) {
-        stx::string_view seqv(rp.seq);
-        auto &refIdx = refIdMap[rp.name];
+        stx::string_view seqv(rp.first().seq);
+        auto &refIdx = refIdMap[rp.first().name];
         auto offset = refIdx == 0 ? 0 : refAccumLengths[refIdx - 1];
         //std::cerr << "ref from [" << offset << ", " << offset + seqv.length() << "]\n";
         pf.encodeSeq(refseq, offset, seqv);

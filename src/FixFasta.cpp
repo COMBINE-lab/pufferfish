@@ -143,7 +143,7 @@ bool fixFasta(single_parser* parser,
     while (parser->refill(rg)) {
       for (auto& read : rg) { // for each sequence
         tooShort = false;
-        std::string& readStr = read.seq;
+        std::string& readStr = read.first().seq;
         readStr.erase(
             std::remove_if(readStr.begin(), readStr.end(),
                            [](const char a) -> bool { return !(isprint(a)); }),
@@ -156,7 +156,7 @@ bool fixFasta(single_parser* parser,
         auto txStringHash =
             XXH64(reinterpret_cast<void*>(const_cast<char*>(readStr.data())),
                   readLen, 0);
-        auto& readName = read.name;
+        auto& readName = read.first().name;
 
         // check if we think this is a gencode transcriptome, and the user has not passed the gencode flag
         if (firstRecord and !hasGencodeSep) {
@@ -209,7 +209,7 @@ bool fixFasta(single_parser* parser,
             if (newEndPos == std::string::npos) {
               log->warn("Entry with header [{}] appeared to be all A's; it "
                         "will be removed from the index!",
-                        read.name);
+                        read.first().name);
               readStr.resize(0);
             } else {
               readStr.resize(newEndPos + 1);
@@ -228,18 +228,18 @@ bool fixFasta(single_parser* parser,
           if (readStr.size() >= tooLong and !isDecoy and expect_transcriptome) {
             log->warn("Entry with header [{}] was longer than {} nucleotides.  "
                       "This is probably a chromosome instead of a transcript.",
-                      read.name, tooLong);
+                      read.first().name, tooLong);
           } else if (readStr.size() <= k) { // <= instead of < because of twopaco!
             log->warn("Entry with header [{}], had length less than equal to "
                       "the k-mer length of {} (perhaps after poly-A clipping)",
-                      read.name, k);
+                      read.first().name, k);
             tooShort = true;
           }
 
           uint32_t txpIndex = n++;
 
           // The name of the current transcript
-          auto& recHeader = read.name;
+          auto& recHeader = read.first().name;
           auto processedName =
               recHeader.substr(0, recHeader.find_first_of(sepStr));
 
@@ -338,7 +338,7 @@ bool fixFasta(single_parser* parser,
         } else {
           log->warn("Discarding entry with header [{}], since it had length 0 "
                     "(perhaps after poly-A clipping)",
-                    read.name);
+                    read.first().name);
         }
       }
       if (n % 10000 == 0) {
@@ -689,7 +689,12 @@ int fixFastaMain(std::vector<std::string>& args,
       std::unique_ptr<single_parser> transcriptParserPtr{nullptr};
       size_t numProd = 1;
 
-      transcriptParserPtr.reset(new single_parser(refFiles, numThreads, numProd));
+      auto parser_cfg = fastx_parser::ParserConfigBuilder{}
+                            .with_parsers(static_cast<uint32_t>(numProd))
+                            .with_consumers(static_cast<uint32_t>(numThreads))
+                            .within_set_parallelism(false)
+                            .build();
+      transcriptParserPtr.reset(new single_parser(parser_cfg, refFiles));
       transcriptParserPtr->start();
       std::mutex iomutex;
       fix_ok = fixFasta(transcriptParserPtr.get(), decoyNames, keepDuplicates, k, sepStr, expect_transcriptome, 

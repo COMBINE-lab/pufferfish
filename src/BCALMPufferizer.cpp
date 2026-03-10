@@ -52,7 +52,7 @@ getTerminalKmers(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, uint3
     // Here, rg will contain a chunk of read pairs
     // we can process.
     for (auto& rp : rg) {
-      auto& r1 = rp.seq;
+      auto& r1 = rp.first().seq;
       start.fromChars(r1.begin());
       end.fromChars(r1.end() - k);
       if (start == end) {
@@ -161,8 +161,8 @@ UnitigMap splitUnitigs(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser,
         if (numProcessed % 100000 == 0 and numProcessed > 0) {
             std::cout << "created " << numProcessed << " unitigs\n";
         }
-      auto& h = rp.name;
-      auto& seq = rp.seq;
+      auto& h = rp.first().name;
+      auto& seq = rp.first().seq;
       stx::string_view seqview = seq;
       uint32_t prev{0};
       bool first{true};
@@ -220,9 +220,9 @@ bool buildPaths(fastx_parser::FastxParser<fastx_parser::ReadSeq>& parser, Unitig
     //const auto ekend = umap.ekmer.end();
     while (parser.refill(rg)) {
         for (auto& rp : rg) { 
-            auto& ref = rp.seq;
+            auto& ref = rp.first().seq;
             uint32_t i{0};
-            ufile << "P\t" << rp.name << '\t';
+            ufile << "P\t" << rp.first().name << '\t';
 
             //bool first{true};
             while (i < ref.length() - k + 1) {
@@ -270,7 +270,13 @@ int main(int argc, char* argv[]) {
     );
 
     if(!parse(argc, argv, cli)) std::cout << make_man_page(cli, argv[0]);
-    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser({config.ref}, 1, 1);
+    auto parser_cfg = fastx_parser::ParserConfigBuilder{}
+                          .with_consumers(1)
+                          .with_parsers(1)
+                          .with_chunk_size(1000)
+                          .within_set_parallelism(false)
+                          .build();
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(parser_cfg, std::vector<std::string>{config.ref});
     parser.start();
     auto kmap = getTerminalKmers(parser, config.k);
     parser.stop();
@@ -280,7 +286,13 @@ int main(int argc, char* argv[]) {
 
     std::string ufname = config.gfa + ".pufferized.gfa";
     std::ofstream ufile(ufname);
-    fastx_parser::FastxParser<fastx_parser::ReadSeq> uparser({config.gfa}, 1, 1);
+    auto uparser_cfg = fastx_parser::ParserConfigBuilder{}
+                           .with_consumers(1)
+                           .with_parsers(1)
+                           .with_chunk_size(1000)
+                           .within_set_parallelism(false)
+                           .build();
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> uparser(uparser_cfg, std::vector<std::string>{config.gfa});
     uparser.start();
     auto umap = splitUnitigs(uparser, kmap, config.k, ufile);
     uparser.stop();
@@ -288,7 +300,13 @@ int main(int argc, char* argv[]) {
     std::cerr << "umap size = " << umap.kmers.size() << "\n";
     
     std::cerr << "start reconstructing the paths\n";
-    fastx_parser::FastxParser<fastx_parser::ReadSeq> rparser({config.ref}, 1, 1);
+    auto rparser_cfg = fastx_parser::ParserConfigBuilder{}
+                           .with_consumers(1)
+                           .with_parsers(1)
+                           .with_chunk_size(1000)
+                           .within_set_parallelism(false)
+                           .build();
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> rparser(rparser_cfg, std::vector<std::string>{config.ref});
     rparser.start();
     buildPaths(rparser, umap, config.k, ufile);
     rparser.stop();

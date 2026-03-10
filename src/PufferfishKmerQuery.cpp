@@ -56,18 +56,18 @@ int doPufferfishKmerQuery(IndexT& pi,
                     << ", total hits = " << totalHits << "\n";
         }
         */
-        auto& r1 = rp.seq;
+        auto& r1 = rp.first().seq;
 
         km.fromStr(r1.data());
         auto phits = pi.getRefPos(km, qc);
         if (phits.empty()) {
           ++notFound;
-          osstream << rp.name << "\t0\n";
+          osstream << rp.first().name << "\t0\n";
         } else {
           ++found;
           size_t nh = phits.refRange.size();
           totalHits += nh;
-          osstream << rp.name << '\t' << nh << '\n';
+          osstream << rp.first().name << '\t' << nh << '\n';
           for (auto& rh : phits.refRange) {
             auto ref_id = pi.getRefId(rh.transcript_id());
             auto h = phits.decodeHit(rh);
@@ -123,7 +123,13 @@ int pufferfishKmerQuery(pufferfish::KmerQueryOptions& kqueryOpts) {
   std::vector<std::string> &read_file = kqueryOpts.queryFiles;
   uint32_t np = 1;
   if ((read_file.size() > 1) and (nthread >= 6)) { np += 1; nthread -= 1;}
-  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, nthread, np);
+  auto cfg = fastx_parser::ParserConfigBuilder{}
+                 .with_consumers(static_cast<uint32_t>(nthread))
+                 .with_parsers(np)
+                 .with_chunk_size(1000)
+                 .within_set_parallelism(false)
+                 .build();
+  fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(cfg, read_file);
 
   parser.start();
 

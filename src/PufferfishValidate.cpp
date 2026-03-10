@@ -362,7 +362,13 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
   {
     ScopedTimer st;
     std::vector<std::string> read_file = {validateOpts.refFile};
-    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(read_file, 1, 1);
+    auto cfg = fastx_parser::ParserConfigBuilder{}
+                   .with_consumers(1)
+                   .with_parsers(1)
+                   .with_chunk_size(1000)
+                   .within_set_parallelism(false)
+                   .build();
+    fastx_parser::FastxParser<fastx_parser::ReadSeq> parser(cfg, read_file);
     parser.start();
     // Get the read group by which this thread will
     // communicate with the parser (*once per-thread*)
@@ -381,7 +387,7 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
                     << "\n";
         }
         ++rn;
-        auto& r1 = rp.seq;
+        auto& r1 = rp.first().seq;
         pufferfish::CanonicalKmerIterator kit1(r1);
         pufferfish::util::QueryCache qc;
         for (; kit1 != kit_end; ++kit1) {
@@ -396,7 +402,7 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
             uint32_t clen = 0;
             std::vector<uint32_t> wrongPos;
             for (auto& rpos : phits.refRange) {
-              if (pi.refName(rpos.transcript_id()) == rp.name) {
+              if (pi.refName(rpos.transcript_id()) == rp.first().name) {
                 foundTxp = true;
                 auto refInfo = phits.decodeHit(rpos);
                 if (static_cast<int>(refInfo.pos) == kit1->second) {
@@ -415,7 +421,7 @@ int doPufferfishValidate(IndexT& pi, pufferfish::ValidateOptions& validateOpts) 
                 ++correctPosCntr;
               } else {
                 std::cerr
-                  << "txp = [" << rp.name << "], "
+                  << "txp = [" << rp.first().name << "], "
                   << "kmer = [" << kit1->first.to_str() << "], "
                     << "correct pos = " << kit1->second << ", found "
                     << pufferfish::util::str(wrongPos) << ", contig orientation = " << cor
@@ -477,4 +483,3 @@ int pufferfishValidate(pufferfish::ValidateOptions& validateOpts) {
     PufferfishIndex pi(validateOpts.indexDir);
     return doPufferfishInternalValidate(pi, validateOpts);
 }
-
