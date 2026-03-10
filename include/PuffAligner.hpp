@@ -10,7 +10,7 @@
 #include "ksw2pp/KSW2Aligner.hpp"
 #include "edlib.h"
 
-#include "parallel_hashmap/phmap.h"
+#include "ankerl/unordered_dense.h"
 
 struct PassthroughHash {
 	std::size_t operator()(uint64_t const& u) const { return u; }
@@ -51,7 +51,7 @@ struct ScoreStatus {
 
 using HitCounters = pufferfish::util::HitCounters;
 using AlignmentResult = pufferfish::util::AlignmentResult;
-using AlnCacheMap = phmap::flat_hash_map<uint64_t, AlignmentResult, PassthroughHash>;
+using AlnCacheMap = ankerl::unordered_dense::map<uint64_t, AlignmentResult, PassthroughHash>;
 
 class PuffAligner {
 public:

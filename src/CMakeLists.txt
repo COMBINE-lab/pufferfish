@@ -34,6 +34,10 @@ ksw2pp/ksw2_extf2_sse.c
 ksw2pp/ksw2_extz2_sse.c
 )
 
+set (KSW2PP_AVX2_LIB_SRCS
+ksw2pp/ksw2_extz2_avx2.c
+)
+
 add_library(ksw2pp_sse2 OBJECT ${KSW2PP_ADVANCED_LIB_SRCS})
 add_library(ksw2pp_sse4 OBJECT ${KSW2PP_ADVANCED_LIB_SRCS})
 add_library(ksw2pp_basic OBJECT ${KSW2PP_BASIC_LIB_SRCS})
@@ -52,6 +56,15 @@ else()
     target_compile_definitions(ksw2pp_basic PRIVATE KSW_CPU_DISPATCH HAVE_KALLOC)
 endif()
 
+# AVX2 variant (x86 only)
+if (NOT USE_ARM)
+    add_library(ksw2pp_avx2 OBJECT ${KSW2PP_AVX2_LIB_SRCS})
+    target_compile_options(ksw2pp_avx2 PRIVATE -O3 -mavx2)
+    target_compile_definitions(ksw2pp_avx2 PRIVATE __AVX2__ HAVE_KALLOC)
+    pufferfish_configure_target(ksw2pp_avx2)
+    target_include_directories(ksw2pp_avx2 PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
+endif()
+
 foreach(ksw_target IN ITEMS ksw2pp_sse2 ksw2pp_sse4 ksw2pp_basic)
   pufferfish_configure_target(${ksw_target})
 endforeach()
@@ -60,7 +73,11 @@ target_include_directories(ksw2pp_sse4 PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
 target_include_directories(ksw2pp_sse2 PRIVATE ${PUFFERFISH_ROOT_DIR}/include)
 
 # Build the ksw2pp library
-add_library(ksw2pp STATIC $<TARGET_OBJECTS:ksw2pp_sse2> $<TARGET_OBJECTS:ksw2pp_sse4> $<TARGET_OBJECTS:ksw2pp_basic>)
+if (NOT USE_ARM)
+    add_library(ksw2pp STATIC $<TARGET_OBJECTS:ksw2pp_avx2> $<TARGET_OBJECTS:ksw2pp_sse2> $<TARGET_OBJECTS:ksw2pp_sse4> $<TARGET_OBJECTS:ksw2pp_basic>)
+else()
+    add_library(ksw2pp STATIC $<TARGET_OBJECTS:ksw2pp_sse2> $<TARGET_OBJECTS:ksw2pp_sse4> $<TARGET_OBJECTS:ksw2pp_basic>)
+endif()
 pufferfish_configure_target(ksw2pp)
 target_compile_definitions(ksw2pp PRIVATE KSW_CPU_DISPATCH HAVE_KALLOC)
 if(HAS_IPO)

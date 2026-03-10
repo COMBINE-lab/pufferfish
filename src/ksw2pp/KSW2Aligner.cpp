@@ -84,10 +84,12 @@ unsigned char seq_nt4_table_loc[256] = {
 
   KSW2Aligner::KSW2Aligner(int8_t match, int8_t mismatch) {
     #ifdef KSW_USE_ARM
+    haveAVX2 = false;
     haveSSE41 = true;
     haveSSE2 = true;
     #else
     unsigned int simd = x86_simd();
+    haveAVX2 = (simd & SIMD_AVX2);
     haveSSE41 = (simd & SIMD_SSE4_1);
     haveSSE2 = (simd & SIMD_SSE2);
     #endif // KSW_USE_ARM
@@ -115,10 +117,12 @@ unsigned char seq_nt4_table_loc[256] = {
 
 KSW2Aligner::KSW2Aligner(std::vector<int8_t> mat) {
     #ifdef KSW_USE_ARM
+    haveAVX2 = false;
     haveSSE41 = true;
     haveSSE2 = true;
     #else
     unsigned int simd = x86_simd();
+    haveAVX2 = (simd & SIMD_AVX2);
     haveSSE41 = (simd & SIMD_SSE4_1);
     haveSSE2 = (simd & SIMD_SSE2);
     #endif // KSW_USE_ARM
@@ -245,7 +249,11 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
   int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
   int z = config_.dropoff;
-  if (haveSSE41) {
+  if (haveAVX2) {
+    ksw_extz2_avx2(kalloc_allocator_.get(), qlen, query_.data(), tlen,
+                target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
+                config_.end_bonus, config_.flag, ez, cutoff);
+  } else if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                 target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
                 config_.end_bonus, config_.flag, ez, cutoff);
@@ -390,7 +398,11 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
   int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
   int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
   int z = config_.dropoff;
-  if (haveSSE41) {
+  if (haveAVX2) {
+    ksw_extz2_avx2(kalloc_allocator_.get(), qlen, query_, tlen, target_,
+                config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
+                ez, cutoff);
+  } else if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_, tlen, target_,
                 config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
                 ez, cutoff);

@@ -65,7 +65,7 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
                                      //pufferfish::common_types::RefMemMapT &trMemMap,
                                      RefMemMap& trMemMap,
                                      std::vector<pufferfish::util::UniMemInfo> &memCollection, uint64_t firstDecoyIndex,
-                                     phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> & /*other_end_refs*/) {
+                                     ankerl::unordered_dense::map<pufferfish::common_types::ReferenceID, bool> & /*other_end_refs*/) {
   using namespace pufferfish::common_types;
   if (hits.empty()) {
     return 0;
@@ -101,7 +101,7 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
       //if (static_cast<uint64_t>(refs.size()) < maxAllowedRefsPerHit or other_end_refs.find(posIt.transcript_id()) != other_end_refs.end() ) {
         const auto& refPosOri = projHits.decodeHit(posIt);
         auto tid = posIt.transcript_id();
-        auto& refHits = trMemMap[std::make_pair(tid, refPosOri.isFW)];
+        auto& refHits = trMemMap[encodeRefKey(tid, refPosOri.isFW)];
         refHits.emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
         auto nh = refHits.size();
         maxNonDecoyHits = (tid < firstDecoyIndex) ? std::max(nh, maxNonDecoyHits) : maxNonDecoyHits;
@@ -114,10 +114,10 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
 
 bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
                                 pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& memClusters,
-                                //phmap::flat_hash_map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
+                                //ankerl::unordered_dense::map<pufferfish::common_types::ReferenceID, std::vector<pufferfish::util::MemCluster>> &memClusters,
                                 uint32_t maxSpliceGap, std::vector<pufferfish::util::UniMemInfo> &memCollection,
                                 uint32_t readLen,
-                                phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
+                                ankerl::unordered_dense::map<pufferfish::common_types::ReferenceID, bool>& other_end_refs,
                                 bool hChain,
                                 RefMemMap& trMemMap,
                                 uint64_t firstDecoyIndex,
@@ -143,9 +143,9 @@ bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::Pro
   double maxChainScore{0.0};
   int32_t signedReadLen = static_cast<int32_t>(readLen);
   for (auto hitIt = trMemMap.begin(); hitIt != trMemMap.end(); ++hitIt) {
-    auto& trOri = hitIt->first;
-    auto &tid = trOri.first;
-    auto &isFw = trOri.second;
+    auto encodedKey = hitIt->first;
+    auto tid = decodeRefTid(encodedKey);
+    auto isFw = decodeRefFW(encodedKey);
     auto &memList = *hitIt->second;
     size_t hits = memList.size();
     if (filterBefore and (hits < consensusFraction_ * maxHits)) { continue; }

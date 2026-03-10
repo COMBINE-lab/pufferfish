@@ -60,23 +60,16 @@ int32_t addCigar(pufferfish::util::CIGARGenerator &cigarGen, ksw_extz_t ez, bool
 
 std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen) {
     if (memlen == 0) return "";
-    std::string tseq; tseq.reserve(memlen);
+    std::string tseq(memlen, 'N');
     uint64_t bucket_offset = (refAccPos + tpos) * 2;
     auto len_on_vector = memlen * 2;
+    uint32_t out_idx = 0;
     for (uint32_t w = 0; w <= len_on_vector / 64; w++) {
         uint32_t len = std::min((uint32_t) 64, len_on_vector - w * 64);
         if (len == 0) continue;
         uint64_t word = refseq.get_int(bucket_offset, len);
         for (uint32_t i = 0; i < len; i += 2) {
-            uint8_t next_bits = ((word >> i) & 0x03);
-            char next = 'A';
-            if (next_bits == 1)
-                next = 'C';
-            else if (next_bits == 2)
-                next = 'G';
-            else if (next_bits == 3)
-                next = 'T';
-            tseq += next;
+            tseq[out_idx++] = "ACGT"[(word >> i) & 0x03];
         }
         bucket_offset += len;
     }
@@ -84,18 +77,18 @@ std::string getRefSeq(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, 
 }
 
 bool fillRefSeqBuffer(compact::vector<uint64_t, 2> &refseq, uint64_t refAccPos, size_t tpos, uint32_t memlen, std::string& refBuffer_) {
-  refBuffer_.clear();
+  refBuffer_.resize(memlen);
   if (memlen == 0) return false;
   uint64_t bucket_offset = (refAccPos + tpos) * 2;
   auto len_on_vector = memlen * 2;
   int32_t toFetch = len_on_vector;
+  uint32_t out_idx = 0;
   while (toFetch > 0) {
     uint32_t len = (toFetch >= 64) ? 64 : toFetch;
     toFetch -= len;
     uint64_t word = refseq.get_int(bucket_offset, len);
     for (uint32_t i = 0; i < len; i += 2) {
-      uint8_t next_bits = ((word >> i) & 0x03);
-      refBuffer_ += "ACGT"[next_bits];
+      refBuffer_[out_idx++] = "ACGT"[(word >> i) & 0x03];
     }
     bucket_offset += len;
   }

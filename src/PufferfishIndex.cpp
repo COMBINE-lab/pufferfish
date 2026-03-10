@@ -209,24 +209,26 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache
     uint64_t contigEnd = res.string_end;  // exclusive
     uint64_t clen = contigEnd - contigStart;
 
-    uint64_t fk = dict_.strings().get_bits(2 * globalPos, twok_);
-    auto keq = mer.isEquivalent(fk);
-    if (keq == KmerMatchType::NO_MATCH) {
-      return makeEmptyHit(k_);
-    }
-    bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
+    // Derive orientation from SSHash's lookup result directly,
+    // avoiding a 2k-bit read from the internal bit_vector.
+    // forward_orientation means the stored k-mer matches our query (the canonical word).
+    // hitFW (IDENTITY_MATCH) means the stored k-mer equals fwWord().
+    bool fwIsCanonical = (mer.fwWord() <= mer.rcWord());
+    bool hitFW = (res.kmer_orientation == sshash::constants::forward_orientation) == fwIsCanonical;
 
-    // Use query cache for contig table lookups
-    const bool same_contig = (qc.contigStart <= globalPos) and (globalPos <= qc.contigEnd);
-    if (same_contig) {
-      // Reuse cached range
+    // Cache contig table range to avoid repeated Elias-Fano lookups
+    // when consecutive k-mers land on the same contig.
+    core::range<IterT> contigIterRange;
+    if (string_id == qc.prevRank) {
+      contigIterRange = core::range<IterT>(qc.rangeBegin, qc.rangeEnd);
     } else {
+      contigIterRange = contigTable_.contigRange(string_id);
       qc.prevRank = string_id;
       qc.contigStart = contigStart;
       qc.contigEnd = contigEnd - 1;  // QueryCache uses inclusive end
+      qc.rangeBegin = contigIterRange.begin();
+      qc.rangeEnd = contigIterRange.end();
     }
-
-    auto contigIterRange = contigTable_.contigRange(string_id);
 
     return {static_cast<uint32_t>(string_id),
             globalPos,
@@ -301,23 +303,22 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache
   uint64_t globalPos = res.string_begin + relPos;
   uint64_t clen = res.string_end - res.string_begin;
 
-  // Determine orientation: compare the kmer in the index with our query kmer
-  uint64_t fk = dict_.strings().get_bits(2 * globalPos, twok_);
-  auto keq = mer.isEquivalent(fk);
-  if (keq == KmerMatchType::NO_MATCH) {
-    return makeEmptyHit(k_);
-  }
-  bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
+  // Derive orientation from SSHash's lookup result directly.
+  bool fwIsCanonical = (mer.fwWord() <= mer.rcWord());
+  bool hitFW = (res.kmer_orientation == sshash::constants::forward_orientation) == fwIsCanonical;
 
-  // Use query cache for contig table lookups
-  const bool same_contig = (qc.contigStart <= globalPos) and (globalPos <= qc.contigEnd);
-  if (!same_contig) {
+  // Cache contig table range to avoid repeated Elias-Fano lookups.
+  core::range<IterT> contigIterRange;
+  if (string_id == qc.prevRank) {
+    contigIterRange = core::range<IterT>(qc.rangeBegin, qc.rangeEnd);
+  } else {
+    contigIterRange = contigTable_.contigRange(string_id);
     qc.prevRank = string_id;
     qc.contigStart = res.string_begin;
     qc.contigEnd = res.string_end - 1;
+    qc.rangeBegin = contigIterRange.begin();
+    qc.rangeEnd = contigIterRange.end();
   }
-
-  auto contigIterRange = contigTable_.contigRange(string_id);
 
   return {static_cast<uint32_t>(string_id),
           globalPos,
@@ -345,12 +346,8 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> pufferfish::util::Project
     uint64_t globalPos = res.string_begin + relPos;
     uint64_t clen = res.string_end - res.string_begin;
 
-    uint64_t fk = dict_.strings().get_bits(2 * globalPos, twok_);
-    auto keq = mer.isEquivalent(fk);
-    if (keq == KmerMatchType::NO_MATCH) {
-      return makeEmptyHit(k_);
-    }
-    bool hitFW = (keq == KmerMatchType::IDENTITY_MATCH);
+    bool fwIsCanonical = (mer.fwWord() <= mer.rcWord());
+    bool hitFW = (res.kmer_orientation == sshash::constants::forward_orientation) == fwIsCanonical;
 
     auto contigIterRange = contigTable_.contigRange(string_id);
 

@@ -127,6 +127,7 @@ private:
                                                          KallocDeleter()};
   std::vector<int8_t> mat_;
   KSW2Config config_;
+  bool haveAVX2{false};
   bool haveSSE41{false};
   bool haveSSE2{false};
 };

@@ -12,7 +12,7 @@
 #include <iostream>
 #include <iterator>
 #include <sparsepp/spp.h>
-#include "parallel_hashmap/phmap.h"
+#include "ankerl/unordered_dense.h"
 #include "itlib/small_vector.hpp"
 #include "MemChainer.hpp"
 
@@ -48,7 +48,7 @@ bool findChains(std::string& read,
                 pufferfish::util::CachedVectorMap<
                     size_t, std::vector<pufferfish::util::MemCluster>,
                     std::hash<size_t>>& memClusters,
-                // phmap::flat_hash_map<size_t,
+                // ankerl::unordered_dense::map<size_t,
                 // std::vector<pufferfish::util::MemCluster>>& memClusters,
                 uint32_t maxSpliceGap, pufferfish::util::MateStatus mateStatus,
                 bool hChain = false, bool isLeft = false, bool verbose = false);
@@ -86,11 +86,12 @@ private:
   bool isSingleEnd = false;
   MemClusterer mc;
   //pufferfish::common_types::RefMemMapT trMemMap;
-  pufferfish::util::CachedVectorMap<std::pair<pufferfish::common_types::ReferenceID, bool>, std::vector<pufferfish::util::MemInfo>, pufferfish::util::pair_hash> trMemMap;
+  // Encoded key: (tid << 1) | isFW — see MemClusterer::encodeRefKey
+  pufferfish::util::CachedVectorMap<uint64_t, std::vector<pufferfish::util::MemInfo>, std::hash<uint64_t>> trMemMap;
 
 
-  phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> left_refs;
-  phmap::flat_hash_map<pufferfish::common_types::ReferenceID, bool> right_refs;
+  ankerl::unordered_dense::map<pufferfish::common_types::ReferenceID, bool> left_refs;
+  ankerl::unordered_dense::map<pufferfish::common_types::ReferenceID, bool> right_refs;
 
   std::vector<std::pair<int, pufferfish::util::ProjectedHits>> left_rawHits;
   std::vector<std::pair<int, pufferfish::util::ProjectedHits>> right_rawHits;

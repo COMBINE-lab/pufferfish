@@ -3,7 +3,7 @@
 
 #include "core/range.hpp"
 #include "itlib/small_vector.hpp"
-#include "parallel_hashmap/phmap.h"
+#include "ankerl/unordered_dense.h"
 #include "Util.hpp"
 
 namespace pufferfish {

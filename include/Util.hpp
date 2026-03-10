@@ -20,7 +20,7 @@
 #include "spdlog/fmt/ostr.h"
 #include "spdlog/fmt/fmt.h"
 #include "itlib/small_vector.hpp"
-#include "parallel_hashmap/phmap.h"
+#include "ankerl/unordered_dense.h"
 #include "compact_vector/compact_vector.hpp"
 
 #ifdef PUFFERFISH_SALMON_SUPPORT
@@ -133,7 +133,12 @@ namespace pufferfish {
         template <class T1, class T2>
         std::size_t operator() (const std::pair<T1, T2> &pair) const
         {
-          return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+          // Mix first hash with a constant before combining to avoid
+          // symmetric collisions from XOR.
+          auto h1 = std::hash<T1>()(pair.first);
+          auto h2 = std::hash<T2>()(pair.second);
+          h1 ^= h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+          return h1;
         }
       };
 
@@ -143,18 +148,39 @@ namespace pufferfish {
       template <typename K, typename V, typename H>
       class CachedVectorMap {
       private:
-        phmap::flat_hash_map<K, uint32_t, H> index_map_;
+        struct IndexEntry {
+          uint32_t idx;
+          uint32_t gen;
+        };
+        ankerl::unordered_dense::map<K, IndexEntry, H> index_map_;
         std::vector<V> cache_;
         uint32_t next_avail_{0};
+        uint32_t current_gen_{0};
+
+        // Thresholds for periodic full clear to bound memory growth.
+        static constexpr uint32_t kGenClearInterval = 65536;
+        static constexpr uint32_t kStaleFactor = 10;
+
+        void maybe_full_clear() {
+          // Full clear if too many generations elapsed or map has grown
+          // far beyond the number of live entries.
+          if (current_gen_ > 0 &&
+              (current_gen_ % kGenClearInterval == 0 ||
+               index_map_.size() > kStaleFactor * static_cast<size_t>(next_avail_ + 1))) {
+            index_map_.clear();
+          }
+        }
+
       public:
         CachedVectorMap(){}
 
         V& operator[](const K& k) {
           auto it = index_map_.find(k);
-          if (it == index_map_.end()) {
+          if (it == index_map_.end() || it->second.gen != current_gen_) {
+            // New entry (or stale entry from a previous generation).
             auto idx = next_avail_;
             ++next_avail_;
-            index_map_[k] = idx;
+            index_map_[k] = IndexEntry{idx, current_gen_};
             if (idx >= cache_.size()) {
               cache_.emplace_back(V());
               return cache_.back();
@@ -163,7 +189,7 @@ namespace pufferfish {
               return cache_[idx];
             }
           } else {
-            return cache_[it->second];
+            return cache_[it->second.idx];
           }
         }
 
@@ -174,11 +200,12 @@ namespace pufferfish {
         decltype(index_map_.begin()) key_begin() { return index_map_.begin(); }
         decltype(index_map_.end()) key_end() { return index_map_.end(); }
 
-        size_t size() const { return index_map_.size(); }
+        size_t size() const { return next_avail_; }
 
         void clear() {
           next_avail_ = 0;
-          index_map_.clear();
+          ++current_gen_;
+          maybe_full_clear();
         }
 
         class iterator {
@@ -187,12 +214,11 @@ namespace pufferfish {
             typedef std::pair<K,V*> value_type;
             typedef value_type& reference;
             typedef value_type* pointer;
-//            typedef std::input_iterator_tag iterator_category;
-//            typedef int64_t difference_type;
 
         public:
             explicit iterator(CachedVectorMap &vmIn): vm(vmIn) {
               key = vm.index_map_.begin();
+              skip_stale();
               if (key != vm.index_map_.end()) {
                 setKV();
               }
@@ -205,7 +231,9 @@ namespace pufferfish {
             pointer operator->() { return &operator*(); }
 
             iterator& operator++() {
-                if (++key != vm.index_map_.end())
+                ++key;
+                skip_stale();
+                if (key != vm.index_map_.end())
                     setKV();
                 return *this;
             }
@@ -216,19 +244,12 @@ namespace pufferfish {
                 return tmp;
             }
 
-            bool operator==(const self_type& itr) {
-                if (key == itr.key and key == vm.index_map_.end()) return true;
-                if (key != itr.key) return false;
-                if (kv.first != itr.kv.first) return false;
-                if (kv.second->size() != itr.kv.second->size()) return false;
-                for (uint64_t i = 0; i < kv.second->size(); i++) {
-                    if ((*kv.second)[i] != (*itr.kv.second)[i]) return false;
-                }
-                return true;
+            bool operator==(const self_type& itr) const {
+                return key == itr.key;
             }
 
-            bool operator!=(const self_type& itr) {
-                return !((*this) == itr);
+            bool operator!=(const self_type& itr) const {
+                return key != itr.key;
             }
 
             void set2End() {key = vm.index_map_.end();}
@@ -238,9 +259,17 @@ namespace pufferfish {
             value_type kv;
             decltype(index_map_.begin()) key;
 
+            // Advance past entries whose generation doesn't match current.
+            void skip_stale() {
+              while (key != vm.index_map_.end() &&
+                     key->second.gen != vm.current_gen_) {
+                ++key;
+              }
+            }
+
             void setKV() {
                 kv.first = key->first;
-                kv.second = key->second >= vm.cache_.size()?nullptr:&vm.cache_[key->second];
+                kv.second = key->second.idx >= vm.cache_.size()?nullptr:&vm.cache_[key->second.idx];
             }
 
           };
@@ -1133,6 +1162,8 @@ Compile-time selection between list-like and map-like printing.
             uint64_t prevRank{std::numeric_limits<uint64_t>::max()};
             uint64_t contigStart{std::numeric_limits<uint64_t>::max()};
             uint64_t contigEnd{std::numeric_limits<uint64_t>::max()};
+            const Position* rangeBegin{nullptr};
+            const Position* rangeEnd{nullptr};
         };
 
         struct ContigPosInfo {
@@ -1377,7 +1408,7 @@ Compile-time selection between list-like and map-like printing.
         };
 
       void joinReadsAndFilterSingle( pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>>& leftMemClusters,
-                                     //phmap::flat_hash_map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
+                                     //ankerl::unordered_dense::map<size_t, std::vector<pufferfish::util::MemCluster>> &leftMemClusters,
                                      std::vector<pufferfish::util::JointMems> &jointMemsList,
                                      uint32_t perfectCoverage,
                                      double coverageRatio);
