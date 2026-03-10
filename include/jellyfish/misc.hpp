@@ -188,15 +188,14 @@ ForwardIterator binary_search_first_false(ForwardIterator first, ForwardIterator
 /// with `a[i] = i`, except the array is not instantiated and does not
 /// have a fixed size.
 template<typename T>
-class pointer_integer : public std::iterator<std::random_access_iterator_tag, T> {
+class pointer_integer {
     T x_;
-  typedef typename std::iterator<std::random_access_iterator_tag, T> super;
  public:
-  typedef T                                 value_type;
-  typedef typename super::difference_type   difference_type;
-  typedef typename super::pointer           pointer;
-  typedef typename super::reference         reference;
-  typedef typename super::iterator_category iterator_category;
+  typedef T                                value_type;
+  typedef std::ptrdiff_t                   difference_type;
+  typedef T*                               pointer;
+  typedef T&                               reference;
+  typedef std::random_access_iterator_tag  iterator_category;
 
   pointer_integer() : x_(0) { }
   explicit pointer_integer(T x) : x_(x) { }
