@@ -10,7 +10,10 @@
 
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include "BooPHF.hpp"
+#pragma GCC diagnostic pop
 #include "Util.hpp"
 #include "PufferfishTypes.hpp"
 #include "ContigTable.hpp"

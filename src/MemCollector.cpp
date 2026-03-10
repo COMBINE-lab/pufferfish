@@ -571,7 +571,6 @@ bool MemCollector<PufferfishIndexT>::get_raw_hits_sketch(std::string &read,
                   bool isLeft,
                   bool verbose) {
   (void) verbose;
-  pufferfish::util::ProjectedHits phits;
   auto& raw_hits = isLeft ? left_rawHits : right_rawHits;
 
   CanonicalKmer::k(k);

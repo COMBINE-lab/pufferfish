@@ -330,8 +330,6 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache
 }
 
 auto PufferfishIndex::getRefPos(CanonicalKmer& mer) -> pufferfish::util::ProjectedHits {
-  using IterT = const pufferfish::util::Position*;
-
   if (useSSHash_) {
     sshash::default_kmer_t sshash_kmer;
     sshash_kmer.bits = mer.getCanonicalWord();

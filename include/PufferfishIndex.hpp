@@ -6,7 +6,10 @@
 #include "cereal/archives/json.hpp"
 #include "core/range.hpp"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include "BooPHF.hpp"
+#pragma GCC diagnostic pop
 #include "CanonicalKmer.hpp"
 #include "CanonicalKmerIterator.hpp"
 #include "Util.hpp"
