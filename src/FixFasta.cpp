@@ -102,10 +102,10 @@ bool fixFasta(single_parser* parser,
 
   auto update_seq_hash = [&seqHasher256, &seqHasher512, &decoySeqHasher256](bool is_decoy, const std::string& seq) -> void {
     if (is_decoy) {
-      decoySeqHasher256.absorb(seq.begin(), seq.end());
+      decoySeqHasher256.absorb(seq);
     } else {
-      seqHasher256.absorb(seq.begin(), seq.end());
-      seqHasher512.absorb(seq.begin(), seq.end());
+      seqHasher256.absorb(seq);
+      seqHasher512.absorb(seq);
     }
   };
 
@@ -533,8 +533,8 @@ bool extractFasta(std::string& inputTsv, std::string& outFile, uint32_t& numFeat
       nameHasher256.absorb(featStr);
       nameHasher512.absorb(featStr);
 
-      seqHasher256.absorb(seqStr.begin(), seqStr.end());
-      seqHasher512.absorb(seqStr.begin(), seqStr.end());
+      seqHasher256.absorb(seqStr);
+      seqHasher512.absorb(seqStr);
 
       if (seqLen == 0) { seqLen = seqStr.size(); }
       if (seqLen > 0 && seqLen != seqStr.size()) {
