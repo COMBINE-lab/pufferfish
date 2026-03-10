@@ -1,3 +1,3 @@
 [submodule "external/sshash"]
 	path = external/sshash
-	url = https://github.com/jermp/sshash.git
+	url = https://github.com/rob-p/sshash.git
