@@ -535,7 +535,7 @@ set(SSHASH_CITYHASH_SOURCES
 set(SSHASH_SOURCES
   ${SSHASH_ROOT}/src/build.cpp
   ${SSHASH_ROOT}/src/query.cpp
-  ${SSHASH_ROOT}/src/instantiate.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/sshash_instantiate.cpp
 )
 add_library(sshash_static STATIC
   ${SSHASH_Z_LIB_SOURCES}
@@ -551,6 +551,7 @@ target_include_directories(sshash_static PUBLIC
   ${SSHASH_ROOT}/external/pthash/external/mm_file/include
   ${SSHASH_ROOT}
   ${SSHASH_ROOT}/include
+  ${SSHASH_ROOT}/src
 )
 target_compile_definitions(sshash_static PUBLIC SSHASH_USE_TRADITIONAL_NUCLEOTIDE_ENCODING)
 target_compile_features(sshash_static PUBLIC cxx_std_17)
