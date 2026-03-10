@@ -667,7 +667,8 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
                                             ) {
   constexpr uint16_t flags = 0x4;
 
-  nonstd::string_view readNameViewSV(r.name);
+  auto& read = sam_writer_detail::first_read(r);
+  nonstd::string_view readNameViewSV(read.name);
   // If the read name contains multiple space-separated parts, print
   // only the first
   size_t splitPos = readNameViewSV.find(' ');
@@ -675,8 +676,8 @@ inline uint32_t writeUnalignedSingleToStream(fastx_parser::ReadSeq& r,
     readNameViewSV.remove_suffix(readNameViewSV.size() - splitPos);
   }
   std::string readNameView(readNameViewSV.data(), readNameViewSV.size());
-  std::string* readSeq = &(r.seq);
-  std::string* readQual = formatter.use_qualities ? &(r.qual) : &(formatter.empty_qual);
+  std::string* readSeq = &(read.seq);
+  std::string* readQual = formatter.use_qualities ? &(read.qual) : &(formatter.empty_qual);
 
   sstream << readNameView << '\t' // QNAME
           << flags << '\t'        // FLAGS
