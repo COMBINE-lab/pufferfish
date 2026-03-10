@@ -98,7 +98,7 @@ struct LIBASYNC_CACHELINE_ALIGN task_base: public ref_count_base<task_base, task
 	void run_continuation(Sched& sched, task_ptr&& cont)
 	{
 		LIBASYNC_TRY {
-			detail::schedule_task(sched, std::move(cont));
+			detail::schedule_task(sched, cont);
 		} LIBASYNC_CATCH(...) {
 			// This is suboptimal, but better than letting the exception leak
 			cont->vtable->cancel(cont.get(), std::current_exception());
@@ -111,8 +111,8 @@ struct LIBASYNC_CACHELINE_ALIGN task_base: public ref_count_base<task_base, task
 	void run_continuations()
 	{
 		continuations.flush_and_lock([this](task_ptr t) {
-			const task_base_vtable* vtable = t->vtable;
-			vtable->schedule(this, std::move(t));
+			const task_base_vtable* vtable_ptr = t->vtable;
+			vtable_ptr->schedule(this, std::move(t));
 		});
 	}
 
@@ -166,8 +166,8 @@ struct task_base_deleter {
 template<typename Result>
 struct task_result_holder: public task_base {
 	union {
-		typename std::aligned_storage<sizeof(Result), std::alignment_of<Result>::value>::type result;
-		std::aligned_storage<sizeof(std::exception_ptr), std::alignment_of<std::exception_ptr>::value>::type except;
+		alignas(Result) std::uint8_t result[sizeof(Result)];
+		alignas(std::exception_ptr) std::uint8_t except[sizeof(std::exception_ptr)];
 
 		// Scheduler that should be used to schedule this task. The scheduler
 		// type has been erased and is held by vtable->schedule.
@@ -208,7 +208,7 @@ struct task_result_holder<Result&>: public task_base {
 	union {
 		// Store as pointer internally
 		Result* result;
-		std::aligned_storage<sizeof(std::exception_ptr), std::alignment_of<std::exception_ptr>::value>::type except;
+		alignas(std::exception_ptr) std::uint8_t except[sizeof(std::exception_ptr)];
 		void* sched;
 	};
 
@@ -233,7 +233,7 @@ struct task_result_holder<Result&>: public task_base {
 template<>
 struct task_result_holder<fake_void>: public task_base {
 	union {
-		std::aligned_storage<sizeof(std::exception_ptr), std::alignment_of<std::exception_ptr>::value>::type except;
+		alignas(std::exception_ptr) std::uint8_t except[sizeof(std::exception_ptr)];
 		void* sched;
 	};
 
@@ -271,17 +271,17 @@ struct task_result: public task_result_holder<Result> {
 	}
 
 	// Cancel a task with the given exception
-	void cancel_base(std::exception_ptr&& except)
+	void cancel_base(std::exception_ptr&& except_)
 	{
-		set_exception(std::move(except));
+		set_exception(std::move(except_));
 		this->state.store(task_state::canceled, std::memory_order_release);
 		this->run_continuations();
 	}
 
 	// Set the exception value of the task
-	void set_exception(std::exception_ptr&& except)
+	void set_exception(std::exception_ptr&& except_)
 	{
-		new(&this->except) std::exception_ptr(std::move(except));
+		new(&this->except) std::exception_ptr(std::move(except_));
 	}
 
 	// Get the exception a task was canceled with
@@ -344,7 +344,7 @@ struct func_base<Func, typename std::enable_if<std::is_empty<Func>::value>::type
 // Class to hold a function object and initialize/destroy it at any time
 template<typename Func, typename = void>
 struct func_holder {
-	typename std::aligned_storage<sizeof(Func), std::alignment_of<Func>::value>::type func;
+	alignas(Func) std::uint8_t func[sizeof(Func)];
 
 	Func& get_func()
 	{

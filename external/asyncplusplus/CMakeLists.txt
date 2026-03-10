@@ -18,10 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 project(Async++ C CXX)
 
-option(BUILD_SHARED_LIBS "Build Async++ as a shared library" OFF)
+option(BUILD_SHARED_LIBS "Build Async++ as a shared library" ON)
 option(USE_CXX_EXCEPTIONS "Enable C++ exception support" ON)
 if (APPLE)
 	option(BUILD_FRAMEWORK "Build a Mac OS X framework instead of a library" OFF)
@@ -75,7 +75,6 @@ if (APPLE)
 endif()
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-
 target_link_libraries(Async++ PUBLIC Threads::Threads)
 
 # Set up preprocessor definitions
@@ -113,6 +112,19 @@ if (NOT USE_CXX_EXCEPTIONS)
 	else()
 		target_compile_options(Async++ PUBLIC -fno-exceptions)
 	endif()
+endif()
+
+# /Zc:__cplusplus is required to make __cplusplus accurate
+# /Zc:__cplusplus is available starting with Visual Studio 2017 version 15.7
+# (according to https://docs.microsoft.com/en-us/cpp/build/reference/zc-cplusplus)
+# That version is equivalent to _MSC_VER==1914
+# (according to https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=vs-2019)
+# CMake's ${MSVC_VERSION} is equivalent to _MSC_VER
+# (according to https://cmake.org/cmake/help/latest/variable/MSVC_VERSION.html#variable:MSVC_VERSION)
+# GREATER and EQUAL are used because GREATER_EQUAL is available starting with CMake 3.7
+# (according to https://cmake.org/cmake/help/v3.7/release/3.7.html#commands)
+if ((MSVC) AND ((MSVC_VERSION GREATER 1914) OR (MSVC_VERSION EQUAL 1914)))
+    target_compile_options(Async++ PUBLIC /Zc:__cplusplus)
 endif()
 
 include(CMakePackageConfigHelpers)
