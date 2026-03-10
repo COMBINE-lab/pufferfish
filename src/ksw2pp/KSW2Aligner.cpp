@@ -249,11 +249,14 @@ int KSW2Aligner::operator()(const char* const queryOriginal,
   int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
   int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
   int z = config_.dropoff;
+  #ifndef KSW_USE_ARM
   if (haveAVX2) {
     ksw_extz2_avx2(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                 target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
                 config_.end_bonus, config_.flag, ez, cutoff);
-  } else if (haveSSE41) {
+  } else
+  #endif
+  if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_.data(), tlen,
                 target_.data(), config_.alphabetSize, mat_.data(), q, e, w, z,
                 config_.end_bonus, config_.flag, ez, cutoff);
@@ -398,11 +401,14 @@ int KSW2Aligner::operator()(const uint8_t* const query_, const int queryLength,
   int max_qt_len = (queryLength > targetLength) ? queryLength : targetLength;
   int w = (config_.bandwidth > max_qt_len) ? max_qt_len : config_.bandwidth;
   int z = config_.dropoff;
+  #ifndef KSW_USE_ARM
   if (haveAVX2) {
     ksw_extz2_avx2(kalloc_allocator_.get(), qlen, query_, tlen, target_,
                 config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
                 ez, cutoff);
-  } else if (haveSSE41) {
+  } else
+  #endif
+  if (haveSSE41) {
     ksw_extz2_sse41(kalloc_allocator_.get(), qlen, query_, tlen, target_,
                 config_.alphabetSize, mat_.data(), q, e, w, z, config_.end_bonus, config_.flag,
                 ez, cutoff);
