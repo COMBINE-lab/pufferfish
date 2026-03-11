@@ -58,7 +58,9 @@ namespace TwoPaCo
 		const CandidateOccurence & operator = (const CandidateOccurence & toCopy)
 		{
 			body_ = toCopy.body_;
-			count_ = toCopy.count_;
+			int64_t val = toCopy.count_;
+			count_ = val;
+			return *this;
 		}
 
 		void Inc()
