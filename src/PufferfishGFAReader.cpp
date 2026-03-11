@@ -329,8 +329,8 @@ void GFAReader::parseFile() {
     }
   }
   k = k - 1;
-  logger_->info("Total # of Contigs : {:L}", contig_cnt);
-  logger_->info("Total # of numerical Contigs : {:L}", contigid2seq.size());
+  logger_->info("Total # of Contigs : {}", locale_fmt("{:L}", contig_cnt));
+  logger_->info("Total # of numerical Contigs : {}", locale_fmt("{:L}", contigid2seq.size()));
 }
 
 // spp::sparse_hash_map<uint64_t, std::string>& GFAReader::getContigNameMap() {
@@ -410,7 +410,7 @@ void GFAReader::mapContig2Pos() {
           .push_back(pufferfish::util::Position(tr, pos, contigs[i].second));
     }
   }
-  logger_->info("\nTotal # of segments we have position for : {:L}", total_output_lines);
+  logger_->info("\nTotal # of segments we have position for : {}", locale_fmt("{:L}", total_output_lines));
 }
 
 void GFAReader::clearContigTable() {
@@ -476,14 +476,14 @@ void GFAReader::serializeContigTable(const std::string& odir) {
       contigVecSize += contig2pos[kv.first].size();
     }
 
-    logger_->info("total contig vec entries {:L}", contigVecSize);
+    logger_->info("total contig vec entries {}", locale_fmt("{:L}", contigVecSize));
     std::vector<pufferfish::util::Position> cpos;
     cpos.reserve(contigVecSize);
 
     // We need the +1 here because we store the last entry that is 1 greater than the last offset
     // so we must be able to represent of number of size contigVecSize+1, not contigVecSize.
     size_t w = std::ceil(std::log2(contigVecSize+1));
-    logger_->info("bits per offset entry {:L}", w);
+    logger_->info("bits per offset entry {}", locale_fmt("{:L}", w));
     compact::vector<uint64_t> cpos_offsets(w, contigOffsetSize);
 
     //std::vector<uint64_t> cpos_offsets;

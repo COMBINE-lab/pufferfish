@@ -139,7 +139,7 @@ namespace pufferfish {
             prevPos = nextPos;
             contigCntr++;
         }
-        logger_->info("contig count for validation: {:L}", contigCntr);
+        logger_->info("contig count for validation: {}", locale_fmt("{:L}", contigCntr));
 
         // start and end kmer-hash over the contigs
         // might get deprecated later
@@ -169,8 +169,8 @@ namespace pufferfish {
                 uint64_t contigId = abs(contigIdAndOri)-1;
                 if (contigId >= contigid2seq.size()) {
                     logger_->error("Should never ever happen. "
-                                   "Found a contigId in a path that was greater than the max contigId: {:L}, {:L}",
-                                   contigId, contigid2seq.size());
+                                   "Found a contigId in a path that was greater than the max contigId: {}, {}",
+                                   locale_fmt("{:L}", contigId), locale_fmt("{:L}", contigid2seq.size()));
                     std::exit(3);
                 }
                 bool ori = contigIdAndOri > 0; // ori is set to 1 for case fw where the contigId is positive
@@ -254,8 +254,8 @@ namespace pufferfish {
             }
         }
         k = k - 1;
-        logger_->info("Total # of Contigs : {:L}", contigCntr);
-        logger_->info("Total # of numerical Contigs : {:L}", contigid2seq.size());
+        logger_->info("Total # of Contigs : {}", locale_fmt("{:L}", contigCntr));
+        logger_->info("Total # of numerical Contigs : {}", locale_fmt("{:L}", contigid2seq.size()));
     }
 
 
@@ -284,9 +284,9 @@ namespace pufferfish {
         for (uint64_t i = 0; i < cposOffsetvec.size() - 1; i++) {
             cposOffsetvec[i+1] = cposOffsetvec[i]+cposOffsetvec[i+1];
         }
-        logger_->info("Total # of contig vec entries: {:L}", totalPosCnt);
+        logger_->info("Total # of contig vec entries: {}", locale_fmt("{:L}", totalPosCnt));
         auto w = static_cast<uint32_t >(std::ceil(std::log2(totalPosCnt+1)));
-        logger_->info("bits per offset entry {:L}", w);
+        logger_->info("bits per offset entry {}", locale_fmt("{:L}", w));
 
         contig2pos.resize(totalPosCnt);
         for (auto const &ent : path) {
@@ -313,7 +313,7 @@ namespace pufferfish {
         }
         cposOffsetvec.clear();
         cposOffsetvec.shrink_to_fit();
-        logger_->info("Done constructing the contig vector. {:L}", cpos_offsets->size());
+        logger_->info("Done constructing the contig vector. {}", locale_fmt("{:L}", cpos_offsets->size()));
     }
 
     void BinaryGFAReader::clearContigTable() {

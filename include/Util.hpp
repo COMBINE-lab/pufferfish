@@ -22,10 +22,20 @@
 #include "itlib/small_vector.hpp"
 #include "ankerl/unordered_dense.h"
 #include "compact_vector/compact_vector.hpp"
+#include <locale>
 
 #ifdef PUFFERFISH_SALMON_SUPPORT
 #include "LibraryFormat.hpp"
 #endif
+
+// Format a value with locale-aware thousands separators (e.g. 1,234,567).
+// Use this to pre-format numbers before passing to spdlog, since spdlog's
+// {:L} specifier requires a locale-imbued format context to work properly.
+template <typename... Args>
+inline std::string locale_fmt(spdlog::fmt_lib::format_string<Args...> fmt, Args&&... args) {
+  static const std::locale loc("en_US.UTF-8");
+  return spdlog::fmt_lib::format(loc, fmt, std::forward<Args>(args)...);
+}
 
 #ifndef __DEFINE_LIKELY_MACRO__
 #define __DEFINE_LIKELY_MACRO__
