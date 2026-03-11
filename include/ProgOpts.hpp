@@ -8,6 +8,7 @@ namespace pufferfish {
 class IndexOptions {
 public:
   uint32_t k{31};
+  uint32_t m{0};  // minimizer length for SSHash; 0 = auto (min(20, max(4, k-4)))
   uint32_t p{16};
   std::string gfa_file;
   std::string cfile;

@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
                     (option("-f", "--filt-size") & value("filt_size", indexOpt.filt_size)) % "filter size to pass to TwoPaCo when building the reference dBG",
                     (option("--tmpdir") & value("twopaco_tmp_dir", indexOpt.twopaco_tmp_dir)) % "temporary work directory to pass to TwoPaCo when building the reference dBG",
                     (option("-k", "--klen") & value("kmer_length", indexOpt.k))  % "length of the k-mer with which the dBG was built (default = 31)",
+                    (option("-m", "--mlen") & value("minimizer_length", indexOpt.m))  % "length of the minimizer for SSHash (default = auto: min(20, max(4, k-4)))",
                     (option("-p", "--threads") & value("threads", indexOpt.p))  % "total number of threads to use for building MPHF (default = 16)",
                     (option("--no-sshash").set(indexOpt.noSSHash, true) % "use legacy dense (BooPHF) index instead of SSHash (default = false)"),
                     (option("-l", "--build-edges").set(indexOpt.buildEdgeVec, true) % "build and record explicit edge table for the contaigs of the ccdBG (default = false)"),

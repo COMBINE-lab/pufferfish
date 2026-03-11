@@ -282,6 +282,12 @@ void process_mem_usage(double& vm_usage, double& resident_set)
 
 int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
   uint32_t k = indexOpts.k;
+
+  if (k % 2 == 0) {
+    fmt::print(stderr, "Error: k must be odd, but got k = {}.\n", k);
+    return 1;
+  }
+
   std::vector<std::string> rfiles = indexOpts.rfile;
   std::string rfile;
   std::string outdir = indexOpts.outdir;
@@ -652,15 +658,26 @@ int pufferfishIndex(pufferfish::IndexOptions& indexOpts) {
     {
       sshash::build_configuration build_config;
       build_config.k = k;
-      build_config.m = std::min(static_cast<uint64_t>(20), static_cast<uint64_t>(k));
+      if (indexOpts.m > 0) {
+        // User explicitly set m
+        if (indexOpts.m >= k) {
+          jointLog->error("Minimizer length m ({}) must be less than k ({}).", indexOpts.m, k);
+          return 1;
+        }
+        build_config.m = indexOpts.m;
+      } else {
+        // Auto: min(20, max(4, k-4))
+        build_config.m = std::min(static_cast<uint64_t>(20), std::max(static_cast<uint64_t>(4), static_cast<uint64_t>(k - 4)));
+      }
+      jointLog->info("Using minimizer length m = {}", build_config.m);
       build_config.canonical = true;
       build_config.num_threads = indexOpts.p;
       build_config.tmp_dirname = outdir;
       build_config.verbose = true;
       dict.build(contigFastaFile, build_config);
     }
-    jointLog->info("SSHash dictionary built: {:L} kmers, {:L} strings",
-                   dict.num_kmers(), dict.num_strings());
+    jointLog->info("SSHash dictionary built: {} kmers, {} strings",
+                   locale_fmt("{:L}", dict.num_kmers()), locale_fmt("{:L}", dict.num_strings()));
 
     // Verify k-mer count matches
     if (dict.num_kmers() != nkeys) {
