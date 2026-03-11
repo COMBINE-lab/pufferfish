@@ -51,15 +51,15 @@ namespace TwoPaCo
 
 		CandidateOccurence(const CandidateOccurence & toCopy): body_(toCopy.body_)
 		{
-			int64_t val = toCopy.count_;
-			count_ = val;
+			count_.store(toCopy.count_.load(std::memory_order_relaxed),
+			             std::memory_order_relaxed);
 		}
 
 		const CandidateOccurence & operator = (const CandidateOccurence & toCopy)
 		{
 			body_ = toCopy.body_;
-			int64_t val = toCopy.count_;
-			count_ = val;
+			count_.store(toCopy.count_.load(std::memory_order_relaxed),
+			             std::memory_order_relaxed);
 			return *this;
 		}
 
