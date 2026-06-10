@@ -303,9 +303,20 @@ auto PufferfishIndex::getRefPos(CanonicalKmer& mer, pufferfish::util::QueryCache
   uint64_t globalPos = res.string_begin + relPos;
   uint64_t clen = res.string_end - res.string_begin;
 
-  // Derive orientation from SSHash's lookup result directly.
-  bool fwIsCanonical = (mer.fwWord() <= mer.rcWord());
-  bool hitFW = (res.kmer_orientation == sshash::constants::forward_orientation) == fwIsCanonical;
+  // The streaming query's lookup is performed on the raw query k-mer string
+  // (kmer_str), so res.kmer_orientation is already relative to the *query*
+  // k-mer: forward_orientation means the query k-mer reads along the unitig
+  // forward, which is exactly hitFW. Take it directly.
+  //
+  // NOTE: do NOT correct by `== fwIsCanonical` here. The non-streaming
+  // getRefPos overloads look up the *canonical* word (`dict_.lookup` on
+  // `mer.getCanonicalWord()`), so their orientation is canonical-relative and
+  // must be converted with fwIsCanonical. The streaming lookup is already
+  // query-relative; applying that correction flipped the orientation of
+  // non-canonical query k-mers, which mis-placed reads whose only seed is a
+  // single non-canonical k-mer onto the wrong strand (and, after a downstream
+  // RC alignment, dropped them as low-scoring).
+  bool hitFW = (res.kmer_orientation == sshash::constants::forward_orientation);
 
   // Cache contig table range to avoid repeated Elias-Fano lookups.
   core::range<IterT> contigIterRange;
