@@ -407,7 +407,14 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
           
           ksw_reset_extz(&ez);
           bandwidth = maxAllowedGaps(0, 0) + 1;
-          auto cutoff = minAcceptedScore - mopts.matchScore * read.length();
+          // Liberal early-termination cutoff = cost of deleting this 5' flank
+          // (see the matching note on the 3' flank). A tighter cutoff can stop
+          // the DP at an early row before the query-end score ez.mqe is
+          // recorded, leaving it KSW_NEG_INF so the score below collapses to
+          // -inf and the read is dropped even though its 5' flank aligns well.
+          int32_t delCost = (-1 * mopts.gapOpenPenalty +
+                             -1 * mopts.gapExtendPenalty * readWindow.length());
+          auto cutoff = delCost;
           aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
                   refSeqBuffer_.length(), &ez, cutoff,
                   ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
@@ -646,18 +653,29 @@ bool PuffAligner::alignRead(std::string& read, std::string& read_rc, const std::
 
         if (refLen > 0) {
           ksw_reset_extz(&ez);
-          auto cutoff = minAcceptedScore - alignmentScore - mopts.matchScore * readWindow.length();
-          aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
-                  refLen, &ez, cutoff,
-                  ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
-          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
-          if (ez.mqe != KSW_NEG_INF) ez.stopped = 0;
           // we start out with the score we obtain if we extend all the
           // way to the end of the **query**.  This is the max score we can
           // get by either
           // simply deleting the rest of the read
           int32_t delCost = (-1 * mopts.gapOpenPenalty +
                              -1 * mopts.gapExtendPenalty * readWindow.length());
+          // Use the flank-deletion cost as a *liberal* early-termination cutoff.
+          // The DP's running bound is an upper bound on ez.mqe, and part_score
+          // below is max(ez.mqe, delCost); so pruning the DP only once even the
+          // optimistic best falls below delCost is lossless (delCost wins the
+          // max() anyway). A tighter cutoff (the previous
+          // minAcceptedScore - alignmentScore - matchScore*flankLen) could stop
+          // the DP at an early row before the query-end score ez.mqe was ever
+          // recorded, leaving it KSW_NEG_INF and forcing a spurious delCost
+          // fallback for a flank that actually aligns well -- which dropped
+          // reads with a long flank off a single anchor (e.g. one mismatch just
+          // past the anchor).
+          auto cutoff = delCost;
+          aligner(readWindow.data(), readWindow.length(), refSeqBuffer_.data(),
+                  refLen, &ez, cutoff,
+                  ksw2pp::EnumToType<ksw2pp::KSW2AlignmentType::EXTENSION>());
+          if (ez.stopped) hctr.skippedAlignments_notAlignable += 1;
+          if (ez.mqe != KSW_NEG_INF) ez.stopped = 0;
           // or taking the ksw2 alignment score to the end fo the read
           decltype(alignmentScore) part_score = std::max(ez.mqe, delCost);
 
