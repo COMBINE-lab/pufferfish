@@ -826,8 +826,24 @@ int32_t PuffAligner::calculateAlignments(std::string& read_left, std::string& re
           jointHit.leftClust->cigar = "";
           jointHit.rightClust->cigar = "";
         }
-        return (jointHit.alignmentScore == invalidScore or jointHit.mateAlignmentScore == invalidScore) ?
-        invalidScore:jointHit.alignmentScore+jointHit.mateAlignmentScore;
+        // Orphan-rescue: if a concordant pair has exactly one mate passing the
+        // per-mate score threshold, emit that mate as an orphan instead of
+        // discarding the whole fragment (matches the rust port's behavior — a
+        // perfect/strong mate should not be lost because its partner is
+        // error-laden or mis-oriented).
+        bool leftOk = (jointHit.alignmentScore != invalidScore);
+        bool rightOk = (jointHit.mateAlignmentScore != invalidScore);
+        if (leftOk and rightOk) {
+            return jointHit.alignmentScore + jointHit.mateAlignmentScore;
+        } else if (leftOk) {
+            jointHit.mateStatus = pufferfish::util::MateStatus::PAIRED_END_LEFT;
+            return jointHit.alignmentScore;
+        } else if (rightOk) {
+            jointHit.mateStatus = pufferfish::util::MateStatus::PAIRED_END_RIGHT;
+            jointHit.alignmentScore = jointHit.mateAlignmentScore;
+            return jointHit.alignmentScore;
+        }
+        return invalidScore;
     }
 }
 

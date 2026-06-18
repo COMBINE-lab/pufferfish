@@ -170,9 +170,16 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                         exit(1);
                     }
 
-                    // FILTERING fragments with size smaller than maxFragmentLength
-                    // FILTER just in case of priority 0 (round 0)
-                    if ((static_cast<uint32_t>(fragmentLen) < maxFragmentLength) or (round > 0)) {
+                    // FILTERING fragments longer than maxFragmentLength.
+                    // FILTER just in case of priority 0 (round 0).
+                    // NOTE: the bound is inclusive (`<=`): a fragment whose length
+                    // is exactly maxFragmentLength is at — not beyond — the maximum,
+                    // so it is a valid concordant pair. The previous strict `<`
+                    // dropped exactly-maxFragmentLength fragments, which silently
+                    // lost otherwise-co-optimal placements (e.g. a read pairing to a
+                    // paralog whose exon spacing puts the fragment right at the
+                    // bound). This also matches the rust salmon boundary semantics.
+                    if ((static_cast<uint32_t>(fragmentLen) <= maxFragmentLength) or (round > 0)) {
                         // This will add a new potential mapping. Coverage of a mapping for read pairs is left->coverage + right->coverage
                         // If we found a perfect coverage, we would only add those mappings that have the same perfect coverage
                         auto totalCoverage = lclust->coverage + rclust->coverage;
