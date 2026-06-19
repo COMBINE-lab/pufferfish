@@ -122,7 +122,13 @@ namespace pufferfish {
         // pair that mapped to disjoint reference sets (salmon's
         // --orphansRequireUnmappedMate).
         bool orphansRequireUnmappedMate{false};
-        // after merging chains for paired-end reads 
+        // When true, a concordant pair to a *decoy* does not suppress orphan
+        // emission: orphans are still emitted if there is no concordant
+        // *non-decoy* (transcript) pair. This lets salmon's --allowDecoyOrphans
+        // recover the transcript orphan of a fragment that pairs best to the
+        // genome decoy (matches the Rust implementation).
+        bool allowDecoyOrphans{false};
+        // after merging chains for paired-end reads
         // only chains having this threshold score 
         // *with respect to the best chain on the same target*
         // will be passed to the next stage of mapping.

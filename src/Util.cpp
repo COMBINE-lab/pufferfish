@@ -110,6 +110,7 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     uint32_t maxCoverage{0};
     uint8_t round{0};
     int32_t sameTxpCount{0};
+    int32_t nonDecoyPairCount{0}; // concordant/discordant pairs on non-decoy targets
     int32_t numConcordant{0};
     int32_t numDiscordant{0};
     size_t index_for_current_transcript{0};
@@ -188,7 +189,8 @@ pufferfish::util::MergeResult joinReadsAndFilter(
 
                             if (totalCoverage >= best_pair_in_target * thresh){
                               ++sameTxpCount;
-                              numConcordant += concordantSearch ? 1 : 0;                           
+                              if (static_cast<uint64_t>(tid) < firstDecoyIndex) { ++nonDecoyPairCount; }
+                              numConcordant += concordantSearch ? 1 : 0;
     
                               //if ((totalCoverage > best_pair_in_target * ithresh) and (jointMemsList.size() > index_for_current_transcript)) {
                               //  jointMemsList.erase(jointMemsList.begin()+index_for_current_transcript, jointMemsList.end());
@@ -240,8 +242,17 @@ pufferfish::util::MergeResult joinReadsAndFilter(
     // if we've collected any mappings the same transcript, either concordant or discordant (if we are allowing it)
     // then don't consider orphans.
     bool noPairedMappings = (sameTxpCount == 0);
+    // --allowDecoyOrphans: when the only concordant pairs are to decoys (no
+    // non-decoy/transcript pair), a decoy pair would normally suppress orphan
+    // emission; instead still emit the orphans so the transcript orphan can be
+    // recovered downstream (the consumer keeps it under the flag, or drops it as
+    // decoy-dominated by default). Gated on the flag, so the default path is
+    // unchanged. Matches the Rust implementation.
+    bool decoyOnlyPairs = mpol.allowDecoyOrphans and (nonDecoyPairCount == 0) and (sameTxpCount > 0);
     bool leftOrphan = false; bool rightOrphan = false;
-    if (!noOrphans and noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1)) {
+    if (!noOrphans and
+        ((noPairedMappings and (!jointMemsList.size() or !isMaxLeftAndRight or maxLeftCnt > 1 or maxRightCnt > 1))
+         or decoyOnlyPairs)) {
         auto orphanFiller = [&jointMemsList, &maxCoverage, &maxLeftOrRight, &leftOrphan, &rightOrphan, orphan_chain_sub_thresh]
         (pufferfish::util::CachedVectorMap<size_t, std::vector<pufferfish::util::MemCluster>, std::hash<size_t>> &memClusters,
                  bool isLeft) {
@@ -348,8 +359,15 @@ pufferfish::util::MergeResult joinReadsAndFilter(
         std::cerr << "\nBefore filter " << jointMemsList.size() << " maxCov:" << maxCoverage << "\n";
 #endif // ALLOW_VERBOSE
 
+    // --allowDecoyOrphans: when the only concordant pair is to a decoy, that
+    // pair sets `maxCoverage` to ~2x a single-mate orphan, so the recovered
+    // transcript orphan would otherwise be erased by the global coverage-ratio
+    // filter below. Spare orphan entries from that erasure in this case so the
+    // transcript orphan survives to the consumer (which keeps it under the
+    // flag). Gated on `decoyOnlyPairs`, so the default path is unchanged.
     jointMemsList.erase(std::remove_if(jointMemsList.begin(), jointMemsList.end(),
-                                       [&maxCoverage, coverageRatio](pufferfish::util::JointMems &pairedReadMems) -> bool {
+                                       [&maxCoverage, coverageRatio, decoyOnlyPairs](pufferfish::util::JointMems &pairedReadMems) -> bool {
+                                           if (decoyOnlyPairs and pairedReadMems.isOrphan()) { return false; }
                                            return pairedReadMems.coverage() < coverageRatio * maxCoverage;
                                        }),
                         jointMemsList.end());
