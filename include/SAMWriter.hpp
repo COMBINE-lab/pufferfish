@@ -900,18 +900,21 @@ inline uint32_t writeAlignmentsToStream(
         readQual2 = formatter.use_qualities ? &(qual2Temp) : &(formatter.empty_qual);
       }
 
-      // If the fragment overhangs the right end of the transcript
-      // adjust fragLen (overhanging the left end is already handled).
+      // If the fragment overhangs the right end of the transcript, clamp the
+      // fragment length used for the SAM TLEN field (overhanging the left end is
+      // already handled). IMPORTANT: do NOT write the clamped value back into
+      // `qa.fragLen` — the same QuasiAlignment is reused by downstream bias-model
+      // collection (gcBias/posBias), and mutating it here corrupts those models
+      // and can drive an out-of-bounds access in Transcript::gcDesc (issue #1010,
+      // which only triggered with --writeMappings + --gcBias). Use a local.
       int32_t read1Pos = qa.pos;
       int32_t read2Pos = qa.matePos;
       const bool read1First{read1Pos < read2Pos};
       const int32_t minPos = read1First ? read1Pos : read2Pos;
-      if ((minPos + static_cast<int32_t>(qa.fragLen)) >
-          static_cast<int32_t>(txpLen)) {
-        qa.fragLen = txpLen - minPos;
+      int32_t fragLen = static_cast<int32_t>(qa.fragLen);
+      if ((minPos + fragLen) > static_cast<int32_t>(txpLen)) {
+        fragLen = static_cast<int32_t>(txpLen) - minPos;
       }
-      // get the fragment length as a signed int
-      const int32_t fragLen = static_cast<int32_t>(qa.fragLen);
 
       std::stringstream ss;
 
