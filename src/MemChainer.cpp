@@ -71,7 +71,17 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
     return 0;
   }
 
-  size_t maxNonDecoyHits{0};
+  // Max MEM-hit count over ALL references (transcript AND decoy), so transcript
+  // and decoy targets are chained on equal footing. Previously this counted only
+  // non-decoy references, so a mate mapping *only* to a decoy (e.g. an intronic
+  // read of a genomic / pre-mRNA fragment) returned 0 here, and findOptChain's
+  // `if (maxHits == 0) return false` then built it no chains at all — so it could
+  // never form the concordant decoy pair its mate participates in, and the
+  // genomic fragment leaked through as a spurious transcript orphan. Counting
+  // decoy hits equally lets such a mate be chained and paired (matching the Rust
+  // implementation, whose chaining/consensus considers decoy and transcript
+  // candidates together).
+  size_t maxHits{0};
   size_t totSize{0};
   for (auto &hit : core::range<decltype(hits.begin())>(hits.begin(), hits.end())) {
     auto &refs = hit.second.refRange;
@@ -104,12 +114,13 @@ size_t MemClusterer::fillMemCollection(std::vector<std::pair<int, pufferfish::ut
         auto& refHits = trMemMap[encodeRefKey(tid, refPosOri.isFW)];
         refHits.emplace_back(memItr, refPosOri.pos, refPosOri.isFW);
         auto nh = refHits.size();
-        maxNonDecoyHits = (tid < firstDecoyIndex) ? std::max(nh, maxNonDecoyHits) : maxNonDecoyHits;
+        maxHits = std::max(nh, maxHits);
       //}
       }
     }
   }
-  return maxNonDecoyHits;
+  (void)firstDecoyIndex; // no longer used to gate hit counting (see maxHits above)
+  return maxHits;
 }
 
 bool MemClusterer::findOptChain(std::vector<std::pair<int, pufferfish::util::ProjectedHits>> &hits,
