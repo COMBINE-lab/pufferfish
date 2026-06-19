@@ -117,6 +117,11 @@ namespace pufferfish {
         bool noOrphans;
         bool noDiscordant;
         bool noDovetail;
+        // When true, only emit single-mate (orphan) mappings for a read whose
+        // mate is entirely unmapped; do not report orphans for both mates of a
+        // pair that mapped to disjoint reference sets (salmon's
+        // --orphansRequireUnmappedMate).
+        bool orphansRequireUnmappedMate{false};
         // after merging chains for paired-end reads 
         // only chains having this threshold score 
         // *with respect to the best chain on the same target*

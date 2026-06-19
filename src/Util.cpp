@@ -316,8 +316,17 @@ pufferfish::util::MergeResult joinReadsAndFilter(
                 */
             } // for (auto &clustItr : memClusters) [ over all transcripts]
         };
-        orphanFiller(leftMemClusters, true);
-        orphanFiller(rightMemClusters, false);
+        // Under --orphansRequireUnmappedMate, only report orphans for a mate when
+        // the *other* mate produced no mappings at all (it is truly unmapped), so
+        // a read that mapped only alongside a mate mapping to a disjoint reference
+        // set is not reported as an orphan. Default: report the union of both.
+        bool reqUnmapped = mpol.orphansRequireUnmappedMate;
+        if (!reqUnmapped || rightMemClusters.size() == 0) {
+            orphanFiller(leftMemClusters, true);
+        }
+        if (!reqUnmapped || leftMemClusters.size() == 0) {
+            orphanFiller(rightMemClusters, false);
+        }
     }
     if (sameTxpCount == 0) {
       if (leftOrphan and !rightOrphan) {
